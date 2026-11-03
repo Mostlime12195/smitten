@@ -17,7 +17,8 @@ schemaLib.setSchema(JSON.parse(readFileSync(join(root, 'love', 'src', 'modules',
 const { SceneDoc } = await import(editor('core/scene-doc.js'));
 const { detectModules } = await import(editor('core/modules.js'));
 const { TEMPLATES } = await import(editor('core/templates.js'));
-const { scriptVariables } = await import(editor('core/script-vars.js'));
+const { scriptVariables, isOldStyleScript } = await import(editor('core/script-vars.js'));
+const { SCRIPT_API_NAMES } = await import(editor('core/script-api.js'));
 const { SCRIPT_LIBRARY } = await import(editor('core/script-library.js'));
 
 let passed = 0;
@@ -163,7 +164,15 @@ check('modules from code', cm.physics2d.included && cm.synth.included && !cm.vid
 // --- Ready-made scripts ------------------------------------------------------------
 for (const sc of SCRIPT_LIBRARY) {
   check(`${sc.id}: suits real pieces`, sc.suits.every((t) => types[t]), sc.suits.join(','));
-  check(`${sc.id}: returns its table`, /\nreturn [A-Z]\w*\s*$/.test(sc.source));
+  check(`${sc.id}: is the piece's own code`, !isOldStyleScript(sc.source) && !/\bself\./.test(sc.source));
+  // Every bare call is the script's own function, a piece method, the short API or Lua's.
+  const own = new Set([...sc.source.matchAll(/function (\w+)\(/g)].map((m) => m[1]));
+  for (const m of sc.source.matchAll(/(^|[^.:\w])([a-z]\w*)\(/g)) {
+    const name = m[2];
+    if (['function', 'if', 'return', 'and', 'or', 'not', 'print', 'tostring', 'tonumber', 'pairs', 'ipairs', 'type', 'select', 'unpack'].includes(name)) continue;
+    const known = own.has(name) || SCRIPT_API_NAMES.has(name) || Object.values(types).some((d) => d.methods && d.methods[name]);
+    check(`${sc.id}: ${name}() exists`, known);
+  }
   check(`${sc.id}: has script variables`, scriptVariables(sc.source).length > 0 || sc.id === 'drag');
   for (const m of sc.source.matchAll(/self:(\w+)\(/g)) {
     const known = Object.values(types).some((d) => d.methods && d.methods[m[1]]) || new RegExp(`function \\w+:${m[1]}\\(`).test(sc.source);
@@ -185,6 +194,19 @@ return Player
 `);
 check('script variables', eq(vars.map((v) => [v.name, v.type]), [['speed', 'number'], ['name', 'string'], ['alive', 'bool'], ['tint', 'color']]), JSON.stringify(vars));
 check('script variable comment', vars[0].description === 'how fast it runs');
+const newVars = scriptVariables(`-- a script that is the piece
+speed = 140   -- how fast it runs
+name = "Hero"
+alive = true
+tint = {1, 0.5, 0}
+_hidden = 3
+local secret = 4
+function update(dt)
+  speed = 5
+end
+`);
+check('script variables (a script that is the piece)', eq(newVars.map((v) => [v.name, v.type]), [['speed', 'number'], ['name', 'string'], ['alive', 'bool'], ['tint', 'color']]), JSON.stringify(newVars));
+check('script variable comment (new style)', newVars[0].description === 'how fast it runs' && newVars[0].value === 140);
 check('script variable color alpha', eq(vars[3].value, [1, 0.5, 0, 1]));
 
 console.log(`${passed} passed, ${failed} failed`);

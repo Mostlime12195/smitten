@@ -40,19 +40,16 @@ formats. [DESIGN.md](DESIGN.md) explains the decisions behind Smitten,
 including what it changes from LÖVE.
 
 ```lua
--- scripts/coin.lua, attached to a Zone
-local Coin = {}
+-- scripts/coin.lua, attached to a Zone: a script is the piece's own code
+points = 10               -- shown in the inspector
 
-Coin.points = 10          -- shown in the inspector
-
-function Coin:entered(other)
-  if other:hasTag("player") then
-    smitten.scene.current:emit("scored", self.points)
-    self:destroy()
+function entered(other)
+  if other:is("player") then
+    sfx("coin")
+    root():emit("scored", points)
+    destroy()
   end
 end
-
-return Coin
 ```
 
 ## What's here
@@ -354,7 +351,7 @@ uploaded anywhere unless you share or publish.
   light and dark themes, icons from [Lucide](https://lucide.dev).
 - The code editor is CodeMirror 6 with Lua and Smitten syntax, and
   completion for LÖVE 12, Smitten's modules, piece methods after `self:`,
-  script functions after `function Name:` and file paths.
+  script functions, the short script API and file paths.
 
 The editor loads CodeMirror from a CDN, so the first load needs an internet
 connection; the code editor falls back to a plain text area if that fails.

@@ -19,11 +19,9 @@ export function libraryScript(id) {
   return s.source;
 }
 
-/** A ready-made script with extra functions added before its return. */
+/** A ready-made script with more code added at the end. */
 function extend(id, extra) {
-  const src = libraryScript(id);
-  const i = src.lastIndexOf('\nreturn ');
-  return `${src.slice(0, i)}\n${extra.trim()}\n${src.slice(i)}`;
+  return `${libraryScript(id).trimEnd()}\n\n${extra.trim()}\n`;
 }
 
 const p = (name, type, properties, children, extra = {}) => ({
@@ -77,33 +75,31 @@ function platformer(name, display) {
     ], { script: 'scripts/level.lua' })),
     'scripts/player.lua': extend('platformer', `
 -- Touching an enemy starts the level again.
-function Player:hit(other)
-  if other:hasTag("enemy") then smitten.scene.reload() end
+function hit(other)
+  if other:is("enemy") then reload() end
 end`),
     'scripts/level.lua': `-- The level: counts the coins the player collects (pickup.lua tells the
 -- scene with a "collected" event).
-local Level = {}
 
-function Level:ready()
-  self.coins = 0
-  self.total = #smitten.scene.tagged("coin")
+local coins, total = 0, 0
+
+function ready()
+  total = #tagged("coin")
 end
 
 -- Fell off the level? Start again.
-function Level:update(dt)
-  local player = smitten.scene.first("player")
-  if player and player.y > 900 then smitten.scene.reload() end
+function update(dt)
+  local player = first("player")
+  if player and player.y > 900 then reload() end
 end
 
-function Level:collected(coin)
-  self.coins += 1
-  self:find("UI/Score").text = \`Coins: {self.coins} / {self.total}\`
-  if self.coins == self.total then
-    self:find("UI/Help").text = "You got them all!"
+function collected(coin)
+  coins += 1
+  find("UI/Score").text = \`Coins: {coins} / {total}\`
+  if coins == total then
+    find("UI/Help").text = "You got them all!"
   end
 end
-
-return Level
 `,
     'scripts/pickup.lua': libraryScript('pickup'),
     'scripts/patrol.lua': libraryScript('patrol'),
@@ -129,18 +125,16 @@ function topdown(name) {
       p('UI', 'Group', null, [p('Time', 'Label', { x: 60, y: 54, width: 400, text: 'Survive!', size: 24, outline: true })]),
     ])),
     'scripts/player.lua': extend('topdown', `
-function Walker:ready()
-  self.time = 0
-end
+local survived = 0
 
-function Walker:update(dt)
-  self.time += dt
-  smitten.scene.find("UI/Time").text = \`Survived {math.floor(self.time)} s\`
+function update(dt)
+  survived += dt
+  root():find("UI/Time").text = \`Survived {math.floor(survived)} s\`
 end
 
 -- Bumping into an enemy starts again.
-function Walker:hit(other)
-  if other:hasTag("enemy") then smitten.scene.reload() end
+function hit(other)
+  if other:is("enemy") then reload() end
 end`),
     'scripts/chase.lua': libraryScript('chase'),
   };
@@ -196,10 +190,10 @@ function pixelPlatformer(name) {
     files[path] = json(data);
   }
   files['scripts/player.lua'] = files['scripts/player.lua']
-    .replace('Player.speed = 220', 'Player.speed = 70').replace('Player.acceleration = 2400', 'Player.acceleration = 700')
-    .replace('Player.jumpHeight = 96', 'Player.jumpHeight = 28').replace('Player.gravity = 1800', 'Player.gravity = 600')
-    .replace('Player.maxFallSpeed = 1000', 'Player.maxFallSpeed = 300');
+    .replace('speed = 220', 'speed = 70').replace('acceleration = 2400', 'acceleration = 700')
+    .replace('jumpHeight = 96', 'jumpHeight = 28').replace('gravity = 1800', 'gravity = 600')
+    .replace('maxFallSpeed = 1000', 'maxFallSpeed = 300');
   files['scripts/level.lua'] = files['scripts/level.lua'].replace('player.y > 900', 'player.y > 230');
-  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('Patrol.speed = 80', 'Patrol.speed = 25').replace('Patrol.gravity = 1800', 'Patrol.gravity = 600');
+  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('speed = 80', 'speed = 25').replace('gravity = 1800', 'gravity = 600');
   return files;
 }

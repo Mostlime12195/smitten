@@ -100,22 +100,43 @@ A scene is a tree of pieces in a `.scene` file (JSON):
 
 ## Scripts
 
-A script is a Lua file that returns a table; attach it to a piece in the
-inspector (or with `"script"` in the scene file). `self` is the piece.
+A script is the piece's own code: attach it to a piece in the inspector
+(or with `"script"` in the scene file). Names in it are the piece's, so
+there's no table to make or return and no `self.` to write.
 
 ```lua
-local Enemy = {}
+-- scripts/enemy.lua, on a scripted Body
+speed = 80           -- script variables: shown in the inspector,
+hurtsPlayer = true   -- changeable per piece
+local hp = 3         -- local: this piece's private state
 
-Enemy.speed = 80          -- script variables: shown in the inspector,
-Enemy.hurtsPlayer = true  -- changeable per piece
+function ready()
+  wait(0.5)          -- ready() and events can wait
+  vx = speed
+end
 
-function Enemy:ready() end
-function Enemy:update(dt) end
-function Enemy:hit(other) end
+function physicsUpdate(dt)
+  vy += 1800 * dt
+  move()
+  if onWall() then vx = -vx end
+end
 
-return Enemy
+function hurt(damage)          -- other scripts call other:hurt(1)
+  hp -= damage
+  if hp <= 0 then sfx("pop") destroy() end
+end
+
+function hit(other)
+  if hurtsPlayer and other:is("player") then other:hurt(1) end
+end
 ```
 
+- **Names**, in the order they're looked up: the script's own functions;
+  the piece (properties like `x`, `vx`, `rotation`, script variables, and
+  methods: `move()` is `self:move()`); children, for capitalized names
+  (`Look.color = {1, 0, 0}`, `Camera.zoom = 2`); the short API below; Lua's
+  globals (`math`, `string`, `print`, `smitten`...). Assigning a name that
+  isn't `local` sets it on the piece. `self` is the piece.
 - **Lifecycle**: `ready()` once when the piece and its children are in the
   scene (children first), `update(dt)` every frame (parents first),
   `physicsUpdate(dt)` 60 times a second, `draw()` in the piece's own
@@ -124,17 +145,42 @@ return Enemy
   into something), `entered(other)` / `exited(other)` (Zones, and Bodies
   going in and out of them), `pressed()` (Buttons), `finished(...)`
   (animations, sounds), `tick()` (Timers). Any piece can `emit(name, ...)`
-  its own.
-- **Listening from elsewhere**: `piece:on("pressed", fn)` returns a handle
-  with `:off()`.
-- **Script variables**: top-level `Name.field = value` lines with a number,
+  its own; `piece:on("pressed", fn)` listens from elsewhere and returns a
+  handle with `:off()`.
+- **Waiting**: `ready()`, `removed()` and events run as tasks, so they can
+  `wait(seconds)`. `task(function() ... end)` runs anything as a task;
+  `update()`, `physicsUpdate()` and `draw()` can't wait.
+- **Script variables**: top-level `name = value` lines with a number,
   string, boolean or color (`{r, g, b, a}`) value; names starting with `_`
   are hidden.
+- **Top-level `local`s** belong to each piece: every piece runs the file
+  once. For state shared by every piece, use a module (`require`) or a table
+  on `smitten`.
 - **Every piece** has `name`, `type`, `parent`, `children`, `script`, and
   `find(path)`, `findDeep(name)`, `findChildOfType(type)`, `add(piece)`,
-  `spawn(sceneOrType, properties?)`, `remove()`, `destroy()`, `isA(type)`,
-  `getPath()`, `tag(name)`, `untag(name)`, `hasTag(name)`,
-  `on(event, fn)`, `emit(event, ...)`, `isAlive()`.
+  `spawn(sceneOrType, properties?)` (inside it), `remove()`, `destroy()`,
+  `is(tagOrType)`, `isA(type)`, `getPath()`, `tag(name)`, `untag(name)`,
+  `hasTag(name)`, `on(event, fn)`, `emit(event, ...)`, `isAlive()`.
+- **Old-style scripts** that return a table (`local Player = {}`,
+  `function Player:update(dt)`, `return Player`) still work: `self` is the
+  piece there.
+
+### Script cheat sheet
+
+| | |
+| --- | --- |
+| Input | `pressed(action)`, `down(action)`, `released(action)`, `axis("left", "right")`, `vector("left", "right", "up", "down")`, `mouse()` (x, y in the scene) |
+| Scenes | `go("scenes/level2.scene")`, `reload()`, `spawn("scenes/bullet.scene", { x = x, y = y })` (into the scene), `make(...)`, `tagged("coin")`, `first("player")`, `root()`, `find("UI/Score")` (from this piece) |
+| Sound | `sfx("coin")` (finds coin.sfx, .wav, .ogg... anywhere), `music("theme")`, `stopMusic()` |
+| Time | `wait(1)`, `task(fn)`, `after(1, fn)`, `every(0.5, fn)` (until it returns false), `tween(self, 0.3, { y = 100 })`, `time()` |
+| Math | `approach(v, target, step)`, `lerp(a, b, t)`, `clamp(v, lo, hi)`, `sign(v)`, `round(v, step)`, `rnd()`, `rnd(n)`, `rnd(list)`, `choose(a, b, c)`, `dist(a, b)`, `jumpSpeed(height)` |
+| Screen | `screenWidth()`, `screenHeight()` |
+| Drawing (in `draw()`) | `pen(r, g, b, a)` / `pen("#ff8800")`, `rect(x, y, w, h, fill)`, `circle(x, y, r, fill)`, `line(x1, y1, x2, y2, ...)`, `write(text, x, y)`, `sprite("art/star.png", x, y)` |
+| Pieces | `move()`, `onGround()`, `onWall()`, `destroy()`, `other:is("enemy")`, `tag("hurt")`, `emit("scored", 10)` |
+
+The drawing calls are named so they don't clash with properties some
+pieces have (`color`, `text`, `image`). In a Button's script, `pressed()`
+is the click: read input there with `smitten.input.pressed(action)`.
 
 ## Ready-made scripts
 
