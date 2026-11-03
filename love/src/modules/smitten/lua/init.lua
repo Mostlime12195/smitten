@@ -24,6 +24,32 @@ local providers = {
 	scene = "scene",
 	collide = "collide",
 	input = "input",
+	-- Objects and scenes (world.lua, behaviors.lua)
+	object = "world",
+	spawn = "world",
+	find = "world",
+	all = "world",
+	start = "world",
+	-- The simple API
+	after = "time",
+	every = "time",
+	tween = "time",
+	camera = "camera",
+	mouse = "mouse",
+	print = "text",
+	printCentered = "text",
+	textWidth = "text",
+	font = "text",
+	palette = "util",
+	color = "util",
+	random = "util",
+	chance = "util",
+	pick = "util",
+	clamp = "util",
+	lerp = "util",
+	approach = "util",
+	save = "util",
+	load = "util",
 }
 
 setmetatable(smitten, {

@@ -1,0 +1,35 @@
+{
+  "format": "smitten.sprite",
+  "version": 1,
+  "image": "hero.png",
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "origin": [
+    8,
+    16
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        0
+      ],
+      "fps": 4
+    },
+    "run": {
+      "frames": [
+        1
+      ],
+      "fps": 8
+    },
+    "jump": {
+      "frames": [
+        1
+      ]
+    },
+    "fall": {
+      "frames": [
+        0
+      ]
+    }
+  }
+}

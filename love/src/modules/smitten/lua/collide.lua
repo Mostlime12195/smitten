@@ -53,6 +53,56 @@ local function rowSolid(level, row, c0, c1)
 	return false
 end
 
+-- Sweep a box (x, y, w, h) along x by dx through a level's solid tiles.
+-- Returns the new x and whether it was blocked. No tables are made, so
+-- smitten's objects can call this every frame.
+local function sweepX(level, x, y, w, h, dx)
+	local tw, th = level.tileWidth, level.tileHeight
+	-- Outside the map nothing is solid, so sweeps stop at its edges.
+	local cols, rows = level.width or huge, level.height or huge
+	-- Rows the box covers (an edge exactly on a boundary doesn't count).
+	local r0 = max(floor((y + EPSILON) / th), 0)
+	local r1 = min(floor((y + h - EPSILON) / th), rows - 1)
+	if dx > 0 then
+		local right = x + w
+		local first = floor((right - EPSILON) / tw) + 1
+		local last = floor((right + dx - EPSILON) / tw)
+		for col = max(first, 0), min(last, cols - 1) do
+			if columnSolid(level, col, r0, r1) then return col * tw - w, true end
+		end
+	elseif dx < 0 then
+		local first = floor((x + EPSILON) / tw) - 1
+		local last = floor((x + dx + EPSILON) / tw)
+		for col = min(first, cols - 1), max(last, 0), -1 do
+			if columnSolid(level, col, r0, r1) then return (col + 1) * tw, true end
+		end
+	end
+	return x + dx, false
+end
+
+-- The same along y: returns the new y and whether it was blocked.
+local function sweepY(level, x, y, w, h, dy)
+	local tw, th = level.tileWidth, level.tileHeight
+	local cols, rows = level.width or huge, level.height or huge
+	local c0 = max(floor((x + EPSILON) / tw), 0)
+	local c1 = min(floor((x + w - EPSILON) / tw), cols - 1)
+	if dy > 0 then
+		local bottom = y + h
+		local first = floor((bottom - EPSILON) / th) + 1
+		local last = floor((bottom + dy - EPSILON) / th)
+		for row = max(first, 0), min(last, rows - 1) do
+			if rowSolid(level, row, c0, c1) then return row * th - h, true end
+		end
+	elseif dy < 0 then
+		local first = floor((y + EPSILON) / th) - 1
+		local last = floor((y + dy + EPSILON) / th)
+		for row = min(first, rows - 1), max(last, 0), -1 do
+			if rowSolid(level, row, c0, c1) then return (row + 1) * th, true end
+		end
+	end
+	return y + dy, false
+end
+
 ---Move a box by (dx, dy) through a map's solid tiles, x first, then y.
 ---box.x and box.y are updated. Returns a table with:
 --- x, y: true if movement on that axis was blocked;
@@ -71,76 +121,17 @@ function collide.move(level, box, dx, dy)
 	if type(dx) ~= "number" or type(dy) ~= "number" or dx ~= dx or dy ~= dy then
 		error("smitten.collide.move: dx and dy should be numbers", 2)
 	end
-	local tw, th = level.tileWidth, level.tileHeight
-	-- Outside the map nothing is solid, so sweeps stop at its edges.
-	local cols, rows = level.width or huge, level.height or huge
 	local hit = { x = false, y = false, ground = false, ceiling = false }
-
 	if dx ~= 0 then
-		-- Rows the box covers (an edge exactly on a boundary doesn't count).
-		local r0 = floor((box.y + EPSILON) / th)
-		local r1 = floor((box.y + box.height - EPSILON) / th)
-		r0, r1 = max(r0, 0), min(r1, rows - 1)
-		if dx > 0 then
-			local right = box.x + box.width
-			local first = floor((right - EPSILON) / tw) + 1
-			local last = floor((right + dx - EPSILON) / tw)
-			box.x = box.x + dx
-			for col = max(first, 0), min(last, cols - 1) do
-				if columnSolid(level, col, r0, r1) then
-					box.x = col * tw - box.width
-					hit.x = true
-					break
-				end
-			end
-		else
-			local left = box.x
-			local first = floor((left + EPSILON) / tw) - 1
-			local last = floor((left + dx + EPSILON) / tw)
-			box.x = box.x + dx
-			for col = min(first, cols - 1), max(last, 0), -1 do
-				if columnSolid(level, col, r0, r1) then
-					box.x = (col + 1) * tw
-					hit.x = true
-					break
-				end
-			end
-		end
+		box.x, hit.x = sweepX(level, box.x, box.y, box.width, box.height, dx)
 	end
-
 	if dy ~= 0 then
-		-- Columns at the box's new x position.
-		local c0 = floor((box.x + EPSILON) / tw)
-		local c1 = floor((box.x + box.width - EPSILON) / tw)
-		c0, c1 = max(c0, 0), min(c1, cols - 1)
-		if dy > 0 then
-			local bottom = box.y + box.height
-			local first = floor((bottom - EPSILON) / th) + 1
-			local last = floor((bottom + dy - EPSILON) / th)
-			box.y = box.y + dy
-			for row = max(first, 0), min(last, rows - 1) do
-				if rowSolid(level, row, c0, c1) then
-					box.y = row * th - box.height
-					hit.y, hit.ground = true, true
-					break
-				end
-			end
-		else
-			local top = box.y
-			local first = floor((top + EPSILON) / th) - 1
-			local last = floor((top + dy + EPSILON) / th)
-			box.y = box.y + dy
-			for row = min(first, rows - 1), max(last, 0), -1 do
-				if rowSolid(level, row, c0, c1) then
-					box.y = (row + 1) * th
-					hit.y, hit.ceiling = true, true
-					break
-				end
-			end
+		box.y, hit.y = sweepY(level, box.x, box.y, box.width, box.height, dy)
+		if hit.y then
+			if dy > 0 then hit.ground = true else hit.ceiling = true end
 		end
 	end
-
 	return hit
 end
 
-return { collide = collide }
+return { collide = collide, sweepX = sweepX, sweepY = sweepY, EPSILON = EPSILON }

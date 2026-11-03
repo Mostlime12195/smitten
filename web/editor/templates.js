@@ -7,49 +7,9 @@ import { manifestText } from './project.js';
 export const BLANK = {
   id: 'blank',
   name: 'Blank',
-  description: 'A small Smitten game: a square you move with the arrow keys or a gamepad, at 320×180 pixels.',
+  description: 'A small game to start from: a player that runs and jumps on a few platforms, in a scene at 320×180 pixels.',
   files: {
-    'main.lua': `-- A new Smitten game. Press F5 to run it.
---
--- Make art with New › Sprite in the file panel, then drag the file into
--- this code to load it. smitten.json sets the game's size and palette.
-
-function love.load()
-  -- Draw at the size in smitten.json (320×180), scaled up to fill the window.
-  smitten.screen.setup()
-
-  -- Name the actions the game uses; each works with several keys and buttons.
-  smitten.input.bind("left", { "left", "a", "pad:dpleft", "axis:leftx-" })
-  smitten.input.bind("right", { "right", "d", "pad:dpright", "axis:leftx+" })
-  smitten.input.bind("up", { "up", "w", "pad:dpup", "axis:lefty-" })
-  smitten.input.bind("down", { "down", "s", "pad:dpdown", "axis:lefty+" })
-
-  player = { x = 152, y = 82, size = 16, speed = 90 }
-end
-
-function love.update(dt)
-  local step = player.speed * dt
-  if smitten.input.down("left") then player.x -= step end
-  if smitten.input.down("right") then player.x += step end
-  if smitten.input.down("up") then player.y -= step end
-  if smitten.input.down("down") then player.y += step end
-end
-
-function love.draw()
-  smitten.screen.begin()
-  love.graphics.clear(0.1, 0.11, 0.17)
-  love.graphics.setColor(0.94, 0.49, 0.34)
-  love.graphics.rectangle("fill", math.floor(player.x), math.floor(player.y), player.size, player.size)
-  love.graphics.setColor(1, 1, 1)
-  love.graphics.print(\`Smitten {smitten.version}\`, 4, 4)
-  smitten.screen.finish()
-end
-
-function love.keypressed(key)
-  if key == "escape" then
-    love.event.quit()
-  end
-end
+    'main.lua': `function love.load() smitten.start() end
 `,
     'conf.lua': `function love.conf(t)
   t.identity = "my-game"       -- save folder name
@@ -59,7 +19,64 @@ end
   t.window.resizable = true
 end
 `,
-    'smitten.json': manifestText(),
+    'objects/player.lua': `-- The player: it runs and jumps with the platformer behavior
+-- (arrow keys or A/D to run, Space or Z to jump).
+--
+-- Draw it with New › Sprite, saved as sprites/player.png. Until then it's
+-- a box in palette color 4.
+
+return smitten.object {
+  sprite = "sprites/player",
+  behaviors = { "platformer" },
+  camera = true,
+  color = 4,
+}
+`,
+    'objects/ground.lua': `-- Solid ground and platforms. Each one is as big as the box placed in
+-- the scene; nothing can move through it.
+
+return smitten.object {
+  solid = true,
+  color = 8,
+}
+`,
+    'scenes/level1.lua': `-- The scene's script. Its objects (the player and the ground) are placed
+-- in level1.scene.json; open it to add more.
+
+local Level = {}
+
+function Level:draw() -- on top of the scene, in screen pixels
+  smitten.print("Arrows to run, Space to jump", 4, 4, 13)
+end
+
+return Level
+`,
+    'scenes/level1.scene.json': `${JSON.stringify({
+      format: 'smitten.scene',
+      version: 1,
+      width: 20,
+      height: 12,
+      tileWidth: 16,
+      tileHeight: 16,
+      tilesets: [],
+      layers: [
+        { name: 'ground', type: 'tiles', visible: true, data: new Array(20 * 12).fill(-1) },
+        {
+          name: 'objects',
+          type: 'objects',
+          visible: true,
+          objects: [
+            { id: 1, type: 'player', x: 40, y: 144, properties: {} },
+            { id: 2, type: 'ground', x: 0, y: 160, width: 320, height: 32, properties: {} },
+            { id: 3, type: 'ground', x: 112, y: 120, width: 64, height: 8, properties: {} },
+            { id: 4, type: 'ground', x: 208, y: 88, width: 64, height: 8, properties: {} },
+          ],
+        },
+      ],
+      properties: {},
+    }, null, 2)}\n`,
+    // smitten.json with the scene to start with.
+    'smitten.json': manifestText({ ...JSON.parse(manifestText()), start: 'level1' }),
   },
 };
 

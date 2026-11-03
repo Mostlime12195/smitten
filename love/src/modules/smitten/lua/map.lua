@@ -23,7 +23,9 @@ end
 
 local function checkFormat(path, data, format)
 	if type(data) ~= "table" then error(("%s: expected a JSON object"):format(path), 0) end
-	if data.format ~= nil and data.format ~= format then
+	-- A scene file is a map file with its own format name.
+	local same = data.format == format or (format == "smitten.map" and data.format == "smitten.scene")
+	if data.format ~= nil and not same then
 		error(("%s: this is a %q file, not a %s file"):format(path, tostring(data.format), format), 0)
 	end
 	local version = data.version or 1
@@ -499,14 +501,22 @@ function Map:spawn(classes)
 end
 
 ---Load a map (cached: later calls return the same map). The .map.json
----extension may be left out.
+---extension may be left out. Scene files (.scene.json) load the same way.
 ---@param path string e.g. "maps/level1"
 ---@return smitten.Map
 local function map(path)
-	local resolved = assets.resolve(path, { ".map.json" }, "map")
+	local resolved = assets.resolve(path, { ".map.json", ".scene.json" }, "map")
 	local ok, value = pcall(assets.cached, "map", resolved, loadMap)
 	if not ok then error("smitten.map: " .. clean(value), 2) end
 	return value
 end
 
-return { map = map, tileset = tileset, Map = Map, Tileset = Tileset, CHUNK = CHUNK }
+-- A new copy of a map that isn't cached (scenes start from the file each
+-- time, even after setTile). The path must exist.
+local function loadFresh(path)
+	local ok, value = pcall(loadMap, path)
+	if not ok then error(clean(value), 0) end
+	return value
+end
+
+return { map = map, tileset = tileset, Map = Map, Tileset = Tileset, CHUNK = CHUNK, loadFresh = loadFresh }

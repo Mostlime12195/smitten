@@ -1,5 +1,6 @@
 -- smitten.scene: a stack of scenes (title, game, pause, ...), each a table of
--- love callbacks.
+-- love callbacks. smitten.scene.go/restart (scene files with objects) are
+-- built on it in world.lua.
 --
 --   local Title = {}
 --   function Title:draw() love.graphics.print("Press a key", 10, 10) end
@@ -283,6 +284,29 @@ end
 ---@return integer
 function scene.depth()
 	return #stack
+end
+
+---The name of the scene started with smitten.scene.go ("level1"), or nil.
+---@type string?
+scene.name = nil
+
+---The map of the scene started with smitten.scene.go (getTile, isSolid, ...),
+---or nil if it has no .scene.json.
+---@type smitten.Map?
+scene.map = nil
+
+---Go to a scene: scenes/<name>.scene.json and/or scenes/<name>.lua, with its
+---objects (docs/objects-and-scenes.md). The current scene's objects, timers
+---and tweens end. Called during a frame, the switch happens at its end.
+---@param name string e.g. "level1"
+---@param ... any passed to the scene script's enter(...)
+function scene.go(name, ...)
+	require("smitten.world").go(name, ...)
+end
+
+---Start the current scene (from smitten.scene.go) again, from its file.
+function scene.restart()
+	require("smitten.world").restart()
 end
 
 return { scene = scene, callbacks = callbacks }
