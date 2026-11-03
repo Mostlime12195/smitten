@@ -1,113 +1,271 @@
 # Smitten reference
 
-The file formats Smitten's tools write, the `smitten` Lua module that games
-use to load them, and the interface the editor's tools implement.
+The engine's API and file formats. Every node type is in
+[nodes.md](nodes.md); the reasons behind them are in
+[../DESIGN.md](../DESIGN.md).
 
-All JSON files have `format` and `version` fields. Readers reject files with
-a newer `version` than they know, with a message saying so. Paths inside a
-file are relative to that file's folder.
+`smitten` is the engine table, and `love` is the same table: everything in
+LÖVE 12's API is here as `smitten.graphics`, `smitten.audio`, ... (see
+[love2d.org/wiki](https://love2d.org/wiki/Main_Page)). This page covers what
+Smitten adds.
 
 ## Project
 
 ### `smitten.json`
 
-At the project root. Optional; defaults apply when it's missing.
-
 ```json
 {
   "format": "smitten.project",
-  "version": 1,
-  "engine": "0.1.0",
-  "resolution": [320, 180],
-  "palette": ["#1a1c2c", "#5d275d", "..."],
-  "start": "title"
+  "version": 2,
+  "name": "My game",
+  "main": "scenes/level.scene",
+  "display": { "width": 1280, "height": 720, "stretch": "fit", "filter": "smooth", "background": [0.11, 0.12, 0.15, 1] },
+  "input": { "dash": ["lshift", "pad:rightshoulder"] },
+  "modules": { "physics3d": "always" }
 }
 ```
 
-- `resolution`: the game's logical size, used by `smitten.screen` and as
-  the default canvas size for new maps.
-- `palette`: colors offered first in the pixel and map editors. Free colors
-  are always allowed. Games use it through `smitten.palette` and
-  `smitten.color(n)`. Default: Sweetie 16.
-- `start`: the scene `smitten.start()` begins with.
+| Field | Meaning |
+| --- | --- |
+| `main` | The scene the game starts with. With a main scene, `main.lua` is optional |
+| `display.width`, `height` | The resolution the game is designed for |
+| `display.stretch` | `fit` (letterbox), `expand` (show more of the world), `stretch`, or `pixel` (whole-number scaling) |
+| `display.filter` | `smooth` or `pixel` (nearest-neighbor for images and fonts) |
+| `input` | Input actions on top of the defaults (`left`, `right`, `up`, `down`, `jump`, `fire`, `accept`, `cancel`, `pause`) |
+| `modules` | Overrides for engine modules: `"always"` or `"never"`; others are worked out from the project |
+
+A game with a `smitten.json` but no `main.lua` runs its main scene. A game
+with a `main.lua` and no scenes runs as in LÖVE. Both together work too:
+`smitten.update` and `smitten.draw` run alongside the scene, and
+`smitten.draw` draws in game coordinates over the world, under the UI.
+
+### Engine modules
+
+| Module | Loaded when a game uses |
+| --- | --- |
+| `physics2d` | `RigidBody2D`, `Joint2D`, `smitten.physics` |
+| `3d` | any 3D node, `smitten.graphics3d` |
+| `physics3d` | 3D bodies, areas and collision shapes, `FirstPerson`, `smitten.physics3d` |
+| `video` | `smitten.video` |
+| `synth` | `.sfx` and `.song` files, `smitten.synth` |
+
+Using a module that wasn't loaded raises: *This game uses 3D physics, but
+the 'physics3d' module isn't included. Turn it on in Project settings >
+Modules.*
+
+## Scenes
+
+A scene is a tree of nodes in a `.scene` file (JSON):
+
+```json
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Level", "type": "Node2D", "script": "scripts/level.lua",
+    "children": [
+      { "name": "Player", "scene": "scenes/player.scene", "properties": { "x": 120, "y": 540 } },
+      { "name": "Ground", "type": "TileMap", "properties": { "tileset": "art/tiles.tileset",
+        "cells": { "x": 0, "y": 10, "w": 4, "h": 1, "data": "3*4" } } },
+      { "name": "Coin", "type": "Area2D", "groups": ["coins"] }
+    ]
+  }
+}
+```
+
+- An entry has `name`, then `type` (a node type) or `scene` (another scene
+  placed here, an *instance*), and optionally `script`, `properties` (only
+  values that differ from the defaults), `groups` and `children`.
+- An instance's `properties` override its scene's root; its `children` are
+  added to the ones its scene has.
+- Paths are relative to the project's folder.
+- TileMap `cells` are one rectangle of tile numbers, row by row; `-1` is
+  empty and `n*k` repeats `n` `k` times.
+
+### `smitten.scene`
+
+| Function | |
+| --- | --- |
+| `change(path, ...)` | Goes to another scene at the end of the frame; extra values are kept in `smitten.scene.args` |
+| `reload()` | Starts the running scene again from its file |
+| `instance(path, properties?)` | A node made from a scene file; add it with `node:add(...)` |
+| `create(type, properties?, script?)` | A node of a type; `script` is a table or a `.lua` path |
+| `group(name)` | The nodes in a group (a new list) |
+| `first(name)` | The first node in a group, or nil |
+| `find(path)` | A node of the running scene by path from the root |
+| `setCurrent(root)` | Runs a node built in code as the scene |
+| `getDelta()` | The frame time in `update`, the fixed step in `physicsUpdate` |
+| `raycast3d(x, y, z, dx, dy, dz, mask?)` | node, x, y, z, nx, ny, nz of the first 3D body hit |
+| `current`, `path`, `args` | The root node, its file, and `change`'s extra values |
+| `paused` | While true, nodes don't update and physics stops (drawing goes on) |
+| `showCollisions` | Draw collision shapes while the game runs |
+
+## Scripts
+
+A script is a Lua file that returns a table; attach it to a node in the
+inspector (or with `"script"` in the scene file). `self` is the node.
+
+```lua
+local Enemy = {}
+
+Enemy.speed = 80          -- script variables: shown in the inspector,
+Enemy.hurtsPlayer = true  -- changeable per node
+
+function Enemy:ready() end
+function Enemy:update(dt) end
+function Enemy:collided(other) end
+
+return Enemy
+```
+
+- **Lifecycle**: `ready()` once when the node and its children are in the
+  scene (children first), `update(dt)` every frame (parents first),
+  `physicsUpdate(dt)` 60 times a second, `draw()` (2D) in the node's own
+  coordinates on top of it, `removed()` when it leaves.
+- **Events**, called by name when they happen: `entered(other)`,
+  `exited(other)`, `collided(other)`, `pressed()`, `finished(...)`,
+  `timeout()`, `jumped()`, `landed()`, `dragStarted()`, `dragEnded()`. Any
+  node can `emit(name, ...)` its own.
+- **Listening from elsewhere**: `node:on("pressed", fn)` returns a handle with
+  `:off()`.
+- **Script variables**: top-level `Name.field = value` lines with a number,
+  string, boolean or color (`{r, g, b, a}`) value; names starting with `_`
+  are hidden.
+- **Every node** has `name`, `type`, `parent`, `children`, `script`, and
+  `find(path)`, `findDeep(name)`, `findChildOfType(type)`, `add(node)`,
+  `remove()`, `destroy()`, `isA(type)`, `getPath()`, `addToGroup(name)`,
+  `removeFromGroup(name)`, `inGroup(name)`, `on(event, fn)`,
+  `emit(event, ...)`, `isInside()`.
+
+## Input: `smitten.input`
+
+| Function | |
+| --- | --- |
+| `pressed(action)` / `released(action)` | True on the frame the action went down / up |
+| `down(action)` | True while held |
+| `strength(action)` | 0 to 1 (sticks give values in between) |
+| `axis(negative, positive)` | -1 to 1 |
+| `vector(left, right, up, down)` | x, y, at most 1 long |
+| `bind(action, inputs)`, `unbind(action)`, `bindings(action)`, `actions()` | Change actions while the game runs |
+
+Inputs: keys (`"space"`, `"a"`, `"left"`), `"mouse:1"`, gamepad buttons
+(`"pad:a"`, `"pad:dpleft"`), and stick or trigger halves (`"axis:leftx-"`,
+`"axis:triggerright+"`).
+
+LÖVE's modules gain:
+
+| | |
+| --- | --- |
+| `smitten.keyboard.pressed(key)`, `released(key)` | This frame only |
+| `smitten.mouse.pressed(button?)`, `released(button?)`, `down(button?)` | Button 1 by default; touches count as button 1 |
+| `smitten.mouse.x`, `y` | The pointer in game coordinates |
+| `smitten.mouse.worldX`, `worldY` | The pointer in the 2D scene (through the camera) |
+| `smitten.mouse.getDelta()` | Movement this frame, also while captured (`setRelativeMode`) |
+| `smitten.mouse.isOverUI()` | True over a button or panel |
+
+## Time and tweens: `smitten.tween`, `smitten.timer`
+
+```lua
+smitten.tween(self, 0.4, { y = 40, scaleX = 2 }, "outBack")
+smitten.tween.to(label, 1, { opacity = 0 }):after(function() label:destroy() end)
+smitten.timer.after(2, function() spawnWave() end)
+local blink = smitten.timer.every(0.5, function() light.visible = not light.visible end)
+blink:cancel()
+```
+
+Easings: `linear`, `inQuad`, `outQuad`, `inOutQuad`, `inCubic`,
+`outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inExpo`,
+`outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`, `outElastic`.
+Tweens and timers end when the scene changes; a tween of a node ends when
+the node is destroyed.
+
+## Assets: `smitten.assets`
+
+Loads and caches files: `image(path)`, `sprite(path)`, `tileset(path)`,
+`font(path, size)` (`""` for the default font, `"pixel"` for the built-in
+pixel font), `audio(path)` (`:newSource()` per play), `model(path)` (glTF,
+3D games), `scene(path)`, `script(path)`, `readJSON(path)`, `load(path)`
+(by extension), `clear(path?)`.
+
+## Saving: `smitten.storage`
+
+`save(key, value)`, `load(key, default)`, `remove(key)`, `keys()`. Values
+are numbers, strings, booleans and tables of them, kept in the game's save
+folder.
+
+## Display: `smitten.display`
+
+`width`, `height` (the game's resolution), `viewX`, `viewY`, `viewWidth`,
+`viewHeight` (the visible part, in game coordinates; bigger than the
+resolution in `expand` mode), `scale`, `toGame(x, y)`, `toWindow(x, y)`,
+`getWindowRect()`.
+
+## Helpers in `smitten.math`
+
+`chance(p)`, `pick(list)`, `clamp(v, lo, hi)`, `lerp(a, b, t)`,
+`approach(v, target, step)`, `sign(v)`, `round(v, step?)`,
+`distance(x1, y1, x2, y2)`, `angle(x1, y1, x2, y2)`, `randomFloat(a, b)`,
+next to LÖVE's `random`, `noise` and the rest.
+
+## JSON: `smitten.json`
+
+`decode(text)`, `encode(value, indent?)`, `null`.
+
+## 3D: `smitten.graphics3d`
+
+The renderer the 3D nodes use, for code-first games:
+
+```lua
+local g3d = smitten.graphics3d
+local cam = g3d.newCamera{ fov = 70 }
+cam:lookAt(0, 0, 0)
+local box = g3d.newBox(1, 1, 1)
+local red = g3d.newMaterial{ color = {0.9, 0.2, 0.2, 1}, roughness = 0.4 }
+function smitten.draw()
+  g3d.begin(cam, nil, { { type = "directional", dx = -0.5, dy = -1, dz = -0.3, shadows = true } })
+  g3d.draw(box, g3d.mat4.fromTRS(nil, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1), red)
+  g3d.finish()
+end
+```
+
+`newCamera`, `newBox`, `newSphere`, `newCylinder`, `newCapsule`,
+`newPlane`, `newMesh{positions, normals?, uvs?, colors?, indices?}`,
+`newMaterial`, `newEnvironment`, `loadModel(path)`, `begin(camera,
+environment?, lights)`, `draw(meshOrModel, matrix, material?)`, `finish()`,
+`stats()`, and `mat4` and `quat` helpers (quaternions are passed as four
+numbers).
+
+## 3D physics: `smitten.physics3d`
+
+Jolt, as used by the 3D physics nodes; documented in
+`love/src/modules/physics3d/README.md` (`newWorld`, `newBody`,
+`newCharacter`, shapes, raycasts and contact callbacks).
 
 ## Sprites
 
-`sprites/hero.png` plus `sprites/hero.sprite.json`. A PNG without a
-`.sprite.json` is a sprite with one frame the size of the image.
+A `.sprite` file describes an image's frames and animations:
 
 ```json
 {
   "format": "smitten.sprite",
   "version": 1,
   "image": "hero.png",
-  "frameWidth": 16,
-  "frameHeight": 16,
-  "origin": [8, 16],
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "origin": [16, 32],
   "animations": {
     "idle": { "frames": [0, 1], "fps": 4, "loop": true },
-    "run": { "frames": [2, 3, 4, 5], "fps": 10, "loop": true }
+    "run": { "frames": [2, 3, 4, 5], "fps": 12, "loop": true }
   }
 }
 ```
 
-- Frames are numbered from 0, left to right, then top to bottom, in a sheet
-  of `frameWidth` × `frameHeight` cells. The sheet's size is a multiple of
-  the frame size.
-- `origin`: the point drawn at (x, y), in pixels from the frame's top left.
-  Default `[0, 0]`.
-- `animations`: optional. `loop` defaults to `true`, `fps` to 8.
-
-### Lua
-
-```lua
-local hero = smitten.sprite("sprites/hero")   -- or "sprites/hero.png"; cached
-hero.image          -- the love Image (nearest filtering)
-hero.width, hero.height   -- frame size
-hero.frameCount
-hero.originX, hero.originY
-hero:quad(frame)    -- love Quad for a frame (0-based)
-hero:draw(frame, x, y, r, sx, sy)   -- same transform arguments as love.graphics.draw
-hero:has(name)      -- whether an animation exists
-
-local anim = hero:animation("run")    -- new, independent playback state
-anim:update(dt)
-anim:draw(x, y, r, sx, sy)            -- negative sx flips around the origin
-anim:play("idle")                     -- switch animation (no-op if already playing it)
-anim:play("idle", true)               -- restart even if already playing
-anim:pause(); anim:resume()
-anim.name           -- current animation
-anim.frame          -- current frame number in the sheet
-anim.finished       -- true once a non-looping animation reached its end
-anim.paused
-anim:getFps(); anim:getDuration()     -- seconds for one pass
-```
-
-Also: `hero.columns`, `hero.rows`, `hero.imagePath`, `hero.animations`,
-`hero:animationNames()`; `hero:animation()` with no name plays every frame
-at 8 fps. A `.sprite.json` may set `"filter": "linear"` for smooth scaling.
-
-Errors name the file and what's wrong: missing file, unknown animation
-(listing the ones that exist), frame out of range.
-
-## Screen
-
-```lua
-smitten.screen.setup(320, 180)   -- or no arguments: smitten.json's resolution
-function love.draw()
-  smitten.screen.begin()         -- draw at 320×180 from here
-  ...
-  smitten.screen.finish()        -- scaled by the largest whole number that fits, centered, letterboxed
-end
-smitten.screen.toGame(mx, my)    -- window coordinates -> game coordinates
-smitten.screen.width, smitten.screen.height, smitten.screen.scale
-smitten.screen.toWindow(gx, gy)  -- game coordinates -> window coordinates
-smitten.screen.x, smitten.screen.y, smitten.screen.canvas
-```
+Frames are numbered from 0, left to right and top to bottom. `image` is
+relative to the `.sprite` file. A `Sprite2D` whose `image` is a `.sprite`
+plays its animations; behaviors play `idle`, `run`/`walk`, `jump` and `fall`
+when they exist.
 
 ## Tilesets
-
-`tiles/terrain.png` plus `tiles/terrain.tileset.json`.
 
 ```json
 {
@@ -116,309 +274,18 @@ smitten.screen.x, smitten.screen.y, smitten.screen.canvas
   "image": "terrain.png",
   "tileWidth": 16,
   "tileHeight": 16,
-  "tiles": {
-    "0": { "solid": true },
-    "5": { "solid": true, "name": "spikes", "damage": 1 }
-  }
+  "tiles": { "0": { "solid": true }, "4": { "name": "spikes", "damage": 1 }, "7": { "solid": true, "oneWay": true } }
 }
 ```
 
-Tile numbers start at 0 and go left to right, then top to bottom.
-`tiles` holds any properties per tile; `solid` is used by `smitten.collide`.
-
-## Maps
-
-`maps/level1.map.json`.
-
-```json
-{
-  "format": "smitten.map",
-  "version": 1,
-  "width": 40,
-  "height": 12,
-  "tileWidth": 16,
-  "tileHeight": 16,
-  "tilesets": ["../tiles/terrain.tileset.json"],
-  "background": "#1a1c2c",
-  "layers": [
-    {
-      "name": "ground",
-      "type": "tiles",
-      "visible": true,
-      "data": [-1, -1, 0, 1, "... width × height entries, row by row"]
-    },
-    {
-      "name": "objects",
-      "type": "objects",
-      "visible": true,
-      "objects": [
-        { "id": 1, "type": "player", "x": 32, "y": 160, "width": 16, "height": 16, "properties": {} }
-      ]
-    }
-  ],
-  "properties": {}
-}
-```
-
-- Tile layer `data`: one number per cell, row by row; `-1` is empty. With
-  several tilesets, tile numbers continue across them in order (the first
-  tileset's tiles start at 0, the next one's after the last tile of the
-  first, and so on).
-- Object `x`, `y`: pixels from the map's top left. `type` names the entity
-  class `spawn` creates.
-
-### Lua
-
-```lua
-local level = smitten.map("maps/level1")       -- cached; .map.json (or .scene.json) may be left out
-level.width, level.height          -- in tiles
-level.tileWidth, level.tileHeight
-level.pixelWidth, level.pixelHeight
-level:draw()                       -- every visible tile layer, in order
-level:drawLayer("ground")
-level:getTile("ground", tx, ty)    -- tile number or -1 (tile coordinates from 0)
-level:setTile("ground", tx, ty, tile)
-level:tileProperties(tile)         -- that tile's properties table (empty table if none)
-level:isSolid(px, py)              -- any tile layer (hidden ones too) has a solid tile at pixel (px, py)
-level:objects("player")            -- list of objects (all if no type given)
-level:spawn(classes)               -- for each object whose type is in classes:
-                                   --   classes[type].new(object) or classes[type](object)
-                                   -- returns the list of created entities
-level.properties
-level.backgroundColor             -- {r, g, b, a} from "background", for love.graphics.clear
-level.tileCount
-level:layer("ground")              -- the layer table; set .visible to show or hide it
-level:tilesetOf(tile)
-level:isSolidTile(tx, ty)
-
-local tiles = smitten.tileset("tiles/terrain")  -- cached
-tiles.image, tiles.tileWidth, tiles.tileHeight, tiles.count
-tiles:quad(tile)
-tiles:properties(tile)
-tiles.columns, tiles.rows, tiles.path
-```
-
-`draw` draws in map pixels from (0, 0); use `love.graphics.translate` for
-the camera. Large maps are split into chunks of `SpriteBatch`es, and only
-chunks on screen are drawn.
-
-### Scene files
-
-`scenes/level1.scene.json`: the same format with `"format":
-"smitten.scene"`. In a scene, a placed object's `x`, `y` is its sprite's
-origin, and `width`/`height` are present only when they override the
-object type's hitbox (missing or 0: the type's). See "Objects and scenes"
-below.
-
-## Collision
-
-```lua
-smitten.collide.overlaps(a, b)    -- a and b have x, y, width, height
--- Move a box through a map's solid tiles, one axis at a time.
-local hit = smitten.collide.move(level, box, dx, dy)
--- box.x, box.y are updated. hit.x / hit.y: true if blocked on that axis;
--- hit.ground: true if blocked while moving down; hit.ceiling: blocked while moving up.
-```
-
-## Scenes
-
-```lua
-local Title = {}
-function Title:enter(...) end        -- all optional
-function Title:leave() end
-function Title:update(dt) end
-function Title:draw() end
-function Title:keypressed(key) end   -- any love callback name works
-
-smitten.scene.switch(Title, ...)     -- replace the current scene
-smitten.scene.push(Pause, ...)       -- put a scene on top (the one below stops updating,
-                                     -- and draws only if the top scene has `transparent = true`)
-smitten.scene.pop(...)               -- back to the scene below; its resume(...) is called
-smitten.scene.current()
-smitten.scene.depth()                -- how many scenes are stacked
-```
-
-`smitten.scene.go(name, ...)`, `smitten.scene.restart()`,
-`smitten.scene.name` and `smitten.scene.map` run scene files with objects:
-see "Objects and scenes" below.
-
-Once a scene is active, the love callbacks the game defines still run, and
-the current scene's method of the same name runs after them. Games that
-define no `love.update`/`love.draw` can rely on scenes alone. Pushing a scene calls `pause()` on the one below. Callbacks the game
-assigns after the first scene is set (`love.update = ...`) keep working:
-the module keeps the game's functions and wraps them, so libraries that wrap
-callbacks themselves still work too.
-
-## Input
-
-```lua
-smitten.input.bind("jump", { "space", "up", "w", "pad:a" })
-smitten.input.bind("left", { "left", "a", "pad:dpleft", "axis:leftx-" })
-smitten.input.down("jump")       -- held now
-smitten.input.pressed("jump")    -- went down since the previous frame
-smitten.input.released("jump")
-smitten.input.unbind("jump")
-smitten.input.bindings("jump")   -- the inputs bound to an action
-smitten.input.axis("left", "right")   -- -1, 0 or 1
-smitten.input.pressed("e")       -- a key, "pad:x" or "mouse:left" works without binding
-```
-
-Keys use `love.keyboard` key constants; `pad:<button>` uses
-`love.joystick` gamepad buttons on any connected gamepad;
-`axis:<axis>+` / `axis:<axis>-` count a gamepad axis beyond 0.5 in that
-direction; `mouse:left`, `mouse:right`, `mouse:middle` are mouse buttons.
-`pressed` and `released` are reset each frame automatically.
-
-Default actions are bound from the start (rebind them with `bind`):
-
-| Action | Keys | Gamepad |
-| --- | --- | --- |
-| `left` `right` `up` `down` | arrows, WASD | d-pad, left stick |
-| `jump` and `a` | Space, Z | A |
-| `b` | X, Shift | B |
-| `start` | Enter | Start |
-
-A name that isn't an action but is a valid key, button or mouse button
-becomes a hidden action the first time it's asked about or pressed. An
-action of the same name comes first (`"a"` is the action, not the A key).
-Unknown names are errors that suggest the closest action.
-
-## Objects and scenes
-
-The guide is docs/objects-and-scenes.md; this is the summary.
-
-### Objects
-
-```lua
--- objects/coin.lua (the type is the file name: "coin")
-local Coin = smitten.object {
-  sprite = "sprites/coin",     -- drawn, playing "idle" or its first animation
-  width = 10, height = 10,     -- hitbox (default: the frame size, or 16×16)
-  offsetY = -5,                -- hitbox position from the origin (default: centered, on the frame's bottom)
-  behaviors = {},              -- built in: "platformer", "topdown", "mover"
-  camera = false,              -- true: the camera follows it
-  solid = false,               -- true: blocks behaviors' movement
-  layer = 0,                   -- draw order
-  color = nil,                 -- box color while there's no sprite (palette number or "#rrggbb")
-  value = 1,                   -- any other field: a default for the object
-}
-function Coin:touch(other) if other.type == "player" then self:destroy() end end
-return Coin
-```
-
-| Callback | When |
-| --- | --- |
-| `create()` | Made (placed objects: once all of the scene's objects exist) |
-| `update(dt)` | Every frame, after its behaviors |
-| `draw()` | Drawing, in scene coordinates (default `self:drawSprite()`) |
-| `touch(other)` / `untouch(other)` | Hitboxes started / stopped overlapping |
-| `destroyed()` | `destroy()` was called |
-| `fell()`, `jumped()`, `landed()` | Platformer: fell out of the scene (default: respawn), jumped, landed |
-
-Fields: `x`, `y` (sprite origin), `vx`, `vy`, `width`, `height`,
-`offsetX`, `offsetY`, `type`, `scene` (the scene script's table), `flipX`,
-`flipY`, `visible`, `alpha`, `scale`, `rotation`, `layer`, `solid`,
-`controls` (false: behaviors read `moveX`/`moveY` and `jump()` instead of
-the keys), `anim` (the `smitten.Animation`), placed properties and
-definition defaults.
-
-| Method | |
-| --- | --- |
-| `destroy()` | Removed at the end of the frame |
-| `play(name, restart?)` | Switch animation |
-| `drawSprite()` | Draw the sprite (or the box while it has none) |
-| `overlaps(typeOrObject)` | First overlapping object of that type, or that object, or nil |
-| `isOnGround()` | Standing on something solid |
-| `distanceTo(other or x, y)`, `angleTo(other or x, y)` | Between hitbox centers; radians, 0 = right |
-| `moveTo(x, y, speed, dt?)` | Towards a point, no collisions; true when there |
-| `move(dx, dy)` | Through solid tiles and objects; returns `hitX, hitY` |
-| `box()` | `x, y, w, h` of the hitbox |
-| `respawn()` | Back to the start position, standing still |
-| `jump()` | Platformer jump from code (buffered) |
-| `touchingTile(name)` | Properties of a tile under the hitbox with that property or `name`, or nil |
-
-Behavior fields (defaults): platformer `speed = 90`, `acceleration = 900`,
-`jumpSpeed = 260`, `gravity = 760`, `maxFall = 420`, `coyoteTime = 0.1`,
-`jumpBuffer = 0.12`; topdown `speed = 80`; mover `bounce = false` (and
-`gravity`, `maxFall` if set).
-
-```lua
-smitten.spawn("bullet", x, y, { vx = 200 })  -- in the running scene; create() runs; returns it
-Bullet(x, y)                                 -- the same, with a class
-smitten.find("player")                       -- first of a type, or nil
-smitten.all("coin")                          -- a new list; smitten.all(): every object
-```
-
-### Scenes
-
-`scenes/<name>.scene.json` (optional) and `scenes/<name>.lua` (optional, a
-table of callbacks: `enter(...)`, `update(dt)`, `drawWorld()`, `draw()`,
-`leave()`, any love callback; `background` field).
-
-```lua
-function love.load() smitten.start() end   -- .smitten/start, else smitten.json "start", else the only scene
-smitten.start("level2")                    -- or name it
-smitten.scene.go("level1", ...)            -- arguments go to enter(...); during a frame: at its end
-smitten.scene.restart()
-smitten.scene.name, smitten.scene.map
-```
-
-## Mouse
-
-```lua
-smitten.mouse.x, smitten.mouse.y             -- game pixels (through smitten.screen)
-smitten.mouse.worldX, smitten.mouse.worldY   -- scene pixels (through smitten.camera)
-smitten.mouse.down(button)                   -- 1 (default) / "left", 2 / "right", 3 / "middle"; a touch is 1
-smitten.mouse.pressed(button); smitten.mouse.released(button)
-smitten.mouse.over(object)                   -- pointer over its hitbox
-```
-
-## Time
-
-```lua
-local t = smitten.after(2, fn)          -- once; t:cancel(), t.active
-smitten.every(0.5, fn)                  -- until fn returns false or it's cancelled
-smitten.tween(target, seconds, { y = 40, alpha = 0 }, easing?, done?)
-```
-
-Easings: `linear`, `inQuad`, `outQuad` (default), `inOutQuad`, `inCubic`,
-`outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inBack`,
-`outBack`, `outElastic`, `outBounce`. Timers and tweens made while a scene
-from `go` runs belong to it: they advance in its update and end with it.
-
-## Camera
-
-```lua
-smitten.camera.x, smitten.camera.y      -- top left of the view
-smitten.camera.follow(object)           -- nil to stop
-smitten.camera.shake(pixels, seconds)   -- default 4, 0.3
-smitten.camera.bounds = true            -- keep the view inside the scene (smaller scenes are centered)
-smitten.camera.toWorld(x, y); smitten.camera.toScreen(x, y)
-```
-
-## Color and text
-
-```lua
-smitten.palette                         -- { {r, g, b, 1}, ... } from smitten.json
-smitten.color(3)                        -- r, g, b, a of palette color 3; also "#rrggbb", {r, g, b}; smitten.color(3, 0.5)
-smitten.print(text, x, y, color?, scale?)       -- 5×7 pixel font; color: palette number, "#rrggbb" or {r, g, b}
-smitten.printCentered(text, y, color?, scale?)  -- centered on smitten.screen.width
-smitten.textWidth(text)
-smitten.font                            -- a love Font (ImageFont): 6 pixels per character, 10 per line
-```
-
-## Helpers
-
-```lua
-smitten.random(1, 6)  smitten.random(6)  smitten.random()   -- whole numbers, or a fraction 0..1
-smitten.chance(0.25)  smitten.pick(list)
-smitten.clamp(v, lo, hi)  smitten.lerp(a, b, t)  smitten.approach(v, target, step)
-smitten.save("best", 42)  smitten.load("best", 0)   -- smitten-save.json in the save folder
-```
+`solid` tiles block bodies, `oneWay` ones only from above. Other
+properties are for scripts: `body:touchingTile("damage")` returns the
+properties of a touching tile that has one, and `TileMap:getTileProperties`
+returns any tile's.
 
 ## Sound effects
 
-`sfx/jump.sfx.json`. Synth parameters in physical units; the synthesizer
+`sfx/jump.sfx`. Synth parameters in physical units; the synthesizer
 renders 44100 Hz mono.
 
 ```json
@@ -475,7 +342,7 @@ always produce the same samples (`noise` uses a fixed seed).
 ### Lua
 
 ```lua
-local jump = smitten.sfx("sfx/jump")     -- cached; rendered once
+local jump = smitten.synth.sfx("sfx/jump")     -- cached; rendered once
 jump:play()                              -- returns the love Source playing it (several can overlap)
 jump:play({ volume = 0.5, pitch = 1.2 })
 jump:stop()                              -- stops every copy
@@ -485,7 +352,7 @@ jump.duration                            -- seconds
 
 ## Songs
 
-`music/theme.song.json`.
+`music/theme.song`.
 
 ```json
 {
@@ -508,7 +375,7 @@ jump.duration                            -- seconds
       "attack": 0.01, "decay": 0.1, "sustain": 0.6, "release": 0.1,
       "duty": 0.5, "vibratoDepth": 0, "vibratoSpeed": 5, "lowpass": 1
     },
-    { "name": "Kick", "type": "sfx", "sfx": "../sfx/kick.sfx.json", "pitched": false }
+    { "name": "Kick", "type": "sfx", "sfx": "../sfx/kick.sfx", "pitched": false }
   ],
   "patterns": [
     {
@@ -531,7 +398,7 @@ jump.duration                            -- seconds
   (`attack`, `decay`, `release` in seconds, `sustain` level 0–1),
   `duty`, vibrato, `lowpass`. The note sounds for `length` steps, then
   releases.
-- Sound-effect instruments play an `.sfx.json` per note, whole (a note's
+- Sound-effect instruments play an `.sfx` per note, whole (a note's
   `length` doesn't cut it); with `pitched: true` its `frequency` (and
   `minFrequency`) is shifted by the note's distance from 60. An optional
   `volume` (default 1) scales them.
@@ -547,7 +414,7 @@ jump.duration                            -- seconds
 ### Lua
 
 ```lua
-local theme = smitten.song("music/theme")   -- cached; rendered once, on first use
+local theme = smitten.synth.song("music/theme")   -- cached; rendered once, on first use
 theme:play()                                -- loops as the file says
 theme:stop(); theme:pause(); theme:resume()
 theme:setVolume(0.5)
@@ -561,8 +428,8 @@ ordinary LÖVE Source, so they keep playing in background tabs.
 ### Synthesizer
 
 ```lua
-smitten.synth.renderSfx(params)            -- params: a decoded .sfx.json table -> SoundData
-smitten.synth.renderSong(song, basePath)   -- a decoded .song.json table; basePath (the song's path or folder) resolves its sfx paths -> SoundData
+smitten.synth.renderSfx(params)            -- params: a decoded .sfx table -> SoundData
+smitten.synth.renderSong(song, basePath)   -- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -> SoundData
 ```
 
 SoundData is 44100 Hz, 16-bit, mono. `renderSong` renders one pass through
@@ -586,7 +453,7 @@ export default {
     extension: '.png',              // the file the tool then opens
     files: (base) => ({             // base: chosen path without extension
       [`${base}.png`]: pngBytes,
-      [`${base}.sprite.json`]: jsonText,
+      [`${base}.sprite`]: jsonText,
     }),
   }],
   // Create an instance for one open file.

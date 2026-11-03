@@ -179,35 +179,42 @@ export async function buildLove(files) {
   return zipFiles(files);
 }
 
-const WEB_ASSETS = ['player.html', 'player.js', 'player.css', 'love.mjs', 'love.wasm'];
+const WEB_ASSETS = ['player.html', 'player.js', 'player.css', 'smitten.mjs', 'smitten.wasm'];
 
 function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+async function fetchBytes(name) {
+  const res = await fetch(name, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`Could not fetch ${name} (${res.status}).`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 /**
  * A zip that can be uploaded to itch.io as an HTML game: index.html (the
- * player, pointed at game.love), the engine files and the game itself.
+ * player, pointed at game.love), the engine, only the engine modules the
+ * game uses (DESIGN.md, section 3), and the game itself.
  */
-export async function buildWebExport(files, title) {
+export async function buildWebExport(files, title, modules = []) {
   const assets = {};
-  await Promise.all(WEB_ASSETS.map(async (name) => {
-    const res = await fetch(name, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`Could not fetch ${name} (${res.status}).`);
-    assets[name] = new Uint8Array(await res.arrayBuffer());
-  }));
+  await Promise.all(WEB_ASSETS.map(async (name) => { assets[name] = await fetchBytes(name); }));
   let html = new TextDecoder().decode(assets['player.html']);
-  const meta = '<meta name="love-game" content="game.love">';
+  const meta = [
+    '<meta name="love-game" content="game.love">',
+    `<meta name="smitten-modules" content="${escapeHtml(modules.join(','))}">`,
+  ].join('\n');
   html = html.replace(/<head>/i, `<head>\n${meta}`);
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`);
   const out = {
     'index.html': html,
     'player.js': assets['player.js'],
     'player.css': assets['player.css'],
-    'love.mjs': assets['love.mjs'],
-    'love.wasm': assets['love.wasm'],
+    'smitten.mjs': assets['smitten.mjs'],
+    'smitten.wasm': assets['smitten.wasm'],
     'game.love': await buildLove(files),
   };
+  for (const m of modules) out[`modules/${m}.wasm`] = await fetchBytes(`modules/${m}.wasm`);
   return zipFiles(out);
 }
 

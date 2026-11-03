@@ -53,18 +53,18 @@ const report = (name, samples, ms) => {
 };
 const peak = (s) => s.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
 
-for (const file of readdirSync(join(here, 'sfx')).filter((f) => f.endsWith('.sfx.json')).sort()) {
+for (const file of readdirSync(join(here, 'sfx')).filter((f) => f.endsWith('.sfx')).sort()) {
   const params = JSON.parse(readFileSync(join(here, 'sfx', file), 'utf8'));
   const t = performance.now();
   const samples = synth.renderSfx(params);
   report(`sfx/${file}`, samples, performance.now() - t);
 }
 
-for (const file of readdirSync(join(here, 'music')).filter((f) => f.endsWith('.song.json')).sort()) {
+for (const file of readdirSync(join(here, 'music')).filter((f) => f.endsWith('.song')).sort()) {
   const song = JSON.parse(readFileSync(join(here, 'music', file), 'utf8'));
   const readSfx = (path) => {
     let p = resolve(here, 'music', path);
-    if (!existsSync(p)) p += '.sfx.json';
+    if (!existsSync(p)) p += '.sfx';
     return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : undefined;
   };
   synth.renderSong(song, readSfx); // warm up

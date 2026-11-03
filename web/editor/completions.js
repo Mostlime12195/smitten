@@ -5,7 +5,8 @@
 // docs come from love-docs.js.
 
 import { CALLBACKS, DOCS, RETURNS, NAME_HINTS, METHOD_DOCS } from './love-docs.js';
-import { SMITTEN, SMITTEN_NAMESPACES, SMITTEN_TYPES, SMITTEN_LOADERS } from './smitten-docs.js';
+import { SMITTEN_MODULES, LOVE_ADDITIONS, PATH_ARGS } from './smitten-docs.js';
+import { getSchema } from './core/schema.js';
 
 const LUA_KEYWORDS = ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while'];
 
@@ -54,7 +55,6 @@ const METHOD_RETURNS = {
 
 const FILE_FUNCS = /(?:newImage|newSource|newFont|newShader|newImageData|newSoundData|newVideo|newImageFont|newArrayImage|newCubeImage|newDecoder|newFileData|read|lines|load|getInfo|newFile|openFile)\s*\(\s*["']([^"']*)$/;
 const REQUIRE = /\brequire\s*\(?\s*["']([^"']*)$/;
-const SMITTEN_LOAD = /\bsmitten\.(sprite|tileset|map|sfx|song)\s*\(\s*["']([^"']*)$/;
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const visible = (name) => !name.startsWith('_');
@@ -86,19 +86,42 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     { label: `love.${name}`, type: 'function', detail: `(${args})`, info: doc },
   ));
 
-  // The smitten module: smitten.x, smitten.ns.x, and the objects it returns.
-  const smittenOption = (name, d, detail) => (d
+  // smitten is love: LÖVE's modules plus Smitten's, and helpers that join
+  // LÖVE's modules (smitten-docs.js).
+  const fnOpt = (name, d, detail) => (d
     ? { label: name, type: 'function', detail: `(${d[0]})`, info: d[1], boost: 1 }
-    : { label: name, type: SMITTEN_NAMESPACES[name] ? 'namespace' : 'property', detail });
-  const smittenMembers = Object.entries(SMITTEN).map(([n, d]) => smittenOption(n, d, 'smitten'));
-  const smittenNamespaces = Object.fromEntries(Object.entries(SMITTEN_NAMESPACES)
-    .map(([ns, members]) => [ns, Object.entries(members).map(([n, d]) => smittenOption(n, d, `smitten.${ns}`))]));
+    : { label: name, type: 'property', detail });
+  const smittenModuleMembers = Object.fromEntries(Object.entries(SMITTEN_MODULES)
+    .map(([mod, members]) => [mod, Object.entries(members).map(([n, d]) => fnOpt(n, d, `smitten.${mod}`))]));
+  for (const [mod, members] of Object.entries(LOVE_ADDITIONS)) {
+    moduleFns[mod] = [...(moduleFns[mod] || []), ...Object.entries(members).map(([n, d]) => fnOpt(n, d, `smitten.${mod}`))];
+  }
+  const engineMembers = [
+    ...loveMembers,
+    ...Object.keys(SMITTEN_MODULES).map((m) => ({ label: m, type: 'namespace', detail: 'module', boost: 2 })),
+    ...['graphics3d', 'physics3d'].map((m) => ({ label: m, type: 'namespace', detail: 'module (3D)', boost: 1 })),
+    { label: 'version', type: 'property', detail: 'Smitten\'s version' },
+  ];
+  const callbackSnippetsFor = (ns) => CALLBACKS.map(([name, args, doc]) => snippetCompletion(
+    `${ns}.${name}(${args})\n\t\${}\nend`,
+    { label: `${ns}.${name}`, type: 'function', detail: `(${args})`, info: doc },
+  ));
+
+  // Nodes: self:method() and the functions a script can define.
+  const schema = (() => { try { return getSchema(); } catch { return { types: {} }; } })();
+  const nodeMethodMap = new Map();
+  const scriptEvents = new Map();
+  for (const [type, def] of Object.entries(schema.types)) {
+    for (const [m, d] of Object.entries(def.methods || {})) if (!nodeMethodMap.has(m)) nodeMethodMap.set(m, { label: m, type: 'method', detail: `(${d.args})`, info: `${type}: ${d.doc}`, boost: 1 });
+    for (const [e, d] of Object.entries(def.events || {})) if (!scriptEvents.has(e)) scriptEvents.set(e, { name: e, args: d.args, doc: d.doc, type });
+  }
+  const nodeMethods = [...nodeMethodMap.values()];
+  const eventSnippets = (cls) => [...scriptEvents.values()].map((e) => snippetCompletion(
+    `${e.name}(${e.args === '' ? '' : e.args})\n\t\${}\nend`,
+    { label: e.name, type: 'method', detail: `(${e.args})`, info: `${e.type}: ${e.doc}`, boost: 2 },
+  ));
 
   const typeMethods = {};
-  for (const [type, members] of Object.entries(SMITTEN_TYPES)) {
-    typeMethods[type] = Object.entries(members).filter(([, d]) => d)
-      .map(([n, d]) => ({ label: n, type: 'method', detail: `(${d[0]})`, info: d[1], boost: 1 }));
-  }
   const allMethods = new Map(); // method -> [types]
   for (const [type, methods] of Object.entries(types)) {
     typeMethods[type] = methods.filter(visible).map((m) => {
@@ -138,12 +161,9 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
 
   function inferType(text, receiver) {
     const last = receiver.split(/[.:]/).pop();
-    const assigned = new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*smitten\\.(\\w+)\\s*\\(`, 'm').exec(text);
-    if (assigned && SMITTEN_LOADERS[assigned[1]]) return SMITTEN_LOADERS[assigned[1]].type;
-    if (new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*[\\w.]+:animation\\s*\\(`, 'm').test(text)) return 'Animation';
     const patterns = [
-      new RegExp(`(?:^|[^\\w.])${escapeRe(receiver)}\\s*=\\s*love\\.(\\w+)\\.(\\w+)`, 'm'),
-      new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*love\\.(\\w+)\\.(\\w+)`, 'm'),
+      new RegExp(`(?:^|[^\\w.])${escapeRe(receiver)}\\s*=\\s*(?:love|smitten)\\.(\\w+)\\.(\\w+)`, 'm'),
+      new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*(?:love|smitten)\\.(\\w+)\\.(\\w+)`, 'm'),
     ];
     for (const re of patterns) {
       const m = re.exec(text);
@@ -165,13 +185,9 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     }));
   }
 
-  /** Asset paths a smitten loader accepts, without their extension (sprites/hero). */
-  function assetOptions(loader) {
-    const { ext, strip } = SMITTEN_LOADERS[loader];
-    const seen = new Set();
-    return getProjectFiles().filter((p) => ext.test(p)).map((p) => p.replace(strip, ''))
-      .filter((p) => !seen.has(p) && seen.add(p))
-      .map((p) => ({ label: p, type: 'text', detail: loader }));
+  /** Project files a path argument accepts. */
+  function pathOptions(ext) {
+    return getProjectFiles().filter((p) => ext.test(p)).map((p) => ({ label: p, type: 'text', detail: 'file' }));
   }
 
   function documentWords(state, current) {
@@ -196,28 +212,30 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
 
     if (/string/i.test(nodeName) || /["'][^"']*$/.test(before)) {
       if ((m = REQUIRE.exec(before))) return { from: pos - m[1].length, options: requireOptions(), validFor: /^[\w.]*$/ };
-      if ((m = SMITTEN_LOAD.exec(before))) return { from: pos - m[2].length, options: assetOptions(m[1]), validFor: /^[\w./-]*$/ };
+      for (const arg of PATH_ARGS) {
+        if ((m = arg.re.exec(before))) return { from: pos - m[1].length, options: pathOptions(arg.ext), validFor: /^[\w./-]*$/ };
+      }
       if ((m = FILE_FUNCS.exec(before))) return { from: pos - m[1].length, options: projectFileOptions(m[1]), validFor: /^[\w./-]*$/ };
       if (/string/i.test(nodeName)) return null;
     }
     if (/comment/i.test(nodeName)) return null;
 
-    if ((m = /\bfunction\s+(love\.\w*)$/.exec(before))) {
-      return { from: pos - m[1].length, options: callbackSnippets, validFor: /^love\.\w*$/ };
+    if ((m = /\bfunction\s+((?:love|smitten)\.\w*)$/.exec(before))) {
+      const ns = m[1].startsWith('smitten') ? 'smitten' : 'love';
+      return { from: pos - m[1].length, options: callbackSnippetsFor(ns), validFor: /^\w+\.\w*$/ };
     }
-    if ((m = /(?:^|[^\w.:])love\.(\w+)\.(\w*)$/.exec(before))) {
-      const opts = moduleFns[m[1]];
+    if ((m = /\bfunction\s+[A-Za-z_]\w*:(\w*)$/.exec(before))) {
+      return { from: pos - m[1].length, options: eventSnippets(), validFor: /^\w*$/ };
+    }
+    if ((m = /(?:^|[^\w.:])(?:love|smitten)\.(\w+)\.(\w*)$/.exec(before))) {
+      const opts = smittenModuleMembers[m[1]] || moduleFns[m[1]];
       return opts ? { from: pos - m[2].length, options: opts, validFor: /^\w*$/ } : null;
     }
-    if ((m = /(?:^|[^\w.:])love\.(\w*)$/.exec(before))) {
-      return { from: pos - m[1].length, options: loveMembers, validFor: /^\w*$/ };
+    if ((m = /(?:^|[^\w.:])(?:love|smitten)\.(\w*)$/.exec(before))) {
+      return { from: pos - m[1].length, options: engineMembers, validFor: /^\w*$/ };
     }
-    if ((m = /(?:^|[^\w.:])smitten\.(\w+)\.(\w*)$/.exec(before))) {
-      const opts = smittenNamespaces[m[1]];
-      return opts ? { from: pos - m[2].length, options: opts, validFor: /^\w*$/ } : null;
-    }
-    if ((m = /(?:^|[^\w.:])smitten\.(\w*)$/.exec(before))) {
-      return { from: pos - m[1].length, options: smittenMembers, validFor: /^\w*$/ };
+    if ((m = /\bself:(\w*)$/.exec(before))) {
+      return { from: pos - m[1].length, options: nodeMethods, validFor: /^\w*$/ };
     }
     if ((m = /(?:^|[^\w.:])(math|string|table|os|coroutine|utf8|io|debug)\.(\w*)$/.exec(before))) {
       return { from: pos - m[2].length, options: libMembers[m[1]], validFor: /^\w*$/ };

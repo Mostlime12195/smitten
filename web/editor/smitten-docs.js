@@ -1,185 +1,123 @@
-// Completion data for the smitten module (docs/reference.md): functions with
-// signatures and short docs, and the methods of the objects it returns.
+// Completion data for what Smitten adds to the engine table (smitten is love):
+// its own modules, the helpers that join LÖVE's modules, and the path
+// arguments the editor can complete. Node methods and script callbacks come
+// from the node schema (core/schema.js).
 
-/** smitten.<name>: [args, doc] for functions, null for namespaces and values. */
-export const SMITTEN = {
-  sprite: ['path', 'Loads a sprite: a PNG and its .sprite.json (frames, origin, animations). Cached.'],
-  tileset: ['path', 'Loads a .tileset.json: its image, tile size and per-tile properties. Cached.'],
-  map: ['path', 'Loads a .map.json made in the map editor. Cached.'],
-  sfx: ['path', 'Loads a .sfx.json made in the sound editor; :play() it.'],
-  song: ['path', 'Loads a .song.json made in the music editor; :play() it.'],
-  start: ['scene?', 'Starts the game at smitten.json\'s "start" scene (in love.load). Play scene in the editor starts at the scene being edited.'],
-  object: ['definition', 'Makes an object type: return smitten.object { sprite = "sprites/coin", behaviors = { "platformer" } } from objects/<name>.lua.'],
-  spawn: ['type, x, y, properties?', 'Creates an object in the running scene (bullets, effects); returns it.'],
-  find: ['type', 'The first object of a type in the scene, or nil.'],
-  all: ['type?', 'A list of every object of a type (or every object).'],
-  after: ['seconds, fn', 'Calls fn once, later. Returns a timer with :cancel(). Ends with the scene.'],
-  every: ['seconds, fn', 'Calls fn repeatedly (until it returns false). Returns a timer with :cancel().'],
-  tween: ['table, seconds, values, easing?, done?', 'Changes numbers smoothly: smitten.tween(self, 0.3, { y = 40, alpha = 0 }, "outBack").'],
-  color: ['n, alpha?', 'A palette color (1-based) or "#rrggbb" as r, g, b, a: love.graphics.setColor(smitten.color(3)).'],
-  print: ['text, x, y, color?, scale?', 'Draws text with the built-in 5×7 pixel font, in a palette color.'],
-  printCentered: ['text, y, color?, scale?', 'Draws text centered horizontally on the game screen.'],
-  textWidth: ['text', 'Width in pixels of text in the pixel font.'],
-  random: ['a?, b?', 'A whole number from a to b (random(1, 6)), or a fraction from 0 to 1.'],
-  chance: ['probability', 'True that often: chance(0.25) is true a quarter of the time.'],
-  pick: ['list', 'A random element of a list.'],
-  clamp: ['v, lo, hi', 'v kept between lo and hi.'],
-  lerp: ['a, b, t', 'The value t of the way from a to b.'],
-  approach: ['v, target, step', 'v moved towards target by at most step.'],
-  save: ['key, value', 'Saves a value between runs (numbers, strings, tables).'],
-  load: ['key, default?', 'A value saved with smitten.save, or default.'],
-  version: null, palette: null, font: null,
-  screen: null, input: null, scene: null, camera: null, mouse: null, collide: null, synth: null, json: null, assets: null,
-};
-
-/** smitten.<namespace>.<name>: [args, doc]. */
-export const SMITTEN_NAMESPACES = {
-  screen: {
-    setup: ['width?, height?', 'Draw the game at this size (default: smitten.json\'s resolution), scaled up by whole numbers.'],
-    begin: ['', 'Start drawing at the game\'s size.'],
-    finish: ['', 'Stop, and draw the game scaled into the window.'],
-    toGame: ['x, y', 'Window coordinates (e.g. the mouse) to game coordinates.'],
-    toWindow: ['x, y', 'Game coordinates to window coordinates.'],
-    width: null, height: null, scale: null,
+/** smitten.<module>.<name>: [args, doc]; null for values. */
+export const SMITTEN_MODULES = {
+  scene: {
+    change: ['path, ...', 'Goes to another scene at the end of the frame: smitten.scene.change("scenes/level2.scene").'],
+    reload: ['', 'Starts the running scene again from its file.'],
+    instance: ['path, properties?', 'Makes a node from a scene file; add it with node:add().'],
+    create: ['type, properties?, script?', 'Makes a node of a type: smitten.scene.create("Sprite2D", { image = "art/coin.png" }).'],
+    group: ['name', 'The nodes in a group, as a list.'],
+    first: ['name', 'The first node in a group, or nil.'],
+    find: ['path', 'A node of the running scene by its path from the root.'],
+    setCurrent: ['root', 'Makes a node built in code the running scene.'],
+    getDelta: ['', 'The current step\'s length: the frame time in update(), the fixed step in physicsUpdate().'],
+    raycast3d: ['x, y, z, dx, dy, dz, mask?', 'Casts a ray through the 3D physics world: node, x, y, z, nx, ny, nz.'],
+    current: null, path: null, args: null, paused: null, showCollisions: null,
   },
   input: {
-    bind: ['action, inputs', 'Name an action and the keys ("space"), buttons ("pad:a") and axes ("axis:leftx-") that do it.'],
+    pressed: ['action', 'True on the frame the action went down: smitten.input.pressed("jump").'],
     down: ['action', 'True while the action is held.'],
-    pressed: ['action', 'True on the frame the action went down.'],
     released: ['action', 'True on the frame the action went up.'],
-    axis: ['negative, positive', '-1, 0 or 1: smitten.input.axis("left", "right").'],
-    bindings: ['action', 'The keys and buttons bound to an action.'],
+    axis: ['negative, positive', 'From -1 to 1: smitten.input.axis("left", "right").'],
+    vector: ['left, right, up, down', 'A direction at most 1 long: x, y.'],
+    strength: ['action', 'How far the action is pushed, 0 to 1.'],
+    bind: ['action, inputs', 'Adds an action: smitten.input.bind("dash", { "lshift", "pad:b" }).'],
     unbind: ['action', 'Removes an action.'],
+    bindings: ['action', 'The inputs bound to an action.'],
+    actions: ['', 'Every action\'s name.'],
   },
-  scene: {
-    go: ['name, ...', 'Goes to scenes/<name>.scene.json and/or scenes/<name>.lua; extra arguments go to its enter(...).'],
-    restart: ['', 'Starts the current scene again from its file.'],
-    name: null, map: null,
-    switch: ['scene, ...', 'Replace the current scene. Calls its enter(...).'],
-    push: ['scene, ...', 'Put a scene on top of the current one (e.g. a pause menu).'],
-    pop: ['...', 'Go back to the scene below; calls its resume(...).'],
-    current: ['', 'The scene that\'s running.'],
-  },
-  camera: {
-    follow: ['object', 'Keeps an object in the middle of the view (or camera = true in its definition).'],
-    shake: ['pixels?, seconds?', 'Shakes the view: smitten.camera.shake(4, 0.3).'],
-    toWorld: ['x, y', 'Screen coordinates to scene coordinates.'],
-    toScreen: ['x, y', 'Scene coordinates to screen coordinates.'],
-    x: null, y: null, bounds: null, target: null,
-  },
-  mouse: {
-    down: ['button?', 'True while a mouse button (1 = left, the default) or a touch is held.'],
-    pressed: ['button?', 'True on the frame a button went down.'],
-    released: ['button?', 'True on the frame a button went up.'],
-    over: ['object', 'True if the pointer is over an object.'],
-    x: null, y: null, worldX: null, worldY: null,
-  },
-  collide: {
-    overlaps: ['a, b', 'True if two boxes (x, y, width, height) overlap.'],
-    move: ['map, box, dx, dy', 'Move a box through a map\'s solid tiles; returns hit.x, hit.y, hit.ground, hit.ceiling.'],
-  },
-  synth: {
-    renderSfx: ['params', 'Render sound effect parameters to a SoundData.'],
-    renderSong: ['song, basePath', 'Render a song table to a SoundData.'],
-  },
-  json: {
-    decode: ['text', 'Parse JSON into Lua values.'],
-    encode: ['value, indent?', 'Write a Lua value as JSON.'],
-    null: null,
+  tween: {
+    to: ['target, seconds, values, easing?, done?', 'Changes numbers smoothly; smitten.tween(...) does the same.'],
+    after: ['seconds, fn', 'Calls fn once, later.'],
+    every: ['seconds, fn', 'Calls fn repeatedly until it returns false.'],
+    easingNames: ['', 'Every easing\'s name (linear, outQuad, outBack, outBounce, ...).'],
   },
   assets: {
-    resolve: ['path, extensions, what', 'Find an asset file, trying each extension.'],
-    readJSON: ['path', 'Read and decode a JSON file from the game.'],
-    clear: ['kind?', 'Forget cached assets so they load again.'],
+    image: ['path', 'An Image, cached.'],
+    sprite: ['path', 'A .sprite file: image, frames and animations.'],
+    tileset: ['path', 'A .tileset file.'],
+    font: ['path, size', 'A font: a .ttf/.otf file, "pixel", or "" for the default.'],
+    audio: ['path', 'A sound ready to play: :newSource():play().'],
+    model: ['path', 'A glTF model (3D games).'],
+    scene: ['path', 'A .scene file, decoded.'],
+    script: ['path', 'Runs a script file and returns its table.'],
+    load: ['path', 'Loads any file by its extension.'],
+    readJSON: ['path', 'Reads and decodes a JSON file.'],
+    clear: ['path?', 'Forgets cached files so they load again.'],
+  },
+  storage: {
+    save: ['key, value', 'Saves a value between plays: smitten.storage.save("best", score).'],
+    load: ['key, default?', 'A saved value, or default.'],
+    remove: ['key', 'Forgets a saved value.'],
+    keys: ['', 'Every saved value\'s name.'],
+  },
+  display: {
+    toGame: ['x, y', 'Window coordinates to game coordinates.'],
+    toWindow: ['x, y', 'Game coordinates to window coordinates.'],
+    getWindowRect: ['', 'The game\'s area in the window: x, y, width, height.'],
+    width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null,
+  },
+  json: {
+    decode: ['text', 'JSON text to Lua values.'],
+    encode: ['value, indent?', 'Lua values to JSON text.'],
+    null: null,
+  },
+  synth: {
+    sfx: ['path', 'A .sfx sound effect made in the Sound workspace; :play() it.'],
+    song: ['path', 'A .song made in the Music workspace; :play() it.'],
+    renderSfx: ['params', 'Renders sound effect parameters to a SoundData.'],
+    renderSong: ['song, basePath', 'Renders a song table to a SoundData.'],
   },
 };
 
-/** Methods and fields of the objects smitten returns: Type -> {name: [args, doc] | null}. */
-export const SMITTEN_TYPES = {
-  Object: {
-    destroy: ['', 'Removes it from the scene at the end of the frame.'],
-    play: ['name', 'Switches its sprite\'s animation.'],
-    drawSprite: ['', 'Draws its sprite (call it from your own draw()).'],
-    overlaps: ['typeOrObject', 'The first object of a type (or that object) touching it, or nil.'],
-    isOnGround: ['', 'True if it\'s standing on something solid.'],
-    distanceTo: ['other', 'Distance in pixels to another object.'],
-    angleTo: ['other', 'Angle in radians towards another object.'],
-    moveTo: ['x, y, speed', 'Moves towards a point; true when it\'s there.'],
-    move: ['dx, dy', 'Moves, stopping at solid tiles and objects.'],
-    box: ['', 'Its hitbox: x, y, width, height.'],
-    respawn: ['', 'Back to where it started.'],
-    jump: ['', 'Makes a platformer jump (with controls = false).'],
-    touchingTile: ['property', 'The properties of a tile under it with that property ("damage"), or nil.'],
-    create: ['', 'Callback: runs when it\'s made.'],
-    update: ['dt', 'Callback: every frame, after its behaviors.'],
-    draw: ['', 'Callback: draws it (default: its sprite).'],
-    touch: ['other', 'Callback: another object started overlapping it.'],
-    untouch: ['other', 'Callback: the overlap ended.'],
-    destroyed: ['', 'Callback: it was destroyed.'],
-    fell: ['', 'Callback (platformer): fell out of the scene; default respawns.'],
-    jumped: ['', 'Callback (platformer): it jumped.'],
-    landed: ['', 'Callback (platformer): it landed.'],
-    x: null, y: null, vx: null, vy: null, width: null, height: null, type: null, scene: null, flipX: null,
-    visible: null, alpha: null, layer: null, solid: null, controls: null, anim: null,
+/** Helpers that join LÖVE's modules: smitten.<module>.<name>. */
+export const LOVE_ADDITIONS = {
+  math: {
+    chance: ['p', 'True with probability p: chance(0.25) is true a quarter of the time.'],
+    pick: ['list', 'A random element of a list.'],
+    clamp: ['v, lo, hi', 'v kept between lo and hi.'],
+    lerp: ['a, b, t', 'The value t of the way from a to b.'],
+    approach: ['v, target, step', 'v moved towards target by at most step.'],
+    sign: ['v', '1, 0 or -1.'],
+    round: ['v, step?', 'v rounded to the nearest multiple of step.'],
+    distance: ['x1, y1, x2, y2', 'The distance between two points.'],
+    angle: ['x1, y1, x2, y2', 'The angle from one point to another, in radians.'],
+    randomFloat: ['a, b', 'A random number with a fraction, from a to b.'],
   },
-  Timer: {
-    cancel: ['', 'Stops it.'],
-    active: null,
+  timer: {
+    after: ['seconds, fn', 'Calls fn once, later. Returns a handle with :cancel().'],
+    every: ['seconds, fn', 'Calls fn every so many seconds, until it returns false.'],
   },
-  Sprite: {
-    draw: ['frame, x, y, r?, sx?, sy?', 'Draw one frame (from 0) around the sprite\'s origin.'],
-    animation: ['name?', 'A new, independent playback of an animation.'],
-    quad: ['frame', 'The Quad of a frame.'],
-    has: ['name', 'Whether the sprite has this animation.'],
-    animationNames: ['', 'The names of the sprite\'s animations.'],
-    image: null, width: null, height: null, frameCount: null, originX: null, originY: null,
+  mouse: {
+    pressed: ['button?', 'True on the frame a mouse button (1 = left) went down.'],
+    released: ['button?', 'True on the frame a mouse button went up.'],
+    down: ['button?', 'True while a mouse button is held.'],
+    getDelta: ['', 'How far the mouse moved this frame: dx, dy.'],
+    isOverUI: ['', 'True while the pointer is over a UI button or panel.'],
+    x: null, y: null, worldX: null, worldY: null,
   },
-  Animation: {
-    update: ['dt', 'Advance the animation.'],
-    draw: ['x, y, r?, sx?, sy?', 'Draw the current frame; a negative sx flips it.'],
-    play: ['name, restart?', 'Switch to another animation of the same sprite.'],
-    pause: ['', 'Stop advancing.'],
-    resume: ['', 'Continue after pause().'],
-    getDuration: ['', 'Length of one pass, in seconds.'],
-    name: null, frame: null, finished: null, paused: null,
-  },
-  Map: {
-    draw: ['', 'Draw every visible tile layer.'],
-    drawLayer: ['name', 'Draw one layer.'],
-    getTile: ['layer, tx, ty', 'Tile number at a cell (from 0), or -1.'],
-    setTile: ['layer, tx, ty, tile', 'Change a tile.'],
-    tileProperties: ['tile', 'The properties set on a tile in its tileset.'],
-    isSolid: ['px, py', 'Whether a solid tile covers this pixel.'],
-    objects: ['type?', 'The objects placed on object layers.'],
-    spawn: ['classes', 'Create an entity for each object: classes[type].new(object).'],
-    width: null, height: null, tileWidth: null, tileHeight: null, pixelWidth: null, pixelHeight: null, properties: null,
-  },
-  Tileset: {
-    quad: ['tile', 'The Quad of a tile.'],
-    properties: ['tile', 'The properties set on a tile.'],
-    image: null, tileWidth: null, tileHeight: null, count: null,
-  },
-  Sound: {
-    play: ['options?', 'Play it ({volume, pitch}); returns the Source. Plays can overlap.'],
-    stop: ['', 'Stop every copy that\'s playing.'],
-    soundData: null, duration: null,
-  },
-  Song: {
-    play: ['', 'Start the song (it loops if the file says so).'],
-    stop: ['', 'Stop and rewind.'],
-    pause: ['', 'Pause.'],
-    resume: ['', 'Continue after pause().'],
-    setVolume: ['volume', 'Volume from 0 to 1.'],
-    isPlaying: ['', 'Whether it\'s playing.'],
-    duration: null,
+  keyboard: {
+    pressed: ['key', 'True on the frame a key went down.'],
+    released: ['key', 'True on the frame a key went up.'],
   },
 };
 
-/** What smitten.<loader>(...) returns, and the file extensions it loads. */
-export const SMITTEN_LOADERS = {
-  sprite: { type: 'Sprite', ext: /\.(png|sprite\.json)$/i, strip: /\.(sprite\.json|png)$/i },
-  tileset: { type: 'Tileset', ext: /\.tileset\.json$/i, strip: /\.tileset\.json$/i },
-  map: { type: 'Map', ext: /\.map\.json$/i, strip: /\.map\.json$/i },
-  sfx: { type: 'Sound', ext: /\.sfx\.json$/i, strip: /\.sfx\.json$/i },
-  song: { type: 'Song', ext: /\.song\.json$/i, strip: /\.song\.json$/i },
-};
+export const ENGINE_FIELDS = { version: null };
+
+/** Functions whose first argument is a project path, and which files fit. */
+export const PATH_ARGS = [
+  { re: /\bscene\.(?:change|instance)\s*\(\s*["']([^"']*)$/, ext: /\.scene$/ },
+  { re: /\bassets\.(?:image)\s*\(\s*["']([^"']*)$/, ext: /\.(png|jpe?g|bmp)$/i },
+  { re: /\bassets\.sprite\s*\(\s*["']([^"']*)$/, ext: /\.sprite$/ },
+  { re: /\bassets\.tileset\s*\(\s*["']([^"']*)$/, ext: /\.tileset$/ },
+  { re: /\bassets\.font\s*\(\s*["']([^"']*)$/, ext: /\.(ttf|otf)$/i },
+  { re: /\bassets\.(?:audio)\s*\(\s*["']([^"']*)$/, ext: /\.(wav|ogg|mp3|flac|sfx|song)$/i },
+  { re: /\bassets\.model\s*\(\s*["']([^"']*)$/, ext: /\.(glb|gltf)$/i },
+  { re: /\bsynth\.sfx\s*\(\s*["']([^"']*)$/, ext: /\.sfx$/ },
+  { re: /\bsynth\.song\s*\(\s*["']([^"']*)$/, ext: /\.song$/ },
+  { re: /\bassets\.(?:load|readJSON|scene|script)\s*\(\s*["']([^"']*)$/, ext: /./ },
+];

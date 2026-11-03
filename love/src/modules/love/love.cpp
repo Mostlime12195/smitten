@@ -90,6 +90,17 @@ extern "C" int luaopen_bit(lua_State *L);
 // Scripts.
 #include "scripts/nogame.lua.h"
 
+// Smitten: the engine's Lua modules (love/src/modules/*/*.lua), embedded by
+// build.py.
+#ifdef LOVE_SMITTEN
+#	include "engine_lua.h"
+#endif
+
+#ifdef LOVE_OPTIONAL_MODULES
+#	include <dlfcn.h>
+#	include <emscripten.h>
+#endif
+
 // Put the Lua code directly into a raw string literal.
 static const char arg_lua[] =
 #include "arg.lua"
@@ -145,7 +156,7 @@ extern "C"
 #if defined(LOVE_ENABLE_MOUSE)
 	extern int luaopen_love_mouse(lua_State*);
 #endif
-#if defined(LOVE_ENABLE_PHYSICS)
+#if defined(LOVE_ENABLE_PHYSICS) && !defined(LOVE_OPTIONAL_MODULES)
 	extern int luaopen_love_physics(lua_State*);
 #endif
 #if defined(LOVE_ENABLE_SENSOR)
@@ -166,7 +177,7 @@ extern "C"
 #if defined(LOVE_ENABLE_TOUCH)
 	extern int luaopen_love_touch(lua_State*);
 #endif
-#if defined(LOVE_ENABLE_VIDEO)
+#if defined(LOVE_ENABLE_VIDEO) && !defined(LOVE_OPTIONAL_MODULES)
 	extern int luaopen_love_video(lua_State*);
 #endif
 #if defined(LOVE_ENABLE_WINDOW)
@@ -177,9 +188,6 @@ extern "C"
 	extern int luaopen_love_arg(lua_State*);
 	extern int luaopen_love_callbacks(lua_State*);
 	extern int luaopen_love_boot(lua_State*);
-#ifdef LOVE_SMITTEN
-	extern int luaopen_smitten(lua_State*); // Smitten
-#endif
 
 #ifdef LOVE_ENABLE_LUAHTTPS
 	extern int luaopen_https(lua_State*);
@@ -220,7 +228,7 @@ static const luaL_Reg modules[] = {
 #if defined(LOVE_ENABLE_MOUSE)
 	{ "love.mouse", luaopen_love_mouse },
 #endif
-#if defined(LOVE_ENABLE_PHYSICS)
+#if defined(LOVE_ENABLE_PHYSICS) && !defined(LOVE_OPTIONAL_MODULES)
 	{ "love.physics", luaopen_love_physics },
 #endif
 #if defined(LOVE_ENABLE_SENSOR)
@@ -241,7 +249,7 @@ static const luaL_Reg modules[] = {
 #if defined(LOVE_ENABLE_TOUCH)
 	{ "love.touch", luaopen_love_touch },
 #endif
-#if defined(LOVE_ENABLE_VIDEO)
+#if defined(LOVE_ENABLE_VIDEO) && !defined(LOVE_OPTIONAL_MODULES)
 	{ "love.video", luaopen_love_video },
 #endif
 #if defined(LOVE_ENABLE_WINDOW)
@@ -252,9 +260,6 @@ static const luaL_Reg modules[] = {
 	{ "love.arg", luaopen_love_arg },
 	{ "love.callbacks", luaopen_love_callbacks },
 	{ "love.boot", luaopen_love_boot },
-#ifdef LOVE_SMITTEN
-	{ "smitten", luaopen_smitten }, // Smitten
-#endif
 	{ 0, 0 }
 };
 
@@ -576,6 +581,81 @@ static void webPreloadUnsupportedModules(lua_State *L)
 }
 #endif
 
+#ifdef LOVE_SMITTEN
+// Smitten: registers the engine's embedded Lua modules in package.preload.
+static void preloadEngineLua(lua_State *L)
+{
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "preload");
+	for (const EngineLuaFile *f = engine_lua_h_files; f->name != nullptr; f++)
+	{
+		std::string chunkname = std::string("=[smitten \"") + f->path + "\"]";
+		if (luaL_loadbuffer(L, (const char *) f->data, f->size, chunkname.c_str()) != 0)
+		{
+			lua_error(L);
+			return;
+		}
+		lua_setfield(L, -2, f->name);
+	}
+	lua_pop(L, 2);
+}
+#endif
+
+#ifdef LOVE_OPTIONAL_MODULES
+// Smitten: modules a game only downloads when it uses them. Each is a
+// WebAssembly side module that the player loads before main() runs (see
+// web/native/modules.js); require() then finds it already in memory.
+struct OptionalModule
+{
+	const char *name;   // package.preload name
+	const char *file;   // side module, /modules/<file>.wasm
+	const char *symbol; // its luaopen function
+	const char *what;   // for the error message
+};
+
+static const OptionalModule optionalModules[] =
+{
+	{ "love.physics", "physics2d", "luaopen_love_physics", "2D physics (RigidBody2D, smitten.physics)" },
+	{ "love.video", "video", "luaopen_love_video", "video (smitten.video)" },
+	{ "love.graphics3d", "3d", "luaopen_love_graphics3d", "3D graphics" },
+	{ "love.physics3d", "physics3d", "luaopen_love_physics3d", "3D physics" },
+	{ "love.synth", "synth", "luaopen_love_synth", "generated sounds and music (.sfx and .song files)" },
+	{ nullptr, nullptr, nullptr, nullptr }
+};
+
+EM_JS(void, loveweb_missing_module, (const char *file), {
+	if (Module['onMissingModule']) Module['onMissingModule'](UTF8ToString(file));
+});
+
+static int w_loadOptionalModule(lua_State *L)
+{
+	const OptionalModule *m = (const OptionalModule *) lua_touserdata(L, lua_upvalueindex(1));
+	std::string path = std::string("/modules/") + m->file + ".wasm";
+	void *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+	lua_CFunction open = handle ? (lua_CFunction) dlsym(handle, m->symbol) : nullptr;
+	if (open == nullptr)
+	{
+		loveweb_missing_module(m->file);
+		return luaL_error(L, "This game uses %s, but the '%s' module isn't included. "
+			"Turn it on in Project settings > Modules.", m->what, m->file);
+	}
+	return open(L);
+}
+
+static void preloadOptionalModules(lua_State *L)
+{
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "preload");
+	for (const OptionalModule *m = optionalModules; m->name != nullptr; m++)
+	{
+		lua_pushlightuserdata(L, (void *) m);
+		lua_pushcclosure(L, w_loadOptionalModule, 1);
+		lua_setfield(L, -2, m->name);
+	}
+	lua_pop(L, 2);
+}
+#endif
+
 int luaopen_love(lua_State *L)
 {
 	// Preload module loaders.
@@ -585,6 +665,21 @@ int luaopen_love(lua_State *L)
 	love::luax_insistpinnedthread(L);
 
 	love::luax_insistglobal(L, "love");
+
+#ifdef LOVE_SMITTEN
+	// Smitten: one engine table, reachable as both smitten and love.
+	lua_pushvalue(L, -1);
+	lua_setglobal(L, "smitten");
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "loaded");
+	lua_pushvalue(L, -3);
+	lua_setfield(L, -2, "smitten");
+	lua_pop(L, 2);
+	preloadEngineLua(L);
+#endif
+#ifdef LOVE_OPTIONAL_MODULES
+	preloadOptionalModules(L);
+#endif
 
 	// Set version information.
 	lua_pushstring(L, love::VERSION);

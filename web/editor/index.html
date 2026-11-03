@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smitten</title>
-<meta name="description" content="Make games in your browser: code, pixel art, maps, sound and music, built on LÖVE.">
+<meta name="description" content="Make 2D and 3D games in your browser: scenes, code, art, sound and music.">
 <meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23b13e53' d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e5487a' d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'/></svg>">
 <script>
   // Apply the saved theme before first paint (see settings.js).
   (function () {
@@ -44,146 +44,10 @@
 }
 </script>
 <link rel="stylesheet" href="editor.css">
+<link rel="stylesheet" href="shell.css">
 </head>
 <body>
-<div id="app" class="booting">
-  <header class="topbar">
-    <div class="topbar-left">
-      <button id="btn-sidebar" class="icon-btn" type="button" data-icon="sidebar" title="Toggle side panel (Ctrl+B)" aria-label="Toggle side panel" aria-pressed="true"></button>
-      <a class="brand" href="./" title="Home">
-        <span class="brand-mark" data-icon="heart" data-icon-size="16"></span>
-        <span class="brand-name">Smitten</span>
-      </a>
-      <span class="topbar-sep" aria-hidden="true"></span>
-      <button id="btn-project" class="project-btn" type="button" aria-haspopup="menu" title="Project">
-        <span id="project-name" class="project-name">Loading…</span>
-        <span class="chev" data-icon="chevronDown" data-icon-size="14"></span>
-      </button>
-    </div>
-
-    <div class="toolbar run-controls" role="toolbar" aria-label="Play controls">
-      <button id="btn-run" class="btn primary run-btn" type="button" data-icon="play" data-icon-size="14" title="Play the game (F5)"><span class="label">Play</span></button>
-      <button id="btn-run-scene" class="btn ghost run-scene-btn" type="button" data-icon="map" data-icon-size="14" title="Play from this scene (Ctrl+F5)" hidden><span class="label">Play scene</span></button>
-      <button id="btn-pause" class="icon-btn" type="button" data-icon="pause" title="Pause (F8)" aria-label="Pause" aria-pressed="false" disabled></button>
-      <button id="btn-stop" class="icon-btn" type="button" data-icon="stop" title="Stop (Shift+F5)" aria-label="Stop" disabled></button>
-    </div>
-
-    <div class="topbar-right toolbar" role="toolbar" aria-label="Project actions">
-      <button id="btn-share" class="btn ghost" type="button" data-icon="link" aria-haspopup="menu" title="Share or export your game"><span class="label">Share</span></button>
-      <button id="btn-help" class="icon-btn" type="button" data-icon="help" aria-haspopup="menu" title="Help" aria-label="Help"></button>
-      <button id="btn-settings" class="icon-btn" type="button" data-icon="settings" title="Settings (Ctrl+,)" aria-label="Settings"></button>
-    </div>
-  </header>
-
-  <main id="workspace">
-    <aside id="sidebar" aria-labelledby="sidebar-title">
-      <div class="panel-header">
-        <span id="sidebar-title" class="panel-title">Assets</span>
-        <div class="panel-actions">
-          <span id="sidebar-actions" class="panel-actions-group" hidden>
-            <button id="btn-new-file" class="icon-btn small" type="button" data-icon="filePlus" title="New file or asset" aria-label="New" aria-haspopup="menu"></button>
-            <button id="btn-new-folder" class="icon-btn small" type="button" data-icon="folderPlus" title="New folder" aria-label="New folder"></button>
-          </span>
-          <button id="btn-import" class="icon-btn small" type="button" data-icon="upload" title="Import files (or drop them here)" aria-label="Import" aria-haspopup="menu"></button>
-          <button id="btn-all-files" class="icon-btn small" type="button" data-icon="folder" title="Show all files (Ctrl+Shift+E)" aria-label="Show all files" aria-pressed="false"></button>
-        </div>
-      </div>
-      <div id="file-tree" role="tree" aria-label="Files"></div>
-      <div id="asset-view" hidden></div>
-      <div class="sidebar-footer" id="sidebar-footer"></div>
-      <input type="file" id="input-files" multiple hidden>
-      <input type="file" id="input-folder" webkitdirectory multiple hidden>
-      <input type="file" id="input-archive" accept=".love,.zip,application/zip" hidden>
-      <input type="file" id="input-open-project" accept=".love,.zip,application/zip" hidden>
-    </aside>
-
-    <div class="splitter v" data-split="sidebar" role="separator" aria-orientation="vertical" aria-label="Resize side panel" tabindex="0"></div>
-
-    <section id="editor-pane" aria-label="Editor">
-      <div id="tabs-bar">
-        <button id="tab-home" class="tab home-tab" type="button" role="tab" aria-selected="false" title="Home"><span data-icon="home" data-icon-size="14"></span><span class="tab-name">Home</span></button>
-        <div id="tabs" role="tablist" aria-label="Open files"></div>
-        <button id="btn-toggle-game" class="icon-btn small tabs-bar-action" type="button" data-icon="gamepad" title="Show or hide the game panel (Ctrl+Shift+G)" aria-label="Show or hide the game panel" aria-pressed="true"></button>
-      </div>
-      <div id="editor-area">
-        <div id="editor-host"></div>
-        <div id="preview" hidden></div>
-        <div id="tool-host" hidden></div>
-        <div id="home-view" hidden></div>
-        <div id="editor-loading" class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading editor…</div>
-      </div>
-    </section>
-
-    <div class="splitter v" data-split="right" role="separator" aria-orientation="vertical" aria-label="Resize game panel" tabindex="0"></div>
-
-    <section id="right-pane" aria-label="Game and console">
-      <div id="game-panel">
-        <div class="panel-header">
-          <span id="game-status" class="status-dot idle" aria-hidden="true"></span>
-          <span id="game-title" class="panel-title">Game</span>
-          <span id="game-state-label" class="panel-subtitle"></span>
-          <div class="panel-actions">
-            <button id="btn-game-fullscreen" class="icon-btn small" type="button" data-icon="maximize" title="Fullscreen" aria-label="Fullscreen"></button>
-            <button id="btn-popout" class="icon-btn small" type="button" data-icon="popout" title="Open in a new window" aria-label="Open the game in a new window"></button>
-          </div>
-        </div>
-        <div id="game-stage">
-          <div id="game-empty" class="empty-state compact">
-            <button id="btn-run-big" class="play-big" type="button" title="Play (F5)" aria-label="Play the game" data-icon="play" data-icon-size="22"></button>
-            <p id="game-empty-text">Press <kbd>F5</kbd> to play your game</p>
-          </div>
-          <div id="game-loading" class="loading-state" hidden><span class="spinner" aria-hidden="true"></span>Starting the game…</div>
-          <div id="game-paused" class="paused-badge" hidden>
-            <span data-icon="pause" data-icon-size="20"></span>Paused
-          </div>
-        </div>
-      </div>
-      <div class="splitter h" data-split="game" role="separator" aria-orientation="horizontal" aria-label="Resize console" tabindex="0"></div>
-      <div id="console-panel">
-        <div class="panel-header">
-          <button id="console-toggle" class="panel-toggle" type="button" aria-expanded="true" title="Show or hide the console (Ctrl+J)">
-            <span class="chev" data-icon="chevronDown" data-icon-size="14"></span>
-            <span class="panel-title">Console</span>
-          </button>
-          <span id="console-badge" class="badge danger" hidden></span>
-          <div class="panel-actions">
-            <input id="console-filter" class="input small" type="search" placeholder="Filter" aria-label="Filter console output" spellcheck="false" hidden>
-            <button id="console-search" class="icon-btn small" type="button" data-icon="search" title="Filter the console" aria-label="Filter the console" aria-pressed="false"></button>
-            <button id="console-copy" class="icon-btn small" type="button" data-icon="copy" title="Copy everything" aria-label="Copy console output"></button>
-            <button id="console-clear" class="icon-btn small" type="button" data-icon="clear" title="Clear" aria-label="Clear console"></button>
-          </div>
-        </div>
-        <div id="console-output" role="log" aria-live="polite" tabindex="0"></div>
-      </div>
-    </section>
-  </main>
-
-  <footer id="statusbar">
-    <button id="status-problems" class="status-item" type="button" title="Things that won't work on the web, found when the game last ran" hidden></button>
-    <span id="status-left"></span>
-    <span class="spacer"></span>
-    <button id="status-cursor" class="status-item" type="button" title="Go to line (Ctrl+G)"></button>
-    <span id="status-lang" class="status-item static"></span>
-  </footer>
-</div>
-
-<div id="drop-overlay" hidden>
-  <div class="drop-card">
-    <span data-icon="upload" data-icon-size="28"></span>
-    <strong>Drop to import</strong>
-    <span>Files, folders, or a .love / .zip</span>
-  </div>
-</div>
-<div id="toasts" aria-live="polite"></div>
-
-<script>
-  // If the app's modules fail to load, say so instead of spinning forever.
-  function bootFailed() {
-    var el = document.getElementById('editor-loading');
-    if (el && !window.studio) el.textContent = 'Smitten could not load. Check your connection and reload the page.';
-  }
-  setTimeout(bootFailed, 20000);
-</script>
-<script type="module" src="app.js" onerror="bootFailed()"></script>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
 </body>
 </html>

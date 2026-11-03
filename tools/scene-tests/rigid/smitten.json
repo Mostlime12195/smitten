@@ -1,0 +1,2 @@
+{ "format": "smitten.project", "version": 2, "name": "Rigid bodies", "main": "scenes/main.scene",
+  "display": { "width": 640, "height": 360, "stretch": "expand" } }

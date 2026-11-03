@@ -1,4 +1,4 @@
-// The .song.json model (docs/reference.md, "Songs"): defaults, normalizing
+// The .song model (docs/reference.md, "Songs"): defaults, normalizing
 // decoded JSON (keeping fields the editor doesn't know), the default song and
 // the file's text.
 
@@ -89,7 +89,7 @@ export function normalizeNote(src) {
   return ordered(n, NOTE_KEYS);
 }
 
-/** A decoded .song.json with defaults applied (unknown fields kept). */
+/** A decoded .song with defaults applied (unknown fields kept). */
 export function normalizeSong(data) {
   const s = isObj(data) ? { ...data } : {};
   s.format = SONG_FORMAT;

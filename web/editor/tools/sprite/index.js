@@ -1,21 +1,23 @@
-// Sprite and pixel editor: edits a sprite sheet PNG and its .sprite.json
-// (frame size, origin, animations). See docs/reference.md ("Sprites",
-// "Editor tools").
+// Image editor: paints a PNG (one image, or a sheet of frames) and its
+// .sprite file (frame size, origin, animations). Opens .png, .sprite and the
+// older .sprite.json. See docs/reference.md ("Sprites", "Editor tools").
 
 import { SpriteEditor } from './editor.js';
 import { encodePNGSync } from './png.js';
 
+export const NEW_IMAGE_SIZE = 256;
+
 export default {
   id: 'sprite',
-  label: 'Sprite editor',
-  match: (path) => /\.(png|sprite\.json)$/i.test(path),
+  label: 'Image editor',
+  match: (path) => /\.(png|sprite|sprite\.json)$/i.test(path),
   newAssets: [{
     label: 'Sprite',
     folder: 'sprites',
     extension: '.png',
-    // One transparent 16×16 frame; frames, origin and animations added in
-    // the editor create the .sprite.json when saved.
-    files: (base) => ({ [`${base}.png`]: encodePNGSync(new Uint8ClampedArray(16 * 16 * 4), 16, 16) }),
+    // One transparent 256×256 image; frames, an origin or animations added
+    // in the editor create the .sprite file when saved.
+    files: (base) => ({ [`${base}.png`]: encodePNGSync(new Uint8ClampedArray(NEW_IMAGE_SIZE * NEW_IMAGE_SIZE * 4), NEW_IMAGE_SIZE, NEW_IMAGE_SIZE) }),
   }],
   open(host) {
     return new SpriteEditor(host);

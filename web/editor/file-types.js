@@ -3,6 +3,7 @@
 const TEXT_EXT = new Set([
   'lua', 'txt', 'md', 'markdown', 'json', 'glsl', 'frag', 'vert', 'fs', 'vs', 'shader', 'hlsl', 'conf', 'cfg', 'ini',
   'csv', 'tsv', 'xml', 'tmx', 'tsx', 'tsj', 'tmj', 'ldtk', 'yaml', 'yml', 'toml', 'html', 'htm', 'css', 'js', 'mjs',
+  'scene', 'sprite', 'tileset', 'sfx', 'song', 'gltf',
   'fnt', 'svg', 'gitignore', 'editorconfig', 'license', 'fnl', 'moon', 'atlas', 'log', 'po', 'lst', 'sh', 'bat',
 ]);
 
@@ -95,12 +96,12 @@ export function languageLabel(path, data) {
 
 // Files made by Smitten's tools (see docs/reference.md).
 const ASSET_ICONS = [
-  [/\.sprite\.json$/i, 'image'],
-  [/\.tileset\.json$/i, 'grid'],
-  [/\.map\.json$/i, 'map'],
-  [/\.scene\.json$/i, 'map'],
-  [/\.sfx\.json$/i, 'wave'],
-  [/\.song\.json$/i, 'music'],
+  [/\.scene$/i, 'box'],
+  [/\.sprite$/i, 'image'],
+  [/\.tileset$/i, 'grid'],
+  [/\.sfx$/i, 'wave'],
+  [/\.song$/i, 'music'],
+  [/\.(glb|gltf)$/i, 'package'],
   [/(^|\/)smitten\.json$/i, 'heart'],
 ];
 

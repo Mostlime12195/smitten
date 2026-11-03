@@ -5,8 +5,9 @@ Package a LÖVE game for the web.
     python3 package.py path/to/game-folder out/        # or a .love file
     python3 package.py game.love out/ --zip            # also write out.zip (for itch.io)
 
-The output folder contains index.html (the player), the engine and
-game.love, and can be uploaded to any static host. Requires a built dist/
+The output folder contains index.html (the player), the engine, only the
+engine modules the game uses (or --modules a,b), and game.love, and can be
+uploaded to any static host. Requires a built dist/
 (python3 build.py).
 """
 import argparse
@@ -20,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
-PLAYER_FILES = ["player.js", "player.css", "love.mjs", "love.wasm"]
+PLAYER_FILES = ["player.js", "player.css", "smitten.mjs", "smitten.wasm"]
 COMPAT_RULES = ROOT / "web" / "editor" / "compat-rules.json"
 
 
@@ -107,13 +108,70 @@ def check_compat(love_file: Path):
 
 
 def make_love(folder: Path, dest: Path):
-    if not (folder / "main.lua").exists():
-        sys.exit(f"{folder} has no main.lua")
+    if not ((folder / "main.lua").exists() or (folder / "smitten.json").exists()):
+        sys.exit(f"{folder} has neither a main.lua nor a smitten.json")
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for path in sorted(folder.rglob("*")):
             rel = path.relative_to(folder)
             if path.is_file() and not any(p.startswith(".") for p in rel.parts):
                 z.write(path, rel.as_posix())
+
+
+CODE_MODULES = [
+    ("physics2d", re.compile(r"\b(?:smitten|love)\.physics\.|\bRigidBody2D\b|\bJoint2D\b")),
+    ("physics3d", re.compile(r"\b(?:smitten|love)\.physics3d\b|\b(?:RigidBody3D|StaticBody3D|CharacterBody3D|Area3D|CollisionShape3D)\b")),
+    ("3d", re.compile(r"\b(?:smitten|love)\.graphics3d\b|\b(?:Node3D|MeshInstance3D|Model3D|Camera3D|Sprite3D)\b")),
+    ("video", re.compile(r"\b(?:smitten|love)\.video\b|\bnewVideo\s*\(")),
+    ("synth", re.compile(r"\b(?:smitten|love)\.synth\b|\.(?:sfx|song)[\"'`]")),
+]
+
+
+def detect_modules(love_path: Path):
+    """The optional engine modules a game uses, as the editor works them out
+    (web/editor/core/modules.js): from its scenes' node types, its scripts,
+    and smitten.json's overrides."""
+    nodes = json.loads((ROOT / "love" / "src" / "modules" / "scene" / "nodes.json").read_text())["types"]
+
+    def module_of(t):
+        while t in nodes:
+            if nodes[t].get("module"):
+                return nodes[t]["module"]
+            t = nodes[t].get("extends")
+        return None
+
+    found, overrides = set(), {}
+    with zipfile.ZipFile(love_path) as z:
+        for name in z.namelist():
+            if name.endswith(".scene"):
+                try:
+                    root = json.loads(z.read(name)).get("root")
+                except ValueError:
+                    continue
+                stack = [root] if root else []
+                while stack:
+                    e = stack.pop()
+                    m = module_of(e.get("type", ""))
+                    if m:
+                        found.add(m)
+                    if m == "physics3d":
+                        found.add("3d")
+                    if str(e.get("properties", {}).get("sound", "")).endswith((".sfx", ".song")):
+                        found.add("synth")
+                    stack.extend(e.get("children", []))
+            elif name.endswith(".lua"):
+                text = z.read(name).decode("utf-8", "replace")
+                found.update(m for m, rx in CODE_MODULES if rx.search(text))
+            elif name == "smitten.json":
+                try:
+                    overrides = json.loads(z.read(name)).get("modules", {}) or {}
+                except ValueError:
+                    pass
+    for m, how in overrides.items():
+        if how == "always":
+            found.add(m)
+        elif how == "never":
+            found.discard(m)
+    return sorted(found)
 
 
 def main():
@@ -124,6 +182,8 @@ def main():
     ap.add_argument("--scale", choices=["fit", "integer", "none"], default="fit",
                     help="how fixed-size windows are scaled to the page")
     ap.add_argument("--zip", action="store_true", help="also write <out>.zip")
+    ap.add_argument("--modules", help="engine modules to include, comma-separated "
+                    "(default: the ones the game's scenes and scripts use)")
     args = ap.parse_args()
 
     missing = [f for f in PLAYER_FILES + ["player.html"] if not (DIST / f).exists()]
@@ -144,11 +204,19 @@ def main():
 
     for f in PLAYER_FILES:
         shutil.copyfile(DIST / f, args.out / f)
+    modules = ([m for m in args.modules.split(",") if m] if args.modules is not None
+               else detect_modules(args.out / "game.love"))
+    if modules:
+        (args.out / "modules").mkdir(exist_ok=True)
+        for m in modules:
+            shutil.copyfile(DIST / "modules" / f"{m}.wasm", args.out / "modules" / f"{m}.wasm")
+        print(f"Engine modules: {', '.join(modules)}")
 
     title = args.title or args.game.stem
     html = (DIST / "player.html").read_text()
     meta = (f'<meta name="love-game" content="game.love">\n'
-            f'<meta name="love-scale" content="{args.scale}">\n')
+            f'<meta name="love-scale" content="{args.scale}">\n'
+            f'<meta name="smitten-modules" content="{",".join(modules)}">\n')
     html = html.replace("<head>\n", "<head>\n" + meta, 1)
     html = html.replace("<title>Smitten Player</title>", f"<title>{title}</title>")
     (args.out / "index.html").write_text(html)

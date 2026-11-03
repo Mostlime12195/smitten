@@ -1,7 +1,7 @@
 // Runs games in the embedded player (player.html?embed=1).
 //
 // Every run gets a fresh iframe, i.e. a fresh engine instance. The browser
-// caches love.wasm, so this is quick. Messages from stale iframes are ignored.
+// caches smitten.wasm, so this is quick. Messages from stale iframes are ignored.
 
 const PLAYER_URL = 'player.html?embed=1';
 
@@ -31,7 +31,7 @@ export class Runner {
     return this.state === 'loading' || this.state === 'running' || this.state === 'paused' || this.state === 'crashed';
   }
 
-  /** game: {files: {path: string|Uint8Array}} or {love: Uint8Array} */
+  /** game: {files: {path: string|Uint8Array}} or {love: Uint8Array}, plus modules: [name] */
   /** query: extra player.html parameters, e.g. {scale: 'integer', jit: '0'} */
   run(game, { focus = true, query = {} } = {}) {
     this.destroy();
@@ -84,6 +84,9 @@ export class Runner {
         break;
       case 'title':
         this.handlers.onTitle?.(msg.title);
+        break;
+      case 'missing-module':
+        this.handlers.onMissingModule?.(msg.name);
         break;
       case 'quit':
         clearTimeout(this.stopTimer);

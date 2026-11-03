@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D viewport harness</title>
+<link rel="stylesheet" href="../../editor.css">
+<link rel="stylesheet" href="viewport2d.css">
+<link rel="stylesheet" href="tilemap-panel.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 var(--font-ui);
+  }
+  .h-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-wrap: wrap;
+  }
+  .h-bar button {
+    height: 26px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+  .h-bar button:hover { background: var(--hover); color: var(--fg); }
+  .h-bar button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+  .h-bar label { display: inline-flex; align-items: center; gap: 4px; color: var(--fg-muted); }
+  .h-bar input[type="number"] { width: 52px; height: 22px; background: var(--bg); color: var(--fg); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .h-sep { width: 1px; height: 18px; background: var(--border); }
+  .h-status { margin-left: auto; color: var(--fg-muted); font-family: var(--font-mono); font-size: 11px; }
+  .h-main { display: grid; grid-template-columns: 1fr 260px; min-height: 0; }
+  #view { position: relative; min-height: 0; min-width: 0; }
+  .h-side { border-left: 1px solid var(--border); background: var(--panel); overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .h-side h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--fg-muted); }
+  .h-side pre { margin: 0; white-space: pre-wrap; word-break: break-all; font: 11px/1.4 var(--font-mono); color: var(--fg); }
+  .h-files div { padding: 2px 4px; border-radius: var(--radius-sm); cursor: grab; font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); }
+  .h-files div:hover { background: var(--hover); color: var(--fg); }
+  #tiles { height: 240px; border-top: 1px solid var(--border); }
+  #tiles[hidden] { display: none; }
+</style>
+</head>
+<body>
+  <div class="h-bar">
+    <button data-tool="select" title="Select (Q)">Select</button>
+    <button data-tool="move" title="Move (W)">Move</button>
+    <button data-tool="rotate" title="Rotate (E)">Rotate</button>
+    <button data-tool="scale" title="Scale (R)">Scale</button>
+    <span class="h-sep"></span>
+    <label title="Snap to the grid (Ctrl while dragging inverts it)"><input type="checkbox" id="snap"> Snap</label>
+    <label title="Grid size">Grid <input type="number" id="grid" value="16" min="1"></label>
+    <label title="Show collision shapes"><input type="checkbox" id="collisions" checked> Collisions</label>
+    <span class="h-sep"></span>
+    <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+    <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    <button id="frame" title="Frame the selection (F)">Frame</button>
+    <span class="h-status" id="status"></span>
+  </div>
+  <div class="h-main">
+    <div id="view"></div>
+    <div class="h-side">
+      <h3>Selection</h3>
+      <pre id="sel"></pre>
+      <h3>Files (drag into the view)</h3>
+      <div class="h-files" id="files"></div>
+      <h3>Last edits</h3>
+      <pre id="log"></pre>
+    </div>
+  </div>
+  <div id="tiles" hidden></div>
+  <script type="module" src="harness2d.js"></script>
+</body>
+</html>

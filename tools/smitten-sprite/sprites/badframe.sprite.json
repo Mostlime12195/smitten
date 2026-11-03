@@ -1,2 +1,0 @@
-{ "format": "smitten.sprite", "version": 1, "image": "hero.png", "frameWidth": 8, "frameHeight": 8,
-  "animations": { "walk": { "frames": [0, 9] } } }

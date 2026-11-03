@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D viewport harness</title>
+<link rel="stylesheet" href="../../editor.css">
+<style>
+  body {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px var(--font-ui);
+  }
+  #bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  #bar button, #bar label {
+    font: 12px var(--font-ui);
+    color: var(--fg);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  #bar button.is-on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  #bar .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+  #vp { position: relative; min-height: 0; }
+  #foot {
+    display: flex;
+    gap: 16px;
+    padding: 4px 8px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--fg-muted);
+    font-size: 12px;
+  }
+  #status { flex: 1; }
+  #log { max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <button data-tool="select" title="Q">Select</button>
+  <button data-tool="move" title="W">Move</button>
+  <button data-tool="rotate" title="E">Rotate</button>
+  <button data-tool="scale" title="R">Scale</button>
+  <span class="sep"></span>
+  <label><input type="checkbox" id="snap"> Snap</label>
+  <span class="sep"></span>
+  <button id="undo">Undo</button>
+  <button id="redo">Redo</button>
+  <button id="frame">Frame (F)</button>
+  <span class="sep"></span>
+  <button id="drop-model">Drop rock.glb</button>
+  <button id="drop-image">Drop tree.png</button>
+  <button id="drop-scene">Drop crate.scene</button>
+  <span class="sep"></span>
+  <button id="switch">Switch scene</button>
+  <button id="repaint">Repaint checker.png</button>
+  <button id="lights">Toggle lights</button>
+</div>
+<div id="vp"></div>
+<div id="foot"><span id="status">…</span><span id="log"></span></div>
+<script type="module" src="harness3d.js"></script>
+</body>
+</html>

@@ -8,7 +8,7 @@
 -- Keys: 1-9 play the sound effects, space pauses/resumes the theme, s stops
 -- it, j plays the jingle, r renders the theme again (timing).
 
-local native = require("smitten.native")
+local native = (function() local _ = smitten.synth return require("love.synth.native") end)()
 
 local sounds = {}
 local log = {}
@@ -40,7 +40,7 @@ local function resolveSong(song, path)
 		for k, v in pairs(inst) do c[k] = v end
 		if inst.type == "sfx" then
 			local file = smitten.assets.join(path, inst.sfx)
-			if not love.filesystem.getInfo(file, "file") then file = file .. ".sfx.json" end
+			if not love.filesystem.getInfo(file, "file") then file = file .. ".sfx" end
 			c.sfx = readJSON(file)
 		end
 		copy.instruments[i] = c
@@ -59,33 +59,33 @@ end
 
 function love.load()
 	local t0 = love.timer.getTime()
-	for _, path in ipairs(sorted("sfx", ".sfx.json")) do
+	for _, path in ipairs(sorted("sfx", ".sfx")) do
 		local t = love.timer.getTime()
-		local sound = smitten.sfx(path)
+		local sound = smitten.synth.sfx(path)
 		local renderMs = ms(t)
-		local _, sum = native.synthRenderSfx(readJSON(path))
+		local _, sum = native.renderSfx(readJSON(path))
 		say("checksum %s %08x %d", path, sum, sound.soundData:getSampleCount())
 		say("  %s: %.3f s, rendered in %.2f ms", path, sound.duration, renderMs)
 		sounds[#sounds + 1] = sound
 	end
 	say("all sound effects: %.1f ms", ms(t0))
 
-	for _, path in ipairs(sorted("music", ".song.json")) do
+	for _, path in ipairs(sorted("music", ".song")) do
 		local t = love.timer.getTime()
 		local data = smitten.synth.renderSong(readJSON(path), path)
 		local renderMs = ms(t)
-		local _, _, _, sum = native.synthRenderSong(resolveSong(readJSON(path), path), false)
+		local _, _, _, sum = native.renderSong(resolveSong(readJSON(path), path), false)
 		say("checksum %s %08x %d", path, sum, data:getSampleCount())
 		say("  %s: %.1f s of samples, rendered in %.1f ms", path, data:getDuration(), renderMs)
 	end
 
-	theme = smitten.song("music/theme")
-	jingle = smitten.song("music/jingle")
+	theme = smitten.synth.song("music/theme")
+	jingle = smitten.synth.song("music/jingle")
 	local t = love.timer.getTime()
 	theme:play()
 	say("theme: %.1f s per pass, first play (render + loop decoder) %.1f ms", theme.duration, ms(t))
-	assert(smitten.song("music/theme") == theme, "songs are cached")
-	assert(smitten.sfx("sfx/jump") == smitten.sfx("sfx/jump.sfx.json"), "sound effects are cached")
+	assert(smitten.synth.song("music/theme") == theme, "songs are cached")
+	assert(smitten.synth.sfx("sfx/jump") == smitten.synth.sfx("sfx/jump.sfx"), "sound effects are cached")
 end
 
 local checked = false
@@ -114,7 +114,7 @@ function love.keypressed(key)
 		jingle:play()
 	elseif key == "r" then
 		local t = love.timer.getTime()
-		smitten.synth.renderSong(readJSON("music/theme.song.json"), "music/")
+		smitten.synth.renderSong(readJSON("music/theme.song"), "music/")
 		say("theme rendered again in %.1f ms", ms(t))
 	end
 end

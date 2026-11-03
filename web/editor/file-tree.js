@@ -22,18 +22,18 @@ export function thumbnailUrl(path, data) {
  * sprites/hero.png -> smitten.sprite("sprites/hero")
  */
 export function snippetFor(path) {
-  const strip = (re) => path.replace(re, '');
-  if (/\.sprite\.json$/i.test(path)) return `smitten.sprite("${strip(/\.sprite\.json$/i)}")`;
-  if (/\.tileset\.json$/i.test(path)) return `smitten.tileset("${strip(/\.tileset\.json$/i)}")`;
-  if (/\.map\.json$/i.test(path)) return `smitten.map("${strip(/\.map\.json$/i)}")`;
-  if (/\.sfx\.json$/i.test(path)) return `smitten.sfx("${strip(/\.sfx\.json$/i)}"):play()`;
-  if (/\.song\.json$/i.test(path)) return `smitten.song("${strip(/\.song\.json$/i)}"):play()`;
-  if (/\.png$/i.test(path)) return `smitten.sprite("${strip(/\.png$/i)}")`;
-  if (/\.lua$/i.test(path)) return `require("${strip(/(\/init)?\.lua$/i).replace(/\//g, '.')}")`;
+  const ext = (path.match(/\.([^.\/]+)$/)?.[1] || '').toLowerCase();
+  if (ext === 'scene') return `smitten.scene.change("${path}")`;
+  if (ext === 'sprite') return `smitten.assets.sprite("${path}")`;
+  if (ext === 'tileset') return `smitten.assets.tileset("${path}")`;
+  if (ext === 'sfx') return `smitten.synth.sfx("${path}"):play()`;
+  if (ext === 'song') return `smitten.synth.song("${path}"):play()`;
+  if (ext === 'glb' || ext === 'gltf') return `smitten.assets.model("${path}")`;
+  if (ext === 'lua') return `require("${path.replace(/(\/init)?\.lua$/i, '').replace(/\//g, '.')}")`;
   const kind = kindOf(path);
-  if (kind === 'image') return `love.graphics.newImage("${path}")`;
-  if (kind === 'audio') return `love.audio.newSource("${path}", "static")`;
-  if (kind === 'font') return `love.graphics.newFont("${path}", 16)`;
+  if (kind === 'image') return `smitten.assets.image("${path}")`;
+  if (kind === 'audio') return `smitten.audio.newSource("${path}", "static"):play()`;
+  if (kind === 'font') return `smitten.assets.font("${path}", 16)`;
   return `"${path}"`;
 }
 
