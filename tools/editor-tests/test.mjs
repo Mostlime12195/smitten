@@ -1,8 +1,9 @@
 // Tests for the editor's core (no browser needed):
 //   node tools/editor-tests/test.mjs
 //
-// The node schema, scene documents (reading, writing, undo, instances),
-// module detection, the templates and script variables.
+// The piece schema, scene documents (reading, writing, undo, placed scenes),
+// module detection, the templates, the ready-made scripts and script
+// variables.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,11 +13,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const editor = (p) => pathToFileURL(join(root, 'web', 'editor', p)).href;
 
 const schemaLib = await import(editor('core/schema.js'));
-schemaLib.setSchema(JSON.parse(readFileSync(join(root, 'love', 'src', 'modules', 'scene', 'nodes.json'), 'utf8')));
+schemaLib.setSchema(JSON.parse(readFileSync(join(root, 'love', 'src', 'modules', 'scene', 'pieces.json'), 'utf8')));
 const { SceneDoc } = await import(editor('core/scene-doc.js'));
 const { detectModules } = await import(editor('core/modules.js'));
 const { TEMPLATES } = await import(editor('core/templates.js'));
 const { scriptVariables } = await import(editor('core/script-vars.js'));
+const { SCRIPT_LIBRARY } = await import(editor('core/script-library.js'));
 
 let passed = 0;
 let failed = 0;
@@ -44,19 +46,21 @@ for (const [name, def] of Object.entries(types)) {
     if (d.when) for (const k of Object.keys(d.when)) check(`${name}.${p} "when" names a property`, !!schemaLib.propertyDef(name, k), k);
   }
 }
-check('lineage', eq(schemaLib.lineage('Sprite2D'), ['Node', 'Node2D', 'Sprite2D']));
-check('isA', schemaLib.isA('CharacterBody3D', 'Node3D') && !schemaLib.isA('Sprite2D', 'Node3D'));
-check('space', schemaLib.space('Label') === 'ui' && schemaLib.space('Camera3D') === '3d' && schemaLib.space('Timer') === 'other');
-check('moduleOf', schemaLib.moduleOf('RigidBody2D') === 'physics2d' && schemaLib.moduleOf('MeshInstance3D') === '3d' && schemaLib.moduleOf('Sprite2D') === null);
+check('lineage', eq(schemaLib.lineage('Sprite'), ['Piece', 'Group', 'Sprite']));
+check('isA', schemaLib.isA('Body', 'Group') && !schemaLib.isA('Label', 'Group'));
+check('space', schemaLib.space('Label') === 'ui' && schemaLib.space('Body') === 'world' && schemaLib.space('Timer') === 'other');
+check('moduleOfPiece', schemaLib.moduleOfPiece('Body', { motion: 'physics' }) === 'physics2d' && schemaLib.moduleOfPiece('Body', { motion: 'still' }) === null && schemaLib.moduleOf('Joint') === 'physics2d');
+const godot = ['Node2D', 'Node3D', 'Sprite2D', 'CharacterBody2D', 'StaticBody2D', 'RigidBody2D', 'Area2D', 'CollisionShape2D', 'TileMap', 'Control'];
+check('no Godot type names', !godot.some((t) => types[t]), godot.filter((t) => types[t]).join(','));
 
 // --- Scene documents ------------------------------------------------------------
 const files = new Map();
 const ctx = { readScene: (p) => (files.has(p) ? JSON.parse(files.get(p)) : null) };
-files.set('coin.scene', JSON.stringify({ format: 'smitten.scene', version: 2, root: { name: 'Coin', type: 'Area2D', properties: { z: 3 }, children: [{ name: 'Shape', type: 'CollisionShape2D' }] } }));
+files.set('coin.scene', JSON.stringify({ format: 'smitten.scene', version: 2, root: { name: 'Coin', type: 'Zone', properties: { layer: 3 }, children: [{ name: 'Look', type: 'Shape' }] } }));
 const levelText = JSON.stringify({
   format: 'smitten.scene', version: 2,
-  root: { name: 'Level', type: 'Node2D', children: [
-    { name: 'Player', type: 'CharacterBody2D', properties: { x: 10 }, script: 'player.lua', groups: ['player'] },
+  root: { name: 'Level', type: 'Group', children: [
+    { name: 'Player', type: 'Body', properties: { x: 10 }, script: 'player.lua', tags: ['player'] },
     { name: 'Coin', scene: 'coin.scene', properties: { x: 50 } },
   ] },
 });
@@ -67,8 +71,8 @@ const player = doc.root.children[0];
 const coin = doc.root.children[1];
 check('get: own value', doc.get(player, 'x') === 10);
 check('get: default', doc.get(player, 'y') === 0 && doc.get(player, 'scaleX') === 1);
-check('instance type', coin.type === 'Area2D');
-check('instance base value', doc.get(coin, 'z') === 3 && doc.get(coin, 'x') === 50);
+check('instance type', coin.type === 'Zone');
+check('instance base value', doc.get(coin, 'layer') === 3 && doc.get(coin, 'x') === 50);
 check('instance children', doc.effectiveChildren(coin).length === 1 && doc.effectiveChildren(coin)[0].readonly === true);
 
 doc.setProp(player, 'x', 20);
@@ -86,10 +90,10 @@ doc.setProp(player, 'x', 22, { merge: 'drag' });
 doc.undo();
 check('merged drags undo together', doc.get(player, 'x') === 20, String(doc.get(player, 'x')));
 
-const sprite = doc.createNode('Sprite2D', { image: 'a.png' }, 'Player');
+const sprite = doc.createNode('Sprite', { image: 'a.png' }, 'Player');
 doc.add(player, sprite);
 check('add', player.children.length === 1 && sprite.parent === player);
-const dup = doc.createNode('Node2D', {}, 'Player');
+const dup = doc.createNode('Group', {}, 'Player');
 doc.add(doc.root, dup);
 check('unique sibling names', dup.name === 'Player2', dup.name);
 doc.move(sprite, doc.root, 0);
@@ -104,15 +108,16 @@ const copies = doc.duplicate([player]);
 check('duplicate', copies.length === 1 && copies[0] !== player && copies[0].children.length === 1 && copies[0].id !== player.id);
 doc.rename(player, 'Hero');
 check('rename', player.name === 'Hero' && doc.pathOf(sprite) === 'Hero/Player');
-doc.changeType(player, 'StaticBody2D');
-check('changeType keeps shared properties', player.type === 'StaticBody2D' && doc.get(player, 'x') === 20);
+doc.changeType(player, 'Zone');
+check('changeType keeps shared properties', player.type === 'Zone' && doc.get(player, 'x') === 20);
 doc.undo();
-check('undo changeType', player.type === 'CharacterBody2D');
+check('undo changeType', player.type === 'Body');
+doc.setTags(player, ['player', 'hero']);
+check('tags', eq(JSON.parse(doc.toText()).root.children.find((c) => c.name === 'Hero').tags, ['player', 'hero']));
 check('wouldLoop', doc.wouldLoop('level.scene') && !doc.wouldLoop('coin.scene'));
 let threw = false;
 try { doc.add(doc.root, doc.createInstance('level.scene')); } catch { threw = true; }
 check('a scene can\'t contain itself', threw);
-check('dimension', doc.dimension() === '2d' && SceneDoc.empty('a.scene', 'Node3D').dimension() === '3d');
 
 // --- Templates and module detection ----------------------------------------------
 for (const t of TEMPLATES) {
@@ -136,22 +141,35 @@ for (const t of TEMPLATES) {
     }
     d.walk((n) => {
       check(`${t.id}: ${p}: ${n.name} has a real type`, !!types[n.type], n.type);
-      for (const k of Object.keys(n.props)) check(`${t.id}: ${p}: ${n.name}.${k} is a property`, !!schemaLib.propertyDef(n.type, k), `${n.type}.${k}`);
+      const script = d.scriptOf(n);
+      const vars = new Set(script && out[script] ? scriptVariables(out[script]).map((v) => v.name) : []);
+      for (const k of Object.keys(n.props)) check(`${t.id}: ${p}: ${n.name}.${k} is a property or script variable`, !!schemaLib.propertyDef(n.type, k) || vars.has(k), `${n.type}.${k}`);
       if (n.instance) check(`${t.id}: ${p}: ${n.name} instance exists`, !!out[n.instance], n.instance);
       if (n.script) check(`${t.id}: ${p}: ${n.name} script exists`, !!out[n.script], n.script);
     });
   }
   const mods = detectModules(project);
   const incl = Object.values(mods).filter((m) => m.included).map((m) => m.id).sort();
-  const expected = { walker3d: ['3d', 'physics3d'], empty3d: ['3d'] }[t.id] || [];
+  const expected = { physics: ['physics2d'] }[t.id] || [];
   check(`${t.id}: modules`, eq(incl, expected), incl.join(','));
 }
-const overrides = { paths: () => [], readText: () => '', readJSON: () => null, settings: () => ({ modules: { video: 'always', '3d': 'never' } }) };
+const overrides = { paths: () => [], readText: () => '', readJSON: () => null, settings: () => ({ modules: { video: 'always', physics2d: 'never' } }) };
 const om = detectModules(overrides);
-check('module overrides', om.video.included && !om['3d'].included && om.video.override === 'always');
+check('module overrides', om.video.included && !om.physics2d.included && om.video.override === 'always');
 const code = { paths: () => ['main.lua'], readText: () => 'local w = smitten.physics.newWorld(0, 9.81)\nsmitten.synth.sfx("a.sfx"):play()', readJSON: () => null, settings: () => ({}) };
 const cm = detectModules(code);
-check('modules from code', cm.physics2d.included && cm.synth.included && !cm['3d'].included);
+check('modules from code', cm.physics2d.included && cm.synth.included && !cm.video.included);
+
+// --- Ready-made scripts ------------------------------------------------------------
+for (const sc of SCRIPT_LIBRARY) {
+  check(`${sc.id}: suits real pieces`, sc.suits.every((t) => types[t]), sc.suits.join(','));
+  check(`${sc.id}: returns its table`, /\nreturn [A-Z]\w*\s*$/.test(sc.source));
+  check(`${sc.id}: has script variables`, scriptVariables(sc.source).length > 0 || sc.id === 'drag');
+  for (const m of sc.source.matchAll(/self:(\w+)\(/g)) {
+    const known = Object.values(types).some((d) => d.methods && d.methods[m[1]]) || new RegExp(`function \\w+:${m[1]}\\(`).test(sc.source);
+    check(`${sc.id}: self:${m[1]}() exists`, known);
+  }
+}
 
 // --- Script variables ----------------------------------------------------------------
 const vars = scriptVariables(`local Player = {}

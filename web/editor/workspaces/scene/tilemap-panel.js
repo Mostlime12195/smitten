@@ -1,4 +1,4 @@
-// The TileMap panel, shown below the 2D viewport while a TileMap is selected:
+// The tile panel, shown below the scene view while a Tiles piece is selected:
 // the tileset's tiles to pick from, the painting tools, and a small tileset
 // editor (solid, one-way and a name per tile, saved in the .tileset file).
 //
@@ -51,7 +51,7 @@ function icon(name) {
   return span;
 }
 
-export class TileMapPanel {
+export class TilesPanel {
   constructor(container, { doc, project, viewport }) {
     this.container = container;
     this._doc = null;
@@ -138,7 +138,7 @@ export class TileMapPanel {
     if (this.root) this.render();
   }
 
-  /** The selected TileMap node, or null. */
+  /** The selected Tiles node, or null. */
   setNode(node) {
     if (node === this.node) return;
     this.cancelStroke();
@@ -266,11 +266,11 @@ export class TileMapPanel {
     this.palette = null;
     this.renderedTileset = this.tilesetPath();
     if (!this.viewport) {
-      this.root.append(h('div', { class: 'tmp-empty' }, 'Tiles are painted in the 2D view.'));
+      this.root.append(h('div', { class: 'tmp-empty' }, 'Tiles are painted in the scene view.'));
       return;
     }
     if (!this.node) {
-      this.root.append(h('div', { class: 'tmp-empty' }, 'Select a TileMap to paint its tiles.'));
+      this.root.append(h('div', { class: 'tmp-empty' }, 'Select a Tiles piece to paint its tiles.'));
       return;
     }
     if (this.mode === 'new') {
@@ -294,7 +294,7 @@ export class TileMapPanel {
         h('strong', {}, missing ? `The tileset ${path} doesn't exist.` : `${path} isn't a tileset file.`),
         h('p', {}, 'Pick another tileset, or make a new one from an image.'))
       : h('div', { class: 'tmp-setup-text' },
-        h('strong', {}, 'This TileMap has no tileset yet.'),
+        h('strong', {}, 'This Tiles has no tileset yet.'),
         h('p', {}, 'A tileset is an image cut into tiles, saved as a .tileset file. Pick one to paint with, or make one from an image in the project.'));
     const list = h('div', { class: 'tmp-list', role: 'list' });
     for (const f of files) {
@@ -333,7 +333,7 @@ export class TileMapPanel {
       tools.append(b);
     }
     const files = this.paths().filter((p) => /\.tileset$/i.test(p));
-    const select = h('select', { class: 'tmp-select', title: 'The tileset this TileMap paints with', 'aria-label': 'Tileset' });
+    const select = h('select', { class: 'tmp-select', title: 'The tileset this Tiles paints with', 'aria-label': 'Tileset' });
     for (const f of files) select.append(h('option', { value: f, selected: f === ts.path }, f));
     if (!files.includes(ts.path)) select.prepend(h('option', { value: ts.path, selected: true }, ts.path));
     select.append(h('option', { value: '__new' }, 'New tileset from image…'));
@@ -591,7 +591,7 @@ export class TileMapPanel {
     };
     el.append(
       h('div', { class: 'tmp-props-title' }, tiles.length === 1 ? `Tile ${tiles[0]}` : `${tiles.length} tiles`),
-      check('solid', 'Solid', 'Bodies collide with this tile (when the TileMap has collision on)'),
+      check('solid', 'Solid', 'Bodies can\'t pass this tile (when the Tiles piece is solid)'),
       check('oneWay', 'One-way', 'Bodies pass up through it and land on top of it; needs Solid'),
     );
     if (tiles.length === 1) {
@@ -893,7 +893,7 @@ export class TileMapPanel {
     let tool = e.altKey ? 'pick' : this.tool;
     if (tool === 'erase' && e.shiftKey) tool = 'eraseRect';
     if ((tool === 'paint' || tool === 'rect' || tool === 'bucket') && !this.hasStamp()) {
-      this.viewport.flash(ts.count ? 'Pick a tile in the TileMap panel first.' : 'This tileset has no tiles yet: check its image.');
+      this.viewport.flash(ts.count ? 'Pick a tile in the Tiles panel first.' : 'This tileset has no tiles yet: check its image.');
       return;
     }
     this.hover = info;

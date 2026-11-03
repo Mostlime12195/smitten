@@ -2,11 +2,11 @@
 // scenes it places inside itself (instances).
 //
 // A node here is a plain object:
-//   { id, name, type, props, script, groups, children, instance, parent }
+//   { id, name, type, props, script, tags, children, instance, parent }
 // props holds only what differs from the default (for an instance: what it
 // overrides). get(node, key) gives the value in effect.
 
-import { defaultOf, properties, equal, clone, isA, typeDef } from './schema.js';
+import { defaultOf, properties, equal, clone, typeDef } from './schema.js';
 
 let nextId = 1;
 
@@ -38,7 +38,7 @@ export class SceneDoc extends EventTarget {
     return new SceneDoc(path, data, ctx);
   }
 
-  static empty(path, rootType = 'Node2D', name = 'Root', ctx) {
+  static empty(path, rootType = 'Group', name = 'Root', ctx) {
     return new SceneDoc(path, { format: 'smitten.scene', version: 2, root: { name, type: rootType } }, ctx);
   }
 
@@ -48,16 +48,16 @@ export class SceneDoc extends EventTarget {
   fromEntry(e, parent) {
     const n = {
       id: `n${nextId++}`,
-      name: e.name || e.type || 'Node',
-      type: e.type || 'Node',
+      name: e.name || e.type || 'Group',
+      type: e.type || 'Group',
       props: clone(e.properties || {}),
       script: e.script || null,
-      groups: [...(e.groups || [])],
+      tags: [...(e.tags || [])],
       children: [],
       instance: e.scene || null,
       parent,
     };
-    if (n.instance) n.type = this.instanceRootType(n.instance) || 'Node';
+    if (n.instance) n.type = this.instanceRootType(n.instance) || 'Group';
     n.children = (e.children || []).map((c) => this.fromEntry(c, n));
     return n;
   }
@@ -76,7 +76,7 @@ export class SceneDoc extends EventTarget {
     const data = this.instanceData(path);
     if (!data?.root) return null;
     if (data.root.scene) return this.instanceRootType(data.root.scene, seen);
-    return data.root.type || 'Node';
+    return data.root.type || 'Group';
   }
 
   /** The value of a property in effect: own, else the instanced scene's, else the default. */
@@ -189,7 +189,7 @@ export class SceneDoc extends EventTarget {
         if (n.instance || !equal(v, defaultOf(n.type, k))) props[k] = v;
       }
       if (Object.keys(props).length) e.properties = props;
-      if (n.groups.length) e.groups = [...n.groups];
+      if (n.tags.length) e.tags = [...n.tags];
       if (n.children.length) e.children = n.children.map(ser);
       return e;
     };
@@ -278,13 +278,13 @@ export class SceneDoc extends EventTarget {
   }
 
   createNode(type, props = {}, name = type) {
-    return { id: `n${nextId++}`, name, type, props: clone(props), script: null, groups: [], children: [], instance: null, parent: null };
+    return { id: `n${nextId++}`, name, type, props: clone(props), script: null, tags: [], children: [], instance: null, parent: null };
   }
 
   createInstance(path) {
-    const type = this.instanceRootType(path) || 'Node';
+    const type = this.instanceRootType(path) || 'Group';
     const name = path.split('/').pop().replace(/\.scene$/, '').replace(/^\w/, (c) => c.toUpperCase());
-    return { id: `n${nextId++}`, name, type, props: {}, script: null, groups: [], children: [], instance: path, parent: null };
+    return { id: `n${nextId++}`, name, type, props: {}, script: null, tags: [], children: [], instance: path, parent: null };
   }
 
   /** Adds a node (and its subtree) under parent at index (default: last). */
@@ -369,9 +369,9 @@ export class SceneDoc extends EventTarget {
     this.apply({ label: path ? 'Attach script' : 'Detach script', node, kind: 'props', redo: () => { node.script = path; }, undo: () => { node.script = old; } });
   }
 
-  setGroups(node, groups) {
-    const old = [...node.groups];
-    this.apply({ label: 'Change groups', node, kind: 'props', redo: () => { node.groups = [...groups]; }, undo: () => { node.groups = old; } });
+  setTags(node, tags) {
+    const old = [...node.tags];
+    this.apply({ label: 'Change tags', node, kind: 'props', redo: () => { node.tags = [...tags]; }, undo: () => { node.tags = old; } });
   }
 
   /** Changes a node's type, keeping the properties the new type also has. */
@@ -391,7 +391,7 @@ export class SceneDoc extends EventTarget {
 
   /** A deep copy of a node with fresh ids (for duplicate, copy and paste). */
   copyNode(node, parent = null) {
-    const c = { ...node, id: `n${nextId++}`, props: clone(node.props), groups: [...node.groups], parent, readonly: false };
+    const c = { ...node, id: `n${nextId++}`, props: clone(node.props), tags: [...node.tags], parent, readonly: false };
     c.children = node.children.map((k) => this.copyNode(k, c));
     return c;
   }
@@ -439,16 +439,4 @@ export class SceneDoc extends EventTarget {
     return out;
   }
 
-  /** The 2D / 3D / UI flavor of the scene, from its root. */
-  dimension() {
-    if (isA(this.root.type, 'Node3D')) return '3d';
-    if (isA(this.root.type, 'Node2D')) return '2d';
-    let has3d = false;
-    let has2d = false;
-    this.walk((n) => {
-      if (isA(n.type, 'Node3D')) has3d = true;
-      if (isA(n.type, 'Node2D')) has2d = true;
-    });
-    return has3d && !has2d ? '3d' : '2d';
-  }
 }

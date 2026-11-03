@@ -8,8 +8,11 @@ import { settings, applyTheme } from './settings.js';
 import { openSettings } from './settings-dialog.js';
 import * as store from './fs-store.js';
 import { loadSchema, typeDef, isA, properties, methods, events } from './core/schema.js';
+import { SCRIPT_LIBRARY } from './core/script-library.js';
 import { Project } from './core/project.js';
 import { SceneDoc } from './core/scene-doc.js';
+import { LiveDoc } from './core/live-doc.js';
+import { needsMigration, migrateScene } from './core/migrate.js';
 import { includedModules, detectModules } from './core/modules.js';
 import { DockManager } from './shell/dock.js';
 import { renderHome } from './shell/home.js';
@@ -33,7 +36,7 @@ import { createShareLink, readShareHash } from './share.js';
 const app = document.getElementById('app');
 
 const WORKSPACES = [
-  { id: 'scene', label: 'Scene', icon: 'box' },
+  { id: 'scene', label: 'Scene', icon: 'scene' },
   { id: 'script', label: 'Script', icon: 'code' },
   { id: 'paint', label: 'Paint', icon: 'brush' },
   { id: 'sound', label: 'Sound', icon: 'wave' },
@@ -123,6 +126,7 @@ async function openProject(id) {
     return;
   }
   document.title = `${project.name} · Smitten`;
+  migrateProject(project);
   ed = { project, workspaces: {}, ws: null, layouts: loadLayouts(), clipboard: [] };
 
   // Top bar
@@ -229,11 +233,27 @@ async function openProject(id) {
   restart.addEventListener('click', () => play(ed.lastRun));
   const back = h('button', { type: 'button', class: 'tool-btn', title: 'Stop and go back to editing (F8)' }, icon('stop', 13), 'Stop');
   back.addEventListener('click', () => stop());
-  ed.gameView = h('div', { class: 'game-view', hidden: true }, h('div', { class: 'game-bar' }, ed.gameTitle, restart, back), gameHost);
+  ed.liveOn = true;
+  ed.liveBtn = h('button', { type: 'button', class: 'tool-btn', 'aria-pressed': 'true', title: 'Live: the Scene panel and Inspector show the running game, and changes go to it (only until you stop). Off: they show the saved scene.' }, icon('live', 14), 'Live');
+  ed.liveBtn.addEventListener('click', () => {
+    ed.liveOn = !ed.liveOn;
+    ed.liveBtn.setAttribute('aria-pressed', String(ed.liveOn));
+    showLivePanels(ed.liveOn);
+  });
+  ed.gameView = h('div', { class: 'game-view', hidden: true }, h('div', { class: 'game-bar' }, ed.gameTitle, ed.liveBtn, restart, back), gameHost);
   area.append(ed.gameView);
   ed.runner = new Runner(gameHost, {
     onState: (s) => runState(s),
-    onLog: (level, text) => ed.console.log(level, text),
+    onLog: (level, text) => {
+      // The running game's answers for live tweaking (engine/live.lua).
+      if (text.startsWith('\u0001live ')) {
+        try {
+          ed.liveDoc?.receive(JSON.parse(text.slice(6)));
+        } catch { /* a cut-off message */ }
+        return;
+      }
+      ed.console.log(level, text);
+    },
     onError: (text) => {
       ed.console.error(text);
       ed.dock.show('output');
@@ -283,6 +303,34 @@ let apiPromise = null;
 function loveApi() {
   apiPromise ??= fetch('love-api.json').then((r) => r.json()).catch(() => ({}));
   return apiPromise;
+}
+
+/** Scenes saved with the first rebuild's piece names are converted once. */
+function migrateProject(project) {
+  let changed = 0;
+  let dropped = 0;
+  const scripts = {};
+  for (const path of project.paths().filter((p) => p.endsWith('.scene'))) {
+    let data;
+    try {
+      data = project.readJSON(path);
+    } catch {
+      continue;
+    }
+    if (!needsMigration(data)) continue;
+    const r = migrateScene(data);
+    Object.assign(scripts, r.scripts);
+    dropped += r.dropped;
+    project.write(path, JSON.stringify(data, null, 2) + '\n');
+    changed++;
+  }
+  for (const id of Object.keys(scripts)) {
+    const sc = SCRIPT_LIBRARY.find((x) => x.id === id);
+    if (sc && !project.has(`scripts/${sc.file}`)) project.write(`scripts/${sc.file}`, sc.source);
+  }
+  if (changed) {
+    toast(`Updated ${changed} scene${changed === 1 ? '' : 's'} to Smitten's pieces${dropped ? `; ${dropped} 3D piece${dropped === 1 ? ' was' : 's were'} left out, since Smitten is 2D now` : ''}.`, { timeout: 8000 });
+  }
 }
 
 function sceneWs() {
@@ -475,9 +523,8 @@ async function openFile(path, opts = {}) {
     await ed.workspaces.script.open(path, opts);
   } else {
     const kind = kindOf(path, ed.project.read(path));
-    const hint = /\.(glb|gltf)$/i.test(path) ? 'Drag it into a 3D scene to use it.'
-      : kind === 'audio' ? 'Drag it into a scene to make an AudioPlayer.'
-        : kind === 'font' ? 'Pick it as the font of a Label or Text2D.' : 'Smitten has no editor for this kind of file.';
+    const hint = kind === 'audio' ? 'Drag it into a scene to make a Sound piece.'
+      : kind === 'font' ? 'Pick it as the font of a Label or Text.' : 'Smitten has no editor for this kind of file.';
     toast(`${path.split('/').pop()}: ${hint}`);
   }
   saveEditorState();
@@ -508,28 +555,23 @@ async function newScene(kind, dir = 'scenes') {
   if (!kind) {
     kind = await openDialog({
       title: 'New scene',
-      body: h('p', { class: 'insp-desc' }, 'What kind of scene? You can mix 2D, 3D and UI nodes in any scene; this picks its root node and its view.'),
-      actions: [{ label: 'Cancel', value: null, ghost: true }, { label: 'Menu (UI)', value: 'ui' }, { label: '3D', value: '3d' }, { label: '2D', value: '2d', primary: true }],
+      body: h('p', { class: 'insp-desc' }, 'A level starts empty, ready for sprites and bodies. A menu starts with a background, a title and a button. Any scene can hold both kinds of pieces.'),
+      actions: [{ label: 'Cancel', value: null, ghost: true }, { label: 'Menu', value: 'ui' }, { label: 'Level', value: 'level', primary: true }],
     });
     if (!kind) return;
   }
   const name = await promptDialog({ title: 'New scene', label: 'Name', value: kind === 'ui' ? 'menu' : 'level', okLabel: 'Create' });
   if (!name) return;
   const path = uniquePath(dir, fileName(name), '.scene');
-  const rootType = kind === '3d' ? 'Node3D' : kind === 'ui' ? 'Node' : 'Node2D';
-  const doc = SceneDoc.empty(path, rootType, name.replace(/^\w/, (c) => c.toUpperCase()).replace(/\s+/g, ''));
-  if (kind === '3d') {
-    doc.root.children.push(
-      { ...doc.createNode('Environment3D'), name: 'Environment', parent: doc.root },
-      { ...doc.createNode('DirectionalLight3D', { rotationX: -0.9, rotationY: 0.5 }), name: 'Sun', parent: doc.root },
-      { ...doc.createNode('Camera3D', { y: 2, z: 6, rotationX: -0.25 }), name: 'Camera', parent: doc.root },
-    );
-  } else if (kind === 'ui') {
-    doc.root.children.push(
-      { ...doc.createNode('Panel', { anchor: 'full', color: [0.08, 0.09, 0.12, 1], cornerRadius: 0, borderWidth: 0 }), name: 'Background', parent: doc.root },
-      { ...doc.createNode('Label', { anchor: 'top', y: 80, width: 600, height: 60, text: name, size: 44, align: 'center' }), name: 'Title', parent: doc.root },
-      { ...doc.createNode('Button', { anchor: 'center', width: 200, height: 48, text: 'Play' }), name: 'Play', parent: doc.root },
-    );
+  const doc = SceneDoc.empty(path, 'Group', name.replace(/^\w/, (c) => c.toUpperCase()).replace(/\s+/g, ''));
+  const d = ed.project.settings().display || {};
+  const add = (type, props, pname) => doc.root.children.push({ ...doc.createNode(type, props), name: pname, parent: doc.root });
+  if (kind === 'ui') {
+    add('Panel', { anchor: 'fill', color: [0.08, 0.09, 0.12, 1], cornerRadius: 0, borderWidth: 0 }, 'Background');
+    add('Label', { anchor: 'top', y: 80, width: 600, height: 60, text: name, size: 44, align: 'center' }, 'Title');
+    add('Button', { anchor: 'center', width: 200, height: 48, text: 'Play' }, 'Play');
+  } else {
+    add('Camera', { x: Math.round((d.width || 1280) / 2), y: Math.round((d.height || 720) / 2) }, 'Camera');
   }
   ed.project.write(path, doc.toText());
   if (!ed.project.settings().main) ed.project.updateSettings({ main: path });
@@ -538,25 +580,28 @@ async function newScene(kind, dir = 'scenes') {
 
 const SCRIPT_TEMPLATE = (name, type) => {
   const cls = name.replace(/[^\w]/g, '').replace(/^\d+/, '').replace(/^\w/, (c) => c.toUpperCase()) || 'Script';
-  const extra = isA(type || 'Node', 'CharacterBody2D') ? `
--- moveAndSlide() moves by vx, vy and stops at walls. (A Platformer or
--- TopDown child does this for you.)
-` : isA(type || 'Node', 'Button') ? `
+  const extra = type === 'Body' ? `
+-- For a scripted Body: set self.vx and self.vy, then call self:move() in
+-- physicsUpdate. It stops at walls; self:onGround() says if it landed.
+-- Called when it bumps into another body or solid tiles.
+function ${cls}:hit(other)
+end
+` : type === 'Button' ? `
 -- Called when the button is clicked.
 function ${cls}:pressed()
 end
-` : isA(type || 'Node', 'Area2D') || isA(type || 'Node', 'Area3D') ? `
--- Called when a body or area comes in.
+` : type === 'Zone' ? `
+-- Called when a body or zone comes in.
 function ${cls}:entered(other)
 end
 ` : '';
   return `-- ${cls}${type ? `: a script for a ${type}` : ''}.
 local ${cls} = {}
 
--- Variables like this one appear in the Inspector, so each node can have its own value.
+-- Variables like this one appear in the Inspector, so each piece can have its own value.
 ${cls}.speed = 200
 
--- Called once, when the node enters the scene.
+-- Called once, when the piece joins the scene.
 function ${cls}:ready()
 end
 
@@ -580,34 +625,46 @@ async function newScript(node = null, dir = 'scripts') {
 async function attachScript(node) {
   const doc = sceneWs().doc;
   const scripts = ed.project.paths().filter((p) => p.endsWith('.lua') && p !== 'main.lua' && p !== 'conf.lua');
-  let choice = 'new';
-  if (scripts.length) {
-    const sel = h('select', { class: 'input' }, h('option', { value: 'new' }, 'A new script'), ...scripts.map((p) => h('option', { value: p }, p)));
-    const ok = await openDialog({ title: `Attach a script to ${node.name}`, body: h('div', { class: 'settings-grid' }, h('label', {}, 'Script'), sel), actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Attach', value: true, primary: true }] });
-    if (!ok) return;
-    choice = sel.value;
+  const ready = SCRIPT_LIBRARY.filter((sc) => sc.suits.includes(node.type)).concat(SCRIPT_LIBRARY.filter((sc) => !sc.suits.includes(node.type)));
+  const sel = h('select', { class: 'input', size: 12, style: 'height: auto' },
+    h('option', { value: 'new', selected: true }, 'A new, empty script'),
+    h('optgroup', { label: 'Ready-made (copied into your project to change as you like)' },
+      ...ready.map((sc) => h('option', { value: `lib:${sc.id}`, title: sc.description }, `${sc.name}${sc.suits.includes(node.type) ? '' : ' (made for other pieces)'}`))),
+    scripts.length ? h('optgroup', { label: 'Scripts in this project' }, ...scripts.map((p) => h('option', { value: p }, p))) : null);
+  const desc = h('p', { class: 'insp-desc', style: 'margin: 8px 0 0' }, 'Write your own from an empty script.');
+  sel.addEventListener('change', () => {
+    const sc = SCRIPT_LIBRARY.find((x) => `lib:${x.id}` === sel.value);
+    desc.textContent = sc ? `${sc.description} It becomes scripts/${sc.file} in your project: an ordinary script you can read and change.` : sel.value === 'new' ? 'Write your own from an empty script.' : 'Use a script the project already has.';
+  });
+  const ok = await openDialog({
+    title: `Attach a script to ${node.name}`, body: h('div', {}, sel, desc),
+    actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Attach', value: true, primary: true }],
+  });
+  if (!ok) return;
+  let path = sel.value;
+  if (path === 'new') {
+    path = await newScript(node);
+    if (!path) return;
+  } else if (path.startsWith('lib:')) {
+    const sc = SCRIPT_LIBRARY.find((x) => `lib:${x.id}` === path);
+    path = `scripts/${sc.file}`;
+    if (!ed.project.has(path)) ed.project.write(path, sc.source);
   }
-  const path = choice === 'new' ? await newScript(node) : choice;
-  if (!path) return;
   doc.setScript(node, path);
-  if (choice === 'new') openFile(path);
+  if (sel.value === 'new' || sel.value.startsWith('lib:')) openFile(path);
 }
 
-/** Sensible starting properties and children for a new node. */
+/** Sensible starting properties and children for a new piece. */
 function populate(doc, node, parent) {
   const type = node.type;
-  const settingsD = ed.project.settings().display || {};
-  if (isA(type, 'Node2D') && parent === doc.root && isA(doc.root.type, 'Node2D') && !doc.root.children.length) {
-    node.props.x = Math.round((settingsD.width || 1280) / 2);
-    node.props.y = Math.round((settingsD.height || 720) / 2);
+  const d = ed.project.settings().display || {};
+  if (isA(type, 'Group') && parent === doc.root && !doc.root.children.length) {
+    node.props.x = Math.round((d.width || 1280) / 2);
+    node.props.y = Math.round((d.height || 720) / 2);
   }
-  const shape2d = ['CharacterBody2D', 'StaticBody2D', 'Area2D', 'RigidBody2D'];
-  const shape3d = ['CharacterBody3D', 'StaticBody3D', 'Area3D', 'RigidBody3D'];
-  if (shape2d.includes(type)) node.children.push({ ...doc.createNode('CollisionShape2D'), name: 'Shape', parent: node });
-  if (shape3d.includes(type)) {
-    node.children.push({ ...doc.createNode('CollisionShape3D', type === 'CharacterBody3D' ? { shape: 'capsule', radius: 0.4, height: 1.8 } : {}), name: 'Shape', parent: node });
-    if (type !== 'CharacterBody3D' && type !== 'Area3D') node.children.push({ ...doc.createNode('MeshInstance3D'), name: 'Mesh', parent: node });
-  }
+  // A Body or Zone fits the pieces inside it, so give it something to fit.
+  if (type === 'Body') node.children.push({ ...doc.createNode('Shape', { width: 32, height: 32 }), name: 'Look', parent: node });
+  if (type === 'Zone') Object.assign(node.props, { shape: 'rectangle', width: 64, height: 64 });
 }
 
 async function addNodeTo(parent) {
@@ -691,12 +748,13 @@ function dropFileOnNode(path, target) {
     doc.setScript(target, path);
     return;
   }
+  const base = path.split('/').pop().replace(/\..*$/, '');
   let node;
   if (path.endsWith('.scene')) node = doc.createInstance(path);
-  else if (/\.(png|jpe?g|bmp|sprite)$/i.test(path)) node = doc.createNode(isA(target.type, 'Node3D') ? 'Sprite3D' : 'Sprite2D', { image: path }, path.split('/').pop().replace(/\..*$/, ''));
-  else if (/\.(glb|gltf)$/i.test(path)) node = doc.createNode('Model3D', { model: path }, path.split('/').pop().replace(/\..*$/, ''));
-  else if (/\.(wav|ogg|mp3|flac|sfx|song)$/i.test(path)) node = doc.createNode('AudioPlayer', { sound: path }, 'Sound');
-  else if (/\.tileset$/i.test(path)) node = doc.createNode('TileMap', { tileset: path }, 'TileMap');
+  else if (/\.(png|jpe?g|bmp|sprite)$/i.test(path)) node = doc.createNode('Sprite', { image: path }, base);
+  else if (/\.(wav|ogg|mp3|flac|sfx|song)$/i.test(path)) node = doc.createNode('Sound', { sound: path }, base);
+  else if (/\.tileset$/i.test(path)) node = doc.createNode('Tiles', { tileset: path }, 'Tiles');
+  else if (/\.(ttf|otf)$/i.test(path)) node = doc.createNode('Text', { font: path }, 'Text');
   if (!node) return;
   doc.add(target, node);
   doc.select([node]);
@@ -745,7 +803,30 @@ function stop() {
   ed.workspaces[ed.ws]?.resize();
 }
 
+// Live tweaking: while the game runs, the Scene panel and Inspector can show
+// its pieces (core/live-doc.js); edits there change only the running copy.
+function startLive() {
+  stopLive();
+  ed.liveDoc = new LiveDoc((message) => ed.runner.post({ type: 'live', message }));
+  showLivePanels(ed.liveOn);
+}
+
+function showLivePanels(on) {
+  const doc = on && ed.liveDoc ? ed.liveDoc : sceneWs().doc;
+  ed.panels.tree.setDoc(doc);
+  ed.panels.inspector.setDoc(doc);
+}
+
+function stopLive() {
+  if (!ed.liveDoc) return;
+  ed.liveDoc.dispose();
+  ed.liveDoc = null;
+  showLivePanels(false);
+}
+
 function runState(s) {
+  if (s === 'running' && !ed.liveDoc) startLive();
+  if (s !== 'running' && s !== 'paused' && s !== 'loading') stopLive();
   const running = s === 'loading' || s === 'running' || s === 'paused';
   ed.stopBtn.disabled = !running;
   ed.playBtn.classList.toggle('primary', !running);
@@ -783,7 +864,7 @@ function editMenu() {
     { label: 'Undo', icon: 'undo', shortcut: `${modKey}+Z`, disabled: !doc?.undoStack.length, action: () => doc.undo() },
     { label: 'Redo', icon: 'redo', shortcut: `${modKey}+Shift+Z`, disabled: !doc?.redoStack.length, action: () => doc.redo() },
     '-',
-    { label: 'Add node…', icon: 'plus', shortcut: `${modKey}+A`, disabled: !doc, action: () => addNodeTo(ed.panels.tree.targetParent()) },
+    { label: 'Add a piece…', icon: 'plus', shortcut: `${modKey}+A`, disabled: !doc, action: () => addNodeTo(ed.panels.tree.targetParent()) },
     { label: 'Duplicate', icon: 'copy', shortcut: `${modKey}+D`, disabled: !doc?.selection.size, action: () => doc.select(doc.duplicate(doc.selected())) },
     { label: 'Delete', icon: 'trash', shortcut: 'Delete', disabled: !doc?.selection.size, action: () => doc.remove(doc.selected()) },
     '-',
@@ -808,7 +889,7 @@ function viewMenu() {
 function helpMenu() {
   return [
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
-    { label: 'Node reference…', icon: 'book', action: () => nodeDocs(null) },
+    { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
   ];
 }
 
@@ -860,16 +941,16 @@ function nodeDocs(type) {
         list.append(item);
       }
     }
-    showType(type || 'Node');
+    showType(type || 'Group');
   });
   body.append(list, page);
-  openDialog({ title: 'Node reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
+  openDialog({ title: 'Piece reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
 }
 
 const SHORTCUTS = [
   ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'],
   ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
-  ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a node', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a node', 'F2'],
+  ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a piece', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a piece', 'F2'],
   ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
   ['Workspaces', 'Alt+1 … Alt+5'], ['Project settings', `${modKey}+,`], ['Export', `${modKey}+E`],
 ];
@@ -891,7 +972,7 @@ function commands() {
     { label: 'Play the game', hint: 'F5', run: () => play() },
     { label: 'Play this scene', hint: 'F6', run: () => doc && play(doc.path) },
     { label: 'Stop the game', hint: 'F8', run: () => stop() },
-    { label: 'Add node…', hint: `${modKey}+A`, run: () => addNodeTo(ed.panels.tree.targetParent()) },
+    { label: 'Add a piece…', hint: `${modKey}+A`, run: () => addNodeTo(ed.panels.tree.targetParent()) },
     { label: 'New scene…', run: () => newScene() },
     { label: 'New script…', run: () => newScript() },
     { label: 'Project settings', run: () => openProjectSettings() },
@@ -899,7 +980,7 @@ function commands() {
     { label: 'Engine modules', run: () => openProjectSettings('modules') },
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
-    { label: 'Node reference', run: () => nodeDocs(null) },
+    { label: 'Piece reference', run: () => nodeDocs(null) },
     { label: 'Editor settings', run: () => openSettings({}) },
     { label: 'All games', run: () => { location.hash = ''; } },
   ];

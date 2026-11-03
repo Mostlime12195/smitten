@@ -1,12 +1,12 @@
-// The Inspector: the selected node's properties, grouped by section, with an
+// The Inspector: the selected piece's properties, grouped by section, with an
 // editor for each kind of value (numbers you can drag, colors, asset pickers,
-// dropdowns), a reset arrow on changed values, the node's script and its
-// script variables, and its groups. Every edit goes through the SceneDoc, so
-// it can be undone.
+// dropdowns, tags), a reset arrow on changed values, the piece's script and
+// its script variables, and its tags. Every edit goes through the SceneDoc,
+// so it can be undone.
 
 import { h, icon, showMenu } from '../ui.js';
 import { nodeIcon } from '../shell/node-icons.js';
-import { properties, typeDef, isShown, moduleOf, equal } from '../core/schema.js';
+import { properties, typeDef, isShown, moduleOfPiece, equal } from '../core/schema.js';
 import { scriptVariables } from '../core/script-vars.js';
 
 const RESOURCE_EXT = {
@@ -19,7 +19,7 @@ const RESOURCE_EXT = {
   scene: /\.scene$/i,
 };
 
-const MODULE_NAMES = { physics2d: '2D physics', '3d': '3D', physics3d: '3D physics', video: 'video', synth: 'sound generator' };
+const MODULE_NAMES = { physics2d: 'physics', video: 'video', synth: 'sound generator' };
 
 export class InspectorPanel {
   /** ctx: { project, inputActions(), openScript(node), attachScript(node), openScene(path), openDocs(type) } */
@@ -32,8 +32,10 @@ export class InspectorPanel {
     el.append(h('div', { class: 'panel' }, this.body));
     this.onSelect = () => this.render();
     this.onChange = (e) => {
-      // Re-render unless the change came from this panel's own input.
+      // Re-render unless the change came from this panel's own input, or (for
+      // the live game's values, which refresh often) while you're typing.
       if (this.editing) return;
+      if (this.doc?.live && this.body.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       this.render();
     };
     ctx.project?.addEventListener?.('file', (e) => {
@@ -59,26 +61,30 @@ export class InspectorPanel {
     const scroll = this.body.scrollTop;
     this.body.replaceChildren();
     if (!doc) {
-      this.body.append(h('div', { class: 'empty' }, h('h3', {}, 'Nothing selected'), h('p', {}, 'Open a scene and select a node to see and change its properties here.')));
+      this.body.append(h('div', { class: 'empty' }, h('h3', {}, 'Nothing selected'), h('p', {}, 'Open a scene and select a piece to see and change its properties here.')));
       return;
     }
     const sel = doc.selected();
     if (!sel.length) {
       this.body.append(h('div', { class: 'empty' },
-        h('h3', {}, 'Select a node'),
-        h('p', {}, 'Click a node in the Scene panel or the view to change its properties.')));
+        h('h3', {}, 'Select a piece'),
+        h('p', {}, 'Click a piece in the Scene panel or the view to change its properties.')));
       return;
     }
     if (sel.length > 1) {
       this.body.append(h('div', { class: 'empty' },
-        h('h3', {}, `${sel.length} nodes selected`),
+        h('h3', {}, `${sel.length} pieces selected`),
         h('p', {}, 'Move, duplicate or delete them together. Select one to change its properties.')));
       return;
     }
     const node = sel[0];
+    if (doc.live) {
+      this.body.append(h('div', { class: 'live-banner' }, icon('live', 14),
+        h('span', {}, 'The running game. Changes here only last until you stop it.')));
+    }
     this.body.append(this.header(node));
     if (node.readonly) {
-      this.body.append(h('p', { class: 'insp-hint' }, 'This node comes from the scene the instance uses. Open that scene to change it.'));
+      this.body.append(h('p', { class: 'insp-hint' }, 'This piece comes from a placed scene. Open that scene to change it.'));
     }
     this.body.append(...this.sections(node));
     this.body.scrollTop = scroll;
@@ -87,17 +93,17 @@ export class InspectorPanel {
   header(node) {
     const doc = this.doc;
     const def = typeDef(node.type) || {};
-    const name = h('input', { class: 'input name-input', value: node.name, spellcheck: 'false', 'aria-label': 'Node name', disabled: node.readonly });
+    const name = h('input', { class: 'input name-input', value: node.name, spellcheck: 'false', 'aria-label': 'Piece name', disabled: node.readonly });
     name.addEventListener('change', () => doc.rename(node, name.value));
     name.addEventListener('keydown', (e) => { if (e.key === 'Enter') name.blur(); e.stopPropagation(); });
     const help = h('a', { title: `What a ${node.type} can do` }, 'Docs');
     help.addEventListener('click', () => this.ctx.openDocs?.(node.type));
     const parts = [
-      h('div', { class: 'insp-title' }, nodeIcon(node.type, 18), name),
+      h('div', { class: 'insp-title' }, nodeIcon(node.type, 18, node.type === 'Body' ? doc.get(node, 'motion') : null), name),
       h('div', { class: 'insp-type' }, node.type, h('span', {}, '·'), help),
       h('p', { class: 'insp-desc' }, def.description || ''),
     ];
-    const mod = moduleOf(node.type);
+    const mod = moduleOfPiece(node.type, { motion: doc.get(node, 'motion') });
     if (mod) parts.push(h('p', { class: 'insp-desc' }, `Uses the ${MODULE_NAMES[mod] || mod} module, which is added to the game automatically.`));
     if (node.instance) {
       const open = h('button', { type: 'button', class: 'btn small' }, 'Open');
@@ -165,25 +171,25 @@ export class InspectorPanel {
       }
     }
 
-    // Groups.
+    // Tags.
     if (!node.readonly) {
       const chips = h('div', { class: 'groups-input' });
-      for (const g of node.groups) {
-        const x = h('button', { type: 'button', title: `Remove from ${g}`, 'aria-label': `Remove from ${g}` }, '×');
-        x.addEventListener('click', () => doc.setGroups(node, node.groups.filter((k) => k !== g)));
+      for (const g of node.tags) {
+        const x = h('button', { type: 'button', title: `Remove the ${g} tag`, 'aria-label': `Remove the ${g} tag` }, '×');
+        x.addEventListener('click', () => doc.setTags(node, node.tags.filter((k) => k !== g)));
         chips.append(h('span', { class: 'group-chip' }, g, x));
       }
-      const input = h('input', { class: 'input', placeholder: 'Add a group (enemies, coins…)', style: 'flex: 1; min-width: 120px; height: 24px' });
+      const input = h('input', { class: 'input', placeholder: 'Add a tag (player, enemy, coin…)', style: 'flex: 1; min-width: 120px; height: 24px' });
       input.addEventListener('keydown', (e) => {
         e.stopPropagation();
         if (e.key === 'Enter' && input.value.trim()) {
           const g = input.value.trim();
-          if (!node.groups.includes(g)) doc.setGroups(node, [...node.groups, g]);
+          if (!node.tags.includes(g)) doc.setTags(node, [...node.tags, g]);
         }
       });
       chips.append(input);
-      out.push(this.section('groups', 'Groups', [h('div', { style: 'grid-column: 1 / -1' }, chips,
-        h('p', { class: 'insp-desc', style: 'margin-top: 6px' }, 'Scripts find nodes by group: smitten.scene.group("enemies"), other:inGroup("coins").'))]));
+      out.push(this.section('tags', 'Tags', [h('div', { style: 'grid-column: 1 / -1' }, chips,
+        h('p', { class: 'insp-desc', style: 'margin-top: 6px' }, 'Scripts find pieces by tag (smitten.scene.tagged("enemy"), other:hasTag("coin")), and bodies and zones use tags to choose what they touch.'))]));
     }
     return out;
   }
@@ -192,7 +198,8 @@ export class InspectorPanel {
   row(node, key, def, scriptDefault) {
     const doc = this.doc;
     const own = Object.prototype.hasOwnProperty.call(node.props, key);
-    const value = scriptDefault !== undefined ? (own ? node.props[key] : scriptDefault) : doc.get(node, key);
+    const liveValue = doc.live ? node.values?.[key] : undefined;
+    const value = scriptDefault !== undefined ? (own ? node.props[key] : liveValue ?? scriptDefault) : doc.get(node, key);
     const changed = own && (scriptDefault === undefined || !equal(node.props[key], scriptDefault));
     const label = h('label', { class: `insp-label ${changed ? 'changed' : ''}`, title: def.description || '' }, h('span', {}, prettyName(key)));
     if (changed && !node.readonly) {
@@ -225,11 +232,12 @@ export class InspectorPanel {
         sw.addEventListener('click', () => set(!value));
         return sw;
       }
-      case 'string': case 'text': case 'points': {
+      case 'string': case 'text': case 'points': case 'tags': {
         const multiline = def.type === 'text' && String(value ?? '').length > 30;
         const isPoints = def.type === 'points';
         const shown = isPoints ? (value || []).join(', ') : String(value ?? '');
-        const el = multiline ? h('textarea', { class: 'input', rows: 3 }, shown) : h('input', { class: 'input', value: shown, spellcheck: 'false' });
+        const el = multiline ? h('textarea', { class: 'input', rows: 3 }, shown)
+          : h('input', { class: 'input', value: shown, spellcheck: 'false', placeholder: def.type === 'tags' ? 'tags, like ghost, coin' : '' });
         el.addEventListener('change', () => {
           if (isPoints) set(el.value.split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n)));
           else set(el.value);
@@ -237,13 +245,13 @@ export class InspectorPanel {
         el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !multiline) el.blur(); });
         return el;
       }
-      case 'enum': case 'action': case 'animation': case 'nodepath': {
+      case 'enum': case 'action': case 'animation': case 'piecepath': {
         let options = def.options || [];
         if (def.type === 'action') options = this.ctx.inputActions();
         if (def.type === 'animation') options = ['', ...this.animationsOf(node)];
-        if (def.type === 'nodepath') options = ['', ...this.nodePaths(node)];
+        if (def.type === 'piecepath') options = ['', ...this.nodePaths(node)];
         if (value && !options.includes(value)) options = [...options, value];
-        const sel = h('select', { class: 'input' }, ...options.map((o) => h('option', { value: o, selected: o === value }, o === '' ? (def.type === 'nodepath' ? '(automatic)' : '(none)') : prettyOption(o))));
+        const sel = h('select', { class: 'input' }, ...options.map((o) => h('option', { value: o, selected: o === value }, o === '' ? '(none)' : def.type === 'piecepath' ? o : prettyOption(o))));
         sel.addEventListener('change', () => set(sel.value));
         return sel;
       }

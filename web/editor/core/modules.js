@@ -1,21 +1,17 @@
 // Which optional engine modules a project needs (DESIGN.md, section 3): from
-// the node types in its scenes and the APIs its scripts use, plus the
-// overrides in smitten.json ("modules": {"physics3d": "always" | "never"}).
+// the pieces in its scenes and the APIs its scripts use, plus the overrides
+// in smitten.json ("modules": {"physics2d": "always" | "never"}).
 
-import { moduleOf } from './schema.js';
+import { moduleOfPiece } from './schema.js';
 
 export const MODULES = [
-  { id: 'physics2d', name: '2D physics', what: 'Box2D: RigidBody2D, Joint2D and smitten.physics' },
-  { id: '3d', name: '3D graphics', what: 'The 3D renderer and glTF models: every 3D node' },
-  { id: 'physics3d', name: '3D physics', what: 'Jolt: 3D bodies, areas and characters' },
+  { id: 'physics2d', name: 'Physics', what: 'Box2D: Bodies whose motion is physics, Joints, smitten.physics' },
   { id: 'video', name: 'Video', what: 'Theora video playback: smitten.video' },
   { id: 'synth', name: 'Sound generator', what: 'Plays .sfx and .song files made in Smitten' },
 ];
 
 const CODE_PATTERNS = [
-  { id: 'physics2d', re: /\b(?:smitten|love)\.physics\.|\bRigidBody2D\b|\bJoint2D\b/ },
-  { id: 'physics3d', re: /\b(?:smitten|love)\.physics3d\b|\b(?:RigidBody3D|StaticBody3D|CharacterBody3D|Area3D|CollisionShape3D)\b/ },
-  { id: '3d', re: /\b(?:smitten|love)\.graphics3d\b|\b(?:Node3D|MeshInstance3D|Model3D|Camera3D|Sprite3D)\b/ },
+  { id: 'physics2d', re: /\b(?:smitten|love)\.physics\.|motion\s*=\s*["']physics["']/ },
   { id: 'video', re: /\b(?:smitten|love)\.video\b|\bnewVideo\s*\(/ },
   { id: 'synth', re: /\b(?:smitten|love)\.synth\b|\.(?:sfx|song)["'`]/ },
 ];
@@ -37,9 +33,8 @@ export function detectModules(project) {
       const visit = (e) => {
         if (!e) return;
         if (e.type) {
-          const m = moduleOf(e.type);
+          const m = moduleOfPiece(e.type, e.properties || {});
           if (m) reasons[m].add(path);
-          if (m === 'physics3d') reasons['3d'].add(path);
         }
         const sound = e.properties?.sound;
         if (typeof sound === 'string' && /\.(sfx|song)$/.test(sound)) reasons.synth.add(path);
@@ -64,8 +59,6 @@ export function detectModules(project) {
       reasons: [...reasons[m.id]].sort(),
     };
   }
-  // 3D physics nodes are 3D nodes.
-  if (out.physics3d.included && !out['3d'].included && out['3d'].override !== 'never') out['3d'].included = true;
   return out;
 }
 

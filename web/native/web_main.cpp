@@ -301,6 +301,29 @@ EMSCRIPTEN_KEEPALIVE void loveweb_set_paused(int p)
 	paused = p != 0;
 }
 
+// Live tweaking (DESIGN.md, section 8): the editor sends JSON messages to the
+// running game through the player; love.engine's live.lua reads them each
+// frame with love._livePoll() and answers by printing.
+static std::vector<std::string> liveInbox;
+
+EMSCRIPTEN_KEEPALIVE void loveweb_live_post(const char *json)
+{
+	if (liveInbox.size() < 256)
+		liveInbox.emplace_back(json);
+}
+
+int loveweb_live_poll(lua_State *L)
+{
+	lua_createtable(L, (int) liveInbox.size(), 0);
+	for (size_t i = 0; i < liveInbox.size(); i++)
+	{
+		lua_pushlstring(L, liveInbox[i].data(), liveInbox[i].size());
+		lua_rawseti(L, -2, (int) i + 1);
+	}
+	liveInbox.clear();
+	return 1;
+}
+
 // Resizes a resizable game window to fill the page, like a maximized desktop
 // window. Returns 0 (and does nothing) if the game's window isn't resizable.
 EMSCRIPTEN_KEEPALIVE int loveweb_fit_window(int w, int h)

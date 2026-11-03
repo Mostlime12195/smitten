@@ -455,6 +455,8 @@ if (embedded) {
     if (e.source !== window.parent || !e.data || typeof e.data !== 'object') return;
     const msg = e.data;
     if (msg.type === 'run') start({ ...(msg.love ? { love: msg.love } : { files: msg.files || {} }), modules: msg.modules });
+    // Live tweaking: messages for the running game (love/src/modules/engine/live.lua).
+    else if (msg.type === 'live' && running && Module) Module.ccall('loveweb_live_post', null, ['string'], [JSON.stringify(msg.message)]);
     else if (msg.type === 'stop') Module?._loveweb_quit();
     else if (msg.type === 'pause') Module?._loveweb_set_paused(msg.paused ? 1 : 0);
     else if (msg.type === 'focus') canvas.focus();

@@ -444,7 +444,7 @@ def main():
     exports = ["_main", "_malloc", "_free",
                "_loveweb_quit", "_loveweb_set_paused", "_loveweb_fit_window",
                "_loveweb_file_dialog_add", "_loveweb_file_dialog_done",
-               "_loveweb_text_input", "_loveweb_text_editing", "_loveweb_text_key",
+               "_loveweb_text_input", "_loveweb_text_editing", "_loveweb_text_key", "_loveweb_live_post",
                "_ljit_configure", "_ljit_stats"]
     # Side modules share the core's stack pointer. At -O3, Emscripten's dead
     # code pass removes its export unless it's listed.
@@ -520,7 +520,7 @@ def build_id():
 
 
 def copy_web():
-    """Copy the player, editor and examples next to the engine."""
+    """Copy the player and the editor next to the engine."""
     generate_script_library()
     for sub in ("player", "editor", "dev"):
         src = WEB / sub
@@ -529,8 +529,6 @@ def copy_web():
     player = DIST / "player.js"
     if player.exists():
         player.write_text(player.read_text().replace("__SMITTEN_BUILD__", build_id()))
-    if (WEB / "examples").exists():
-        shutil.copytree(WEB / "examples", DIST / "examples", dirs_exist_ok=True)
     # The piece schema, for the editor (web/editor/core/schema.js).
     shutil.copy(MODULES / "scene" / "pieces.json", DIST / "pieces.json")
 

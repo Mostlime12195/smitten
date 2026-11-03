@@ -601,6 +601,10 @@ static void preloadEngineLua(lua_State *L)
 }
 #endif
 
+#ifdef LOVE_EMSCRIPTEN
+extern "C" int loveweb_live_poll(lua_State *L); // web/native/web_main.cpp
+#endif
+
 #ifdef LOVE_OPTIONAL_MODULES
 // Smitten: modules a game only downloads when it uses them. Each is a
 // WebAssembly side module that the player loads before main() runs (see
@@ -677,6 +681,11 @@ int luaopen_love(lua_State *L)
 #endif
 #ifdef LOVE_OPTIONAL_MODULES
 	preloadOptionalModules(L);
+#endif
+#ifdef LOVE_EMSCRIPTEN
+	// Smitten: messages from the editor for live tweaking (web/native/web_main.cpp).
+	lua_pushcfunction(L, loveweb_live_poll);
+	lua_setfield(L, -2, "_livePoll");
 #endif
 
 	// Set version information.

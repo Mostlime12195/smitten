@@ -96,12 +96,11 @@ export function languageLabel(path, data) {
 
 // Files made by Smitten's tools (see docs/reference.md).
 const ASSET_ICONS = [
-  [/\.scene$/i, 'box'],
+  [/\.scene$/i, 'scene'],
   [/\.sprite$/i, 'image'],
   [/\.tileset$/i, 'grid'],
   [/\.sfx$/i, 'wave'],
   [/\.song$/i, 'music'],
-  [/\.(glb|gltf)$/i, 'package'],
   [/(^|\/)smitten\.json$/i, 'heart'],
 ];
 

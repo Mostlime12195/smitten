@@ -183,6 +183,7 @@ function engine.start()
 end
 
 function engine.update(dt)
+	if love._livePoll then require("love.engine.live").poll() end
 	local tween = package.loaded["love.tween"]
 	if tween then tween._update(dt) end
 	local s = scene()

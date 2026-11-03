@@ -16,12 +16,12 @@
   --header-h: 32px;
   --editor-font-size: 13px;
   --brand: #e5487a;
-  /* Node colors, as in other engines: 2D blue, 3D orange, UI green. */
-  --node-2d: #6aa6ff;
-  --node-3d: #ff9b5c;
+  /* Piece colors, by what the piece is for. */
+  --node-visual: #6aa6ff;
+  --node-physics: #f2a65a;
   --node-ui: #61d394;
-  --node-other: #b9bec8;
-  --node-behavior: #c792ea;
+  --node-sound: #c792ea;
+  --node-basic: #b9bec8;
 }
 
 :root,
@@ -137,11 +137,11 @@
   --syn-operator: #555a64;
   --syn-variable: #1d1f23;
   --game-bg: #000000;
-  --node-2d: #2f6fed;
-  --node-3d: #d9661f;
+  --node-visual: #2f6fed;
+  --node-physics: #c4620e;
   --node-ui: #1e9e57;
-  --node-other: #6b7079;
-  --node-behavior: #8a3fd1;
+  --node-sound: #8a3fd1;
+  --node-basic: #6b7079;
 }
 
 * { box-sizing: border-box; }

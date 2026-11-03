@@ -21,6 +21,7 @@
 .tb-right { justify-content: flex-end; gap: 6px; }
 .brand { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 4px; color: var(--fg); text-decoration: none; font-weight: 650; }
 .brand .brand-mark { color: var(--brand); display: inline-flex; }
+.brand-mark svg * { fill: currentColor; }
 .menubar-btn {
   height: 28px; padding: 0 9px; border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--fg-muted); font: inherit; cursor: pointer;
@@ -174,11 +175,11 @@
 .node-row.drop-before::before { top: -1px; }
 .node-row.drop-after::after { bottom: -1px; }
 .node-row.drop-inside { box-shadow: inset 0 0 0 1px var(--accent); }
-.node-icon.c-2d { color: var(--node-2d); }
-.node-icon.c-3d { color: var(--node-3d); }
+.node-icon.c-visual { color: var(--node-visual); }
+.node-icon.c-physics { color: var(--node-physics); }
 .node-icon.c-ui { color: var(--node-ui); }
-.node-icon.c-other { color: var(--node-other); }
-.node-icon.c-behavior { color: var(--node-behavior); }
+.node-icon.c-sound { color: var(--node-sound); }
+.node-icon.c-basic { color: var(--node-basic); }
 .instance-tag { font-size: 11px; color: var(--fg-subtle); }
 
 /* Inspector ---------------------------------------------------------------- */
@@ -301,3 +302,12 @@
   .dock.left { left: 0; }
   .dock.right { right: 0; }
 }
+
+/* Live tweaking: panels showing the running game. */
+.live-banner {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; flex: none;
+  background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--fg); font-size: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+}
+.live-banner .icon { color: var(--success); }
+.game-bar .tool-btn[aria-pressed="true"] { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); border-color: transparent; }

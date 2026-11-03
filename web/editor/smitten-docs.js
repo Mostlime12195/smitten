@@ -1,22 +1,23 @@
 // Completion data for what Smitten adds to the engine table (smitten is love):
 // its own modules, the helpers that join LÖVE's modules, and the path
 // arguments the editor can complete. Node methods and script callbacks come
-// from the node schema (core/schema.js).
+// from the piece schema (core/schema.js).
 
 /** smitten.<module>.<name>: [args, doc]; null for values. */
 export const SMITTEN_MODULES = {
   scene: {
-    change: ['path, ...', 'Goes to another scene at the end of the frame: smitten.scene.change("scenes/level2.scene").'],
+    go: ['path, ...', 'Goes to another scene at the end of the frame: smitten.scene.go("scenes/level2.scene").'],
     reload: ['', 'Starts the running scene again from its file.'],
-    instance: ['path, properties?', 'Makes a node from a scene file; add it with node:add().'],
-    create: ['type, properties?, script?', 'Makes a node of a type: smitten.scene.create("Sprite2D", { image = "art/coin.png" }).'],
-    group: ['name', 'The nodes in a group, as a list.'],
-    first: ['name', 'The first node in a group, or nil.'],
-    find: ['path', 'A node of the running scene by its path from the root.'],
-    setCurrent: ['root', 'Makes a node built in code the running scene.'],
+    make: ['sceneOrType, properties?, script?', 'Makes a piece without adding it: make("scenes/coin.scene") or make("Sprite", { image = "art/coin.png" }).'],
+    spawn: ['sceneOrType, properties?, parent?', 'Makes a piece and adds it to the scene (or to parent): spawn("scenes/bullet.scene", { x = 10 }).'],
+    tagged: ['tag', 'Every piece with a tag, as a list.'],
+    first: ['tag', 'The first piece with a tag, or nil.'],
+    find: ['path', 'A piece of the running scene by its path from the root.'],
+    screenToWorld: ['x, y', 'A point on the screen as a point in the scene (through the camera).'],
+    worldToScreen: ['x, y', 'A point in the scene as a point on the screen.'],
+    setCurrent: ['root', 'Makes a piece built in code the running scene.'],
     getDelta: ['', 'The current step\'s length: the frame time in update(), the fixed step in physicsUpdate().'],
-    raycast3d: ['x, y, z, dx, dy, dz, mask?', 'Casts a ray through the 3D physics world: node, x, y, z, nx, ny, nz.'],
-    current: null, path: null, args: null, paused: null, showCollisions: null,
+    current: null, path: null, args: null, paused: null, showShapes: null,
   },
   input: {
     pressed: ['action', 'True on the frame the action went down: smitten.input.pressed("jump").'],
@@ -42,7 +43,6 @@ export const SMITTEN_MODULES = {
     tileset: ['path', 'A .tileset file.'],
     font: ['path, size', 'A font: a .ttf/.otf file, "pixel", or "" for the default.'],
     audio: ['path', 'A sound ready to play: :newSource():play().'],
-    model: ['path', 'A glTF model (3D games).'],
     scene: ['path', 'A .scene file, decoded.'],
     script: ['path', 'Runs a script file and returns its table.'],
     load: ['path', 'Loads any file by its extension.'],
@@ -110,13 +110,12 @@ export const ENGINE_FIELDS = { version: null };
 
 /** Functions whose first argument is a project path, and which files fit. */
 export const PATH_ARGS = [
-  { re: /\bscene\.(?:change|instance)\s*\(\s*["']([^"']*)$/, ext: /\.scene$/ },
+  { re: /\bscene\.(?:go|make|spawn)\s*\(\s*["']([^"']*)$/, ext: /\.scene$/ },
   { re: /\bassets\.(?:image)\s*\(\s*["']([^"']*)$/, ext: /\.(png|jpe?g|bmp)$/i },
   { re: /\bassets\.sprite\s*\(\s*["']([^"']*)$/, ext: /\.sprite$/ },
   { re: /\bassets\.tileset\s*\(\s*["']([^"']*)$/, ext: /\.tileset$/ },
   { re: /\bassets\.font\s*\(\s*["']([^"']*)$/, ext: /\.(ttf|otf)$/i },
   { re: /\bassets\.(?:audio)\s*\(\s*["']([^"']*)$/, ext: /\.(wav|ogg|mp3|flac|sfx|song)$/i },
-  { re: /\bassets\.model\s*\(\s*["']([^"']*)$/, ext: /\.(glb|gltf)$/i },
   { re: /\bsynth\.sfx\s*\(\s*["']([^"']*)$/, ext: /\.sfx$/ },
   { re: /\bsynth\.song\s*\(\s*["']([^"']*)$/, ext: /\.song$/ },
   { re: /\bassets\.(?:load|readJSON|scene|script)\s*\(\s*["']([^"']*)$/, ext: /./ },

@@ -23,12 +23,11 @@ export function thumbnailUrl(path, data) {
  */
 export function snippetFor(path) {
   const ext = (path.match(/\.([^.\/]+)$/)?.[1] || '').toLowerCase();
-  if (ext === 'scene') return `smitten.scene.change("${path}")`;
+  if (ext === 'scene') return `smitten.scene.spawn("${path}")`;
   if (ext === 'sprite') return `smitten.assets.sprite("${path}")`;
   if (ext === 'tileset') return `smitten.assets.tileset("${path}")`;
   if (ext === 'sfx') return `smitten.synth.sfx("${path}"):play()`;
   if (ext === 'song') return `smitten.synth.song("${path}"):play()`;
-  if (ext === 'glb' || ext === 'gltf') return `smitten.assets.model("${path}")`;
   if (ext === 'lua') return `require("${path.replace(/(\/init)?\.lua$/i, '').replace(/\//g, '.')}")`;
   const kind = kindOf(path);
   if (kind === 'image') return `smitten.assets.image("${path}")`;

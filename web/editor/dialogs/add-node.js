@@ -1,26 +1,24 @@
-// The Add node dialog: every node type, searchable, grouped as in
+// The Add a piece dialog: every piece type, searchable, grouped as in
 // DESIGN.md section 4, with what each one does and what it can do.
 
 import { h, openDialog } from '../ui.js';
 import { nodeIcon } from '../shell/node-icons.js';
 import { typesByGroup, typeDef, methods, events, properties, moduleOf, isA } from '../core/schema.js';
 
-const MODULE_NAMES = { physics2d: '2D physics (Box2D)', '3d': '3D graphics', physics3d: '3D physics (Jolt)', video: 'video', synth: 'sound generator' };
+const MODULE_NAMES = { physics2d: 'physics (Box2D)', video: 'video', synth: 'sound generator' };
 const RECENT_KEY = 'smitten-editor.recent-nodes';
 
 /** Suggestions for what to add, from what the parent is. */
 function suggestionsFor(parentType) {
-  if (/Body2D|Area2D/.test(parentType)) return ['CollisionShape2D', 'Sprite2D', 'Platformer', 'TopDown'];
-  if (/Body3D|Area3D/.test(parentType)) return ['CollisionShape3D', 'MeshInstance3D', 'Camera3D', 'FirstPerson'];
-  if (isA(parentType, 'Node3D')) return ['MeshInstance3D', 'Model3D', 'StaticBody3D', 'RigidBody3D', 'Camera3D', 'DirectionalLight3D'];
-  if (isA(parentType, 'Control')) return ['Label', 'Button', 'Panel', 'ImageRect'];
-  return ['Sprite2D', 'CharacterBody2D', 'StaticBody2D', 'Area2D', 'TileMap', 'Label', 'Camera2D'];
+  if (parentType === 'Body' || parentType === 'Zone') return ['Sprite', 'Shape', 'Camera', 'Hitbox', 'Particles'];
+  if (parentType && isA(parentType, 'UI')) return ['Label', 'Button', 'Panel', 'Picture', 'Bar'];
+  return ['Sprite', 'Body', 'Zone', 'Shape', 'Tiles', 'Label', 'Camera'];
 }
 
 /** Resolves to a type name, or null. */
 export function addNodeDialog(parentType) {
   const recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search node types (e.g. sprite, light, jump)', 'aria-label': 'Search node types' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search pieces (picture, wall, button, sound…)', 'aria-label': 'Search pieces' });
   const items = h('div', { class: 'add-node-items', role: 'listbox' });
   const help = h('div', { class: 'add-node-help' });
   let active = null;
@@ -80,7 +78,7 @@ export function addNodeDialog(parentType) {
         if (!flat.includes(t.name)) flat.push(t.name);
       }
     }
-    if (!flat.length) items.append(h('p', { class: 'insp-hint' }, 'No node type matches.'));
+    if (!flat.length) items.append(h('p', { class: 'insp-hint' }, 'No piece matches.'));
     show(flat.includes(active) && q === '' ? active : flat[0]);
   };
 
@@ -99,7 +97,7 @@ export function addNodeDialog(parentType) {
 
   let dlg;
   const p = openDialog({
-    title: `Add a node${parentType ? ` to ${parentType}` : ''}`,
+    title: `Add a piece${parentType ? ` inside the ${parentType}` : ''}`,
     wide: true,
     body: h('div', { class: 'add-node' }, h('div', { class: 'add-node-list' }, search, items), help),
     actions: [
