@@ -173,13 +173,24 @@ async function openProject(id) {
   ed.playBtn.addEventListener('click', () => play());
   ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
   ed.stopBtn.addEventListener('click', () => stop());
+  // Publish is the main way to share; its arrow holds the other ways out.
   const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
   publishBtn.addEventListener('click', () => publish());
+  const shareMore = h('button', { type: 'button', class: 'btn ghost share-more', title: 'Export or share', 'aria-label': 'More ways to share', 'aria-haspopup': 'menu' }, icon('chevronDown', 14));
+  shareMore.addEventListener('click', () => {
+    shareMore.setAttribute('aria-expanded', 'true');
+    showMenu(publishBtn, [
+      { label: 'Publish…', icon: 'publish', action: () => publish() },
+      { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+      { label: 'Copy share link', icon: 'link', action: () => shareLink() },
+    ], { onClose: () => shareMore.setAttribute('aria-expanded', 'false') });
+  });
+  const shareGroup = h('div', { class: 'share-group' }, publishBtn, shareMore);
   ed.accountSlot = h('div', { class: 'account-slot' });
   renderAccount();
   ed.offAccount = onAccountChange(() => renderAccount());
   const titlebar = h('header', { class: 'titlebar' }, menus, switcher,
-    h('div', { class: 'tb-right' }, publishBtn, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
+    h('div', { class: 'tb-right' }, shareGroup, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
 
   // Center: workspaces and the game view
   const area = h('div', { class: 'workspace-area' });

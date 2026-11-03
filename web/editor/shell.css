@@ -88,6 +88,11 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
 }
 @keyframes run-pulse { 50% { opacity: 0.35; transform: scale(0.75); } }
 .publish-btn { color: var(--fg); }
+.share-group { display: flex; align-items: center; }
+.share-group .publish-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 8px; }
+.share-group .share-more { width: 26px; padding: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; color: var(--fg-muted); }
+.share-group:hover .btn.ghost { background: var(--hover); }
+.share-group .btn.ghost:hover { background: var(--active); color: var(--fg); }
 .account-slot { display: flex; }
 .account-slot:empty { display: none; }
 .avatar-btn { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform var(--fast) var(--ease); }
