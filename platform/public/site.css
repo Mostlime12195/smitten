@@ -312,6 +312,73 @@ a:hover { text-decoration: underline; }
 .stage iframe { display: block; width: 100%; height: 100%; border: 0; }
 .stage:fullscreen { width: 100%; height: 100%; border-radius: 0; aspect-ratio: auto; }
 
+/* The start card: the game's picture with its name, before it loads. */
+.start-card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  background: var(--stage);
+  overflow: hidden;
+}
+.start-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease, filter 0.4s ease;
+}
+.start-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 45%);
+  pointer-events: none;
+}
+.start-card:hover .start-shot { transform: scale(1.02); filter: brightness(1.06); }
+.start-play {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  padding: 0 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  color: #111;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.start-play svg { fill: currentColor; }
+.start-card:hover .start-play { transform: scale(1.07); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45); }
+.start-play:active { transform: scale(0.94); }
+.start-play:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.start-info {
+  position: absolute;
+  z-index: 1;
+  left: 18px;
+  right: 18px;
+  bottom: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.start-info strong { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-info span { color: rgba(255, 255, 255, 0.75); font-size: 14px; white-space: nowrap; }
+.start-card.starting { opacity: 0; transition: opacity 0.16s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .start-shot, .start-play, .start-card.starting { transition: none; }
+}
+
 .details { width: var(--stage-w); margin: 22px auto 0; }
 .details-head {
   display: flex;

@@ -28,10 +28,7 @@ function mountPlayer() {
   const loveUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.love`;
   const p = new URLSearchParams({ game: loveUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
-  // The start screen shows the game's name, maker and blurred thumbnail.
   p.set('title', game.title);
-  if (game.owner?.displayName || game.owner?.username) p.set('by', game.owner.displayName || `@${game.owner.username}`);
-  if (game.thumbnail) p.set('poster', game.thumbnail);
   const frame = h('iframe', {
     id: 'player',
     src: `/player/player.html?${p}`,
@@ -41,6 +38,28 @@ function mountPlayer() {
     referrerpolicy: 'same-origin',
   });
   stage.replaceChildren(frame);
+  frame.focus();
+}
+
+/** The site's own start screen: the game's picture, name and maker, and Play. The game only downloads once it's pressed. */
+function showStartCard() {
+  const play = h('button', { type: 'button', class: 'start-play', 'aria-label': `Play ${game.title}` }, icon('play', 30));
+  const by = game.owner?.displayName || (game.owner?.username ? `@${game.owner.username}` : '');
+  const card = h('div', { class: 'start-card' },
+    game.thumbnail ? h('img', { class: 'start-shot', src: game.thumbnail, alt: '' }) : null,
+    play,
+    h('div', { class: 'start-info' },
+      h('strong', {}, game.title),
+      by ? h('span', {}, `by ${by}`) : null));
+  // Anywhere on the card starts the game, not only the button.
+  card.addEventListener('click', () => {
+    card.classList.add('starting');
+    setTimeout(() => {
+      mountPlayer();
+      countPlay();
+    }, 160);
+  }, { once: true });
+  stage.replaceChildren(card);
 }
 
 /** 45000 → "12 h 30 min". */
@@ -197,8 +216,7 @@ async function main() {
     return;
   }
   render();
-  mountPlayer();
-  countPlay();
+  showStartCard();
 }
 
 main();
