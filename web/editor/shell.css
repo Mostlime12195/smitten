@@ -40,6 +40,7 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
   font: inherit; font-weight: 600; cursor: pointer; transition: background-color var(--fast);
 }
 .project-btn:hover, .project-btn[aria-expanded="true"] { background: var(--hover); }
+.project-btn > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .project-btn .project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-btn .icon { color: var(--fg-subtle); transition: transform var(--medium) var(--ease); }
 .project-btn[aria-expanded="true"] .icon { transform: rotate(180deg); }

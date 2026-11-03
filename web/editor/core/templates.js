@@ -180,10 +180,14 @@ function pixelPlatformer(name) {
         if (typeof props[k] === 'number') props[k] = Math.round(props[k] / 4);
       }
       if (props.bottom) props.bottom = 180;
-      if (props.size !== undefined) {
+      // Every text gets the pixel font at its size, set or not.
+      if (props.size !== undefined || e.type === 'Label' || e.type === 'Text') {
         props.font = 'pixel';
         props.size = 10;
+        e.properties = props;
       }
+      // Labels keep a readable line length on the small screen.
+      if (e.type === 'Label' && props.width) props.width = Math.max(props.width, 300);
       (e.children || []).forEach(shrink);
     };
     shrink(data.root);
