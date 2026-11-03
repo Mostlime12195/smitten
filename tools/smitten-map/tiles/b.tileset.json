@@ -1,0 +1,12 @@
+{
+  "format": "smitten.tileset",
+  "version": 1,
+  "image": "b.png",
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "tiles": {
+    "1": {
+      "damage": 1
+    }
+  }
+}

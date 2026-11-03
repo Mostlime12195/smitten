@@ -1,0 +1,19 @@
+{
+  "format": "smitten.tileset",
+  "version": 1,
+  "image": "a.png",
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "tiles": {
+    "0": {
+      "solid": true
+    },
+    "1": {
+      "solid": true,
+      "name": "grass"
+    },
+    "4": {
+      "solid": true
+    }
+  }
+}
