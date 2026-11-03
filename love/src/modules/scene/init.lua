@@ -35,6 +35,7 @@ local tree = {
 	systems = {},  -- name -> {step = fn(h), reset = fn(), order = n}
 	systemList = {},
 	frame = 0,
+	epoch = 0,  -- counts physics steps and updates (physics2d's broadphase)
 	accumulator = 0,
 	dt = 0,
 }
@@ -292,7 +293,11 @@ local function physicsTraverse(n, h)
 	if n._dead then return end
 	if n._physics then n:_physics(h) end
 	local f = n.physicsUpdate
-	if f then f(n, h) end
+	if f then
+		f(n, h)
+		local after = n._afterScript
+		if after then after(n) end
+	end
 	local ch = n.children
 	for i = 1, #ch do
 		local c = ch[i]
@@ -304,7 +309,11 @@ local function processTraverse(n, dt)
 	if n._dead then return end
 	if n._process then n:_process(dt) end
 	local f = n.update
-	if f then f(n, dt) end
+	if f then
+		f(n, dt)
+		local after = n._afterScript
+		if after then after(n) end
+	end
 	local ch = n.children
 	for i = 1, #ch do
 		local c = ch[i]
@@ -314,6 +323,7 @@ end
 
 local function physicsStep(h)
 	tree.dt = h
+	tree.epoch = tree.epoch + 1
 	physicsTraverse(tree.root, h)
 	local systems = tree.systemList
 	for i = 1, #systems do
@@ -342,6 +352,7 @@ function scene._update(dt)
 	if steps == MAX_STEPS then tree.accumulator = 0 end
 	if not tree.root then return end
 	tree.dt = dt
+	tree.epoch = tree.epoch + 1
 	processTraverse(tree.root, dt)
 	freeNodes()
 end

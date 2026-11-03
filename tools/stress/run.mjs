@@ -118,7 +118,7 @@ async function runCase(name, seconds) {
   page.on((m) => {
     if (m.method === 'Runtime.consoleAPICalled') {
       const text = m.params.args.map((a) => a.value ?? a.description ?? '').join(' ');
-      if (/stress|error|Error/.test(text) || name.startsWith('test-')) lines.push(text);
+      if (/stress|check|error|Error/.test(text) || name.startsWith('test-')) lines.push(text);
     } else if (m.method === 'Runtime.exceptionThrown') {
       lines.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
     }
@@ -183,7 +183,8 @@ async function main() {
     const { log, top, ...rest } = r;
     console.log(JSON.stringify(rest));
     if (top) console.log(top.join('\n'));
-    for (const l of log.slice(-4)) console.log('   ', l);
+    const stats = log.filter((l) => /^stress /.test(l));
+    for (const l of log.filter((l) => !/^stress /.test(l) || stats.slice(-4).includes(l))) console.log('   ', l);
   }
 }
 

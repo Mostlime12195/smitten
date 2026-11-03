@@ -471,7 +471,120 @@ def case_draws(rng, n=3000):
     return {"scenes/main.scene": scene, "scripts/root.lua": root_script(""), "art/ball.png": sprite_png(), "art/tile.png": tiles_png()}, {}
 
 
+CHECK_BODY = """local B = {}
+function B:ready()
+  local i = tonumber(self.name:match("%d+")) or 0
+  self.sx, self.sy = ((i * 37) % 200) - 100, ((i * 53) % 160) - 80
+  self.hits = 0
+end
+function B:hit() self.hits = self.hits + 1 end
+function B:physicsUpdate(dt)
+  self.vx, self.vy = self.sx, self.sy
+  self:move()
+  if self:onWall() then self.sx = -self.sx end
+  if self:onGround() or self:onCeiling() then self.sy = -self.sy end
+end
+return B
+"""
+
+
+def case_physics_check(rng):
+    """Deterministic collisions for comparing engine versions: prints a digest of every body after 600 steps."""
+    w, h = 960, 540
+    kids = arena(w, h)
+    # Solid tiles: a floor strip and a few blocks, some one-way.
+    grid = [[-1] * 60 for _ in range(34)]
+    for x in range(10, 50):
+        grid[20][x] = 0
+    for x in range(5, 15):
+        grid[10][x] = 3
+    tiles = {"format": "smitten.tileset", "image": "tiles.png", "tileWidth": 16, "tileHeight": 16,
+             "tiles": {"0": {"solid": True}, "3": {"solid": True, "oneWay": True}}}
+    kids.append(piece("Map", "Tiles", {"tileset": "art/tiles.tileset", "cells": encode_cells(grid, 60, 34)}))
+    for i in range(6):
+        kids.append(piece(f"Platform{i}", "Body", {"x": 100 + i * 140, "y": 150 + (i % 3) * 120, "motion": "still"},
+                          [shape(width=70, height=12)], script="scripts/platform.lua"))
+    group = []
+    for i in range(160):
+        tags = ["ghost"] if i % 7 == 0 else []
+        props = {"x": 30 + (i % 20) * 45, "y": 30 + (i // 20) * 60}
+        if i % 11 == 0:
+            props["passThrough"] = "ghost"
+        kids_ = [shape(width=10 + i % 5, height=10 + i % 3)]
+        if i % 13 == 0:
+            props["shape"] = "none"
+            kids_ = [piece("Hit", "Hitbox", {"width": 12, "height": 18})]
+        b = piece(f"B{i}", "Body", props, kids_, script="scripts/body.lua", tags=tags)
+        (group if i % 4 == 0 else kids).append(b)
+    kids.insert(len(kids) // 2, piece("Teleporter", "Group", None, None, script="scripts/teleporter.lua"))
+    kids.append(piece("Moving", "Group", {"x": 0, "y": 0}, group, script="scripts/carrier.lua"))
+    for i in range(30):
+        kids.append(piece(f"Zone{i}", "Zone", {"x": 60 + (i % 10) * 90, "y": 100 + (i // 10) * 160, "detects": "" if i % 2 else "ghost"},
+                          [shape(shape="circle", radius=30)], script="scripts/zone.lua"))
+    platform = """local P = {}
+function P:ready() self.t, self.ox = 0, self.x end
+function P:physicsUpdate(dt)
+  self.t = self.t + 1
+  self.x = self.ox + math.sin(self.t / 40) * 60
+end
+return P
+"""
+    carrier = """local C = {}
+function C:ready() self.t = 0 end
+function C:physicsUpdate(dt)
+  self.t = self.t + 1
+  self.x = math.sin(self.t / 50) * 20
+end
+return C
+"""
+    teleporter = """local T = {}
+function T:ready() self.t = 0 end
+function T:physicsUpdate(dt)
+  self.t = self.t + 1
+  if self.t % 45 == 0 then
+    local b = self.parent:find("B" .. ((self.t / 45 * 17) % 160 + 1))
+    if b and b.parent == self.parent then b.x, b.y = 480, 270 end
+  end
+end
+return T
+"""
+    zone = """local Z = {}
+function Z:ready() self.n = 0 end
+function Z:entered(o) self.n = self.n + 1 end
+function Z:exited(o) self.n = self.n + 3 end
+return Z
+"""
+    tick = """local steps = 0
+function Root:physicsUpdate(dt)
+  steps = steps + 1
+  if steps == 600 then
+    local sum, hits, n = 0, 0, 0
+    local function visit(p)
+      for _, c in ipairs(p.children) do
+        if c.type == "Body" and c.motion == "scripted" then
+          n = n + 1
+          local x, y = c:worldPosition()
+          sum = sum + math.floor(x * 1000 + 0.5) * n + math.floor(y * 1000 + 0.5) * (n + 7)
+          hits = hits + c.hits
+        elseif c.type == "Zone" then
+          hits = hits + c.n * 1000
+        end
+        visit(c)
+      end
+    end
+    visit(self)
+    print(("check digest=%d hits=%d bodies=%d"):format(sum % 1000000007, hits, n))
+  end
+end"""
+    scene = piece("Check", "Group", None, kids, script="scripts/root.lua")
+    files = {"scenes/main.scene": scene, "scripts/root.lua": root_script(tick), "scripts/body.lua": CHECK_BODY,
+             "scripts/platform.lua": platform, "scripts/carrier.lua": carrier, "scripts/teleporter.lua": teleporter,
+             "scripts/zone.lua": zone, "art/tiles.png": tiles_png(), "art/tiles.tileset": tiles}
+    return files, {"display": {"width": w, "height": h, "stretch": "fit"}}
+
+
 CASES = {
+    "physics-check": case_physics_check,
     "draws": case_draws,
     "sprites": case_sprites,
     "tiles": case_tiles,
