@@ -53,7 +53,8 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
 | Module | What's in it | When a game gets it |
 | --- | --- | --- |
 | core (`smitten.wasm`, 6.9 MB) | Lua and the JIT, LÖVE's modules, the scene tree, pieces, collisions, UI | Always |
-| `physics2d` (0.24 MB) | Box2D, `smitten.physics` | A Body whose motion is physics, a Joint, or code using `smitten.physics` |
+| `physics2d` (0.33 MB) | Box2D 3 (our fork, `deps/box2d3`): the scenes' physics, `smitten.physics` queries | A Body, Zone or Joint, or code using `smitten.physics.raycast` and the other queries |
+| `lovephysics` (0.23 MB) | LÖVE's `love.physics` (Box2D 2.4) | Code using `love.physics.newWorld` and the rest of LÖVE's API |
 | `video` (0.13 MB) | Theora, `smitten.video` | Code using `smitten.video` |
 | `synth` (0.03 MB) | The sound generator | `.sfx` or `.song` files, or `smitten.synth` |
 
