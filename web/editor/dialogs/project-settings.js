@@ -21,10 +21,10 @@ export function inputActions(project) {
 }
 
 const STRETCH = [
-  ['expand', 'Expand: fill the window, showing more of the world on wider or taller screens'],
-  ['fit', 'Fit: show exactly the resolution, with background-colored bars around it'],
-  ['stretch', 'Stretch: fill the window, squashing the game if the shapes differ'],
-  ['pixel', 'Pixel perfect: crisp pixels, scaled by whole numbers, for pixel art'],
+  ['expand', 'Expand: fill the window, show more of the world'],
+  ['fit', 'Fit: exactly the resolution, bars around it'],
+  ['stretch', 'Stretch: fill the window, squashing the game'],
+  ['pixel', 'Pixel perfect: crisp, whole-number scaling'],
 ];
 
 // What a project without the setting gets (love/src/modules/display).
@@ -65,6 +65,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   antialias.addEventListener('change', () => { antialiasSet = true; });
   stretch.addEventListener('change', () => {
     if (!antialiasSet) antialias.checked = autoAntialias(stretch.value);
+    if (stretch.value === 'pixel') filter.value = 'pixel';
   });
   const background = h('input', { type: 'color', class: 'input', 'aria-label': 'Background color', style: 'width: 64px; padding: 2px' });
   const bgColor = Array.isArray(display.background) ? display.background : DEFAULT_BACKGROUND;
@@ -87,7 +88,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     ...field('Presets', presets),
     ...field('Resolution', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, width, '×', height),
       'The size your game is designed for: scenes, cameras and the UI are laid out in it. The game scales to any window and is drawn at the screen\'s full sharpness.'),
-    ...field('Fit to window', stretch, 'How the game fills a window of another shape. Expand suits most games; with it, place UI with anchors so it sticks to the edges.'),
+    ...field('Fit to window', stretch, 'How the game fills a window of another shape. Expand suits most games: wider or taller screens see more of the world (place UI with anchors so it sticks to the edges). Fit shows exactly the resolution, with bars of the background color. Pixel perfect is for pixel art.'),
     ...field('Texture filter', filter),
     ...field('Antialiasing', h('label', { style: 'display: flex; gap: 6px; align-items: center' }, antialias, 'Smooth edges on shapes and lines'),
       'On by default; off by default for pixel perfect.'),
