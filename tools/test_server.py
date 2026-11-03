@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
 """
-Development server for the test games in tools/.
+Development server for the test projects in tools/.
 
 Serves dist/ like serve.py, plus:
 
-    /tools/<name>.love       tools/<name>/ zipped on the fly, e.g.
-                             player.html?game=tools/https.love
-    /test/echo               any method: echoes the request body; the method
-                             and request headers come back as X-Echo-* headers
-    /test/bytes?n=N          N bytes of 0, 1, ..., 255, 0, 1, ... (binary check)
-    /test/sha256?path=P      SHA-256 of dist/P
-    /test/status/<code>      responds with that status
-    /test/redirect           302 to /test/echo
-    /test/origin             this server's origin; ?other=1 swaps localhost
-                             and 127.0.0.1 (a different origin, for CORS)
-    /test/cors               allows any origin (Access-Control-Allow-Origin: *)
+    /tools/<path>.zip        the project in tools/<path>/ zipped on the fly, e.g.
+                             player.html?game=tools/scene-tests/smoke.zip
+                             player.html?game=tools/video.zip&modules=video
 
     python3 tools/test_server.py 8772
 """
 import functools
-import hashlib
 import http.server
 import io
 import sys
 import zipfile
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -38,7 +28,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         ".wasm": "application/wasm",
         ".mjs": "text/javascript",
         ".js": "text/javascript",
-        ".love": "application/octet-stream",
     }
 
     def end_headers(self):
@@ -48,85 +37,50 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-    def reply(self, code, body=b"", headers=None):
-        self.send_response(code)
-        for k, v in (headers or {}).items():
-            self.send_header(k, v)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
+    def project_zip(self):
+        """The zipped project for /tools/<path>.zip, or None for other paths."""
+        path = self.path.split("?", 1)[0]
+        if not (path.startswith("/tools/") and path.endswith(".zip")):
+            return None
+        src = (TOOLS / path[len("/tools/"):-len(".zip")]).resolve()
+        if TOOLS not in src.parents or not (src / "smitten.json").is_file():
+            return b""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in sorted(src.rglob("*")):
+                if f.is_file():
+                    z.write(f, f.relative_to(src).as_posix())
+        return buf.getvalue()
 
-    def route(self):
-        url = urlparse(self.path)
-        q = parse_qs(url.query)
-        path = url.path
-
-        if path.startswith("/tools/") and path.endswith(".love"):
-            src = TOOLS / path[len("/tools/"):-len(".love")]
-            if not src.is_dir():
-                return self.reply(404, b"no such test game")
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-                for f in sorted(src.rglob("*")):
-                    if f.is_file():
-                        z.write(f, f.relative_to(src).as_posix())
-            return self.reply(200, buf.getvalue(), {"Content-Type": "application/octet-stream"})
-
-        if not path.startswith("/test/"):
+    def serve_zip(self, head):
+        data = self.project_zip()
+        if data is None:
             return False
-
-        length = int(self.headers.get("Content-Length") or 0)
-        body = self.rfile.read(length) if length else b""
-        host = self.headers.get("Host", "localhost")
-
-        if path == "/test/echo":
-            headers = {"Content-Type": "application/octet-stream", "X-Echo-Method": self.command}
-            for k, v in self.headers.items():
-                headers["X-Echo-" + k] = v
-            return self.reply(200, body, headers)
-        if path == "/test/bytes":
-            n = int(q.get("n", ["65536"])[0])
-            return self.reply(200, bytes(i % 256 for i in range(n)), {"Content-Type": "application/octet-stream"})
-        if path == "/test/sha256":
-            f = (DIST / q["path"][0]).resolve()
-            if DIST not in f.parents or not f.is_file():
-                return self.reply(404, b"not found")
-            return self.reply(200, hashlib.sha256(f.read_bytes()).hexdigest().encode())
-        if path.startswith("/test/status/"):
-            code = int(path.rsplit("/", 1)[1])
-            return self.reply(code, f"status {code}".encode())
-        if path == "/test/redirect":
-            return self.reply(302, b"", {"Location": "/test/echo"})
-        if path == "/test/origin":
-            if q.get("other"):
-                host = host.replace("localhost", "\0").replace("127.0.0.1", "localhost").replace("\0", "127.0.0.1")
-            return self.reply(200, f"http://{host}".encode())
-        if path == "/test/cors":
-            return self.reply(200, b"cors ok", {"Access-Control-Allow-Origin": "*"})
-        return self.reply(404, b"unknown test route")
+        if not data:
+            self.send_error(404, "no such test project")
+            return True
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        if not head:
+            self.wfile.write(data)
+        return True
 
     def do_GET(self):
-        if self.route() is False:
+        if not self.serve_zip(head=False):
             super().do_GET()
 
     def do_HEAD(self):
-        if self.route() is False:
+        if not self.serve_zip(head=True):
             super().do_HEAD()
-
-    def do_POST(self):
-        if self.route() is False:
-            self.reply(405)
-
-    do_PUT = do_DELETE = do_PATCH = do_POST
 
 
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8772
     handler = functools.partial(Handler, directory=str(DIST))
-    with http.server.ThreadingHTTPServer(("", port), handler) as httpd:
-        print(f"Serving {DIST} and test routes at http://localhost:{port}/", flush=True)
-        httpd.serve_forever()
+    print(f"http://localhost:{port}/player.html?game=tools/scene-tests/smoke.zip")
+    http.server.ThreadingHTTPServer(("", port), handler).serve_forever()
 
 
 if __name__ == "__main__":

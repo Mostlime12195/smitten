@@ -1,0 +1,11 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Video test",
+  "main": "main.scene",
+  "identity": "videotest",
+  "display": {
+    "width": 720,
+    "height": 400
+  }
+}

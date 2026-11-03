@@ -30,7 +30,7 @@ local function checkCatalogue()
 end
 
 function ready(...)
-  print("ready", name, Player.type, Player.motion, smitten == love, smitten.version, Player:getSize())
+  print("ready", name, Player.type, Player.motion, love == nil, smitten.version, Player:getSize())
   print("ready values", select("#", ...), game.visits)
   Tick:on("tick", function() ticks += 1 end)
   find("UI/Restart"):on("pressed", function() reload() end)

@@ -227,12 +227,16 @@ const smokeFiles = () => {
     'scenes/main.lua': readFileSync(`${dir}scenes/main.lua`, 'utf8'),
   };
 };
-const mainLuaGame = (text = 'function love.draw() love.graphics.print("hi", 10, 10) end') => zip({ 'main.lua': text });
+// The smallest game: a smitten.json and its main scene.
+const tinyGame = (name = 'Tiny') => zip({
+  'smitten.json': JSON.stringify({ format: 'smitten.project', version: 2, name, main: 'main.scene' }),
+  'main.scene': JSON.stringify({ format: 'smitten.scene', version: 2, root: { name: 'Main', type: 'Group' } }),
+});
 
 function form(meta, game, thumbnail) {
   const f = new FormData();
   f.append('meta', typeof meta === 'string' ? meta : JSON.stringify(meta));
-  if (game) f.append('game', new Blob([game], { type: 'application/zip' }), 'game.love');
+  if (game) f.append('game', new Blob([game], { type: 'application/zip' }), 'game.zip');
   if (thumbnail) f.append('thumbnail', new Blob([thumbnail], { type: 'image/png' }), 'thumbnail.png');
   return f;
 }
@@ -250,7 +254,7 @@ async function defaultPublisher() {
   return publisher;
 }
 
-async function publish(meta, game = mainLuaGame(), thumbnail = null, opts = {}) {
+async function publish(meta, game = tinyGame(), thumbnail = null, opts = {}) {
   const token = opts.token ?? (await defaultPublisher()).token;
   const res = await call('POST', '/api/games', { body: form({ description: '', ...meta }, game, thumbnail), ...opts, token });
   if (res.status === 201) cleanup.push({ id: res.data.id, token });
@@ -717,7 +721,7 @@ async function eventually(check, what, ms = 5000) {
 function legacyGame(title) {
   const id = Array.from(randomBytes(10), (b) => '0123456789abcdefghjkmnpqrstvwxyz'[b & 31]).join('');
   const token = randomBytes(32).toString('base64url');
-  const love = mainLuaGame();
+  const love = tinyGame();
   mkdirSync(join(dataDir, 'games', id), { recursive: true });
   writeFileSync(join(dataDir, 'games', id, 'game.love'), love);
   const now = Date.now();
@@ -832,7 +836,9 @@ async function main() {
     await test('the player only runs games from this site, with known modules', async () => {
       assert.equal((await call('GET', `/player/player.html?game=${encodeURIComponent('https://evil.example/x.love')}`)).status, 400);
       assert.equal((await call('GET', `/player/player.html?game=${encodeURIComponent('/api/games/abcdefghjk/x.love')}&modules=evil`)).status, 400);
-      assert.equal((await call('GET', `/player/player.html?game=${encodeURIComponent('/api/games/abcdefghjk/My%20game.love')}&modules=physics2d`)).status, 200);
+      assert.equal((await call('GET', `/player/player.html?game=${encodeURIComponent('/api/games/abcdefghjk/My%20game.zip')}&modules=physics2d`)).status, 200);
+      // Links from before games were .zip still play.
+      assert.equal((await call('GET', `/player/player.html?game=${encodeURIComponent('/api/games/abcdefghjk/My%20game.love')}`)).status, 200);
     });
     await test('engine files have the right content types', async () => {
       const r = await fetch(`${BASE}/player/smitten.wasm`, { method: 'HEAD' });
@@ -1117,10 +1123,10 @@ async function main() {
   // -------------------------------------------------------------------------
   section('Publishing');
   await test('publishing needs an account', async () => {
-    const r = await call('POST', '/api/games', { body: form({ title: 'Anonymous' }, mainLuaGame()) });
+    const r = await call('POST', '/api/games', { body: form({ title: 'Anonymous' }, tinyGame()) });
     assert.equal(r.status, 401);
     assert.equal(r.data.code, 'sign-in');
-    const bad = await call('POST', '/api/games', { body: form({ title: 'Bad token' }, mainLuaGame()), token: 'not-a-real-token' });
+    const bad = await call('POST', '/api/games', { body: form({ title: 'Bad token' }, tinyGame()), token: 'not-a-real-token' });
     assert.equal(bad.status, 401);
     assert.equal(bad.data.code, 'signed-out');
   });
@@ -1145,7 +1151,7 @@ async function main() {
   if (!game) throw new Error('Publishing failed; the remaining tests depend on it.');
 
   await test('a web session can publish too', async () => {
-    const r = await publish({ title: `From the site ${tag}` }, mainLuaGame(), null, { token: '', session: alice.session });
+    const r = await publish({ title: `From the site ${tag}` }, tinyGame(), null, { token: '', session: alice.session });
     assert.equal(r.status, 201, JSON.stringify(r.data));
   });
   await test('get its metadata', async () => {
@@ -1162,11 +1168,11 @@ async function main() {
     assert.equal((await call('GET', `/api/games/${game.id}`, { token: alice.token })).data.game.yours, true);
   });
   let etag;
-  await test('download game.love: a zip, as an attachment, byte for byte', async () => {
-    const r = await call('GET', `/api/games/${game.id}/game.love`, { headers: { Origin: EDITOR_ORIGIN } });
+  await test('download game.zip: a zip, as an attachment, byte for byte', async () => {
+    const r = await call('GET', `/api/games/${game.id}/game.zip`, { headers: { Origin: EDITOR_ORIGIN } });
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('content-type'), 'application/zip');
-    assert.match(r.headers.get('content-disposition'), /^attachment; filename="smoke-/);
+    assert.match(r.headers.get('content-disposition'), /^attachment; filename="smoke-.*\.zip"$/);
     assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
     assert.match(r.headers.get('content-security-policy'), /sandbox/);
     assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
@@ -1174,13 +1180,18 @@ async function main() {
     etag = r.headers.get('etag');
     assert.ok(etag);
   });
-  await test('any <name>.love is the same file (the player shows that name)', async () => {
-    const r = await call('GET', `/api/games/${game.id}/${encodeURIComponent('Smoke test')}.love`);
+  await test('any <name>.zip is the same file (the player shows that name)', async () => {
+    const r = await call('GET', `/api/games/${game.id}/${encodeURIComponent('Smoke test')}.zip`);
+    assert.equal(r.status, 200);
+    assert.ok(same(r.data, love));
+  });
+  await test('older <name>.love links get the same file', async () => {
+    const r = await call('GET', `/api/games/${game.id}/game.zip`);
     assert.equal(r.status, 200);
     assert.ok(same(r.data, love));
   });
   await test('a matching If-None-Match gets 304', async () => {
-    const r = await call('GET', `/api/games/${game.id}/game.love`, { headers: { 'If-None-Match': etag } });
+    const r = await call('GET', `/api/games/${game.id}/game.zip`, { headers: { 'If-None-Match': etag } });
     assert.equal(r.status, 304);
   });
   await test('the thumbnail is served as image/png', async () => {
@@ -1287,7 +1298,7 @@ async function main() {
     assert.equal(r.data.game.title, `Smoke ${tag} v2`);
     assert.equal(r.data.game.thumbnail, null, 'an update without a thumbnail removes it');
     assert.equal(r.data.game.plays, 3, 'plays are kept');
-    const file = await call('GET', `/api/games/${game.id}/game.love`);
+    const file = await call('GET', `/api/games/${game.id}/game.zip`);
     assert.ok(same(file.data, love2));
     assert.equal((await call('GET', `/api/games/${game.id}/thumbnail.png`)).status, 404);
   });
@@ -1325,17 +1336,18 @@ async function main() {
   await test('the game must be a zip', async () => {
     await expect422({}, new TextEncoder().encode('<html><script>alert(1)</script></html>'), 'game');
   });
-  await test('the zip needs main.lua or smitten.json at its root', async () => {
-    await expect422({}, zip({ 'readme.txt': 'hi', 'game/main.lua': 'x' }), 'game');
+  await test('the zip needs smitten.json at its root', async () => {
+    await expect422({}, zip({ 'readme.txt': 'hi', 'game/smitten.json': '{}' }), 'game');
+    await expect422({}, zip({ 'main.lua': 'function love.draw() end' }), 'game');
     const r = await publish({ title: `Manifest only ${tag}` }, zip({ 'smitten.json': '{}' }));
     assert.equal(r.status, 201);
   });
   await test('zips with unsafe paths or encryption are refused', async () => {
-    await expect422({}, zip({ 'main.lua': 'x', '../escape.lua': 'x' }), 'game');
-    await expect422({}, zip({ 'main.lua': 'x' }, { flags: 1 }), 'game');
+    await expect422({}, zip({ 'smitten.json': '{}', '../escape.lua': 'x' }), 'game');
+    await expect422({}, zip({ 'smitten.json': '{}' }, { flags: 1 }), 'game');
   });
   await test('a game over 25 MB is refused (413)', async () => {
-    const big = zip({ 'main.lua': 'x', 'big.bin': new Uint8Array(25 * 1024 * 1024 + 1) });
+    const big = zip({ 'smitten.json': '{}', 'big.bin': new Uint8Array(25 * 1024 * 1024 + 1) });
     const r = await publish({ title: `Big ${tag}` }, big);
     assert.equal(r.status, 413);
     assert.equal(r.data.field, 'game');
@@ -1344,7 +1356,7 @@ async function main() {
     const big = new Uint8Array(27 * 1024 * 1024);
     const stream = new ReadableStream({
       start(c) {
-        c.enqueue(new TextEncoder().encode('--x\r\nContent-Disposition: form-data; name="game"; filename="g.love"\r\n\r\n'));
+        c.enqueue(new TextEncoder().encode('--x\r\nContent-Disposition: form-data; name="game"; filename="g.zip"\r\n\r\n'));
         c.enqueue(big);
         c.close();
       },
@@ -1472,7 +1484,7 @@ async function main() {
     const meta = await call('GET', `/api/games/${game.id}`);
     assert.equal(meta.status, 404);
     assert.equal(meta.data.hidden, true);
-    assert.equal((await call('GET', `/api/games/${game.id}/game.love`)).status, 404);
+    assert.equal((await call('GET', `/api/games/${game.id}/game.zip`)).status, 404);
     assert.equal((await call('POST', `/api/games/${game.id}/play`)).status, 404);
     const list = await call('GET', `/api/games?q=${tag}&limit=48`);
     assert.ok(!list.data.games.some((g) => g.id === game.id));
@@ -1511,7 +1523,7 @@ async function main() {
       assert.ok(g.reports.every((x) => /^(u:\d+|ip:[0-9a-f]{8})$/.test(x.reporter)), 'reporters are accounts or hashes, not addresses');
     });
     await test('admins can download a hidden game to review it', async () => {
-      const r = await call('GET', `/api/games/${game.id}/game.love`, { token: ADMIN });
+      const r = await call('GET', `/api/games/${game.id}/game.zip`, { token: ADMIN });
       assert.equal(r.status, 200);
       assert.equal(r.headers.get('cache-control'), 'private, no-store');
     });
@@ -1538,8 +1550,8 @@ async function main() {
 
     section('Banning');
     const villain = await person();
-    const kept = await publish({ title: `Villain one ${tag}` }, mainLuaGame(), null, { token: villain.token });
-    const hiddenFirst = await publish({ title: `Villain two ${tag}` }, mainLuaGame(), null, { token: villain.token });
+    const kept = await publish({ title: `Villain one ${tag}` }, tinyGame(), null, { token: villain.token });
+    const hiddenFirst = await publish({ title: `Villain two ${tag}` }, tinyGame(), null, { token: villain.token });
     await call('POST', `/api/admin/games/${hiddenFirst.data.id}/hide`, { token: ADMIN });
     await test('admins look up an account', async () => {
       const r = await call('GET', `/api/admin/users/${villain.username}`, { token: ADMIN });
@@ -1598,7 +1610,7 @@ async function main() {
     section('Address bans');
     const network = '198.51.100.20';
     const someone = await person();
-    const theirGame = await publish({ title: `On a banned network ${tag}` }, mainLuaGame(), null, { token: someone.token });
+    const theirGame = await publish({ title: `On a banned network ${tag}` }, tinyGame(), null, { token: someone.token });
     await test('a banned address can\'t make accounts, publish or report, but can still play', async () => {
       const r = await call('POST', '/api/admin/addresses/ban', { body: { ip: network, reason: 'test' }, token: ADMIN });
       assert.equal(r.status, 200);
@@ -2060,7 +2072,7 @@ async function main() {
       const p = await personWithEmail();
       const token = await editorToken(p.session);
       const title = `Mail me <b>${tag}</b>`;
-      const g = await publish({ title }, mainLuaGame(), null, { token });
+      const g = await publish({ title }, tinyGame(), null, { token });
       assert.equal(g.status, 201, JSON.stringify(g.data));
       assert.equal((await call('POST', `/api/admin/games/${g.data.id}/hide`, { token: ADMIN })).status, 200);
       const hid = await takeMail(p.address, /^A moderator hid one of your games$/);
@@ -2312,7 +2324,7 @@ async function main() {
     let ivyGame;
     await test("a game published with hackatimeProject shows its owner's tracked time, refreshed in the background", async () => {
       const calls = fakeHackatime.projectCalls;
-      const r = await call('POST', '/api/games', { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      const r = await call('POST', '/api/games', { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, tinyGame()), token: ivy.token });
       assert.equal(r.status, 201, JSON.stringify(r.data));
       ivyGame = r.data.id;
       cleanup.push({ id: ivyGame, token: ivy.token });
@@ -2338,31 +2350,31 @@ async function main() {
     });
     await test('an update refreshes right away, and a new project starts over', async () => {
       ivyHt.projects['Space Ivy'] = 51_000;
-      const r = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      const r = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '' }, tinyGame()), token: ivy.token });
       assert.equal(r.status, 200, JSON.stringify(r.data));
       await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours after an update');
       assert.equal(db.prepare('SELECT hackatime_project FROM games WHERE id = ?').get(ivyGame).hackatime_project, 'Space Ivy', 'an update without hackatimeProject keeps it');
-      const renamed = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Other' }, mainLuaGame()), token: ivy.token });
+      const renamed = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Other' }, tinyGame()), token: ivy.token });
       assert.equal(renamed.status, 200);
       await eventually(async () => (await gameHours(ivyGame))?.seconds === 120, "the other project's hours");
-      const back = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      const back = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, tinyGame()), token: ivy.token });
       assert.equal(back.status, 200);
       await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours again');
     });
     await test("games without a project, or whose project Hackatime doesn't know, show no hours", async () => {
-      const plain = await call('POST', '/api/games', { body: form({ title: `No project ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      const plain = await call('POST', '/api/games', { body: form({ title: `No project ${run}`, description: '' }, tinyGame()), token: ivy.token });
       cleanup.push({ id: plain.data.id, token: ivy.token });
-      const unknown = await call('POST', '/api/games', { body: form({ title: `Unknown ${run}`, description: '', hackatimeProject: 'Never tracked' }, mainLuaGame()), token: ivy.token });
+      const unknown = await call('POST', '/api/games', { body: form({ title: `Unknown ${run}`, description: '', hackatimeProject: 'Never tracked' }, tinyGame()), token: ivy.token });
       cleanup.push({ id: unknown.data.id, token: ivy.token });
       await eventually(() => db.prepare('SELECT hackatime_checked_at FROM games WHERE id = ?').get(unknown.data.id).hackatime_checked_at, 'the check');
       assert.equal(await gameHours(plain.data.id), undefined);
       assert.equal(await gameHours(unknown.data.id), undefined);
-      const bad = await call('POST', '/api/games', { body: form({ title: `Bad ${run}`, description: '', hackatimeProject: 42 }, mainLuaGame()), token: ivy.token });
+      const bad = await call('POST', '/api/games', { body: form({ title: `Bad ${run}`, description: '', hackatimeProject: 42 }, tinyGame()), token: ivy.token });
       assert.equal(bad.status, 422);
     });
     await test('when Hackatime fails, the page still works', async () => {
       fakeHackatime.failing = true;
-      const r = await call('POST', '/api/games', { body: form({ title: `Broken ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      const r = await call('POST', '/api/games', { body: form({ title: `Broken ${run}`, description: '', hackatimeProject: 'Space Ivy' }, tinyGame()), token: ivy.token });
       cleanup.push({ id: r.data.id, token: ivy.token });
       await new Promise((resolve) => setTimeout(resolve, 200));
       const g = await call('GET', `/api/games/${r.data.id}`);
@@ -2413,7 +2425,7 @@ async function main() {
       const pat = await person();
       const patHt = htUser({ Pat: 7200 });
       await hackatimeFlow(pat.session, patHt);
-      const g = await call('POST', '/api/games', { body: form({ title: `Pat ${run}`, description: '', hackatimeProject: 'Pat' }, mainLuaGame()), token: pat.token });
+      const g = await call('POST', '/api/games', { body: form({ title: `Pat ${run}`, description: '', hackatimeProject: 'Pat' }, tinyGame()), token: pat.token });
       cleanup.push({ id: g.data.id, token: pat.token });
       await eventually(() => gameHours(g.data.id), "Pat's hours");
       fakeHackatime.tokens.delete(fakeHackatime.issued.at(-1));
@@ -2503,12 +2515,12 @@ async function main() {
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
     assert.equal((await call('GET', `/api/games/${game.id}`)).status, 404);
-    assert.equal((await call('GET', `/api/games/${game.id}/game.love`)).status, 404);
+    assert.equal((await call('GET', `/api/games/${game.id}/game.zip`)).status, 404);
     assert.equal((await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'x' }, love), token: alice.token })).status, 404);
   });
   await test('deleting an account needs the password, and takes its games with it', async () => {
     const henry = await person();
-    const g = await publish({ title: `Henry ${tag}` }, mainLuaGame(), null, { token: henry.token });
+    const g = await publish({ title: `Henry ${tag}` }, tinyGame(), null, { token: henry.token });
     assert.equal((await call('DELETE', '/api/account', { body: { password: 'wrong wrong' }, session: henry.session })).status, 403);
     const r = await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: henry.session });
     assert.equal(r.status, 200);

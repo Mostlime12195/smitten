@@ -1,0 +1,9 @@
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Test",
+    "type": "Group",
+    "script": "main.lua"
+  }
+}
