@@ -33,6 +33,7 @@ import { unzipToProjectFiles } from './exporter.js';
 import { createLoveCompletions } from './completions.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
+import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
 
 const app = document.getElementById('app');
 
@@ -126,6 +127,7 @@ function closeEditor() {
   saveAll();
   ed.runner?.destroy();
   ed.dock?.dispose();
+  ed.offAccount?.();
   window.removeEventListener('resize', moveWorkspaceIndicator);
   ed = null;
 }
@@ -170,6 +172,8 @@ async function openProject(id) {
   const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
   publishBtn.addEventListener('click', () => publish());
   ed.accountSlot = h('div', { class: 'account-slot' });
+  renderAccount();
+  ed.offAccount = onAccountChange(() => renderAccount());
   const titlebar = h('header', { class: 'titlebar' }, menus, switcher,
     h('div', { class: 'tb-right' }, publishBtn, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
 
@@ -933,6 +937,30 @@ function mainMenu() {
 
 async function openProjectSettings(tab) {
   await projectSettingsDialog(ed.project, { tab });
+}
+
+// The account button: "Sign in" for the sharing site, or who you are there.
+function renderAccount() {
+  if (!ed?.accountSlot) return;
+  const user = account();
+  const site = String(settings.get('platformUrl')).replace(/\/+$/, '');
+  if (!user) {
+    const b = h('button', { type: 'button', class: 'btn ghost', title: `Sign in to ${site.replace(/^https?:\/\//, '')} to publish games` }, icon('user', 16), 'Sign in');
+    b.addEventListener('click', () => signIn().catch((e) => toast(e.message, { type: 'error' })));
+    ed.accountSlot.replaceChildren(b);
+    return;
+  }
+  const name = user.displayName || user.username;
+  const avatar = h('button', { type: 'button', class: 'avatar-btn', title: `${name} (@${user.username})`, 'aria-label': `Account: ${name}`, 'aria-haspopup': 'menu' },
+    h('span', { class: 'avatar' }, name.trim()[0]?.toUpperCase() || '?'));
+  avatar.addEventListener('click', () => showMenu(avatar, [
+    { heading: `${name} · @${user.username}` },
+    { label: 'Your games', icon: 'gamepad', action: () => window.open(`${site}/u/${encodeURIComponent(user.username)}`, '_blank', 'noopener') },
+    { label: 'Account settings', icon: 'settings', action: () => window.open(`${site}/account`, '_blank', 'noopener') },
+    '-',
+    { label: 'Sign out', icon: 'logOut', action: () => signOut().then(() => toast('Signed out.')) },
+  ]));
+  ed.accountSlot.replaceChildren(avatar);
 }
 
 // Puts the game on the sharing site, with only the engine modules it uses.

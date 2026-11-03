@@ -87,7 +87,16 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
 }
 @keyframes run-pulse { 50% { opacity: 0.35; transform: scale(0.75); } }
 .publish-btn { color: var(--fg); }
+.account-slot { display: flex; }
 .account-slot:empty { display: none; }
+.avatar-btn { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform var(--fast) var(--ease); }
+.avatar-btn:hover .avatar { filter: brightness(1.12); }
+.avatar-btn:active { transform: scale(0.92); }
+.avatar {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 22%, var(--panel-3)); color: var(--fg); font-weight: 650; font-size: 13px;
+  border: 1px solid var(--line); animation: menu-in var(--medium) var(--ease-spring);
+}
 
 /* Shell: the stage, docks of cards around it, windows over it ------------- */
 .shell { flex: 1; display: flex; min-height: 0; position: relative; }

@@ -30,7 +30,8 @@ export const DEFAULTS = {
   consoleTimestamps: false,
   consoleWrap: true,
   // Publishing
-  platformUrl: 'http://localhost:8787', // the game-sharing site (platform/)
+  // The game-sharing site (platform/); a hosted editor's config.js names its own.
+  platformUrl: globalThis.SMITTEN_CONFIG?.platformUrl || 'http://localhost:8787',
 };
 
 let values = load();
