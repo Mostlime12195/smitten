@@ -18,6 +18,7 @@ import { BLANK, loadExampleIndex, loadTemplateFiles } from './templates.js';
 import { buildLove, buildWebExport, unzipToProjectFiles, slugify } from './exporter.js';
 import { createShareLink, readShareHash } from './share.js';
 import { checkProject } from './compat.js';
+import { ToolHost } from './tool-host.js';
 
 const $ = (sel) => document.querySelector(sel);
 const LS = {
@@ -46,6 +47,7 @@ let editor;
 let runner;
 let consolePanel;
 let tree;
+let tools;
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -90,6 +92,18 @@ async function init() {
       if (action === 'rename') renameEntry(path, kind);
       if (action === 'delete') deleteEntry(path, kind);
     },
+  });
+
+  tools = new ToolHost($('#tool-host'), {
+    entries: () => state.entries,
+    write: writeProjectFile,
+    setDirty: (path, dirty) => {
+      if (dirty) state.dirty.add(path);
+      else state.dirty.delete(path);
+      renderTabs();
+      tree.render();
+    },
+    openFile: (path) => openFile(path, { focus: true }),
   });
 
   wireUi();
@@ -151,6 +165,7 @@ async function openProject(id) {
   if (!project) return;
   runner.destroy();
   for (const path of state.tabs) editor.close(path);
+  tools.closeAll();
   Object.assign(state, { project, tabs: [], active: null, hasRun: false, lastError: false });
   onRunnerState('idle');
   state.saved.clear();
@@ -364,7 +379,8 @@ function isText(path) {
   return typeof state.entries.get(path)?.data === 'string';
 }
 
-async function openFile(path, { line, focus = false, persist = true } = {}) {
+/** asText: open a file a tool would open in the code editor instead. */
+async function openFile(path, { line, focus = false, persist = true, asText = false } = {}) {
   const entry = state.entries.get(path);
   if (!entry || entry.kind !== 'file') {
     toast(`“${path}” does not exist in this project.`, { type: 'error' });
@@ -377,7 +393,17 @@ async function openFile(path, { line, focus = false, persist = true } = {}) {
   state.active = path;
   $('#editor-empty').hidden = true;
 
-  if (typeof entry.data === 'string') {
+  if (asText && tools.has(path)) {
+    if (tools.isDirty(path)) await saveFile(path);
+    tools.close(path);
+  }
+  if (!asText && !editor.has(path) && tools.show(path)) {
+    editor.hide();
+    hidePreview();
+    if (focus) tools.focus(path);
+    $('#status-cursor').textContent = '';
+  } else if (typeof entry.data === 'string') {
+    tools.hide();
     hidePreview();
     if (!editor.has(path)) state.saved.set(path, entry.data);
     editor.open(path, entry.data);
@@ -386,11 +412,12 @@ async function openFile(path, { line, focus = false, persist = true } = {}) {
     if (line) editor.gotoLine(line);
     else if (focus) editor.focus();
   } else {
+    tools.hide();
     editor.hide();
     showPreview(entry);
     $('#status-cursor').textContent = '';
   }
-  $('#status-lang').textContent = languageLabel(path, entry.data);
+  $('#status-lang').textContent = tools.has(path) ? tools.toolFor(path).label : languageLabel(path, entry.data);
   tree.setActive(path);
   renderTabs();
   if (persist) persistTabs();
@@ -443,6 +470,7 @@ async function closeTab(path) {
   const i = state.tabs.indexOf(path);
   state.tabs.splice(i, 1);
   editor.close(path);
+  tools.close(path);
   state.saved.delete(path);
   state.dirty.delete(path);
   if (state.active === path) {
@@ -459,6 +487,7 @@ async function closeTab(path) {
 function showEmptyEditor() {
   state.active = null;
   editor?.hide();
+  tools?.hide();
   hidePreview();
   $('#editor-empty').hidden = false;
   $('#status-cursor').textContent = '';
@@ -484,6 +513,15 @@ function onEditorChange(path) {
 }
 
 async function saveFile(path) {
+  if (tools.has(path)) {
+    try {
+      return await tools.save(path);
+    } catch (e) {
+      console.error(e);
+      toast(`Could not save ${baseName(path)}: ${e.message}`, { type: 'error', timeout: 6000 });
+      return false;
+    }
+  }
   if (!editor.has(path)) return false;
   editor.normalize(path, { trim: settings.get('trimWhitespaceOnSave'), finalNewline: settings.get('finalNewlineOnSave') });
   const text = editor.getText(path);
@@ -492,7 +530,26 @@ async function saveFile(path) {
   if (entry) entry.data = text;
   state.saved.set(path, text);
   state.dirty.delete(path);
+  tools.changed(path);
   return true;
+}
+
+/**
+ * Write a file for a tool (source: the tool's own path). Keeps open code
+ * buffers and other tools in step with the new contents.
+ */
+async function writeProjectFile(path, data, source = null) {
+  path = store.normalizePath(path);
+  const isNew = !state.entries.has(path);
+  await store.writeFile(state.project.id, path, data);
+  if (isNew) await refreshEntries();
+  else state.entries.get(path).data = data;
+  if (editor.has(path) && !state.dirty.has(path) && typeof data === 'string') {
+    editor.setText(path, data);
+    state.saved.set(path, data);
+  }
+  tools.changed(path, source);
+  tree.render();
 }
 
 async function saveAll({ quiet = false } = {}) {
@@ -507,7 +564,7 @@ async function saveAll({ quiet = false } = {}) {
 }
 
 async function saveActive() {
-  if (!state.active || !isText(state.active)) return;
+  if (!state.active || (!isText(state.active) && !tools.has(state.active))) return;
   await saveFile(state.active);
   renderTabs();
   tree.render();
@@ -615,6 +672,41 @@ async function newFile(dir = '') {
   await openFile(path, { focus: true });
 }
 
+/** Create a file with a tool (asset: an entry of a tool's newAssets). */
+async function newAsset(asset, dir = '') {
+  const folder = dir || asset.folder || '';
+  let n = 1;
+  const stem = asset.label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  while (state.entries.has(joinPath(folder, `${stem}${n > 1 ? n : ''}${asset.extension}`))) n++;
+  const name = await promptDialog({
+    title: `New ${asset.label.toLowerCase()}`, label: folder ? `In ${folder}/` : 'Name (use / for folders)',
+    value: `${stem}${n > 1 ? n : ''}${asset.extension}`, okLabel: 'Create', selectBase: true,
+    validate: (v) => validatePath(store.normalizePath(joinPath(folder, v.endsWith(asset.extension) ? v : v + asset.extension))),
+  });
+  if (!name) return;
+  const path = store.normalizePath(joinPath(folder, name.endsWith(asset.extension) ? name : name + asset.extension));
+  const files = asset.files(path.slice(0, -asset.extension.length));
+  const clash = Object.keys(files).filter((p) => p !== path && state.entries.has(p));
+  if (clash.length && !await confirmDialog({
+    title: 'Replace files?', message: `This also writes ${clash.join(', ')}, which already exist${clash.length === 1 ? 's' : ''}. Replace?`,
+    okLabel: 'Replace', danger: true,
+  })) return;
+  await store.writeFiles(state.project.id, files);
+  await refreshEntries();
+  for (const p of Object.keys(files)) tools.changed(p);
+  if (folder) tree.toggle(folder, true);
+  await openFile(path, { focus: true });
+}
+
+function showNewMenu(anchor) {
+  showMenu(anchor, [
+    { label: 'File…', icon: 'filePlus', shortcut: `${alt}+N`, action: () => newFile('') },
+    { label: 'Folder…', icon: 'folderPlus', action: () => newFolder('') },
+    '-',
+    ...tools.newAssets.map((a) => ({ label: `${a.label}…`, icon: 'plus', action: () => newAsset(a, '') })),
+  ]);
+}
+
 async function newFolder(dir = '') {
   const name = await promptDialog({
     title: 'New folder', label: dir ? `In ${dir}/` : 'Folder name', placeholder: 'assets', okLabel: 'Create',
@@ -638,6 +730,7 @@ function remapPaths(moved) {
     }
     if (state.dirty.delete(from)) state.dirty.add(to);
     editor.rename(from, to);
+    tools.close(from); // reopens at the new path when its tab is shown
   }
 }
 
@@ -664,6 +757,9 @@ async function moveEntry(from, toDir) {
 
 async function doMove(from, to) {
   try {
+    for (const p of state.tabs) {
+      if ((p === from || p.startsWith(`${from}/`)) && tools.isDirty(p)) await saveFile(p);
+    }
     const moved = await store.renameEntry(state.project.id, from, to);
     remapPaths(moved);
     await refreshEntries();
@@ -673,6 +769,7 @@ async function doMove(from, to) {
     }
     renderTabs();
     persistTabs();
+    if (state.active && !editor.has(state.active) && tools.toolFor(state.active)) await openFile(state.active, { persist: false });
   } catch (e) {
     toast(e.message, { type: 'error' });
   }
@@ -696,6 +793,7 @@ async function deleteEntry(path, kind) {
     state.errors.delete(p);
     state.saved.delete(p);
     editor.close(p);
+    tools.close(p);
   }
   state.tabs = state.tabs.filter((p) => !affected.includes(p));
   await store.deleteEntry(state.project.id, path);
@@ -734,11 +832,14 @@ function showTreeMenu(path, kind, point) {
   const dir = kind === 'dir' ? path : kind === 'file' ? dirName(path) : '';
   const items = [];
   if (kind === 'file') {
-    items.push({ label: 'Open', icon: 'file', action: () => openFile(path, { focus: true }) }, '-');
+    items.push({ label: 'Open', icon: 'file', action: () => openFile(path, { focus: true }) });
+    if (tools.toolFor(path) && isText(path)) items.push({ label: 'Open as text', icon: 'code', action: () => openFile(path, { focus: true, asText: true }) });
+    items.push('-');
   }
   items.push(
     { label: dir ? 'New file here…' : 'New file…', icon: 'filePlus', action: () => newFile(dir) },
     { label: dir ? 'New folder here…' : 'New folder…', icon: 'folderPlus', action: () => newFolder(dir) },
+    ...tools.newAssets.map((a) => ({ label: `New ${a.label.toLowerCase()}…`, icon: 'plus', action: () => newAsset(a, dir) })),
   );
   if (kind === 'root') items.push({ label: 'Import files…', icon: 'upload', action: () => importTarget('files', '') });
   if (kind !== 'root') {
@@ -814,6 +915,7 @@ async function importFiles(items, dir = '') {
       state.saved.delete(p);
     }
   }
+  for (const p of existing) tools.changed(p);
   if (state.active && existing.includes(state.active)) await openFile(state.active);
   renderTabs();
   toast(`Imported ${paths.length} file${paths.length === 1 ? '' : 's'}`, { type: 'success' });
@@ -1280,7 +1382,7 @@ function wireUi() {
   $('#editor-host').addEventListener('focusout', saveOnLeave);
   window.addEventListener('blur', saveOnLeave);
   $('#btn-sidebar').addEventListener('click', () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')));
-  $('#btn-new-file').addEventListener('click', () => newFile(''));
+  $('#btn-new-file').addEventListener('click', (e) => showNewMenu(e.currentTarget));
   $('#btn-new-folder').addEventListener('click', () => newFolder(''));
   $('#btn-import').addEventListener('click', showImportMenu);
   $('#btn-game-fullscreen').addEventListener('click', toggleGameFullscreen);
@@ -1357,7 +1459,8 @@ window.studio = {
   store,
   get editor() { return editor; },
   get runner() { return runner; },
-  run, stop, openFile, openProject, saveAll, collectFiles, buildLove, buildWebExport, createShareLink, unzipToProjectFiles,
+  get tools() { return tools; },
+  run, stop, openFile, openProject, saveAll, collectFiles, writeProjectFile, buildLove, buildWebExport, createShareLink, unzipToProjectFiles,
   createFromTemplate, loadExampleIndex, importFiles,
 };
 

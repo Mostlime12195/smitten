@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Smitten</title>
-<meta name="description" content="Write, run and share LÖVE 12 games in your browser.">
+<meta name="description" content="Make games in your browser: code, pixel art, maps, sound and music, built on LÖVE.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e74a99' d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'/></svg>">
 <script>
@@ -83,7 +83,7 @@
       <div class="panel-header">
         <span class="panel-title">Files</span>
         <div class="panel-actions">
-          <button id="btn-new-file" class="icon-btn small" type="button" data-icon="filePlus" title="New file (Alt+N)" aria-label="New file"></button>
+          <button id="btn-new-file" class="icon-btn small" type="button" data-icon="filePlus" title="New file or asset" aria-label="New" aria-haspopup="menu"></button>
           <button id="btn-new-folder" class="icon-btn small" type="button" data-icon="folderPlus" title="New folder" aria-label="New folder"></button>
           <button id="btn-import" class="icon-btn small" type="button" data-icon="upload" title="Import files, folders or a .love/.zip" aria-label="Import" aria-haspopup="menu"></button>
         </div>
@@ -103,6 +103,7 @@
       <div id="editor-area">
         <div id="editor-host"></div>
         <div id="preview" hidden></div>
+        <div id="tool-host" hidden></div>
         <div id="editor-empty" class="empty-state" hidden>
           <span class="empty-icon" data-icon="code" data-icon-size="32"></span>
           <h2>No file open</h2>

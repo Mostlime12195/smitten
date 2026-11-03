@@ -177,6 +177,9 @@ extern "C"
 	extern int luaopen_love_arg(lua_State*);
 	extern int luaopen_love_callbacks(lua_State*);
 	extern int luaopen_love_boot(lua_State*);
+#ifdef LOVE_SMITTEN
+	extern int luaopen_smitten(lua_State*); // Smitten
+#endif
 
 #ifdef LOVE_ENABLE_LUAHTTPS
 	extern int luaopen_https(lua_State*);
@@ -249,6 +252,9 @@ static const luaL_Reg modules[] = {
 	{ "love.arg", luaopen_love_arg },
 	{ "love.callbacks", luaopen_love_callbacks },
 	{ "love.boot", luaopen_love_boot },
+#ifdef LOVE_SMITTEN
+	{ "smitten", luaopen_smitten }, // Smitten
+#endif
 	{ 0, 0 }
 };
 

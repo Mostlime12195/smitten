@@ -598,6 +598,12 @@ kbd {
 /* Centered when it fits, scrollable from the top when it doesn't. */
 #preview > :first-child { margin-top: auto; }
 #preview > :last-child { margin-bottom: auto; }
+
+/* Built-in tools (pixel, map, sound and music editors) fill the editor area. */
+#tool-host { position: absolute; inset: 0; background: var(--editor-bg); }
+#tool-host > .tool-root { position: absolute; inset: 0; overflow: hidden; }
+#tool-host > [hidden] { display: none; }
+.tool-placeholder { display: grid; place-items: center; height: 100%; color: var(--fg-muted); padding: 24px; text-align: center; }
 .preview-checker {
   max-width: 100%;
   padding: 12px;

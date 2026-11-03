@@ -377,6 +377,11 @@ function love.init()
 		love.createhandlers()
 	end
 
+	-- Smitten: the smitten module is a global, like love.
+	if package.preload.smitten then
+		smitten = require("smitten")
+	end
+
 	-- Check the version
 	c.version = tostring(c.version)
 	if not love.isVersionCompatible(c.version) then
