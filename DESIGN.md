@@ -1,7 +1,8 @@
 # Smitten design
 
-Status: draft, 2026-11-02. Decisions recorded in section 0; smaller open
-questions in section 11.
+Status: first version built, 2026-11-02. Decisions are in section 0, what
+was built (all at once, instead of the milestones first planned) in section
+10, and smaller open questions in section 11.
 
 Smitten is a purpose-built game engine for the browser, based on LÖVE and
 Lua. You write code, draw sprites, paint tilemaps, make sound effects and
@@ -176,10 +177,12 @@ Rules that follow from it:
 
 ### The `smitten` module
 
-Mostly Lua, embedded in the engine the way LÖVE embeds its own scripts
-(`love/src/scripts/auto.lua` turns `.lua` files into `.lua.h` headers).
+Mostly Lua: `build.py` embeds `love/src/modules/smitten/lua/*.lua` in the
+engine as a generated header, and `wrap_Smitten.cpp` registers each file in
+`package.preload`, loading it the first time a game uses what it provides.
 Projects don't carry a copy; `smitten.json` records the engine version they
-were made with.
+were made with. (Desktop builds through CMake would need the same header
+step; see section 11.)
 
 | Part | Language | Why |
 | --- | --- | --- |
@@ -187,17 +190,20 @@ were made with.
 | Tilemaps | Lua (`SpriteBatch` per layer and chunk) | C++ only if measurements say so |
 | Scenes, entities, collision helpers, input actions | Lua | |
 | Pixel-perfect scaling | Lua (`Canvas` with integer scaling) | |
-| **Sound synthesizer and music mixer** | **C++** | See below |
+| **Sound synthesizer** | **C++** | See below |
 
 **Why the synthesizer is C++.** Sound effects and songs are stored as
 synth parameters and note data, and must sound the same in the editor and
 the game. Mixing in Lua would run from `love.update`, which stops when the
 tab is hidden (browsers pause `requestAnimationFrame`), so music would cut
-out in background tabs. In C++ the mixer can run from the audio refill
-timer Cupid already uses to keep streams playing in background tabs, and the same code renders previews in the editor
-(through a hidden engine instance). Exposed as `smitten.sfx(...)`,
-`smitten.song(...)` and lower-level `smitten.synth.render(params)` →
-`SoundData`.
+out in background tabs. Instead, C++ renders each sound effect and song to a
+buffer once (a 2-minute song takes about a quarter of a second), and songs
+play as an ordinary streaming Source whose decoder (`LoopDecoder.cpp`) loops
+back to the loop point seamlessly; Cupid's audio refill timer keeps it going
+in background tabs. The synthesizer has no LÖVE dependencies, so `build.py`
+also compiles it on its own as `synth.mjs` for the editor's previews, which
+render bit-identical samples. Exposed as `smitten.sfx(...)`,
+`smitten.song(...)` and `smitten.synth.renderSfx/renderSong`.
 
 ### Editor ↔ game bridge
 
@@ -210,8 +216,8 @@ Smitten owns its player and web entry point, so it adds:
 2. Messages both ways: a `love.event` pushed from JavaScript
    (`web_main.cpp`), and `smitten.editor.send(...)` from Lua.
 
-Until then (MVP milestones 1–3), every run is a fresh engine instance, as
-in Cupid, which takes well under a second.
+Not built yet: every run is a fresh engine instance, as in Cupid, which
+takes well under a second.
 
 ## 4. Language: Luau-like syntax, native to the VM
 
@@ -344,8 +350,8 @@ Kept small and code-first:
 - Cupid's editor renamed and extended. Plain ES modules with no build
   step, as in Cupid. Tools open as tabs beside code: `hero.png` opens the
   pixel editor, `level1.map.json` the map editor.
-- Canvas 2D for the art tools. Audio previews play through a hidden engine
-  instance, so they match the game.
+- Canvas 2D for the art tools. Audio previews play through `synth.mjs`,
+  the engine's synthesizer built on its own, so they match the game.
 - Same keyboard model, command palette and settings as Cupid's editor,
   with Smitten's own visual identity (which can be playful and
   pixel-styled; section 7).
@@ -425,148 +431,33 @@ smitten/
   .github/workflows/           build and deploy
 ```
 
-## 10. Roadmap
+## 10. What's built
 
-### MVP
+The project owner asked for everything at once instead of the milestones
+first planned here, so the first version has all of them:
 
-A beginner can make a small platformer entirely in the browser: draw the
-player and tiles, paint a level, make jump and coin sounds, write the code
-with Smitten's friendlier Lua, and upload the game to itch.io. That's
-milestones 1–6. Music is phase 2.
+| Part | Where | Tests |
+| --- | --- | --- |
+| Engine and editor from Cupid, renamed, with separate storage (IndexedDB `smitten`, `smitten-editor.*` keys, saves under their own IDBFS mount) | whole repository | Cupid's suites |
+| `smitten` engine module, a global like `love` | `love/src/modules/smitten/` | `tools/smitten-*` |
+| Language: compound assignment, `continue`, interpolation, if-expressions, in the parser | `deps/lua-5.1.5/llex.c`, `lparser.c` | `tools/jit/test.sh` (JIT off, on and mixed), `tools/smitten-syntax/test.mjs` |
+| Pixel editor; `smitten.sprite`, `smitten.screen` | `web/editor/tools/sprite/`, `lua/sprite.lua`, `lua/screen.lua` | `tools/smitten-sprite` (93 checks) |
+| Map and tileset editors; `smitten.map`, `tileset`, `collide`, `scene`, `input` | `web/editor/tools/map/`, `lua/map.lua` ... | `tools/smitten-map` (102 checks) |
+| C++ synthesizer; `smitten.sfx`, `smitten.song`, `smitten.synth`; `synth.mjs` | `Synth.cpp`, `LoopDecoder.cpp`, `lua/audio.lua`, `web/editor/synth.js` | `tools/smitten-audio` (engine and editor checksums match) |
+| Sound effect and music editors | `web/editor/tools/sfx/`, `tools/music/` | in the editor |
+| Tool host, New menu for assets, thumbnails, drag-to-code, reference updates on rename, completion for `smitten` | `web/editor/tool-host.js`, `references.js`, `smitten-docs.js` | in the editor |
+| Share links with small binary files, project zip, `.love` portability warning, storage persistence | `web/editor/share.js`, `portability.js`, `app.js` | in the editor |
+| Templates: a Smitten blank game; the Platformer example made with every tool | `web/editor/templates.js`, `web/examples/platformer/` | played in the editor |
 
-### Milestone 1: Smitten's own engine and editor
+### Next
 
-Goal: Smitten builds, deploys and runs as its own product, with Cupid's
-features intact, an empty `smitten` engine module, and no interference with
-Cupid.
-
-1. **Import Cupid.** In this repository:
-   ```bash
-   git remote add cupid https://github.com/Mostlime12195/cupid.git
-   git fetch cupid
-   git merge --allow-unrelated-histories cupid/main
-   ```
-   The repository now holds Cupid's tree (as of `95aa459` or later) plus
-   this file. Never push to the `cupid` remote.
-2. **Rename.** Smitten in the editor, player, page titles, `README.md`,
-   `package.py` and export file names. The README describes Smitten,
-   credits Cupid, and keeps the license section.
-3. **Separate storage** (section 2): IndexedDB `smitten`;
-   settings and theme keys under `smitten-editor.`; no migration from
-   Cupid's keys; the game save filesystem's IndexedDB name made Smitten's
-   own. `serve.py` defaults to port 8766.
-4. **`smitten` module skeleton.** `love/src/modules/smitten/` with a C++
-   module that registers the embedded `smitten.lua` (turned into a header
-   by `love/src/scripts/auto.lua`, like `nogame.lua`); a `love_smitten`
-   target in `love/CMakeLists.txt` (which `build.py` reads, and which keeps
-   desktop builds possible); loaded at boot as the global `smitten` and as
-   `require("smitten")`. Contents for now: `smitten.version`.
-5. **Template.** The blank project's `main.lua` shows
-   `"Smitten " .. smitten.version` and gets a `smitten.json`.
-6. **Deploy.** Cupid's Pages workflow, renamed, building the engine with
-   Emscripten 6.0.13 and caching it, published on Smitten's own domain
-   (a `CNAME` file in `dist/` for GitHub Pages). Until the domain is
-   chosen, the workflow can deploy to the repository's default Pages URL
-   for testing.
-7. **Tests.** Cupid's suites still pass: `tools/jit/test.sh`, and the
-   `smoke`, `threads`, `video` and `textinput` games. A new `tools/smitten`
-   game checks that `smitten` loads, as a global and through `require`.
-
-Done when:
-
-- [ ] `python3 build.py` from a clean clone builds `dist/`, and CI deploys
-      it.
-- [ ] The editor opens as Smitten; every example runs; the JIT tests pass.
-- [ ] A new project shows the Smitten version when run.
-- [ ] In one browser profile with both served from the same origin
-      (e.g. Cupid's and Smitten's `dist/` under one local server),
-      Smitten and Cupid each keep their own projects, settings and save
-      files.
-- [ ] Merging a later Cupid commit (`git merge cupid/main`) works without
-      conflicts in `love/`, `deps/` and `web/native/` (try it once on a
-      throwaway branch).
-- [ ] The Cupid repository is unchanged.
-
-### Milestone 2: sprites
-
-- **Runtime:**
-  ```lua
-  local hero = smitten.sprite("sprites/hero") -- hero.png + hero.sprite.json
-  local anim = hero:animation("run")          -- independent playback state
-  function love.update(dt) anim:update(dt) end
-  function love.draw() anim:draw(x, y, r, sx, sy) end  -- same arguments as love.graphics.draw
-  ```
-  Also `hero:draw(frame, x, y, ...)`, `hero.width`, `hero.height`,
-  `hero.origin`, `anim:play(name)`, `anim:pause()`, `anim.finished`.
-  Nearest filtering per image. Clear errors for missing files and
-  animations. In the editor's completions.
-- **Format v1**, `sprites/hero.sprite.json`:
-  ```json
-  {
-    "format": "smitten.sprite",
-    "version": 1,
-    "image": "hero.png",
-    "frameWidth": 16,
-    "frameHeight": 16,
-    "origin": [8, 16],
-    "animations": {
-      "idle": { "frames": [0, 1], "fps": 4, "loop": true },
-      "run": { "frames": [2, 3, 4, 5], "fps": 10, "loop": true }
-    }
-  }
-  ```
-  Frames are numbered left to right, top to bottom. A PNG without a
-  `.sprite.json` is one frame.
-- **Pixel editor v0:** pencil, eraser, fill, line, rectangle, color
-  picker; zoom (1–32×) and pan; grid; undo/redo; project palette plus free
-  colors; frames (add, duplicate, delete, reorder); named animations with
-  fps and loop; onion skin; preview. Up to 256×256 per frame. Opens any PNG
-  in the project.
-- **Template:** a 16×16 example sprite with idle and run animations, drawn
-  at integer scale.
-- **Done when** a new frame drawn in the editor appears on the next run,
-  and the runtime tests in `tools/smitten` cover loading, quads and
-  animation timing.
-
-### Milestone 3: language v1
-
-Compound assignment, `continue`, string interpolation and if-expressions
-(section 4) in `deps/lua-5.1.5`'s lexer and parser; tests in
-`tools/jit/tests` passing with the JIT off, on and mixed; editor
-highlighting and the compatibility check updated; templates and examples
-use the new syntax where it reads better.
-
-### Milestone 4: sound effects
-
-C++ synthesizer in the `smitten` module, `.sfx.json` format,
-`smitten.sfx("jump"):play()`, the sound effect editor with presets, previews
-through a hidden engine instance.
-
-### Milestone 5: tilemaps and entities
-
-Tileset and map formats, the map editor with tile and object layers,
-runtime drawing and tile queries, entity spawning, the scene stack, AABB
-collision helpers, and a platformer template using all of it.
-
-### Milestone 6: asset browser and polish (completes the MVP)
-
-Thumbnails, new-asset actions, drag-to-code, rename-aware references,
-share links with small binary files, `navigator.storage.persist()`, a
-tutorial project.
-
-### Phase 2
-
-- Music tool and C++ mixer
 - Editor ↔ game bridge and live asset reload (section 3)
-- Type annotations, parsed and discarded (section 4)
-- File System Access folders
-- Pixel editor layers; Aseprite and Tiled import
-
-### Phase 3
-
-- Type checking in the editor
-- Hosted sharing and a gallery, if chosen
-- Desktop executables
+- Type annotations, parsed and discarded, then type checking (section 4)
+- File System Access folders; pixel editor layers; Aseprite and Tiled import
+- An uncached `smitten.map` load (or `clone()`), since `setTile` changes the
+  cached map; scenes by name (`scene.push("title")`)
+- A tracker view for songs, and a limiter for loud songs
+- Hosted sharing and desktop executables (section 11)
 
 ## 11. Smaller open questions
 
