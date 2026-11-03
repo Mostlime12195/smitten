@@ -446,8 +446,8 @@ def long_script(lines=5000):
     return "\n".join(out + ["return Long", ""])
 
 
-def case_editor(rng, n=4000, tiles=200):
-    """For the editor: a 4000-piece scene with nesting, a 200x200 Tiles map and a 5000-line script."""
+def case_editor(rng, n=4000, tiles=400):
+    """For the editor: a 4000-piece scene with nesting, a 400x400 Tiles map and a 5000-line script."""
     kids = []
     count = 0
     g = 0

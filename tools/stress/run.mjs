@@ -93,8 +93,9 @@ export async function launch({ headless = true } = {}) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Self time per function, the 25 biggest, from a CPU profile.
-function topFunctions(prof) {
+// Self time per function, the 25 biggest, from a CPU profile (with where
+// each is defined when withPlace is set).
+export function topFunctions(prof, withPlace = false) {
   const self = new Map();
   const byId = new Map(prof.nodes.map((n) => [n.id, n]));
   const counts = new Map();
@@ -102,7 +103,8 @@ function topFunctions(prof) {
   let total = 0;
   for (const [id, c] of counts) {
     const n = byId.get(id);
-    const key = n.callFrame.functionName || `(${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber})`;
+    const place = `${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber + 1}`;
+    const key = n.callFrame.functionName ? (withPlace && n.callFrame.url ? `${n.callFrame.functionName} ${place}` : n.callFrame.functionName) : `(${place})`;
     self.set(key, (self.get(key) || 0) + c);
     total += c;
   }
