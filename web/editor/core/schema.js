@@ -131,9 +131,8 @@ export function space(type) {
   return 'other';
 }
 
-/** The optional engine module a piece needs (a Body moved by physics needs physics2d), or null. */
+/** The optional engine module a piece needs (Bodies, Zones and Joints need physics2d), or null. */
 export function moduleOfPiece(type, props = {}) {
-  if (type === 'Body' && props.motion === 'physics') return 'physics2d';
   return moduleOf(type);
 }
 

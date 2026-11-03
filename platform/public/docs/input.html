@@ -25,15 +25,14 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input" aria-current="page">Input</a><ul class="nav-sub"><li><a href="#actions">Actions</a></li><li><a href="#changing-controls-while-the-game-runs">Changing controls while the game runs</a></li><li><a href="#the-mouse">The mouse</a></li><li><a href="#touch">Touch</a></li><li><a href="#gamepads">Gamepads</a></li><li><a href="#typing">Typing</a></li><li><a href="#smitten-input">smitten.input</a></li></ul></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input" aria-current="page">Input</a><ul class="nav-sub"><li><a href="#actions">Actions</a></li><li><a href="#rebinding">Rebinding</a></li><li><a href="#mouse">Mouse</a></li><li><a href="#touch">Touch</a></li><li><a href="#gamepads">Gamepads</a></li><li><a href="#typing">Typing</a></li><li><a href="#smitten-input">smitten.input</a></li></ul></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Input</h1>
-<p>Read input by <strong>action</strong>: a name like <code>jump</code> or <code>left</code> that stands for several keys and buttons at once, so a game works with a keyboard and a gamepad without extra code. Actions are set in <strong>Project settings › Input</strong>.</p>
+<p>Read input through <strong>actions</strong>: named groups of keys and buttons, set in <strong>Project settings › Input</strong>.</p>
 <pre><code class="lang-lua">function physicsUpdate(dt)
   vx = axis(&quot;left&quot;, &quot;right&quot;) * speed
   if pressed(&quot;jump&quot;) and onGround() then vy = -jumpSpeed(96) end
-  if down(&quot;fire&quot;) then shoot() end
 end</code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
@@ -52,64 +51,43 @@ end</code></pre>
 <tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="actions"><a class="anchor" href="#actions" aria-hidden="true">#</a>Actions</h2>
-<p>Every project starts with these; Project settings › Input adds more and changes them.</p>
 <div class="table"><table>
-<thead><tr><th>Action</th><th>Inputs</th></tr></thead>
-<tbody><tr><td><code>left</code>, <code>right</code>, <code>up</code>, <code>down</code></td><td>Arrow keys, WASD, the d-pad, the left stick</td></tr>
+<thead><tr><th>Action</th><th>Default inputs</th></tr></thead>
+<tbody><tr><td><code>left</code>, <code>right</code>, <code>up</code>, <code>down</code></td><td>Arrow keys, WASD, d-pad, left stick</td></tr>
 <tr><td><code>jump</code></td><td>Space, gamepad A</td></tr>
 <tr><td><code>fire</code></td><td>X, J, left mouse button, gamepad X</td></tr>
-<tr><td><code>accept</code></td><td>Enter, Space, gamepad A (presses the focused button)</td></tr>
+<tr><td><code>accept</code></td><td>Enter, Space, gamepad A</td></tr>
 <tr><td><code>cancel</code></td><td>Escape, Backspace, gamepad B</td></tr>
 <tr><td><code>pause</code></td><td>Escape, P, gamepad Start</td></tr></tbody>
 </table></div>
-<p><code>pressed</code>, <code>down</code> and <code>released</code> also take a single <strong>input</strong>, for quick tests: <code>pressed(&quot;space&quot;)</code>, <code>down(&quot;mouse:2&quot;)</code>, <code>pressed(&quot;pad:start&quot;)</code>. <code>pressed()</code> with nothing is true when any key, mouse button or gamepad button went down this frame (&quot;press any key&quot;).</p>
+<p><code>pressed</code>, <code>down</code> and <code>released</code> also take a single input name: <code>pressed(&quot;space&quot;)</code>. <code>pressed()</code> with no argument means any input.</p>
 <h3 id="input-names"><a class="anchor" href="#input-names" aria-hidden="true">#</a>Input names</h3>
 <div class="table"><table>
 <thead><tr><th>Name</th><th>Input</th></tr></thead>
-<tbody><tr><td><code>&quot;a&quot;</code>, <code>&quot;space&quot;</code>, <code>&quot;left&quot;</code>, <code>&quot;lshift&quot;</code>, <code>&quot;return&quot;</code>, <code>&quot;escape&quot;</code>, <code>&quot;1&quot;</code></td><td>Keys (<a href="https://love2d.org/wiki/KeyConstant" rel="noopener">LÖVE's key names</a>)</td></tr>
-<tr><td><code>&quot;mouse:1&quot;</code>, <code>&quot;mouse:2&quot;</code>, <code>&quot;mouse:3&quot;</code></td><td>Left, right and middle mouse buttons (a touch counts as <code>mouse:1</code>)</td></tr>
-<tr><td><code>&quot;wheel:up&quot;</code>, <code>&quot;wheel:down&quot;</code></td><td>The mouse wheel (pressed for one frame)</td></tr>
-<tr><td><code>&quot;pad:a&quot;</code>, <code>&quot;pad:b&quot;</code>, <code>&quot;pad:x&quot;</code>, <code>&quot;pad:y&quot;</code>, <code>&quot;pad:start&quot;</code>, <code>&quot;pad:back&quot;</code>, <code>&quot;pad:leftshoulder&quot;</code>, <code>&quot;pad:dpleft&quot;</code>, ...</td><td>Gamepad buttons</td></tr>
-<tr><td><code>&quot;axis:leftx-&quot;</code>, <code>&quot;axis:leftx+&quot;</code>, <code>&quot;axis:lefty-&quot;</code>, <code>&quot;axis:righty+&quot;</code>, <code>&quot;axis:triggerleft+&quot;</code>, ...</td><td>Half of a stick or a trigger (counts as pressed past halfway)</td></tr></tbody>
+<tbody><tr><td><code>&quot;a&quot;</code>, <code>&quot;space&quot;</code>, <code>&quot;left&quot;</code>, <code>&quot;return&quot;</code>, ...</td><td>Keys (<a href="https://love2d.org/wiki/KeyConstant" rel="noopener">LÖVE key names</a>)</td></tr>
+<tr><td><code>&quot;mouse:1&quot;</code>, <code>&quot;mouse:2&quot;</code>, <code>&quot;mouse:3&quot;</code></td><td>Left, right, middle button; a touch is <code>mouse:1</code></td></tr>
+<tr><td><code>&quot;wheel:up&quot;</code>, <code>&quot;wheel:down&quot;</code></td><td>Mouse wheel, pressed for one frame</td></tr>
+<tr><td><code>&quot;pad:a&quot;</code>, <code>&quot;pad:start&quot;</code>, <code>&quot;pad:dpleft&quot;</code>, ...</td><td>Gamepad buttons</td></tr>
+<tr><td><code>&quot;axis:leftx-&quot;</code>, <code>&quot;axis:triggerleft+&quot;</code>, ...</td><td>Half a stick or a trigger, pressed past halfway</td></tr></tbody>
 </table></div>
-<h2 id="changing-controls-while-the-game-runs"><a class="anchor" href="#changing-controls-while-the-game-runs" aria-hidden="true">#</a>Changing controls while the game runs</h2>
-<p><code>smitten.input.bind(action, inputs)</code> adds or replaces an action; <code>bindings(action)</code> lists its inputs and <code>lastPressed()</code> is the input pressed this frame, for a &quot;press a key for jump&quot; screen. Save the choice to keep it:</p>
-<pre><code class="lang-lua">-- On a &quot;Jump: [space]&quot; button
-local waiting = false
-
-function pressed() waiting = true; text = &quot;Jump: press a key&quot; end
-
-function update(dt)
-  if not waiting then return end
-  local key = smitten.input.lastPressed()
-  if key and key ~= &quot;mouse:1&quot; then
-    smitten.input.bind(&quot;jump&quot;, { key })
-    save(&quot;jumpKey&quot;, key)
-    text = `Jump: {key}`
-    waiting = false
-  end
+<h2 id="rebinding"><a class="anchor" href="#rebinding" aria-hidden="true">#</a>Rebinding</h2>
+<p><code>smitten.input.bind(action, inputs)</code> replaces an action's inputs. <code>lastPressed()</code> returns the input pressed this frame.</p>
+<pre><code class="lang-lua">local key = smitten.input.lastPressed()
+if key then
+  smitten.input.bind(&quot;jump&quot;, { key })
+  save(&quot;jumpKey&quot;, key)
 end</code></pre>
-<h2 id="the-mouse"><a class="anchor" href="#the-mouse" aria-hidden="true">#</a>The mouse</h2>
-<p><code>mouse()</code> is the pointer in the scene, through the camera: use it to aim or pick things up. <code>mouseScreen()</code> is the pointer on the screen, in game pixels, for UI. <code>smitten.mouse.pressed(button)</code>, <code>released(button)</code> and <code>down(button)</code> work like the actions (button 1 is the left one); <code>smitten.mouse.isOverUI()</code> is true over a button or panel, so a click meant for the UI doesn't also shoot. <code>smitten.mouse.getDelta()</code> is how far it moved this frame, also while it's captured with <code>smitten.mouse.setRelativeMode(true)</code>.</p>
-<pre><code class="lang-lua">function update(dt)
-  local mx, my = mouse()
-  lookAt(mx, my)
-  if pressed(&quot;mouse:1&quot;) and not smitten.mouse.isOverUI() then shoot() end
-  if pressed(&quot;wheel:up&quot;) then Camera.zoom *= 1.1 end
-end</code></pre>
+<h2 id="mouse"><a class="anchor" href="#mouse" aria-hidden="true">#</a>Mouse</h2>
+<p><code>mouse()</code> is the pointer in the scene; <code>mouseScreen()</code> is on the screen, for UI. <code>smitten.mouse.isOverUI()</code> is true over a button or panel.</p>
+<pre><code class="lang-lua">if pressed(&quot;mouse:1&quot;) and not smitten.mouse.isOverUI() then shoot() end</code></pre>
 <h2 id="touch"><a class="anchor" href="#touch" aria-hidden="true">#</a>Touch</h2>
-<p>A touch also counts as the left mouse button, so most games work on phones as they are. <code>touches()</code> lists every finger, for games that need more than one: each has an <code>id</code>, <code>x</code>, <code>y</code> (on the screen) and <code>worldX</code>, <code>worldY</code> (in the scene).</p>
+<p><code>touches()</code> returns each finger: <code>id</code>, <code>x</code>, <code>y</code> (screen) and <code>worldX</code>, <code>worldY</code> (scene).</p>
 <h2 id="gamepads"><a class="anchor" href="#gamepads" aria-hidden="true">#</a>Gamepads</h2>
-<p>The actions already read gamepads. For more: <code>stick(&quot;left&quot;)</code> gives the left stick's x, y (with a dead zone), <code>trigger(&quot;right&quot;)</code> the right trigger, and <code>vibrate(0.6, 0.25)</code> rumbles. Each takes a player number last for local multiplayer (<code>stick(&quot;left&quot;, 2)</code>); <code>smitten.input.gamepads()</code> is how many are connected. LÖVE's <a href="https://love2d.org/wiki/love.joystick" rel="noopener"><code>smitten.joystick</code></a> has the rest.</p>
+<p><code>stick(side, player)</code>, <code>trigger(side, player)</code> and <code>vibrate(strength, seconds, player)</code>. <code>smitten.input.gamepads()</code> is the number connected.</p>
 <h2 id="typing"><a class="anchor" href="#typing" aria-hidden="true">#</a>Typing</h2>
-<p><code>typed()</code> is the text typed this frame. The first call turns text input on (on phones it shows the keyboard); <code>smitten.keyboard.setTextInput(false)</code> turns it off.</p>
-<pre><code class="lang-lua">playerName = &quot;&quot;
-
-function update(dt)
-  playerName ..= typed()
-  if pressed(&quot;backspace&quot;) then playerName = playerName:sub(1, -2) end
-  NameLabel.text = playerName
-end</code></pre>
+<p><code>typed()</code> returns the text typed this frame and turns text input on (the on-screen keyboard on phones).</p>
+<pre><code class="lang-lua">name ..= typed()
+if pressed(&quot;backspace&quot;) then name = name:sub(1, -2) end</code></pre>
 <h2 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
@@ -133,7 +111,6 @@ end</code></pre>
 <tr><td><code>smitten.input.trigger(side, player?)</code></td><td>A gamepad trigger (&quot;left&quot; or &quot;right&quot;): 0 to 1.</td></tr>
 <tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads (all, or one player's).</td></tr></tbody>
 </table></div>
-<p>Also: <code>smitten.keyboard.pressed(key)</code> and <code>released(key)</code>, next to LÖVE's <code>smitten.keyboard.isDown(key)</code>; <code>smitten.mouse.x</code>, <code>y</code> (game pixels) and <code>worldX</code>, <code>worldY</code> (scene).</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="scenes"><span>Previous</span>Scenes and pieces</a><a class="next" href="sound"><span>Next</span>Sound and music</a></nav>
   </main>

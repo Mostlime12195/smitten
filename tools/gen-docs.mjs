@@ -37,7 +37,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'],
       ['camera', 'Camera'], ['tiles', 'Tiles'], ['ui', 'UI'], ['physics', 'Physics'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings and modules'], ['sharing', 'Sharing and publishing']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],
@@ -109,14 +109,10 @@ function piecesPage() {
   const out = [
     '# Pieces',
     '',
-    'Every piece type, generated from `love/src/modules/scene/pieces.json` by',
-    '`tools/gen-docs.mjs`. A piece has its own properties and everything its',
-    'base type has. Properties are fields: `x = 10` in its own script,',
-    '`Player.x = 10` or `other.x = 10` from another. Methods are called as',
-    '`move()` in the piece\'s own script and `piece:move()` on another piece.',
-    'Events are functions its script defines (`function pressed() ... end`),',
-    'or listeners added with `piece:on("pressed", fn)`. Angles are radians in',
-    'code and degrees in the inspector.',
+    'Each piece has its own properties plus its base type\'s. In its own script:',
+    '`x = 10`, `move()`, `function pressed() end`. On another piece: `other.x`,',
+    '`other:move()`, `other:on("pressed", fn)`. Angles are radians in code,',
+    'degrees in the Inspector.',
     '',
   ];
   for (const g of schema.groups) {
@@ -139,17 +135,13 @@ function apiPage() {
   const out = [
     '# Script API',
     '',
-    'Every name a script can use without `smitten.` in front, generated from',
-    '`web/editor/core/script-api.js`. Names are looked up in this order: the',
-    'script\'s own functions, the piece (its properties, variables and',
-    'methods; see [Pieces](pieces.md)), its children by capitalized name, this',
-    'list, then Lua\'s globals. See [Scripts](scripts.md) for how a script works.',
+    'Names a script can use without `smitten.`. How names resolve: [Scripts](scripts.md#names).',
     '',
   ];
   for (const g of SCRIPT_API_GROUPS) {
-    out.push(`## ${g.name}`, '', `More in [${TITLES[g.page]}](${g.page}.md).`, '', ...apiTable(g.name));
+    out.push(`## ${g.name}`, '', `See [${TITLES[g.page]}](${g.page}.md).`, '', ...apiTable(g.name));
   }
-  out.push('## Script functions', '', 'Functions the engine calls when a script defines them:', '');
+  out.push('## Script functions', '', 'Called by the engine when a script defines them.', '');
   const events = new Map();
   for (const [type, def] of Object.entries(schema.types)) {
     for (const [e, d] of Object.entries(def.events || {})) {
@@ -171,24 +163,21 @@ function enginePage() {
   const out = [
     '# The engine table',
     '',
-    '`smitten` is the engine, and `love` is the same table: everything in',
-    'LÖVE 12\'s API is there as `smitten.graphics`, `smitten.audio`, ... (see',
-    '[love2d.org/wiki](https://love2d.org/wiki/Main_Page)). This page lists what',
-    'Smitten adds, generated from `web/editor/smitten-docs.js`. Scripts can',
-    'use most of it through the shorter [Script API](api.md).',
+    '`smitten` and `love` are the same table, so [LÖVE 12\'s API](https://love2d.org/wiki/Main_Page)',
+    'is all there. This page lists what Smitten adds.',
     '',
     '## Smitten\'s modules',
     '',
   ];
   const intro = {
-    scene: 'The running scene. See [Scenes and pieces](scenes.md).',
-    input: 'Named actions for keys, mouse buttons and gamepads. See [Input](input.md).',
-    tween: 'Smooth changes to numbers: `smitten.tween(target, seconds, values, easing)`. Easings: `linear`, `inQuad`, `outQuad`, `inOutQuad`, `inCubic`, `outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inExpo`, `outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`, `outElastic`. Tweens and timers end when the scene changes; a tween of a piece ends when the piece is destroyed and waits while the game is paused.',
-    assets: 'Loads and caches the files a game uses. Paths are relative to the project folder.',
-    storage: 'Values kept between plays. See [Saving](saving.md).',
-    display: 'The game\'s resolution and how it fits the window. See [Project settings](settings.md).',
+    scene: 'See [Scenes and pieces](scenes.md).',
+    input: 'See [Input](input.md).',
+    tween: '`smitten.tween(target, seconds, values, easing)`. Easings: [Scripts](scripts.md#waiting).',
+    assets: 'Loads and caches files. Paths are relative to the project folder.',
+    storage: 'See [Saving](saving.md).',
+    display: 'See [Project settings](settings.md).',
     json: 'JSON text to Lua values and back.',
-    synth: 'Sound effects and songs made in the editor. See [Sound and music](sound.md).',
+    synth: 'See [Sound and music](sound.md).',
   };
   for (const mod of Object.keys(SMITTEN_MODULES)) {
     out.push(`### smitten.${mod}`, '', intro[mod] || '', '', ...moduleTable(mod));
@@ -619,7 +608,7 @@ nav.addEventListener('click', (e) => {
 `;
 
 const PLACEHOLDER = {
-  physics: '# Physics\n\nBodies that fall, bounce and tumble, joints, and raycasts. This page is being written; until then, [Pieces](pieces.md#bodies-and-zones) lists the Body, Zone, Hitbox and Joint pieces.\n',
+  physics: '# Physics\n\nSee [Pieces](pieces.md#bodies-and-zones) for Body, Zone, Hitbox and Joint.\n',
 };
 
 rmSync(outDir, { recursive: true, force: true });

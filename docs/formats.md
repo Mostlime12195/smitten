@@ -1,10 +1,8 @@
 # File formats
 
-The files a Smitten project is made of. They're JSON (except scripts and
-pictures), so they diff and merge well and can be written by hand or by
-tools. Paths inside them are relative to the project folder, except where a
-format says relative to the file. `smitten.json` is in
-[Project settings and modules](settings.md).
+Project files other than scripts and pictures are JSON. Paths are relative
+to the project folder unless noted. `smitten.json` is in
+[Project settings](settings.md).
 
 ## Scenes
 

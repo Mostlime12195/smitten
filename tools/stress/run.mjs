@@ -18,7 +18,9 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE || 'http://localhost:8770';
-const MODULES = { rigid: 'physics2d', 'rigid-mix': 'physics2d', 'test-rigid': 'physics2d' };
+// Optional engine modules each case needs: physics2d for anything with Bodies, Zones or Joints.
+const NO_MODULES = new Set(['sprites', 'draws', 'ui']);
+const modulesFor = (name) => (NO_MODULES.has(name) ? '' : 'physics2d');
 
 function findChrome() {
   if (process.env.CHROME) return process.env.CHROME;
@@ -125,7 +127,7 @@ async function runCase(name, seconds) {
       lines.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
     }
   });
-  const mod = MODULES[name] ? `&modules=${MODULES[name]}` : '';
+  const mod = modulesFor(name) ? `&modules=${modulesFor(name)}` : '';
   const t0 = Date.now();
   await page.goto(`${BASE}/player.html?game=stress/${name}.love&autoplay=1${mod}`);
   // Wait for the first stats line (the scene is running), then sample.

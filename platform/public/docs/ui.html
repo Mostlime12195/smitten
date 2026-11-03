@@ -25,50 +25,32 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#labels-and-bars">Labels and bars</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-with-the-keyboard-and-gamepads">Menus with the keyboard and gamepads</a></li><li><a href="#pause-menus">Pause menus</a></li><li><a href="#drawing-on-ui">Drawing on UI</a></li><li><a href="#the-pieces">The pieces</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#keyboard-and-gamepad-menus">Keyboard and gamepad menus</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
-<p>UI pieces are drawn on top of the game, in screen pixels, and cameras don't move them: <strong>Label</strong> (words), <strong>Button</strong>, <strong>Bar</strong> (health, loading), <strong>Panel</strong> (a box behind other UI) and <strong>Picture</strong>. Put them anywhere in the scene; a UI piece inside another is laid out inside it.</p>
+<p>UI pieces draw on top of the game in screen pixels and ignore cameras: <strong>Label</strong>, <strong>Button</strong>, <strong>Bar</strong>, <strong>Panel</strong> and <strong>Picture</strong>. A UI piece inside another is laid out inside it.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
-<p>A UI piece is a rectangle placed from an <strong>anchor</strong>: a corner, an edge, the center, or <code>fill</code> (the whole screen, or the UI piece it's inside). <code>x</code> and <code>y</code> are the distance in from the anchor, so with <code>bottomRight</code>, <code>x = 16</code>, <code>y = 16</code> is 16 pixels in from the bottom-right corner, whatever the screen size. Every property can change while the game runs:</p>
-<pre><code class="lang-lua">Message.anchor = &quot;center&quot;
-Message.text = &quot;Level complete!&quot;
-tween(Message, 0.3, { opacity = 1, y = 0 })</code></pre>
-<p><code>getRect()</code> is where a UI piece is on the screen now (x, y, width, height). <code>visible</code> and <code>opacity</code> hide or fade it and everything inside it.</p>
-<h2 id="labels-and-bars"><a class="anchor" href="#labels-and-bars" aria-hidden="true">#</a>Labels and bars</h2>
-<pre><code class="lang-lua">function update(dt)
-  find(&quot;HUD/Score&quot;).text = `Score: {game.score}`
-  find(&quot;HUD/Health&quot;).value = hp      -- a Bar from min to max
-end</code></pre>
+<p>Each UI piece is placed from an <strong>anchor</strong> (a corner, an edge, <code>center</code> or <code>fill</code>); <code>x</code> and <code>y</code> are the distance in from it. <code>getRect()</code> returns the current screen rectangle. <code>visible</code> and <code>opacity</code> apply to children too.</p>
+<pre><code class="lang-lua">Message.text = &quot;Level complete&quot;
+tween(Message, 0.3, { opacity = 1 })</code></pre>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
-<p>A Button's script gets <code>pressed()</code> when it's clicked or tapped. Pictures and Panels get it too.</p>
-<pre><code class="lang-lua">-- On a &quot;Play&quot; button
-function pressed()
-  go(&quot;scenes/level1.scene&quot;)
-end</code></pre>
-<p>Other scripts listen with <code>on</code>: <code>find(&quot;UI/Quit&quot;):on(&quot;pressed&quot;, function() ... end)</code>. In a Button's script, <code>pressed</code> is the button's event, so read input there with <code>smitten.input.pressed(action)</code>.</p>
+<p>A Button's script gets <code>pressed()</code> when clicked or tapped (Pictures and Panels too). In a Button's script, read input with <code>smitten.input.pressed</code>, since <code>pressed</code> is the event.</p>
+<pre><code class="lang-lua">function pressed() go(&quot;scenes/level1.scene&quot;) end</code></pre>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>disabled</code></td><td>Can't be pressed; drawn faded</td></tr>
-<tr><td><code>isHovered()</code></td><td>The pointer is over it</td></tr>
-<tr><td><code>isDown()</code></td><td>It's held down</td></tr>
-<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events: the pointer came over it, left it</td></tr>
-<tr><td><code>smitten.mouse.isOverUI()</code></td><td>The pointer is over a button or panel (so a click there doesn't also shoot)</td></tr></tbody>
+<tr><td><code>isHovered()</code>, <code>isDown()</code></td><td>Pointer over it; held down</td></tr>
+<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events</td></tr>
+<tr><td><code>smitten.mouse.isOverUI()</code></td><td>Pointer over any button or panel</td></tr></tbody>
 </table></div>
-<h2 id="menus-with-the-keyboard-and-gamepads"><a class="anchor" href="#menus-with-the-keyboard-and-gamepads" aria-hidden="true">#</a>Menus with the keyboard and gamepads</h2>
-<p>Turn on a Button's <strong>autofocus</strong> and it has the focus when the scene starts: the arrow keys, the d-pad and the stick (the <code>up</code>, <code>down</code>, <code>left</code> and <code>right</code> actions) move the focus to the nearest button that way, and <code>accept</code> (Enter, Space, gamepad A) presses it. The focused button is outlined. <code>focus()</code> moves the focus from a script; <code>isFocused()</code> tells. Clicking a button moves the focus to it.</p>
-<p>Without a focused button, the arrow keys are the game's alone, so a Restart button in a game's HUD doesn't steal them.</p>
-<h2 id="pause-menus"><a class="anchor" href="#pause-menus" aria-hidden="true">#</a>Pause menus</h2>
-<p>UI answers clicks and the keyboard while the game is paused. For a pause menu's script to keep running, put the menu inside a piece whose <code>pausable</code> is off; see <a href="scenes#pausing">Pausing</a>.</p>
-<h2 id="drawing-on-ui"><a class="anchor" href="#drawing-on-ui" aria-hidden="true">#</a>Drawing on UI</h2>
-<p>A UI piece's <code>draw()</code> draws in screen pixels, from its rectangle's top-left corner: see <a href="drawing">Drawing</a>.</p>
-<h2 id="the-pieces"><a class="anchor" href="#the-pieces" aria-hidden="true">#</a>The pieces</h2>
-<h3 id="ui"><a class="anchor" href="#ui" aria-hidden="true">#</a>UI</h3>
-<p>The base of every UI piece.</p>
+<h2 id="keyboard-and-gamepad-menus"><a class="anchor" href="#keyboard-and-gamepad-menus" aria-hidden="true">#</a>Keyboard and gamepad menus</h2>
+<p>With <strong>autofocus</strong> on, a Button has focus when the scene starts. The <code>up</code>/<code>down</code>/<code>left</code>/<code>right</code> actions move focus to the nearest button and <code>accept</code> presses it. <code>focus()</code> and <code>isFocused()</code> control it from scripts. Without a focused button, arrow keys go to the game.</p>
+<p>UI keeps working while the game is paused; see <a href="scenes#pausing">Pausing</a>.</p>
+<p>A UI piece's <code>draw()</code> uses screen pixels from its top-left corner.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside).</td></tr>
+<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece.</td></tr>
 <tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>Width (ignored with fill).</td></tr>
@@ -86,7 +68,7 @@ end</code></pre>
 <tbody><tr><td><code>function hovered()</code></td><td>The pointer came over it (not Labels).</td></tr>
 <tr><td><code>function unhovered()</code></td><td>The pointer left it.</td></tr></tbody>
 </table></div>
-<h3 id="label"><a class="anchor" href="#label" aria-hidden="true">#</a>Label</h3>
+<h2 id="label"><a class="anchor" href="#label" aria-hidden="true">#</a>Label</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Label&quot;</td><td>What it says. Change it from a script: text = <code>Score: {score}</code>.</td></tr>
@@ -95,9 +77,9 @@ end</code></pre>
 <tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
 <tr><td><code>align</code></td><td>enum</td><td>&quot;left&quot;</td><td>Lines up the text inside its rectangle.</td></tr>
 <tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Lines up the text top to bottom.</td></tr>
-<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline, so it reads on any background.</td></tr></tbody>
+<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline around the text.</td></tr></tbody>
 </table></div>
-<h3 id="button"><a class="anchor" href="#button" aria-hidden="true">#</a>Button</h3>
+<h2 id="button"><a class="anchor" href="#button" aria-hidden="true">#</a>Button</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Button&quot;</td><td>The button's words.</td></tr>
@@ -107,11 +89,11 @@ end</code></pre>
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be pressed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus.</td></tr></tbody>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>focus()</code></td><td>Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses).</td></tr>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus.</td></tr>
 <tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr>
 <tr><td><code>isDown()</code></td><td>True while it's held down.</td></tr></tbody>
 </table></div>
@@ -119,7 +101,7 @@ end</code></pre>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function pressed()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
 </table></div>
-<h3 id="bar"><a class="anchor" href="#bar" aria-hidden="true">#</a>Bar</h3>
+<h2 id="bar"><a class="anchor" href="#bar" aria-hidden="true">#</a>Bar</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>value</code></td><td>number</td><td>50</td><td>How full it is, between min and max.</td></tr>
@@ -130,7 +112,7 @@ end</code></pre>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>4</td><td>Rounds the corners.</td></tr>
 <tr><td><code>showValue</code></td><td>bool</td><td>false</td><td>Show the value as text.</td></tr></tbody>
 </table></div>
-<h3 id="panel"><a class="anchor" href="#panel" aria-hidden="true">#</a>Panel</h3>
+<h2 id="panel"><a class="anchor" href="#panel" aria-hidden="true">#</a>Panel</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>color</code></td><td>color</td><td>{0.08, 0.09, 0.12, 0.85}</td><td>Fill color.</td></tr>
@@ -142,7 +124,7 @@ end</code></pre>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function pressed()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
 </table></div>
-<h3 id="picture"><a class="anchor" href="#picture" aria-hidden="true">#</a>Picture</h3>
+<h2 id="picture"><a class="anchor" href="#picture" aria-hidden="true">#</a>Picture</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture.</td></tr>

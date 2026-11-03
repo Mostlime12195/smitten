@@ -91,6 +91,18 @@ export const SCRIPT_API_GROUPS = [
     ],
   },
   {
+    name: 'Physics',
+    page: 'physics',
+    items: [
+      ['raycast', 'raycast(x1, y1, x2, y2, tags)', 'The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them.'],
+      ['raycastAll', 'raycastAll(x1, y1, x2, y2, tags)', 'Everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }.'],
+      ['piecesAt', 'piecesAt(x, y, tags)', 'The bodies and zones whose shapes contain a point.'],
+      ['overlap', 'overlap(kind, x, y, ...)', 'The bodies and zones touching a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, width, height).'],
+      ['getGravity', 'getGravity()', 'The scene\'s gravity: x, y in pixels per second per second.'],
+      ['setGravity', 'setGravity(x, y)', 'Changes the scene\'s gravity: setGravity(0, 0) floats everything.'],
+    ],
+  },
+  {
     name: 'Screen',
     page: 'settings',
     items: [

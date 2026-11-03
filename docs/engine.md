@@ -1,16 +1,13 @@
 # The engine table
 
-`smitten` is the engine, and `love` is the same table: everything in
-LÖVE 12's API is there as `smitten.graphics`, `smitten.audio`, ... (see
-[love2d.org/wiki](https://love2d.org/wiki/Main_Page)). This page lists what
-Smitten adds, generated from `web/editor/smitten-docs.js`. Scripts can
-use most of it through the shorter [Script API](api.md).
+`smitten` and `love` are the same table, so [LÖVE 12's API](https://love2d.org/wiki/Main_Page)
+is all there. This page lists what Smitten adds.
 
 ## Smitten's modules
 
 ### smitten.scene
 
-The running scene. See [Scenes and pieces](scenes.md).
+See [Scenes and pieces](scenes.md).
 
 | Function | |
 | --- | --- |
@@ -33,7 +30,7 @@ Fields: `current`, `path`, `args`, `paused`, `timeScale`, `showShapes`.
 
 ### smitten.input
 
-Named actions for keys, mouse buttons and gamepads. See [Input](input.md).
+See [Input](input.md).
 
 | Function | |
 | --- | --- |
@@ -59,7 +56,7 @@ Named actions for keys, mouse buttons and gamepads. See [Input](input.md).
 
 ### smitten.tween
 
-Smooth changes to numbers: `smitten.tween(target, seconds, values, easing)`. Easings: `linear`, `inQuad`, `outQuad`, `inOutQuad`, `inCubic`, `outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inExpo`, `outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`, `outElastic`. Tweens and timers end when the scene changes; a tween of a piece ends when the piece is destroyed and waits while the game is paused.
+`smitten.tween(target, seconds, values, easing)`. Easings: [Scripts](scripts.md#waiting).
 
 | Function | |
 | --- | --- |
@@ -70,7 +67,7 @@ Smooth changes to numbers: `smitten.tween(target, seconds, values, easing)`. Eas
 
 ### smitten.assets
 
-Loads and caches the files a game uses. Paths are relative to the project folder.
+Loads and caches files. Paths are relative to the project folder.
 
 | Function | |
 | --- | --- |
@@ -87,7 +84,7 @@ Loads and caches the files a game uses. Paths are relative to the project folder
 
 ### smitten.storage
 
-Values kept between plays. See [Saving](saving.md).
+See [Saving](saving.md).
 
 | Function | |
 | --- | --- |
@@ -98,7 +95,7 @@ Values kept between plays. See [Saving](saving.md).
 
 ### smitten.display
 
-The game's resolution and how it fits the window. See [Project settings](settings.md).
+See [Project settings](settings.md).
 
 | Function | |
 | --- | --- |
@@ -121,7 +118,7 @@ Fields: `null`.
 
 ### smitten.synth
 
-Sound effects and songs made in the editor. See [Sound and music](sound.md).
+See [Sound and music](sound.md).
 
 | Function | |
 | --- | --- |

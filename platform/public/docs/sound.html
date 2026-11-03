@@ -25,16 +25,16 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound" aria-current="page">Sound and music</a><ul class="nav-sub"><li><a href="#names-and-files">Names and files</a></li><li><a href="#sound-effects">Sound effects</a></li><li><a href="#music">Music</a></li><li><a href="#volume">Volume</a></li><li><a href="#the-sound-piece">The Sound piece</a></li><li><a href="#in-code-smitten-audio">In code: smitten.audio</a></li></ul></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound" aria-current="page">Sound and music</a><ul class="nav-sub"><li><a href="#the-sound-piece">The Sound piece</a></li><li><a href="#smitten-audio">smitten.audio</a></li></ul></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Sound and music</h1>
-<p>Sounds are <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> and <code>.flac</code> files, or <code>.sfx</code> sound effects and <code>.song</code> music made in the editor's Sound and Music workspaces. Play them from a script with <code>sfx</code> and <code>music</code>, or with a Sound piece.</p>
-<pre><code class="lang-lua">sfx(&quot;coin&quot;)                                  -- finds coin.sfx (or .wav, .ogg...) anywhere
+<p>Plays <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> and <code>.flac</code> files, and <code>.sfx</code> and <code>.song</code> files made in the Sound and Music workspaces.</p>
+<pre><code class="lang-lua">sfx(&quot;coin&quot;)                              -- coin.sfx, coin.wav, ... anywhere
 sfx(&quot;hit&quot;, { volume = 0.5, pitch = 0.9 + rnd(0.2) })
-music(&quot;theme&quot;)                               -- loops; keeps playing across scenes
-music(&quot;boss&quot;, { fade = 1 })                  -- fades the old music out and this in
-stopMusic(2)                                 -- fades out over 2 seconds</code></pre>
+music(&quot;theme&quot;)                           -- loops across scenes
+music(&quot;boss&quot;, { fade = 1 })              -- crossfades
+stopMusic(2)</code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
@@ -44,21 +44,12 @@ stopMusic(2)                                 -- fades out over 2 seconds</code><
 <tr><td><code>resumeMusic()</code></td><td>Continues the music.</td></tr>
 <tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
 </table></div>
-<h2 id="names-and-files"><a class="anchor" href="#names-and-files" aria-hidden="true">#</a>Names and files</h2>
-<p>A bare name like <code>&quot;coin&quot;</code> finds the sound file with that name anywhere in the project; when there are several, <code>.sfx</code> wins over <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code>, <code>.flac</code> and <code>.song</code>. A path (<code>&quot;sounds/coin.wav&quot;</code>) plays that file.</p>
-<h2 id="sound-effects"><a class="anchor" href="#sound-effects" aria-hidden="true">#</a>Sound effects</h2>
-<p><code>sfx(name, volume, pitch)</code> or <code>sfx(name, { volume, pitch })</code> plays a sound once; copies overlap. It returns the LÖVE <a href="https://love2d.org/wiki/Source" rel="noopener">Source</a> playing it, for anything else (<code>:stop()</code>, <code>:setPosition()</code>...). Pitch 2 is an octave up.</p>
-<h2 id="music"><a class="anchor" href="#music" aria-hidden="true">#</a>Music</h2>
-<p><code>music(name, options)</code> plays a sound on a loop instead of whatever music is playing. Options: <code>volume</code> (0 to 1), <code>pitch</code>, <code>fade</code> (seconds to fade the new music in and the old out). Asking for the music that's already playing keeps it playing (so every level can call <code>music(&quot;theme&quot;)</code>). Music isn't part of a scene: it carries on when the scene changes, and isn't slowed by <code>timeScale</code> or stopped by <code>pauseGame()</code>; pause it with <code>pauseMusic()</code>.</p>
-<p>A <code>.song</code> loops as its file says (from its loop point).</p>
-<h2 id="volume"><a class="anchor" href="#volume" aria-hidden="true">#</a>Volume</h2>
-<p><code>masterVolume(0.5)</code> turns every sound down; <code>masterVolume()</code> reads it. For separate music and effects volumes, keep them in variables (or <a href="saving">saved</a>) and pass them to <code>music</code> and <code>sfx</code>.</p>
+<p>A bare name finds the file anywhere in the project; <code>.sfx</code> wins over other types. A path plays that file.</p>
+<p><code>sfx</code> returns the LÖVE <a href="https://love2d.org/wiki/Source" rel="noopener">Source</a>. Pitch 2 is an octave up.</p>
+<p><code>music</code> with the music already playing keeps it playing. Music continues across scenes and isn't affected by <code>pauseGame()</code> or <code>timeScale()</code>.</p>
 <h2 id="the-sound-piece"><a class="anchor" href="#the-sound-piece" aria-hidden="true">#</a>The Sound piece</h2>
-<p>A Sound piece plays one sound file, set in the Inspector: good for sounds that belong to something (an engine hum, a waterfall), sounds that start with the scene (<code>autoplay</code>), and sounds a script controls.</p>
-<pre><code class="lang-lua">-- An alarm: a Sound piece with loop on
-function ready() fadeIn(2) end
-function switchOff() fadeOut(0.5) end    -- elsewhere: Alarm:switchOff()</code></pre>
-<p>Changes to <code>volume</code> and <code>pitch</code> apply while it plays, so they can be <a href="scripts#waiting">tweened</a>: <code>tween(Engine, 0.3, { pitch = 1.5 })</code>. It stops when it leaves the scene.</p>
+<p>Plays one file, set in the Inspector. <code>volume</code> and <code>pitch</code> apply while playing, so they can be tweened. It stops when it leaves the scene.</p>
+<pre><code class="lang-lua">function ready() fadeIn(2) end</code></pre>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>sound</code></td><td>resource</td><td>&quot;&quot;</td><td>The sound file.</td></tr>
@@ -69,7 +60,7 @@ function switchOff() fadeOut(0.5) end    -- elsewhere: Alarm:switchOff()</code><
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play()</code></td><td>Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one.</td></tr>
+<tbody><tr><td><code>play()</code></td><td>Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song).</td></tr>
 <tr><td><code>stop()</code></td><td>Stops every copy.</td></tr>
 <tr><td><code>pause()</code></td><td>Pauses.</td></tr>
 <tr><td><code>resume()</code></td><td>Continues after pause().</td></tr>
@@ -84,8 +75,7 @@ function switchOff() fadeOut(0.5) end    -- elsewhere: Alarm:switchOff()</code><
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function finished()</code></td><td>The sound reached its end (not when looping).</td></tr></tbody>
 </table></div>
-<h2 id="in-code-smitten-audio"><a class="anchor" href="#in-code-smitten-audio" aria-hidden="true">#</a>In code: smitten.audio</h2>
-<p>The same calls are in <code>smitten.audio</code> for code outside scripts (<code>smitten.audio.sfx(&quot;coin&quot;)</code>), next to all of LÖVE's <a href="https://love2d.org/wiki/love.audio" rel="noopener">love.audio</a>:</p>
+<h2 id="smitten-audio"><a class="anchor" href="#smitten-audio" aria-hidden="true">#</a>smitten.audio</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.audio.sfx(name, volume?, pitch?)</code></td><td>Plays a sound once by name or path: smitten.audio.sfx(&quot;coin&quot;, { volume = 0.5 }).</td></tr>
@@ -95,7 +85,7 @@ function switchOff() fadeOut(0.5) end    -- elsewhere: Alarm:switchOff()</code><
 <tr><td><code>smitten.audio.resumeMusic()</code></td><td>Continues the music.</td></tr>
 <tr><td><code>smitten.audio.getMusic()</code></td><td>The Source playing the music, or nil.</td></tr></tbody>
 </table></div>
-<p><code>smitten.synth.sfx(path)</code> and <code>smitten.synth.song(path)</code> load <code>.sfx</code> and <code>.song</code> files as objects with <code>:play()</code>, <code>:stop()</code> and more (see <a href="formats#sound-effects-in-code">File formats</a>).</p>
+<p><code>smitten.synth.sfx(path)</code> and <code>smitten.synth.song(path)</code> load <code>.sfx</code> and <code>.song</code> files (<a href="formats#sound-effects-in-code">File formats</a>).</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="input"><span>Previous</span>Input</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>
   </main>

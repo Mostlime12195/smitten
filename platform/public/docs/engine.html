@@ -25,14 +25,14 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine" aria-current="page">The engine table</a><ul class="nav-sub"><li><a href="#smitten-s-modules">Smitten's modules</a></li><li><a href="#added-to-l-ve-s-modules">Added to LÖVE's modules</a></li></ul></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine" aria-current="page">The engine table</a><ul class="nav-sub"><li><a href="#smitten-s-modules">Smitten's modules</a></li><li><a href="#added-to-l-ve-s-modules">Added to LÖVE's modules</a></li></ul></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>The engine table</h1>
-<p><code>smitten</code> is the engine, and <code>love</code> is the same table: everything in LÖVE 12's API is there as <code>smitten.graphics</code>, <code>smitten.audio</code>, ... (see <a href="https://love2d.org/wiki/Main_Page" rel="noopener">love2d.org/wiki</a>). This page lists what Smitten adds, generated from <code>web/editor/smitten-docs.js</code>. Scripts can use most of it through the shorter <a href="api">Script API</a>.</p>
+<p><code>smitten</code> and <code>love</code> are the same table, so <a href="https://love2d.org/wiki/Main_Page" rel="noopener">LÖVE 12's API</a> is all there. This page lists what Smitten adds.</p>
 <h2 id="smitten-s-modules"><a class="anchor" href="#smitten-s-modules" aria-hidden="true">#</a>Smitten's modules</h2>
 <h3 id="smitten-scene"><a class="anchor" href="#smitten-scene" aria-hidden="true">#</a>smitten.scene</h3>
-<p>The running scene. See <a href="scenes">Scenes and pieces</a>.</p>
+<p>See <a href="scenes">Scenes and pieces</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.scene.go(path, ...)</code></td><td>Goes to another scene at the end of the frame: smitten.scene.go(&quot;scenes/level2.scene&quot;).</td></tr>
@@ -52,7 +52,7 @@
 </table></div>
 <p>Fields: <code>current</code>, <code>path</code>, <code>args</code>, <code>paused</code>, <code>timeScale</code>, <code>showShapes</code>.</p>
 <h3 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h3>
-<p>Named actions for keys, mouse buttons and gamepads. See <a href="input">Input</a>.</p>
+<p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.input.pressed(action)</code></td><td>True on the frame the action went down: smitten.input.pressed(&quot;jump&quot;).</td></tr>
@@ -76,7 +76,7 @@
 <tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads (all, or one player's).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-tween"><a class="anchor" href="#smitten-tween" aria-hidden="true">#</a>smitten.tween</h3>
-<p>Smooth changes to numbers: <code>smitten.tween(target, seconds, values, easing)</code>. Easings: <code>linear</code>, <code>inQuad</code>, <code>outQuad</code>, <code>inOutQuad</code>, <code>inCubic</code>, <code>outCubic</code>, <code>inOutCubic</code>, <code>inSine</code>, <code>outSine</code>, <code>inOutSine</code>, <code>inExpo</code>, <code>outExpo</code>, <code>inBack</code>, <code>outBack</code>, <code>inOutBack</code>, <code>outBounce</code>, <code>outElastic</code>. Tweens and timers end when the scene changes; a tween of a piece ends when the piece is destroyed and waits while the game is paused.</p>
+<p><code>smitten.tween(target, seconds, values, easing)</code>. Easings: <a href="scripts#waiting">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.tween.to(target, seconds, values, easing?, done?)</code></td><td>Changes numbers smoothly; smitten.tween(...) does the same.</td></tr>
@@ -85,7 +85,7 @@
 <tr><td><code>smitten.tween.easingNames()</code></td><td>Every easing's name (linear, outQuad, outBack, outBounce, ...).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-assets"><a class="anchor" href="#smitten-assets" aria-hidden="true">#</a>smitten.assets</h3>
-<p>Loads and caches the files a game uses. Paths are relative to the project folder.</p>
+<p>Loads and caches files. Paths are relative to the project folder.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.assets.image(path)</code></td><td>An Image, cached.</td></tr>
@@ -100,7 +100,7 @@
 <tr><td><code>smitten.assets.clear(path?)</code></td><td>Forgets cached files so they load again.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-storage"><a class="anchor" href="#smitten-storage" aria-hidden="true">#</a>smitten.storage</h3>
-<p>Values kept between plays. See <a href="saving">Saving</a>.</p>
+<p>See <a href="saving">Saving</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.storage.save(key, value)</code></td><td>Saves a value between plays: smitten.storage.save(&quot;best&quot;, score).</td></tr>
@@ -109,7 +109,7 @@
 <tr><td><code>smitten.storage.keys()</code></td><td>Every saved value's name.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-display"><a class="anchor" href="#smitten-display" aria-hidden="true">#</a>smitten.display</h3>
-<p>The game's resolution and how it fits the window. See <a href="settings">Project settings</a>.</p>
+<p>See <a href="settings">Project settings</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Window coordinates to game coordinates.</td></tr>
@@ -126,7 +126,7 @@
 </table></div>
 <p>Fields: <code>null</code>.</p>
 <h3 id="smitten-synth"><a class="anchor" href="#smitten-synth" aria-hidden="true">#</a>smitten.synth</h3>
-<p>Sound effects and songs made in the editor. See <a href="sound">Sound and music</a>.</p>
+<p>See <a href="sound">Sound and music</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.synth.sfx(path)</code></td><td>A .sfx sound effect made in the Sound workspace; :play() it.</td></tr>

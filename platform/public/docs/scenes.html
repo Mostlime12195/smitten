@@ -25,33 +25,32 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes" aria-current="page">Scenes and pieces</a><ul class="nav-sub"><li><a href="#finding-pieces">Finding pieces</a></li><li><a href="#tags">Tags</a></li><li><a href="#making-and-removing-pieces">Making and removing pieces</a></li><li><a href="#changing-scenes">Changing scenes</a></li><li><a href="#the-game-table">The game table</a></li><li><a href="#pausing">Pausing</a></li><li><a href="#slow-motion">Slow motion</a></li><li><a href="#pieces-every-type-has">Pieces every type has</a></li><li><a href="#positions">Positions</a></li><li><a href="#smitten-scene">smitten.scene</a></li></ul></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes" aria-current="page">Scenes and pieces</a><ul class="nav-sub"><li><a href="#finding-pieces">Finding pieces</a></li><li><a href="#tags">Tags</a></li><li><a href="#making-and-removing-pieces">Making and removing pieces</a></li><li><a href="#changing-scenes">Changing scenes</a></li><li><a href="#the-game-table">The game table</a></li><li><a href="#pausing">Pausing</a></li><li><a href="#every-piece">Every piece</a></li><li><a href="#positions">Positions</a></li><li><a href="#smitten-scene">smitten.scene</a></li></ul></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Scenes and pieces</h1>
-<p>A scene is a tree of pieces saved in a <code>.scene</code> file. The game runs one scene at a time; the project's main scene (Project settings) runs first. Scenes nest: a coin scene can be placed twenty times in a level, and each placed copy can change its properties.</p>
+<p>A scene is a tree of pieces in a <code>.scene</code> file. One scene runs at a time, starting with the project's main scene. A scene can be placed inside another; each placed copy can override its properties.</p>
 <h2 id="finding-pieces"><a class="anchor" href="#finding-pieces" aria-hidden="true">#</a>Finding pieces</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>Look</code>, <code>Camera</code></td><td>A child by its (capitalized) name, in the piece's own script</td></tr>
-<tr><td><code>find(&quot;UI/Score&quot;)</code></td><td>A piece by path from this piece; <code>..</code> goes up a level</td></tr>
-<tr><td><code>findDeep(&quot;Score&quot;)</code></td><td>The first piece with that name anywhere inside this one</td></tr>
+<tbody><tr><td><code>Look</code>, <code>Camera</code></td><td>A child by name (capitalized), in the piece's script</td></tr>
+<tr><td><code>find(&quot;UI/Score&quot;)</code></td><td>A piece by path from this one; <code>..</code> goes up</td></tr>
+<tr><td><code>findDeep(&quot;Score&quot;)</code></td><td>The first piece with that name inside this one</td></tr>
 <tr><td><code>findChildOfType(&quot;Sprite&quot;)</code></td><td>The first child of a type</td></tr>
-<tr><td><code>parent</code>, <code>children</code></td><td>The piece around this one; the list of pieces inside it</td></tr>
-<tr><td><code>root()</code></td><td>The scene's root piece</td></tr>
-<tr><td><code>first(&quot;player&quot;)</code>, <code>tagged(&quot;coin&quot;)</code></td><td>The first piece with a tag; every piece with it</td></tr>
-<tr><td><code>smitten.scene.find(&quot;Level/Player&quot;)</code></td><td>A piece by path from the root</td></tr></tbody>
+<tr><td><code>parent</code>, <code>children</code></td><td>The parent; the list of children</td></tr>
+<tr><td><code>root()</code></td><td>The scene's root</td></tr>
+<tr><td><code>first(&quot;player&quot;)</code>, <code>tagged(&quot;coin&quot;)</code></td><td>The first piece with a tag; all of them</td></tr></tbody>
 </table></div>
 <h2 id="tags"><a class="anchor" href="#tags" aria-hidden="true">#</a>Tags</h2>
-<p>Tags group pieces: <code>player</code>, <code>enemy</code>, <code>coin</code>. Give them in the Inspector or with <code>tag(&quot;enemy&quot;)</code>; <code>untag(name)</code> takes one away. <code>other:is(&quot;enemy&quot;)</code> is true for a tag or a type (<code>other:is(&quot;Body&quot;)</code>), <code>hasAnyTag(&quot;enemy, spikes&quot;)</code> for any of several. Zones and Bodies filter what they notice by tag (<code>detects</code>, <code>passThrough</code>).</p>
+<p>Set tags in the Inspector or with <code>tag(name)</code> and <code>untag(name)</code>. <code>other:is(&quot;enemy&quot;)</code> checks a tag or a type (<code>other:is(&quot;Body&quot;)</code>). <code>hasAnyTag(&quot;enemy, spikes&quot;)</code> checks several.</p>
 <h2 id="making-and-removing-pieces"><a class="anchor" href="#making-and-removing-pieces" aria-hidden="true">#</a>Making and removing pieces</h2>
-<pre><code class="lang-lua">local bullet = spawn(&quot;scenes/bullet.scene&quot;, { x = x, y = y, rotation = rotation })
-local label = spawn(&quot;Text&quot;, { text = &quot;+10&quot;, x = x, y = y - 20 })
-self:spawn(&quot;scenes/hat.scene&quot;)        -- inside this piece
-local later = make(&quot;scenes/enemy.scene&quot;)  -- made, not in the scene yet
-Enemies:add(later)
-destroy()                             -- this piece, at the end of the frame</code></pre>
-<p><code>spawn(sceneOrType, properties, parent)</code> makes a piece from a scene file or a piece type and adds it to the scene (or to <code>parent</code>). <code>make</code> makes one without adding it; <code>add(piece)</code> puts it inside another. <code>destroy()</code> removes a piece and everything inside it at the end of the frame (<code>isAlive()</code> is false from then on); <code>remove()</code> takes it out now without destroying it, to add it somewhere else.</p>
+<pre><code class="lang-lua">spawn(&quot;scenes/bullet.scene&quot;, { x = x, y = y, rotation = rotation })
+spawn(&quot;Text&quot;, { text = &quot;+10&quot;, x = x, y = y - 20 })
+self:spawn(&quot;scenes/hat.scene&quot;)            -- inside this piece
+local enemy = make(&quot;scenes/enemy.scene&quot;)  -- not in the scene yet
+Enemies:add(enemy)
+destroy()                                 -- at the end of the frame</code></pre>
+<p><code>destroy()</code> removes a piece and its children at the end of the frame. <code>remove()</code> takes it out immediately, to <code>add</code> it elsewhere.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
@@ -70,41 +69,32 @@ destroy()                             -- this piece, at the end of the frame</co
 <tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
 </table></div>
 <h2 id="changing-scenes"><a class="anchor" href="#changing-scenes" aria-hidden="true">#</a>Changing scenes</h2>
-<p><code>go(&quot;scenes/level2.scene&quot;)</code> changes scene at the end of the frame. Extra values reach the new scene root's <code>ready(...)</code> (and stay in <code>smitten.scene.args</code>):</p>
-<pre><code class="lang-lua">-- In the level
-go(&quot;scenes/gameover.scene&quot;, score, &quot;fell&quot;)
+<p><code>go(path, ...)</code> changes scene at the end of the frame. The extra values go to the new root's <code>ready(...)</code>.</p>
+<pre><code class="lang-lua">go(&quot;scenes/gameover.scene&quot;, score)
 
--- scenes/gameover.lua, on the game over scene's root
-function ready(score, reason)
+-- on the game over scene's root
+function ready(score)
   find(&quot;Score&quot;).text = `Score: {score}`
 end</code></pre>
-<p><code>reload()</code> starts the scene again with the same values.</p>
-<h3 id="transitions"><a class="anchor" href="#transitions" aria-hidden="true">#</a>Transitions</h3>
-<p><code>transition(&quot;fade&quot;, 0.4)</code> makes every later <code>go()</code> and <code>reload()</code> fade to black, change the scene, and fade back in; <code>transition(&quot;fade&quot;, 0.4, {1, 1, 1})</code> fades through white, <code>transition(&quot;none&quot;)</code> cuts. The old scene keeps running while it fades out. <code>smitten.scene.isChanging()</code> is true from the <code>go()</code> until the fade has finished.</p>
+<p><code>reload()</code> restarts the scene with the same values. <code>transition(&quot;fade&quot;, 0.4[, color])</code> makes later scene changes fade; <code>transition(&quot;none&quot;)</code> turns it off.</p>
 <h2 id="the-game-table"><a class="anchor" href="#the-game-table" aria-hidden="true">#</a>The game table</h2>
-<p>Every piece's state goes when its scene ends. <code>game</code> is a table for the whole run of the game, shared by every script:</p>
-<pre><code class="lang-lua">game.lives = game.lives or 3
-game.lives -= 1
-if game.lives == 0 then go(&quot;scenes/gameover.scene&quot;) end</code></pre>
-<p>To keep values between plays, <a href="saving">save</a> them.</p>
+<p><code>game</code> is shared by every script and survives scene changes:</p>
+<pre><code class="lang-lua">game.lives = (game.lives or 3) - 1</code></pre>
+<p>To keep values between plays, use <a href="saving">Saving</a>.</p>
 <h2 id="pausing"><a class="anchor" href="#pausing" aria-hidden="true">#</a>Pausing</h2>
-<p><code>pauseGame()</code> stops every piece's <code>update</code> and <code>physicsUpdate</code>, physics, animations, timers and tweens; drawing goes on and UI still answers clicks and the keyboard. Pieces whose <strong>pausable</strong> property is off, and everything inside them, keep running: build the pause menu inside one.</p>
-<pre><code class="lang-lua">-- scripts/pause-menu.lua, on a Group with pausable off, holding the menu UI
-function ready() visible = false end
-
+<p><code>pauseGame()</code> stops <code>update</code>, <code>physicsUpdate</code>, physics, animations, timers and tweens. Drawing and UI input continue. Pieces with <code>pausable</code> off, and their children, keep running: put the pause menu in one.</p>
+<pre><code class="lang-lua">-- on a Group with pausable off
 function update(dt)
   if pressed(&quot;pause&quot;) then
     if isPaused() then resumeGame() else pauseGame() end
     visible = isPaused()
   end
 end</code></pre>
-<p><code>smitten.timer.after</code> and <code>smitten.timer.every</code> (not a piece's own <code>after</code>/<code>every</code>) keep running while paused.</p>
-<h2 id="slow-motion"><a class="anchor" href="#slow-motion" aria-hidden="true">#</a>Slow motion</h2>
-<p><code>timeScale(0.5)</code> makes the game run at half speed (<code>dt</code> is halved, physics steps half as often, timers and tweens slow down); <code>timeScale(1)</code> is normal and <code>timeScale(0)</code> freezes the game like a pause that UI and transitions still run through. Music isn't affected.</p>
-<h2 id="pieces-every-type-has"><a class="anchor" href="#pieces-every-type-has" aria-hidden="true">#</a>Pieces every type has</h2>
+<p><code>timeScale(0.5)</code> runs the game at half speed; <code>timeScale(0)</code> freezes it. Music isn't affected by either.</p>
+<h2 id="every-piece"><a class="anchor" href="#every-piece" aria-hidden="true">#</a>Every piece</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running.</td></tr></tbody>
+<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused. Off: this piece and its children keep running (pause menus).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -113,22 +103,22 @@ end</code></pre>
 <tr><td><code>findChildOfType(type)</code></td><td>The first child of a type (&quot;Sprite&quot;), or nil.</td></tr>
 <tr><td><code>isA(type)</code></td><td>True if the piece is of a type, or a type made from it.</td></tr>
 <tr><td><code>add(piece)</code></td><td>Adds a piece as the last child; returns it.</td></tr>
-<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it, so it can be added somewhere else.</td></tr>
-<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or a piece type and adds it as a child: self:spawn(&quot;scenes/bullet.scene&quot;, { x = 10 }).</td></tr>
+<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it.</td></tr>
+<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or type and adds it as a child.</td></tr>
 <tr><td><code>destroy()</code></td><td>Removes the piece and everything inside it at the end of the frame.</td></tr>
-<tr><td><code>tag(name)</code></td><td>Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it.</td></tr>
+<tr><td><code>tag(name)</code></td><td>Adds a tag.</td></tr>
 <tr><td><code>untag(name)</code></td><td>Takes a tag away.</td></tr>
 <tr><td><code>hasTag(name)</code></td><td>True if the piece has the tag.</td></tr>
 <tr><td><code>hasAnyTag(tags)</code></td><td>True if the piece has any of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
 <tr><td><code>is(tagOrType)</code></td><td>True if the piece has the tag or is of the type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
-<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) whenever the piece's event happens (&quot;pressed&quot;, &quot;entered&quot;, ...). Returns a handle with :off().</td></tr>
+<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) on an event. Returns a handle with :off().</td></tr>
 <tr><td><code>emit(event, ...)</code></td><td>Fires an event: calls the script's function of that name and every listener.</td></tr>
 <tr><td><code>getPath()</code></td><td>The piece's path from the scene's root, like &quot;Level/Player&quot;.</td></tr>
 <tr><td><code>isAlive()</code></td><td>True while the piece is in the running scene and not destroyed.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values.</td></tr>
+<tbody><tr><td><code>function ready(...)</code></td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
 <tr><td><code>function update(dt)</code></td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
 <tr><td><code>function physicsUpdate(dt)</code></td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
@@ -136,7 +126,7 @@ end</code></pre>
 </table></div>
 <p>Every piece also has <code>name</code>, <code>type</code>, <code>parent</code>, <code>children</code> and <code>script</code>.</p>
 <h2 id="positions"><a class="anchor" href="#positions" aria-hidden="true">#</a>Positions</h2>
-<p>Pieces with a position (Group and everything made from it) have <code>x</code>, <code>y</code>, <code>rotation</code> (radians), <code>scaleX</code>, <code>scaleY</code>, <code>visible</code>, <code>tint</code> and <code>layer</code>. Positions are measured from the parent; <code>y</code> grows downwards.</p>
+<p>Group and every piece made from it have <code>x</code>, <code>y</code>, <code>rotation</code> (radians), <code>scaleX</code>, <code>scaleY</code>, <code>visible</code>, <code>tint</code> and <code>layer</code>, relative to the parent. <code>y</code> grows downwards.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent.</td></tr>

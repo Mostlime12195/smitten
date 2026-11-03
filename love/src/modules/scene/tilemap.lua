@@ -75,7 +75,7 @@ local CHUNK = 32 -- cells per side of a chunk
 local function chunkKey(kx, ky) return kx * 4194304 + ky end
 
 -- Everything needs drawing again (new cells or a new tileset). _changes
--- counts changes, for rigid2d's solid tiles.
+-- counts changes.
 local function changedAll(self)
 	self._oldChunks = self._oldChunks or self._chunks
 	self._chunks = nil
@@ -158,6 +158,7 @@ function Tiles:setTile(cx, cy, tile)
 		row[cx] = tile
 	end
 	self._changes = (self._changes or 0) + 1
+	physics2d.tileChanged(self, cx, cy)
 	local chunks = self._chunks
 	if chunks then
 		local kx, ky = floor(cx / CHUNK), floor(cy / CHUNK)
@@ -215,6 +216,7 @@ function Tiles:fill(cx, cy, columns, rows, tile)
 		end
 	end
 	changedAll(self)
+	physics2d.tileAreaChanged(self, cx, cy, cx + (columns or 1) - 1, cy + (rows or 1) - 1)
 end
 
 ---Empties every cell.

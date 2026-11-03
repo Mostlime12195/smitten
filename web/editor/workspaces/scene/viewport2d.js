@@ -140,6 +140,46 @@ function roundRectPath(g, x, y, w, h, r) {
   g.closePath();
 }
 
+/** The box around a points list (x1, y1, x2, y2, ...) as [x, y, w, h], or null. */
+function pointsBounds(p) {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (let i = 0; p && i + 1 < p.length; i += 2) {
+    x0 = Math.min(x0, p[i]);
+    x1 = Math.max(x1, p[i]);
+    y0 = Math.min(y0, p[i + 1]);
+    y1 = Math.max(y1, p[i + 1]);
+  }
+  return x0 <= x1 ? [x0, y0, x1 - x0, y1 - y0] : null;
+}
+
+/**
+ * Adds the outline Box2D collides with for a points list to the path: their
+ * convex hull (a polygon shape has no dents), at most 8 corners like Box2D.
+ */
+function hullPath(g, p) {
+  const pts = [];
+  for (let i = 0; p && i + 1 < p.length && pts.length < 8; i += 2) pts.push([p[i], p[i + 1]]);
+  if (pts.length < 3) return;
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [];
+  for (const q of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop();
+    lower.push(q);
+  }
+  const upper = [];
+  for (const q of pts.slice().reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop();
+    upper.push(q);
+  }
+  const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+  hull.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+  g.closePath();
+}
+
 function pointInPolygon(pts, x, y) {
   let inside = false;
   for (let i = 0, j = pts.length - 2; i < pts.length - 1; j = i, i += 2) {
@@ -1189,9 +1229,12 @@ export class Viewport2D {
         break;
       }
       case 'collision': {
-        if (this.get(n, 'shape') === 'circle') {
+        const shape = this.get(n, 'shape');
+        if (shape === 'circle') {
           const rad = num(this.get(n, 'radius'));
           r = [-rad, -rad, rad * 2, rad * 2];
+        } else if (shape === 'polygon') {
+          r = pointsBounds(this.get(n, 'points'));
         } else {
           const w = num(this.get(n, 'width'));
           const h = num(this.get(n, 'height'));
@@ -1590,10 +1633,12 @@ export class Viewport2D {
     const shape = this.get(n, 'shape');
     if (shape === 'circle') {
       g.arc(0, 0, Math.max(0, num(this.get(n, 'radius'))), 0, Math.PI * 2);
+    } else if (shape === 'polygon') {
+      hullPath(g, this.get(n, 'points'));
     } else {
       const w = num(this.get(n, 'width'));
       const h = num(this.get(n, 'height'));
-      roundRectPath(g, -w / 2, -h / 2, w, h, 0);
+      roundRectPath(g, -w / 2, -h / 2, w, h, shape === 'capsule' ? Math.min(w, h) / 2 : 0);
     }
     g.fillStyle = COLLISION_FILL;
     g.globalAlpha = this.get(n, 'off') ? 0.4 : 1;
@@ -1605,20 +1650,23 @@ export class Viewport2D {
   }
 
   /**
-   * A Body's or Zone's own shape, in its coordinates, as body.lua works it
-   * out: auto fits the Sprites and Shapes inside it (a lone circle Shape
-   * gives a circle), or a set rectangle or circle. null for none.
+   * A Body's or Zone's own shape, in its coordinates (it turns with it), as
+   * physics2d.lua works it out: auto fits the Sprites and Shapes inside it
+   * (a lone circle or polygon Shape gives that shape), or a set rectangle,
+   * circle, capsule or polygon. null for none.
    */
   ownShape(e) {
     const n = e.node;
     const kind = this.get(n, 'shape');
-    if (kind === 'rectangle') {
+    if (kind === 'rectangle' || kind === 'capsule') {
       const w = num(this.get(n, 'width'));
       const h = num(this.get(n, 'height'));
-      return { rect: [-w / 2, -h / 2, w, h] };
+      return { rect: [-w / 2, -h / 2, w, h], round: kind === 'capsule' ? Math.min(w, h) / 2 : 0 };
     }
     if (kind === 'circle') return { circle: [0, 0, num(this.get(n, 'radius'))] };
+    if (kind === 'polygon') return { points: this.get(n, 'points') || [] };
     if (kind !== 'auto') return null;
+    let polygon = null;
     let x0 = Infinity;
     let y0 = Infinity;
     let x1 = -Infinity;
@@ -1644,9 +1692,23 @@ export class Viewport2D {
       y0 = Math.min(y0, ay, by);
       y1 = Math.max(y1, ay, by);
       if (c.kind === 'shape' && this.get(c.node, 'shape') === 'circle') circle = { e: c, x: cx, y: cy, r: num(this.get(c.node, 'radius')) * Math.abs(sx) };
+      if (c.kind === 'shape' && this.get(c.node, 'shape') === 'polygon') {
+        // The polygon's points, through the Shape's own position, turn and scale.
+        const rot = num(this.get(c.node, 'rotation'));
+        const cos = Math.cos(rot);
+        const sin = Math.sin(rot);
+        const pts = this.get(c.node, 'points') || [];
+        polygon = [];
+        for (let i = 0; i + 1 < pts.length; i += 2) {
+          const px = pts[i] * sx;
+          const py = pts[i + 1] * sy;
+          polygon.push(cx + px * cos - py * sin, cy + px * sin + py * cos);
+        }
+      }
     }
     if (!count) return null;
     if (count === 1 && circle) return { circle: [circle.x, circle.y, circle.r] };
+    if (count === 1 && polygon) return { points: polygon };
     return { rect: [x0, y0, x1 - x0, y1 - y0] };
   }
 
@@ -1657,7 +1719,8 @@ export class Viewport2D {
     const k = Math.sqrt(Math.abs(e.m[0] * e.m[3] - e.m[1] * e.m[2])) * this.view.zoom || 1;
     g.beginPath();
     if (s.circle) g.arc(s.circle[0], s.circle[1], Math.max(0, s.circle[2]), 0, Math.PI * 2);
-    else g.rect(...s.rect);
+    else if (s.points) hullPath(g, s.points);
+    else roundRectPath(g, ...s.rect, s.round || 0);
     g.fillStyle = COLLISION_FILL;
     g.globalAlpha = e.kind === 'area' ? 0.6 : 1;
     g.fill();
@@ -1995,7 +2058,7 @@ export class Viewport2D {
         const r = num(this.get(n, 'radius'));
         push(r, 0, 1, 0, true);
         push(0, r, 0, 1, true);
-      } else if ((e.kind === 'shape' && shape === 'rectangle') || (e.kind === 'collision' && shape !== 'circle')) {
+      } else if ((e.kind === 'shape' && shape === 'rectangle') || (e.kind === 'collision' && shape !== 'circle' && shape !== 'polygon')) {
         const w = num(this.get(n, 'width'));
         const h = num(this.get(n, 'height'));
         const centered = e.kind === 'collision' || this.get(n, 'centered');

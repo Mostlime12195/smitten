@@ -1,48 +1,40 @@
 # Scenes and pieces
 
-A scene is a tree of pieces saved in a `.scene` file. The game runs one
-scene at a time; the project's main scene (Project settings) runs first.
-Scenes nest: a coin scene can be placed twenty times in a level, and each
-placed copy can change its properties.
+A scene is a tree of pieces in a `.scene` file. One scene runs at a time,
+starting with the project's main scene. A scene can be placed inside
+another; each placed copy can override its properties.
 
 ## Finding pieces
 
 | | |
 | --- | --- |
-| `Look`, `Camera` | A child by its (capitalized) name, in the piece's own script |
-| `find("UI/Score")` | A piece by path from this piece; `..` goes up a level |
-| `findDeep("Score")` | The first piece with that name anywhere inside this one |
+| `Look`, `Camera` | A child by name (capitalized), in the piece's script |
+| `find("UI/Score")` | A piece by path from this one; `..` goes up |
+| `findDeep("Score")` | The first piece with that name inside this one |
 | `findChildOfType("Sprite")` | The first child of a type |
-| `parent`, `children` | The piece around this one; the list of pieces inside it |
-| `root()` | The scene's root piece |
-| `first("player")`, `tagged("coin")` | The first piece with a tag; every piece with it |
-| `smitten.scene.find("Level/Player")` | A piece by path from the root |
+| `parent`, `children` | The parent; the list of children |
+| `root()` | The scene's root |
+| `first("player")`, `tagged("coin")` | The first piece with a tag; all of them |
 
 ## Tags
 
-Tags group pieces: `player`, `enemy`, `coin`. Give them in the Inspector or
-with `tag("enemy")`; `untag(name)` takes one away.
-`other:is("enemy")` is true for a tag or a type (`other:is("Body")`),
-`hasAnyTag("enemy, spikes")` for any of several. Zones and Bodies filter
-what they notice by tag (`detects`, `passThrough`).
+Set tags in the Inspector or with `tag(name)` and `untag(name)`.
+`other:is("enemy")` checks a tag or a type (`other:is("Body")`).
+`hasAnyTag("enemy, spikes")` checks several.
 
 ## Making and removing pieces
 
 ```lua
-local bullet = spawn("scenes/bullet.scene", { x = x, y = y, rotation = rotation })
-local label = spawn("Text", { text = "+10", x = x, y = y - 20 })
-self:spawn("scenes/hat.scene")        -- inside this piece
-local later = make("scenes/enemy.scene")  -- made, not in the scene yet
-Enemies:add(later)
-destroy()                             -- this piece, at the end of the frame
+spawn("scenes/bullet.scene", { x = x, y = y, rotation = rotation })
+spawn("Text", { text = "+10", x = x, y = y - 20 })
+self:spawn("scenes/hat.scene")            -- inside this piece
+local enemy = make("scenes/enemy.scene")  -- not in the scene yet
+Enemies:add(enemy)
+destroy()                                 -- at the end of the frame
 ```
 
-`spawn(sceneOrType, properties, parent)` makes a piece from a scene file or
-a piece type and adds it to the scene (or to `parent`). `make` makes one
-without adding it; `add(piece)` puts it inside another. `destroy()` removes
-a piece and everything inside it at the end of the frame (`isAlive()` is
-false from then on); `remove()` takes it out now without destroying it, to
-add it somewhere else.
+`destroy()` removes a piece and its children at the end of the frame.
+`remove()` takes it out immediately, to `add` it elsewhere.
 
 <!-- api:Scenes -->
 | Call | |
@@ -65,54 +57,40 @@ add it somewhere else.
 
 ## Changing scenes
 
-`go("scenes/level2.scene")` changes scene at the end of the frame. Extra
-values reach the new scene root's `ready(...)` (and stay in
-`smitten.scene.args`):
+`go(path, ...)` changes scene at the end of the frame. The extra values go
+to the new root's `ready(...)`.
 
 ```lua
--- In the level
-go("scenes/gameover.scene", score, "fell")
+go("scenes/gameover.scene", score)
 
--- scenes/gameover.lua, on the game over scene's root
-function ready(score, reason)
+-- on the game over scene's root
+function ready(score)
   find("Score").text = `Score: {score}`
 end
 ```
 
-`reload()` starts the scene again with the same values.
-
-### Transitions
-
-`transition("fade", 0.4)` makes every later `go()` and `reload()` fade to
-black, change the scene, and fade back in; `transition("fade", 0.4, {1, 1, 1})`
-fades through white, `transition("none")` cuts. The old scene keeps
-running while it fades out. `smitten.scene.isChanging()` is true from the
-`go()` until the fade has finished.
+`reload()` restarts the scene with the same values.
+`transition("fade", 0.4[, color])` makes later scene changes fade;
+`transition("none")` turns it off.
 
 ## The game table
 
-Every piece's state goes when its scene ends. `game` is a table for the
-whole run of the game, shared by every script:
+`game` is shared by every script and survives scene changes:
 
 ```lua
-game.lives = game.lives or 3
-game.lives -= 1
-if game.lives == 0 then go("scenes/gameover.scene") end
+game.lives = (game.lives or 3) - 1
 ```
 
-To keep values between plays, [save](saving.md) them.
+To keep values between plays, use [Saving](saving.md).
 
 ## Pausing
 
-`pauseGame()` stops every piece's `update` and `physicsUpdate`, physics,
-animations, timers and tweens; drawing goes on and UI still answers clicks
-and the keyboard. Pieces whose **pausable** property is off, and everything
-inside them, keep running: build the pause menu inside one.
+`pauseGame()` stops `update`, `physicsUpdate`, physics, animations, timers
+and tweens. Drawing and UI input continue. Pieces with `pausable` off, and
+their children, keep running: put the pause menu in one.
 
 ```lua
--- scripts/pause-menu.lua, on a Group with pausable off, holding the menu UI
-function ready() visible = false end
-
+-- on a Group with pausable off
 function update(dt)
   if pressed("pause") then
     if isPaused() then resumeGame() else pauseGame() end
@@ -121,22 +99,15 @@ function update(dt)
 end
 ```
 
-`smitten.timer.after` and `smitten.timer.every` (not a piece's own
-`after`/`every`) keep running while paused.
+`timeScale(0.5)` runs the game at half speed; `timeScale(0)` freezes it.
+Music isn't affected by either.
 
-## Slow motion
-
-`timeScale(0.5)` makes the game run at half speed (`dt` is halved, physics
-steps half as often, timers and tweens slow down); `timeScale(1)` is normal
-and `timeScale(0)` freezes the game like a pause that UI and transitions
-still run through. Music isn't affected.
-
-## Pieces every type has
+## Every piece
 
 <!-- piece:Piece -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `pausable` | bool | true | Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running. |
+| `pausable` | bool | true | Stops while the game is paused. Off: this piece and its children keep running (pause menus). |
 
 | Method | |
 | --- | --- |
@@ -145,22 +116,22 @@ still run through. Music isn't affected.
 | `findChildOfType(type)` | The first child of a type ("Sprite"), or nil. |
 | `isA(type)` | True if the piece is of a type, or a type made from it. |
 | `add(piece)` | Adds a piece as the last child; returns it. |
-| `remove()` | Takes the piece out of its parent now, without destroying it, so it can be added somewhere else. |
-| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or a piece type and adds it as a child: self:spawn("scenes/bullet.scene", { x = 10 }). |
+| `remove()` | Takes the piece out of its parent now, without destroying it. |
+| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or type and adds it as a child. |
 | `destroy()` | Removes the piece and everything inside it at the end of the frame. |
-| `tag(name)` | Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it. |
+| `tag(name)` | Adds a tag. |
 | `untag(name)` | Takes a tag away. |
 | `hasTag(name)` | True if the piece has the tag. |
 | `hasAnyTag(tags)` | True if the piece has any of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
 | `is(tagOrType)` | True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body"). |
-| `on(event, fn)` | Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off(). |
+| `on(event, fn)` | Calls fn(...) on an event. Returns a handle with :off(). |
 | `emit(event, ...)` | Fires an event: calls the script's function of that name and every listener. |
 | `getPath()` | The piece's path from the scene's root, like "Level/Player". |
 | `isAlive()` | True while the piece is in the running scene and not destroyed. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function ready(...)` | The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values. |
+| `function ready(...)` | The piece and its children joined the scene. The scene root gets go()'s extra values. |
 | `function update(dt)` | Every frame. dt is the time since the last frame, in seconds. |
 | `function physicsUpdate(dt)` | 60 times a second, before bodies move. Use it for movement. |
 | `function draw()` | Draw extra things on top of the piece, in its own coordinates. |
@@ -171,9 +142,9 @@ Every piece also has `name`, `type`, `parent`, `children` and `script`.
 
 ## Positions
 
-Pieces with a position (Group and everything made from it) have `x`, `y`,
-`rotation` (radians), `scaleX`, `scaleY`, `visible`, `tint` and `layer`.
-Positions are measured from the parent; `y` grows downwards.
+Group and every piece made from it have `x`, `y`, `rotation` (radians),
+`scaleX`, `scaleY`, `visible`, `tint` and `layer`, relative to the parent.
+`y` grows downwards.
 
 <!-- piece:Group -->
 | Property | Type | Default | |

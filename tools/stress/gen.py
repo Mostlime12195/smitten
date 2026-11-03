@@ -511,7 +511,13 @@ return B
 
 
 def case_physics_check(rng):
-    """Deterministic collisions for comparing engine versions: prints a digest of every body after 600 steps."""
+    """Deterministic physics for comparing engine versions: prints a digest of every body after 600 steps.
+
+    Scripted bodies bouncing around (with tags, Hitboxes, moving platforms and
+    a teleporter), zones, solid and one-way tiles, a ramp, physics crates and
+    balls, and a pendulum on a pin. On Box2D 3 (the physics2d module) the line
+    is: check digest=... hits=... bodies=... physics=... (docs/physics.md).
+    """
     w, h = 960, 540
     kids = arena(w, h)
     # Solid tiles: a floor strip and a few blocks, some one-way.
@@ -540,6 +546,14 @@ def case_physics_check(rng):
         (group if i % 4 == 0 else kids).append(b)
     kids.insert(len(kids) // 2, piece("Teleporter", "Group", None, None, script="scripts/teleporter.lua"))
     kids.append(piece("Moving", "Group", {"x": 0, "y": 0}, group, script="scripts/carrier.lua"))
+    # Physics bodies: crates and balls dropped on a ramp, and a pendulum.
+    kids.append(piece("Ramp", "Body", {"x": 700, "y": 420, "rotation": -0.3, "motion": "still"}, [shape(width=300, height=14)]))
+    for i in range(40):
+        look = shape(width=12, height=12) if i % 2 else shape(shape="circle", radius=6)
+        kids.append(piece(f"P{i}", "Body", {"x": 600 + (i % 10) * 24, "y": 40 + (i // 10) * 30, "motion": "physics", "bounce": 0.1 * (i % 3)},
+                          [look], tags=["crate"]))
+    kids.append(piece("Bob", "Body", {"x": 860, "y": 60, "motion": "physics", "mass": 4}, [shape(shape="circle", radius=10)]))
+    kids.append(piece("Pin", "Joint", {"x": 800, "y": 60, "kind": "pin", "a": "Bob"}))
     for i in range(30):
         kids.append(piece(f"Zone{i}", "Zone", {"x": 60 + (i % 10) * 90, "y": 100 + (i // 10) * 160, "detects": "" if i % 2 else "ghost"},
                           [shape(shape="circle", radius=30)], script="scripts/zone.lua"))
@@ -580,14 +594,19 @@ return Z
 function Root:physicsUpdate(dt)
   steps = steps + 1
   if steps == 600 then
-    local sum, hits, n = 0, 0, 0
+    local sum, hits, n, physics = 0, 0, 0, 0
     local function visit(p)
       for _, c in ipairs(p.children) do
-        if c.type == "Body" and c.motion == "scripted" then
+        if c.type == "Body" and (c.motion == "scripted" or c.motion == "physics") then
           n = n + 1
           local x, y = c:worldPosition()
           sum = sum + math.floor(x * 1000 + 0.5) * n + math.floor(y * 1000 + 0.5) * (n + 7)
-          hits = hits + c.hits
+          if c.motion == "physics" then
+            physics = physics + 1
+            sum = sum + math.floor(c.rotation * 1000 + 0.5) * (n + 13)
+          else
+            hits = hits + c.hits
+          end
         elseif c.type == "Zone" then
           hits = hits + c.n * 1000
         end
@@ -595,7 +614,7 @@ function Root:physicsUpdate(dt)
       end
     end
     visit(self)
-    print(("check digest=%d hits=%d bodies=%d"):format(sum % 1000000007, hits, n))
+    print(("check digest=%d hits=%d bodies=%d physics=%d"):format(sum % 1000000007, hits, n - physics, physics))
   end
 end"""
     scene = piece("Check", "Group", None, kids, script="scripts/root.lua")

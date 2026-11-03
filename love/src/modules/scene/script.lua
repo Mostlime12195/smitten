@@ -397,6 +397,29 @@ function api.sprite(path, x, y, r, sx, sy)
 	love.graphics.draw(sheet.image, quad, x, y, o.rotation or 0, scx, scy, ox, oy)
 end
 
+---------------------------------------------------------------------------
+-- Physics (docs/physics.md): queries on the scene's world, the same as
+-- smitten.physics.*. A Body's own calls (applyImpulse, move, contacts...)
+-- are methods, so scripts already have them.
+
+local function physics() return require("love.scene.physics2d") end
+
+---The first body or tiles on the line from (x1, y1) to (x2, y2): {piece, x,
+---y, nx, ny, fraction}, or nil. tags (optional) only counts pieces with one.
+function api.raycast(x1, y1, x2, y2, tags) return physics().raycast(x1, y1, x2, y2, tags) end
+---Every body and tiles on the line, nearest first.
+function api.raycastAll(x1, y1, x2, y2, tags) return physics().raycastAll(x1, y1, x2, y2, tags) end
+---The bodies and zones at a point.
+function api.piecesAt(x, y, tags) return physics().piecesAt(x, y, tags) end
+---The bodies and zones touching a circle or rectangle: overlap("circle", x, y, r), overlap("rect", x, y, w, h).
+function api.overlap(kind, ...) return physics().overlap(kind, ...) end
+---The scene's gravity, x and y, in pixels per second per second.
+function api.getGravity() return physics().getGravity() end
+function api.setGravity(x, y) return physics().setGravity(x, y) end
+
+-- End of physics.
+---------------------------------------------------------------------------
+
 -- Calls that use the piece: given it first, bound to it in each script.
 local pieceApi = {}
 

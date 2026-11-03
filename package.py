@@ -117,8 +117,12 @@ def make_love(folder: Path, dest: Path):
                 z.write(path, rel.as_posix())
 
 
+PHYSICS_QUERIES = r"(?:raycast|raycastAll|piecesAt|overlap|getGravity|setGravity)\b"
 CODE_MODULES = [
-    ("physics2d", re.compile(r"\b(?:smitten|love)\.physics\.|\bRigidBody2D\b|\bJoint2D\b")),
+    # Scenes' physics (Box2D 3); LÖVE's love.physics API (Box2D 2.4) is lovephysics.
+    ("physics2d", re.compile(r"\b(?:smitten|love)\.physics\." + PHYSICS_QUERIES
+                             + r"|\b(?:make|spawn)\(\s*[\"'`](?:Body|Zone|Joint)[\"'`]")),
+    ("lovephysics", re.compile(r"\b(?:smitten|love)\.physics\.(?!" + PHYSICS_QUERIES + r")\w")),
     ("physics3d", re.compile(r"\b(?:smitten|love)\.physics3d\b|\b(?:RigidBody3D|StaticBody3D|CharacterBody3D|Area3D|CollisionShape3D)\b")),
     ("3d", re.compile(r"\b(?:smitten|love)\.graphics3d\b|\b(?:Node3D|MeshInstance3D|Model3D|Camera3D|Sprite3D)\b")),
     ("video", re.compile(r"\b(?:smitten|love)\.video\b|\bnewVideo\s*\(")),
@@ -130,7 +134,7 @@ def detect_modules(love_path: Path):
     """The optional engine modules a game uses, as the editor works them out
     (web/editor/core/modules.js): from its scenes' node types, its scripts,
     and smitten.json's overrides."""
-    nodes = json.loads((ROOT / "love" / "src" / "modules" / "scene" / "nodes.json").read_text())["types"]
+    nodes = json.loads((ROOT / "love" / "src" / "modules" / "scene" / "pieces.json").read_text())["types"]
 
     def module_of(t):
         while t in nodes:

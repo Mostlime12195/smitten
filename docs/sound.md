@@ -1,15 +1,14 @@
 # Sound and music
 
-Sounds are `.wav`, `.ogg`, `.mp3` and `.flac` files, or `.sfx` sound
-effects and `.song` music made in the editor's Sound and Music workspaces.
-Play them from a script with `sfx` and `music`, or with a Sound piece.
+Plays `.wav`, `.ogg`, `.mp3` and `.flac` files, and `.sfx` and `.song`
+files made in the Sound and Music workspaces.
 
 ```lua
-sfx("coin")                                  -- finds coin.sfx (or .wav, .ogg...) anywhere
+sfx("coin")                              -- coin.sfx, coin.wav, ... anywhere
 sfx("hit", { volume = 0.5, pitch = 0.9 + rnd(0.2) })
-music("theme")                               -- loops; keeps playing across scenes
-music("boss", { fade = 1 })                  -- fades the old music out and this in
-stopMusic(2)                                 -- fades out over 2 seconds
+music("theme")                           -- loops across scenes
+music("boss", { fade = 1 })              -- crossfades
+stopMusic(2)
 ```
 
 <!-- api:Sound -->
@@ -23,51 +22,23 @@ stopMusic(2)                                 -- fades out over 2 seconds
 | `masterVolume(volume)` | Every sound's volume, 0 to 1; masterVolume() reads it. |
 <!-- end -->
 
-## Names and files
+A bare name finds the file anywhere in the project; `.sfx` wins over other
+types. A path plays that file.
 
-A bare name like `"coin"` finds the sound file with that name anywhere in
-the project; when there are several, `.sfx` wins over `.wav`, `.ogg`,
-`.mp3`, `.flac` and `.song`. A path (`"sounds/coin.wav"`) plays that file.
+`sfx` returns the LÖVE [Source](https://love2d.org/wiki/Source). Pitch 2 is
+an octave up.
 
-## Sound effects
-
-`sfx(name, volume, pitch)` or `sfx(name, { volume, pitch })` plays a sound
-once; copies overlap. It returns the LÖVE
-[Source](https://love2d.org/wiki/Source) playing it, for anything else
-(`:stop()`, `:setPosition()`...). Pitch 2 is an octave up.
-
-## Music
-
-`music(name, options)` plays a sound on a loop instead of whatever music is
-playing. Options: `volume` (0 to 1), `pitch`, `fade` (seconds to fade the
-new music in and the old out). Asking for the music that's already playing
-keeps it playing (so every level can call `music("theme")`). Music isn't
-part of a scene: it carries on when the scene changes, and isn't slowed by
-`timeScale` or stopped by `pauseGame()`; pause it with `pauseMusic()`.
-
-A `.song` loops as its file says (from its loop point).
-
-## Volume
-
-`masterVolume(0.5)` turns every sound down; `masterVolume()` reads it. For
-separate music and effects volumes, keep them in variables (or
-[saved](saving.md)) and pass them to `music` and `sfx`.
+`music` with the music already playing keeps it playing. Music continues
+across scenes and isn't affected by `pauseGame()` or `timeScale()`.
 
 ## The Sound piece
 
-A Sound piece plays one sound file, set in the Inspector: good for
-sounds that belong to something (an engine hum, a waterfall), sounds that
-start with the scene (`autoplay`), and sounds a script controls.
+Plays one file, set in the Inspector. `volume` and `pitch` apply while
+playing, so they can be tweened. It stops when it leaves the scene.
 
 ```lua
--- An alarm: a Sound piece with loop on
 function ready() fadeIn(2) end
-function switchOff() fadeOut(0.5) end    -- elsewhere: Alarm:switchOff()
 ```
-
-Changes to `volume` and `pitch` apply while it plays, so they can be
-[tweened](scripts.md#waiting): `tween(Engine, 0.3, { pitch = 1.5 })`. It stops when it
-leaves the scene.
 
 <!-- piece:Sound -->
 | Property | Type | Default | |
@@ -80,7 +51,7 @@ leaves the scene.
 
 | Method | |
 | --- | --- |
-| `play()` | Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one. |
+| `play()` | Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song). |
 | `stop()` | Stops every copy. |
 | `pause()` | Pauses. |
 | `resume()` | Continues after pause(). |
@@ -96,11 +67,7 @@ leaves the scene.
 | `function finished()` | The sound reached its end (not when looping). |
 <!-- end -->
 
-## In code: smitten.audio
-
-The same calls are in `smitten.audio` for code outside scripts
-(`smitten.audio.sfx("coin")`), next to all of LÖVE's
-[love.audio](https://love2d.org/wiki/love.audio):
+## smitten.audio
 
 <!-- module:audio -->
 | Function | |
@@ -114,5 +81,4 @@ The same calls are in `smitten.audio` for code outside scripts
 <!-- end -->
 
 `smitten.synth.sfx(path)` and `smitten.synth.song(path)` load `.sfx` and
-`.song` files as objects with `:play()`, `:stop()` and more (see
-[File formats](formats.md#sound-effects-in-code)).
+`.song` files ([File formats](formats.md#sound-effects-in-code)).

@@ -1,13 +1,9 @@
 # Pieces
 
-Every piece type, generated from `love/src/modules/scene/pieces.json` by
-`tools/gen-docs.mjs`. A piece has its own properties and everything its
-base type has. Properties are fields: `x = 10` in its own script,
-`Player.x = 10` or `other.x = 10` from another. Methods are called as
-`move()` in the piece's own script and `piece:move()` on another piece.
-Events are functions its script defines (`function pressed() ... end`),
-or listeners added with `piece:on("pressed", fn)`. Angles are radians in
-code and degrees in the inspector.
+Each piece has its own properties plus its base type's. In its own script:
+`x = 10`, `move()`, `function pressed() end`. On another piece: `other.x`,
+`other:move()`, `other:on("pressed", fn)`. Angles are radians in code,
+degrees in the Inspector.
 
 ## Basic
 
@@ -19,7 +15,7 @@ A base for other types; not added itself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `pausable` | bool | true | Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running. |
+| `pausable` | bool | true | Stops while the game is paused. Off: this piece and its children keep running (pause menus). |
 
 | Method | |
 | --- | --- |
@@ -28,22 +24,22 @@ A base for other types; not added itself.
 | `findChildOfType(type)` | The first child of a type ("Sprite"), or nil. |
 | `isA(type)` | True if the piece is of a type, or a type made from it. |
 | `add(piece)` | Adds a piece as the last child; returns it. |
-| `remove()` | Takes the piece out of its parent now, without destroying it, so it can be added somewhere else. |
-| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or a piece type and adds it as a child: self:spawn("scenes/bullet.scene", { x = 10 }). |
+| `remove()` | Takes the piece out of its parent now, without destroying it. |
+| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or type and adds it as a child. |
 | `destroy()` | Removes the piece and everything inside it at the end of the frame. |
-| `tag(name)` | Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it. |
+| `tag(name)` | Adds a tag. |
 | `untag(name)` | Takes a tag away. |
 | `hasTag(name)` | True if the piece has the tag. |
 | `hasAnyTag(tags)` | True if the piece has any of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
 | `is(tagOrType)` | True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body"). |
-| `on(event, fn)` | Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off(). |
+| `on(event, fn)` | Calls fn(...) on an event. Returns a handle with :off(). |
 | `emit(event, ...)` | Fires an event: calls the script's function of that name and every listener. |
 | `getPath()` | The piece's path from the scene's root, like "Level/Player". |
 | `isAlive()` | True while the piece is in the running scene and not destroyed. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function ready(...)` | The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values. |
+| `function ready(...)` | The piece and its children joined the scene. The scene root gets go()'s extra values. |
 | `function update(dt)` | Every frame. dt is the time since the last frame, in seconds. |
 | `function physicsUpdate(dt)` | 60 times a second, before bodies move. Use it for movement. |
 | `function draw()` | Draw extra things on top of the piece, in its own coordinates. |
@@ -80,7 +76,7 @@ Extends [Piece](#piece).
 
 ### Timer
 
-Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.
+Counts down and calls tick().
 
 Extends [Piece](#piece).
 
@@ -124,7 +120,7 @@ Extends [Group](#group).
 
 | Method | |
 | --- | --- |
-| `play(name?, restart?)` | Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing. |
+| `play(name?, restart?)` | Plays an animation, or resumes the current one. restart: from the first frame. |
 | `pause()` | Stops the animation where it is; play() continues it. |
 | `stop()` | Stops the animation and goes back to its first frame. |
 | `hasAnimation(name)` | True if the .sprite file has an animation with this name. |
@@ -176,7 +172,7 @@ Extends [Group](#group).
 
 ### Tiles
 
-A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.
+A grid of tiles from a tileset. Solid tiles block bodies.
 
 Extends [Group](#group).
 
@@ -197,7 +193,7 @@ Extends [Group](#group).
 | `clear()` | Empties every cell. |
 | `tileAt(x, y)` | The tile number under a point in the scene, or -1. |
 | `isSolid(column, row)` | True if the cell's tile is marked solid (and solid is on). |
-| `neighbors(column, row, diagonal?)` | The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal. |
+| `neighbors(column, row, diagonal?)` | Adjacent cells as {column, row, tile}: 4, or 8 with diagonal. |
 | `cellCenter(column, row)` | The scene position of a cell's center. |
 | `getTileSize()` | The size of one cell in the scene: width, height. |
 | `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
@@ -275,59 +271,74 @@ Extends [Group](#group).
 
 ### Body
 
-Something solid: it bumps into other bodies and solid tiles. Pick how it moves: still (walls and floors), scripted (players and enemies you move in code) or physics (crates that fall and tumble). Put a Sprite or Shape inside it and its shape fits itself.
+Solid. motion: still (walls), scripted (moved with move()) or physics (simulated). Takes its shape from a Sprite or Shape inside it.
 
-Extends [Group](#group).
+Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `motion` | enum | "scripted" | Still never moves on its own; scripted moves when its script calls move(); physics falls, bounces and gets pushed. |
-| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes. Physics turns shapes with the Body; scripted Bodies and Zones collide as if unturned. |
-| `width` | number (px) | 32 | Rectangle width. |
-| `height` | number (px) | 32 | Rectangle height. |
+| `motion` | enum | "scripted" | still: moves only when a script sets x/y. scripted: moved by move(). physics: simulated. |
+| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside. capsule has round ends. none: Hitboxes only. |
+| `width` | number (px) | 32 | Rectangle or capsule width. |
+| `height` | number (px) | 32 | Rectangle or capsule height. |
 | `radius` | number (px) | 16 | Circle radius. |
-| `vx` | number (px/s) | 0 | Speed sideways, used by move() (scripted) or physics. |
-| `vy` | number (px/s) | 0 | Speed down, used by move() (scripted) or physics. |
-| `slope` | angle | 45° | The steepest surface that still counts as ground. |
-| `mass` | number (kg) | 1 | How heavy it is. |
-| `friction` | number | 0.3 | How much it grips what it touches. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in). |
+| `vx` | number (px/s) | 0 | Horizontal speed (px/s). |
+| `vy` | number (px/s) | 0 | Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now. |
+| `spin` | number (rad/s) | 0 | How fast it turns (clockwise is positive). Scripted: move() turns it this fast. |
+| `slope` | angle | 45° | The steepest surface that still counts as ground: move() walks up it without sliding back. |
+| `mass` | number (kg) | 1 | Kilograms. A scripted body pushes physics bodies by its mass against theirs. |
+| `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
 | `bounce` | number | 0 | How much it bounces: 0 none, 1 forever. |
-| `gravity` | number | 1 | How strongly gravity pulls it; 0 floats. |
-| `drag` | number | 0 | Air resistance. |
+| `gravity` | number | 1 | How strongly gravity pulls it; 0 floats, -1 falls up. |
+| `drag` | number | 0 | Air resistance: slows its movement down. |
+| `spinDrag` | number | 0 | Slows its turning down. |
 | `fixedRotation` | bool | false | Never tip over or spin. |
-| `passThrough` | tags | "" | Tags of things it doesn't bump into, like "ghost, pickup". |
+| `bullet` | bool | false | Continuous collision against moving bodies, for small fast objects. |
+| `asleep` | bool | false | At rest until touched. Physics bodies sleep when they stop. |
+| `passThrough` | tags | "" | Tags of things it doesn't bump into, like "ghost, pickup" ("tiles" for solid tiles). |
 
 | Method | |
 | --- | --- |
-| `move()` | Moves by vx, vy for this step, sliding along walls and floors (scripted bodies). |
+| `move()` | Moves by vx, vy for this step: slides along walls, climbs slopes, rides platforms, pushes physics bodies. |
 | `moveBy(dx, dy)` | Moves by an offset and stops at the first thing in the way; returns what it hit, or nil. |
 | `onGround()` | True if the last move ended standing on something. |
-| `onWall()` | True if the last move hit a wall. |
-| `onCeiling()` | True if the last move hit a ceiling. |
+| `onWall()` | True if the last move ran into a wall. |
+| `onCeiling()` | True if the last move ran into a ceiling. |
+| `applyImpulse(ix, iy, x?, y?)` | Instant change of velocity by impulse / mass. At a point, also spins. |
+| `applyForce(fx, fy, x?, y?)` | Force for this step; call every physicsUpdate. At its center or a point. |
+| `applyTorque(torque)` | Turns it steadily for this step (physics bodies). |
+| `applyAngularImpulse(impulse)` | A sudden twist (physics bodies). |
+| `push(ix, iy)` | The same as applyImpulse(ix, iy). |
+| `wake()` | Wakes a sleeping physics body. |
+| `grab(x, y, strength?)` | Holds it by a scene point for dragTo(); drop() releases with momentum. |
+| `dragTo(x, y)` | Moves the grabbed point towards x, y. |
+| `drop()` | Lets go after grab(); a physics body keeps its speed. |
 | `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) touching this one, or nil. |
+| `isTouching(other)` | True if it touches a piece (a body, zone or Tiles) or anything with a tag. |
+| `contacts()` | Current contacts: {piece, x, y, nx, ny, impulse}. |
 | `touchingTile(setting)` | The settings of a touching tile that has this setting (like "damage"), or nil. |
-| `push(ix, iy)` | A sudden kick, like a jump or a hit (physics bodies). |
-| `applyForce(fx, fy)` | Pushes steadily this frame (physics bodies). |
-| `getSize()` | The size of its shape: width, height. |
+| `getSize()` | The size of the box around its shapes: width, height. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function hit(other)` | It bumped into another body or solid tiles. |
+| `function hit(other, contact)` | Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse. |
 | `function entered(zone)` | It went into a zone. |
 | `function exited(zone)` | It left a zone. |
 
 ### Zone
 
-An area that notices bodies and zones going in and out: pickups, checkpoints, danger. Nothing bumps into it.
+An area that detects bodies and zones entering and leaving. Doesn't block. Ignores still bodies.
 
-Extends [Group](#group).
+Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. |
-| `width` | number (px) | 32 | Rectangle width. |
-| `height` | number (px) | 32 | Rectangle height. |
+| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. Shapes turn and scale with the Zone. |
+| `width` | number (px) | 32 | Rectangle or capsule width. |
+| `height` | number (px) | 32 | Rectangle or capsule height. |
 | `radius` | number (px) | 16 | Circle radius. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners). |
 | `detects` | tags | "" | Only notices things with one of these tags (empty: everything). |
 | `active` | bool | true | Notice things going in and out. |
 
@@ -335,6 +346,7 @@ Extends [Group](#group).
 | --- | --- |
 | `inside()` | A list of the bodies and zones inside it now. |
 | `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) inside it, or nil. |
+| `isTouching(other)` | True if a piece (or anything with a tag) is inside it. |
 
 | Event (a function in its script) | |
 | --- | --- |
@@ -343,32 +355,59 @@ Extends [Group](#group).
 
 ### Hitbox
 
-An extra collision shape for the Body or Zone it's inside, for shapes auto can't make: an L shape, a sword's reach.
+An extra collision shape for the Body or Zone it's inside.
 
 Extends [Group](#group). Goes inside a Body or Zone.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "rectangle" | Shapes move and scale with their piece. They turn with it only for physics (Bodies moved by physics, and what they land on). |
-| `width` | number (px) | 32 | Rectangle width. |
-| `height` | number (px) | 32 | Rectangle height. |
+| `shape` | enum | "rectangle" | The shape, placed and turned by the Hitbox's position and rotation. |
+| `width` | number (px) | 32 | Rectangle or capsule width. |
+| `height` | number (px) | 32 | Rectangle or capsule height. |
 | `radius` | number (px) | 16 | Circle radius. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners). |
 | `off` | bool | false | Turn this shape off. |
 
 ### Joint
 
-Connects two physics bodies: a pin, a rope, a spring or a weld.
+Connects body a to body b, or to its own position.
 
 Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `kind` | enum | "pin" | How the bodies are connected. |
-| `a` | piecepath | "" | The first body. |
-| `b` | piecepath | "" | The second body (empty: pinned in place). |
-| `length` | number (px) | 0 | Rope and spring length; 0 uses the distance when the scene starts. |
-| `stiffness` | number | 4 | Spring stiffness (wobbles per second). |
-| `damping` | number | 0.5 | How quickly a spring stops wobbling. |
+| `kind` | enum | "pin" | pin, weld, rope, spring, distance, slider (x axis), wheel (y axis spring) or mouse. |
+| `a` | piecepath | "" | The body it holds. |
+| `b` | piecepath | "" | The body it connects a to (empty: the place where the Joint is). |
+| `length` | number (px) | 0 | How far apart; 0 uses the distance when the joint is made. |
+| `spring` | bool | false | Springy: a pin or slider pulls back to where it started, a weld wobbles. |
+| `stiffness` | number (Hz) | 4 | How stiff the spring is: wobbles per second. |
+| `damping` | number | 0.5 | How quickly the spring stops wobbling: 1 doesn't overshoot. |
+| `motor` | bool | false | Drive it: turn a pin or wheel, or move a slider, at motorSpeed. |
+| `motorSpeed` | number | 2 | Radians per second (pin, wheel) or pixels per second (slider, distance). |
+| `motorStrength` | number | 100000 | The most torque (pin, wheel) or force (slider, distance) the motor uses. |
+| `limit` | bool | false | Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper. |
+| `minAngle` | angle | -45° | The furthest a pin turns anticlockwise. |
+| `maxAngle` | angle | 45° | The furthest a pin turns clockwise. |
+| `lower` | number (px) | -50 | The furthest a slider or wheel goes back. |
+| `upper` | number (px) | 50 | The furthest a slider or wheel goes forward. |
+| `strength` | number | 0 | The most force a mouse joint pulls with; 0 is plenty for the body's mass. |
+| `collide` | bool | false | The two bodies still bump into each other. |
+| `breakForce` | number | 0 | Breaks (and sends broke) when pulled harder than this; 0 never breaks. |
+
+| Method | |
+| --- | --- |
+| `getAngle()` | How far a pin has turned (radians). |
+| `getTranslation()` | How far a slider has slid (pixels). |
+| `getLength()` | How far apart a rope, spring or distance joint's ends are. |
+| `getSpeed()` | How fast a pin turns or a slider slides. |
+| `getForce()` | How hard the joint pulls now. |
+| `getTorque()` | How hard the joint twists now. |
+| `isBroken()` | True once breakForce broke it. |
+
+| Event (a function in its script) | |
+| --- | --- |
+| `function broke()` | It was pulled harder than breakForce and let go. |
 
 ## On-screen UI
 
@@ -380,7 +419,7 @@ Extends [Piece](#piece). A base for other types; not added itself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `anchor` | enum | "topLeft" | What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside). |
+| `anchor` | enum | "topLeft" | What x and y are measured from. fill covers the screen or the parent UI piece. |
 | `x` | number (px) | 0 | Distance in from the anchor. |
 | `y` | number (px) | 0 | Distance in from the anchor. |
 | `width` | number (px) | 160 | Width (ignored with fill). |
@@ -412,7 +451,7 @@ Extends [UI](#ui).
 | `color` | color | {1, 1, 1, 1} | Text color. |
 | `align` | enum | "left" | Lines up the text inside its rectangle. |
 | `valign` | enum | "top" | Lines up the text top to bottom. |
-| `outline` | bool | false | A dark outline, so it reads on any background. |
+| `outline` | bool | false | A dark outline around the text. |
 
 ### Button
 
@@ -429,11 +468,11 @@ Extends [UI](#ui).
 | `textColor` | color | {1, 1, 1, 1} | Text color. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | Can't be pressed; drawn faded. |
-| `autofocus` | bool | false | Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus. |
+| `autofocus` | bool | false | Has keyboard focus when the scene starts. |
 
 | Method | |
 | --- | --- |
-| `focus()` | Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses). |
+| `focus()` | Gives it keyboard focus. |
 | `isFocused()` | True while it has the keyboard focus. |
 | `isDown()` | True while it's held down. |
 
@@ -508,7 +547,7 @@ Extends [Piece](#piece).
 
 | Method | |
 | --- | --- |
-| `play()` | Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one. |
+| `play()` | Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song). |
 | `stop()` | Stops every copy. |
 | `pause()` | Pauses. |
 | `resume()` | Continues after pause(). |
