@@ -6,6 +6,7 @@ export const DEFAULTS = {
   // Appearance
   theme: 'system',          // 'system' | 'light' | 'dark'
   contrast: 'system',       // 'system' | 'standard' | 'more'
+  uiScale: 100,             // interface size, percent
   editorFontSize: 13,       // px
   // Editor
   tabSize: 2,
@@ -98,8 +99,19 @@ export function resolvedContrast() {
 export function applyTheme() {
   document.documentElement.dataset.theme = resolvedTheme();
   document.documentElement.dataset.contrast = resolvedContrast();
+  applyScale();
+}
+
+/** The interface size: everything in the editor grows or shrinks together. */
+export function applyScale() {
+  const scale = Math.min(150, Math.max(75, Number(values.uiScale) || 100)) / 100;
+  document.documentElement.style.zoom = scale === 1 ? '' : String(scale);
+  window.dispatchEvent(new Event('resize'));
 }
 
 darkQuery.addEventListener('change', () => { if (values.theme === 'system') applyTheme(); });
 contrastQuery.addEventListener('change', () => { if (values.contrast === 'system') applyTheme(); });
-settings.onChange((key) => { if (key === 'theme' || key === 'contrast') applyTheme(); });
+settings.onChange((key) => {
+  if (key === 'theme' || key === 'contrast') applyTheme();
+  if (key === 'uiScale') applyScale();
+});
