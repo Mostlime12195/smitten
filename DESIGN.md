@@ -332,18 +332,23 @@ resolution and scaling, the project palette.
   code editor inserts `smitten.sprite("sprites/hero")`).
 - Rename-aware: renaming an asset offers to update references in code.
 
-### Scenes and entities
+### Objects and scenes
 
-Kept small and code-first:
+How a game is put together, after GameMaker's objects and rooms, Godot's
+scenes and GDevelop's behaviors (section 6 has the comparison;
+docs/objects-and-scenes.md has the details):
 
-- Entities are Lua classes the user writes (`entities/player.lua`), with
-  `new`, `update` and `draw`.
-- Maps place entities by type name and properties on their object layer;
-  `smitten.map("level1"):spawn(entities)` creates them.
-- A scene stack (`smitten.scene.push("title")`) for title, game and pause
-  screens.
-- No ECS framework and no inspector in the MVP. Later, the editor ↔ game
-  bridge allows selecting and inspecting entities in the running game.
+- An **object** (`objects/player.lua`) is a kind of thing: a sprite, optional
+  built-in behaviors (`platformer`, `topdown`, `mover`) and callbacks such as
+  `update` and `touch(other)`. A player can be pure configuration.
+- A **scene** (`scenes/level1.scene.json`, optionally with
+  `scenes/level1.lua`) is a level or a screen: tiles plus placed objects.
+  `smitten.scene.go("level1")` runs it: objects are created, updated,
+  collided, drawn and destroyed by the engine.
+- `smitten.start()` runs `smitten.json`'s `"start"` scene; the editor's Play
+  scene (F6) starts from the scene being edited.
+- The plain `love.*` way still works everywhere, and the earlier code-first
+  API (`smitten.map(...):spawn(...)`, `scene.switch` with tables) stays.
 
 ## 6. Editor
 
