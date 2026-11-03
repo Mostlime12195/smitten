@@ -1,13 +1,9 @@
 # Pieces
 
-Every piece type, generated from `love/src/modules/scene/pieces.json` by
-`tools/gen-docs.mjs`. A piece has its own properties and everything its
-base type has. Properties are fields: `x = 10` in its own script,
-`Player.x = 10` or `other.x = 10` from another. Methods are called as
-`move()` in the piece's own script and `piece:move()` on another piece.
-Events are functions its script defines (`function pressed() ... end`),
-or listeners added with `piece:on("pressed", fn)`. Angles are radians in
-code and degrees in the inspector.
+Each piece has its own properties plus its base type's. In its own script:
+`x = 10`, `move()`, `function pressed() end`. On another piece: `other.x`,
+`other:move()`, `other:on("pressed", fn)`. Angles are radians in code,
+degrees in the Inspector.
 
 ## Basic
 
@@ -19,7 +15,7 @@ A base for other types; not added itself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `pausable` | bool | true | Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running. |
+| `pausable` | bool | true | Stops while the game is paused. Off: this piece and its children keep running (pause menus). |
 
 | Method | |
 | --- | --- |
@@ -28,22 +24,22 @@ A base for other types; not added itself.
 | `findChildOfType(type)` | The first child of a type ("Sprite"), or nil. |
 | `isA(type)` | True if the piece is of a type, or a type made from it. |
 | `add(piece)` | Adds a piece as the last child; returns it. |
-| `remove()` | Takes the piece out of its parent now, without destroying it, so it can be added somewhere else. |
-| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or a piece type and adds it as a child: self:spawn("scenes/bullet.scene", { x = 10 }). |
+| `remove()` | Takes the piece out of its parent now, without destroying it. |
+| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or type and adds it as a child. |
 | `destroy()` | Removes the piece and everything inside it at the end of the frame. |
-| `tag(name)` | Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it. |
+| `tag(name)` | Adds a tag. |
 | `untag(name)` | Takes a tag away. |
 | `hasTag(name)` | True if the piece has the tag. |
 | `hasAnyTag(tags)` | True if the piece has any of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
 | `is(tagOrType)` | True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body"). |
-| `on(event, fn)` | Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off(). |
+| `on(event, fn)` | Calls fn(...) on an event. Returns a handle with :off(). |
 | `emit(event, ...)` | Fires an event: calls the script's function of that name and every listener. |
 | `getPath()` | The piece's path from the scene's root, like "Level/Player". |
 | `isAlive()` | True while the piece is in the running scene and not destroyed. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function ready(...)` | The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values. |
+| `function ready(...)` | The piece and its children joined the scene. The scene root gets go()'s extra values. |
 | `function update(dt)` | Every frame. dt is the time since the last frame, in seconds. |
 | `function physicsUpdate(dt)` | 60 times a second, before bodies move. Use it for movement. |
 | `function draw()` | Draw extra things on top of the piece, in its own coordinates. |
@@ -80,7 +76,7 @@ Extends [Piece](#piece).
 
 ### Timer
 
-Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.
+Counts down and calls tick().
 
 Extends [Piece](#piece).
 
@@ -124,7 +120,7 @@ Extends [Group](#group).
 
 | Method | |
 | --- | --- |
-| `play(name?, restart?)` | Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing. |
+| `play(name?, restart?)` | Plays an animation, or resumes the current one. restart: from the first frame. |
 | `pause()` | Stops the animation where it is; play() continues it. |
 | `stop()` | Stops the animation and goes back to its first frame. |
 | `hasAnimation(name)` | True if the .sprite file has an animation with this name. |
@@ -176,7 +172,7 @@ Extends [Group](#group).
 
 ### Tiles
 
-A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.
+A grid of tiles from a tileset. Solid tiles block bodies.
 
 Extends [Group](#group).
 
@@ -197,7 +193,7 @@ Extends [Group](#group).
 | `clear()` | Empties every cell. |
 | `tileAt(x, y)` | The tile number under a point in the scene, or -1. |
 | `isSolid(column, row)` | True if the cell's tile is marked solid (and solid is on). |
-| `neighbors(column, row, diagonal?)` | The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal. |
+| `neighbors(column, row, diagonal?)` | Adjacent cells as {column, row, tile}: 4, or 8 with diagonal. |
 | `cellCenter(column, row)` | The scene position of a cell's center. |
 | `getTileSize()` | The size of one cell in the scene: width, height. |
 | `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
@@ -380,7 +376,7 @@ Extends [Piece](#piece). A base for other types; not added itself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `anchor` | enum | "topLeft" | What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside). |
+| `anchor` | enum | "topLeft" | What x and y are measured from. fill covers the screen or the parent UI piece. |
 | `x` | number (px) | 0 | Distance in from the anchor. |
 | `y` | number (px) | 0 | Distance in from the anchor. |
 | `width` | number (px) | 160 | Width (ignored with fill). |
@@ -412,7 +408,7 @@ Extends [UI](#ui).
 | `color` | color | {1, 1, 1, 1} | Text color. |
 | `align` | enum | "left" | Lines up the text inside its rectangle. |
 | `valign` | enum | "top" | Lines up the text top to bottom. |
-| `outline` | bool | false | A dark outline, so it reads on any background. |
+| `outline` | bool | false | A dark outline around the text. |
 
 ### Button
 
@@ -429,11 +425,11 @@ Extends [UI](#ui).
 | `textColor` | color | {1, 1, 1, 1} | Text color. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | Can't be pressed; drawn faded. |
-| `autofocus` | bool | false | Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus. |
+| `autofocus` | bool | false | Has keyboard focus when the scene starts. |
 
 | Method | |
 | --- | --- |
-| `focus()` | Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses). |
+| `focus()` | Gives it keyboard focus. |
 | `isFocused()` | True while it has the keyboard focus. |
 | `isDown()` | True while it's held down. |
 
@@ -508,7 +504,7 @@ Extends [Piece](#piece).
 
 | Method | |
 | --- | --- |
-| `play()` | Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one. |
+| `play()` | Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song). |
 | `stop()` | Stops every copy. |
 | `pause()` | Pauses. |
 | `resume()` | Continues after pause(). |

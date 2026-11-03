@@ -25,18 +25,18 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Pieces</h1>
-<p>Every piece type, generated from <code>love/src/modules/scene/pieces.json</code> by <code>tools/gen-docs.mjs</code>. A piece has its own properties and everything its base type has. Properties are fields: <code>x = 10</code> in its own script, <code>Player.x = 10</code> or <code>other.x = 10</code> from another. Methods are called as <code>move()</code> in the piece's own script and <code>piece:move()</code> on another piece. Events are functions its script defines (<code>function pressed() ... end</code>), or listeners added with <code>piece:on(&quot;pressed&quot;, fn)</code>. Angles are radians in code and degrees in the inspector.</p>
+<p>Each piece has its own properties plus its base type's. In its own script: <code>x = 10</code>, <code>move()</code>, <code>function pressed() end</code>. On another piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;pressed&quot;, fn)</code>. Angles are radians in code, degrees in the Inspector.</p>
 <h2 id="basic"><a class="anchor" href="#basic" aria-hidden="true">#</a>Basic</h2>
 <h3 id="piece"><a class="anchor" href="#piece" aria-hidden="true">#</a>Piece</h3>
 <p>Everything in a scene is a piece. Pieces nest: a piece's children belong to it.</p>
 <p>A base for other types; not added itself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running.</td></tr></tbody>
+<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused. Off: this piece and its children keep running (pause menus).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -45,22 +45,22 @@
 <tr><td><code>findChildOfType(type)</code></td><td>The first child of a type (&quot;Sprite&quot;), or nil.</td></tr>
 <tr><td><code>isA(type)</code></td><td>True if the piece is of a type, or a type made from it.</td></tr>
 <tr><td><code>add(piece)</code></td><td>Adds a piece as the last child; returns it.</td></tr>
-<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it, so it can be added somewhere else.</td></tr>
-<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or a piece type and adds it as a child: self:spawn(&quot;scenes/bullet.scene&quot;, { x = 10 }).</td></tr>
+<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it.</td></tr>
+<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or type and adds it as a child.</td></tr>
 <tr><td><code>destroy()</code></td><td>Removes the piece and everything inside it at the end of the frame.</td></tr>
-<tr><td><code>tag(name)</code></td><td>Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it.</td></tr>
+<tr><td><code>tag(name)</code></td><td>Adds a tag.</td></tr>
 <tr><td><code>untag(name)</code></td><td>Takes a tag away.</td></tr>
 <tr><td><code>hasTag(name)</code></td><td>True if the piece has the tag.</td></tr>
 <tr><td><code>hasAnyTag(tags)</code></td><td>True if the piece has any of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
 <tr><td><code>is(tagOrType)</code></td><td>True if the piece has the tag or is of the type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
-<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) whenever the piece's event happens (&quot;pressed&quot;, &quot;entered&quot;, ...). Returns a handle with :off().</td></tr>
+<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) on an event. Returns a handle with :off().</td></tr>
 <tr><td><code>emit(event, ...)</code></td><td>Fires an event: calls the script's function of that name and every listener.</td></tr>
 <tr><td><code>getPath()</code></td><td>The piece's path from the scene's root, like &quot;Level/Player&quot;.</td></tr>
 <tr><td><code>isAlive()</code></td><td>True while the piece is in the running scene and not destroyed.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values.</td></tr>
+<tbody><tr><td><code>function ready(...)</code></td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
 <tr><td><code>function update(dt)</code></td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
 <tr><td><code>function physicsUpdate(dt)</code></td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
@@ -93,7 +93,7 @@
 <tr><td><code>translate(dx, dy)</code></td><td>Moves the piece by an offset.</td></tr></tbody>
 </table></div>
 <h3 id="timer"><a class="anchor" href="#timer" aria-hidden="true">#</a>Timer</h3>
-<p>Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.</p>
+<p>Counts down and calls tick().</p>
 <p>Extends <a href="#piece">Piece</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
@@ -130,7 +130,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play(name?, restart?)</code></td><td>Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing.</td></tr>
+<tbody><tr><td><code>play(name?, restart?)</code></td><td>Plays an animation, or resumes the current one. restart: from the first frame.</td></tr>
 <tr><td><code>pause()</code></td><td>Stops the animation where it is; play() continues it.</td></tr>
 <tr><td><code>stop()</code></td><td>Stops the animation and goes back to its first frame.</td></tr>
 <tr><td><code>hasAnimation(name)</code></td><td>True if the .sprite file has an animation with this name.</td></tr>
@@ -175,7 +175,7 @@
 <tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>Wrap lines longer than this; 0 never wraps.</td></tr></tbody>
 </table></div>
 <h3 id="tiles"><a class="anchor" href="#tiles" aria-hidden="true">#</a>Tiles</h3>
-<p>A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.</p>
+<p>A grid of tiles from a tileset. Solid tiles block bodies.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
@@ -194,7 +194,7 @@
 <tr><td><code>clear()</code></td><td>Empties every cell.</td></tr>
 <tr><td><code>tileAt(x, y)</code></td><td>The tile number under a point in the scene, or -1.</td></tr>
 <tr><td><code>isSolid(column, row)</code></td><td>True if the cell's tile is marked solid (and solid is on).</td></tr>
-<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal.</td></tr>
+<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Adjacent cells as {column, row, tile}: 4, or 8 with diagonal.</td></tr>
 <tr><td><code>cellCenter(column, row)</code></td><td>The scene position of a cell's center.</td></tr>
 <tr><td><code>getTileSize()</code></td><td>The size of one cell in the scene: width, height.</td></tr>
 <tr><td><code>getBounds()</code></td><td>The painted area in the scene: x, y, width, height (all 0 when empty).</td></tr></tbody>
@@ -354,7 +354,7 @@
 <p>Extends <a href="#piece">Piece</a>. A base for other types; not added itself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside).</td></tr>
+<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece.</td></tr>
 <tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>Width (ignored with fill).</td></tr>
@@ -383,7 +383,7 @@
 <tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
 <tr><td><code>align</code></td><td>enum</td><td>&quot;left&quot;</td><td>Lines up the text inside its rectangle.</td></tr>
 <tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Lines up the text top to bottom.</td></tr>
-<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline, so it reads on any background.</td></tr></tbody>
+<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline around the text.</td></tr></tbody>
 </table></div>
 <h3 id="button"><a class="anchor" href="#button" aria-hidden="true">#</a>Button</h3>
 <p>A button to click or tap. Its script gets pressed().</p>
@@ -397,11 +397,11 @@
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be pressed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus.</td></tr></tbody>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>focus()</code></td><td>Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses).</td></tr>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus.</td></tr>
 <tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr>
 <tr><td><code>isDown()</code></td><td>True while it's held down.</td></tr></tbody>
 </table></div>
@@ -463,7 +463,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play()</code></td><td>Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one.</td></tr>
+<tbody><tr><td><code>play()</code></td><td>Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song).</td></tr>
 <tr><td><code>stop()</code></td><td>Stops every copy.</td></tr>
 <tr><td><code>pause()</code></td><td>Pauses.</td></tr>
 <tr><td><code>resume()</code></td><td>Continues after pause().</td></tr>

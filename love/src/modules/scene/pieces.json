@@ -12,7 +12,7 @@
       "group": "basic", "icon": "piece", "abstract": true,
       "description": "Everything in a scene is a piece. Pieces nest: a piece's children belong to it.",
       "properties": {
-        "pausable": { "type": "bool", "default": true, "group": "Behavior", "description": "Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running." }
+        "pausable": { "type": "bool", "default": true, "group": "Behavior", "description": "Stops while the game is paused. Off: this piece and its children keep running (pause menus)." }
       },
       "methods": {
         "find": { "args": "path", "doc": "A child by name, or a deeper piece by path (\"UI/Score\"); nil if there isn't one." },
@@ -20,21 +20,21 @@
         "findChildOfType": { "args": "type", "doc": "The first child of a type (\"Sprite\"), or nil." },
         "isA": { "args": "type", "doc": "True if the piece is of a type, or a type made from it." },
         "add": { "args": "piece", "doc": "Adds a piece as the last child; returns it." },
-        "remove": { "args": "", "doc": "Takes the piece out of its parent now, without destroying it, so it can be added somewhere else." },
-        "spawn": { "args": "sceneOrType, properties?", "doc": "Makes a piece from a scene file or a piece type and adds it as a child: self:spawn(\"scenes/bullet.scene\", { x = 10 })." },
+        "remove": { "args": "", "doc": "Takes the piece out of its parent now, without destroying it." },
+        "spawn": { "args": "sceneOrType, properties?", "doc": "Makes a piece from a scene file or type and adds it as a child." },
         "destroy": { "args": "", "doc": "Removes the piece and everything inside it at the end of the frame." },
-        "tag": { "args": "name", "doc": "Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it." },
+        "tag": { "args": "name", "doc": "Adds a tag." },
         "untag": { "args": "name", "doc": "Takes a tag away." },
         "hasTag": { "args": "name", "doc": "True if the piece has the tag." },
         "hasAnyTag": { "args": "tags", "doc": "True if the piece has any of the tags in a comma-separated list: hasAnyTag(\"enemy, spikes\")." },
         "is": { "args": "tagOrType", "doc": "True if the piece has the tag or is of the type: other:is(\"enemy\"), other:is(\"Body\")." },
-        "on": { "args": "event, fn", "doc": "Calls fn(...) whenever the piece's event happens (\"pressed\", \"entered\", ...). Returns a handle with :off()." },
+        "on": { "args": "event, fn", "doc": "Calls fn(...) on an event. Returns a handle with :off()." },
         "emit": { "args": "event, ...", "doc": "Fires an event: calls the script's function of that name and every listener." },
         "getPath": { "args": "", "doc": "The piece's path from the scene's root, like \"Level/Player\"." },
         "isAlive": { "args": "", "doc": "True while the piece is in the running scene and not destroyed." }
       },
       "events": {
-        "ready": { "args": "...", "doc": "The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values." },
+        "ready": { "args": "...", "doc": "The piece and its children joined the scene. The scene root gets go()'s extra values." },
         "update": { "args": "dt", "doc": "Every frame. dt is the time since the last frame, in seconds." },
         "physicsUpdate": { "args": "dt", "doc": "60 times a second, before bodies move. Use it for movement." },
         "draw": { "args": "", "doc": "Draw extra things on top of the piece, in its own coordinates." },
@@ -68,7 +68,7 @@
     },
     "Timer": {
       "extends": "Piece", "group": "basic", "icon": "timer",
-      "description": "Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.",
+      "description": "Counts down and calls tick().",
       "properties": {
         "seconds": { "type": "number", "default": 1, "min": 0, "step": 0.1, "unit": "s", "description": "Time between ticks." },
         "running": { "type": "bool", "default": false, "description": "Counting. On in the scene file means it starts with the scene." },
@@ -98,7 +98,7 @@
         "flipY": { "type": "bool", "default": false, "group": "Picture", "description": "Mirror top to bottom." }
       },
       "methods": {
-        "play": { "args": "name?, restart?", "doc": "Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing." },
+        "play": { "args": "name?, restart?", "doc": "Plays an animation, or resumes the current one. restart: from the first frame." },
         "pause": { "args": "", "doc": "Stops the animation where it is; play() continues it." },
         "stop": { "args": "", "doc": "Stops the animation and goes back to its first frame." },
         "hasAnimation": { "args": "name", "doc": "True if the .sprite file has an animation with this name." },
@@ -141,7 +141,7 @@
     },
     "Tiles": {
       "extends": "Group", "group": "visual", "icon": "tiles",
-      "description": "A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.",
+      "description": "A grid of tiles from a tileset. Solid tiles block bodies.",
       "properties": {
         "tileset": { "type": "resource", "kinds": ["tileset"], "default": "", "group": "Tiles", "description": "The .tileset file: a picture cut into tiles, with settings such as solid." },
         "cells": { "type": "cells", "default": null, "hidden": true, "description": "The painted tiles." },
@@ -158,7 +158,7 @@
         "clear": { "args": "", "doc": "Empties every cell." },
         "tileAt": { "args": "x, y", "doc": "The tile number under a point in the scene, or -1." },
         "isSolid": { "args": "column, row", "doc": "True if the cell's tile is marked solid (and solid is on)." },
-        "neighbors": { "args": "column, row, diagonal?", "doc": "The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal." },
+        "neighbors": { "args": "column, row, diagonal?", "doc": "Adjacent cells as {column, row, tile}: 4, or 8 with diagonal." },
         "cellCenter": { "args": "column, row", "doc": "The scene position of a cell's center." },
         "getTileSize": { "args": "", "doc": "The size of one cell in the scene: width, height." },
         "getBounds": { "args": "", "doc": "The painted area in the scene: x, y, width, height (all 0 when empty)." }
@@ -310,7 +310,7 @@
       "extends": "Piece", "group": "ui", "icon": "ui", "abstract": true,
       "description": "The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.",
       "properties": {
-        "anchor": { "type": "enum", "options": ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight", "fill"], "default": "topLeft", "group": "Layout", "description": "What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside)." },
+        "anchor": { "type": "enum", "options": ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight", "fill"], "default": "topLeft", "group": "Layout", "description": "What x and y are measured from. fill covers the screen or the parent UI piece." },
         "x": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
         "y": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
         "width": { "type": "number", "default": 160, "min": 0, "group": "Layout", "unit": "px", "description": "Width (ignored with fill)." },
@@ -337,7 +337,7 @@
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
         "align": { "type": "enum", "options": ["left", "center", "right"], "default": "left", "group": "Text", "description": "Lines up the text inside its rectangle." },
         "valign": { "type": "enum", "options": ["top", "middle", "bottom"], "default": "top", "group": "Text", "description": "Lines up the text top to bottom." },
-        "outline": { "type": "bool", "default": false, "group": "Text", "description": "A dark outline, so it reads on any background." }
+        "outline": { "type": "bool", "default": false, "group": "Text", "description": "A dark outline around the text." }
       }
     },
     "Button": {
@@ -351,10 +351,10 @@
         "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Button", "description": "Text color." },
         "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
         "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." },
-        "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus." }
+        "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has keyboard focus when the scene starts." }
       },
       "methods": {
-        "focus": { "args": "", "doc": "Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses)." },
+        "focus": { "args": "", "doc": "Gives it keyboard focus." },
         "isFocused": { "args": "", "doc": "True while it has the keyboard focus." },
         "isDown": { "args": "", "doc": "True while it's held down." }
       },
@@ -406,7 +406,7 @@
         "pitch": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Sound", "description": "1 is normal; 2 is an octave up." }
       },
       "methods": {
-        "play": { "args": "", "doc": "Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one." },
+        "play": { "args": "", "doc": "Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song)." },
         "stop": { "args": "", "doc": "Stops every copy." },
         "pause": { "args": "", "doc": "Pauses." },
         "resume": { "args": "", "doc": "Continues after pause()." },

@@ -25,13 +25,13 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api" aria-current="page">Script API</a><ul class="nav-sub"><li><a href="#input">Input</a></li><li><a href="#scenes">Scenes</a></li><li><a href="#sound">Sound</a></li><li><a href="#saving">Saving</a></li><li><a href="#time">Time</a></li><li><a href="#math">Math</a></li><li><a href="#screen">Screen</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#script-functions">Script functions</a></li></ul></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api" aria-current="page">Script API</a><ul class="nav-sub"><li><a href="#input">Input</a></li><li><a href="#scenes">Scenes</a></li><li><a href="#sound">Sound</a></li><li><a href="#saving">Saving</a></li><li><a href="#time">Time</a></li><li><a href="#math">Math</a></li><li><a href="#screen">Screen</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#script-functions">Script functions</a></li></ul></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Script API</h1>
-<p>Every name a script can use without <code>smitten.</code> in front, generated from <code>web/editor/core/script-api.js</code>. Names are looked up in this order: the script's own functions, the piece (its properties, variables and methods; see <a href="pieces">Pieces</a>), its children by capitalized name, this list, then Lua's globals. See <a href="scripts">Scripts</a> for how a script works.</p>
+<p>Names a script can use without <code>smitten.</code>. How names resolve: <a href="scripts#names">Scripts</a>.</p>
 <h2 id="input"><a class="anchor" href="#input" aria-hidden="true">#</a>Input</h2>
-<p>More in <a href="input">Input</a>.</p>
+<p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>pressed(action)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button.</td></tr>
@@ -49,7 +49,7 @@
 <tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
-<p>More in <a href="scenes">Scenes and pieces</a>.</p>
+<p>See <a href="scenes">Scenes and pieces</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
@@ -68,7 +68,7 @@
 <tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
 </table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
-<p>More in <a href="sound">Sound and music</a>.</p>
+<p>See <a href="sound">Sound and music</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
@@ -79,14 +79,14 @@
 <tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
 </table></div>
 <h2 id="saving"><a class="anchor" href="#saving" aria-hidden="true">#</a>Saving</h2>
-<p>More in <a href="saving">Saving</a>.</p>
+<p>See <a href="saving">Saving</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>save(key, value)</code></td><td>Keeps a value between plays: save(&quot;best&quot;, score).</td></tr>
 <tr><td><code>load(key, default)</code></td><td>A saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
 </table></div>
 <h2 id="time"><a class="anchor" href="#time" aria-hidden="true">#</a>Time</h2>
-<p>More in <a href="scripts">Scripts</a>.</p>
+<p>See <a href="scripts">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
@@ -97,7 +97,7 @@
 <tr><td><code>time()</code></td><td>Seconds since the game started.</td></tr></tbody>
 </table></div>
 <h2 id="math"><a class="anchor" href="#math" aria-hidden="true">#</a>Math</h2>
-<p>More in <a href="scripts">Scripts</a>.</p>
+<p>See <a href="scripts">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>approach(value, target, step)</code></td><td>Moves a value towards a target by at most step.</td></tr>
@@ -111,7 +111,7 @@
 <tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high (with the piece's gravity).</td></tr></tbody>
 </table></div>
 <h2 id="screen"><a class="anchor" href="#screen" aria-hidden="true">#</a>Screen</h2>
-<p>More in <a href="settings">Project settings and modules</a>.</p>
+<p>See <a href="settings">Project settings</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
@@ -119,7 +119,7 @@
 <tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen; fullscreen() is true while it does.</td></tr></tbody>
 </table></div>
 <h2 id="drawing"><a class="anchor" href="#drawing" aria-hidden="true">#</a>Drawing</h2>
-<p>More in <a href="drawing">Drawing</a>.</p>
+<p>See <a href="drawing">Drawing</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>pen(r, g, b, a)</code></td><td>The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
@@ -135,10 +135,10 @@
 <tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2 }).</td></tr></tbody>
 </table></div>
 <h2 id="script-functions"><a class="anchor" href="#script-functions" aria-hidden="true">#</a>Script functions</h2>
-<p>Functions the engine calls when a script defines them:</p>
+<p>Called by the engine when a script defines them.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th>Pieces</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values.</td></tr>
+<tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
 <tr><td><code>function update(dt)</code></td><td>Piece</td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
 <tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>Piece</td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>

@@ -1,14 +1,10 @@
 # Script API
 
-Every name a script can use without `smitten.` in front, generated from
-`web/editor/core/script-api.js`. Names are looked up in this order: the
-script's own functions, the piece (its properties, variables and
-methods; see [Pieces](pieces.md)), its children by capitalized name, this
-list, then Lua's globals. See [Scripts](scripts.md) for how a script works.
+Names a script can use without `smitten.`. How names resolve: [Scripts](scripts.md#names).
 
 ## Input
 
-More in [Input](input.md).
+See [Input](input.md).
 
 | Call | |
 | --- | --- |
@@ -28,7 +24,7 @@ More in [Input](input.md).
 
 ## Scenes
 
-More in [Scenes and pieces](scenes.md).
+See [Scenes and pieces](scenes.md).
 
 | Call | |
 | --- | --- |
@@ -49,7 +45,7 @@ More in [Scenes and pieces](scenes.md).
 
 ## Sound
 
-More in [Sound and music](sound.md).
+See [Sound and music](sound.md).
 
 | Call | |
 | --- | --- |
@@ -62,7 +58,7 @@ More in [Sound and music](sound.md).
 
 ## Saving
 
-More in [Saving](saving.md).
+See [Saving](saving.md).
 
 | Call | |
 | --- | --- |
@@ -71,7 +67,7 @@ More in [Saving](saving.md).
 
 ## Time
 
-More in [Scripts](scripts.md).
+See [Scripts](scripts.md).
 
 | Call | |
 | --- | --- |
@@ -84,7 +80,7 @@ More in [Scripts](scripts.md).
 
 ## Math
 
-More in [Scripts](scripts.md).
+See [Scripts](scripts.md).
 
 | Call | |
 | --- | --- |
@@ -100,7 +96,7 @@ More in [Scripts](scripts.md).
 
 ## Screen
 
-More in [Project settings and modules](settings.md).
+See [Project settings](settings.md).
 
 | Call | |
 | --- | --- |
@@ -110,7 +106,7 @@ More in [Project settings and modules](settings.md).
 
 ## Drawing
 
-More in [Drawing](drawing.md).
+See [Drawing](drawing.md).
 
 | Call | |
 | --- | --- |
@@ -128,11 +124,11 @@ More in [Drawing](drawing.md).
 
 ## Script functions
 
-Functions the engine calls when a script defines them:
+Called by the engine when a script defines them.
 
 | Function | Pieces | |
 | --- | --- | --- |
-| `function ready(...)` | Piece | The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values. |
+| `function ready(...)` | Piece | The piece and its children joined the scene. The scene root gets go()'s extra values. |
 | `function update(dt)` | Piece | Every frame. dt is the time since the last frame, in seconds. |
 | `function physicsUpdate(dt)` | Piece | 60 times a second, before bodies move. Use it for movement. |
 | `function draw()` | Piece | Draw extra things on top of the piece, in its own coordinates. |

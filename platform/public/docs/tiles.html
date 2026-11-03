@@ -25,58 +25,42 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles" aria-current="page">Tiles</a><ul class="nav-sub"><li><a href="#reading-and-changing-cells">Reading and changing cells</a></li><li><a href="#cells-and-the-scene">Cells and the scene</a></li><li><a href="#touching-tiles">Touching tiles</a></li><li><a href="#the-tiles-piece">The Tiles piece</a></li></ul></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles" aria-current="page">Tiles</a><ul class="nav-sub"><li><a href="#cells">Cells</a></li><li><a href="#cells-and-positions">Cells and positions</a></li><li><a href="#collisions">Collisions</a></li></ul></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Tiles</h1>
-<p>A Tiles piece is a grid of tiles from a <code>.tileset</code> file: a picture cut into tiles, with settings for each tile (<code>solid</code>, <code>oneWay</code>, or anything you like, such as <code>damage</code>). Paint it in the scene view; change it from scripts.</p>
-<p>Cells are counted in <strong>columns</strong> and <strong>rows</strong> from the piece's position (0, 0 is its top-left cell; negative numbers work too). A cell holds a tile number, counted from 0, left to right and top to bottom in the tileset's picture, or -1 when empty.</p>
-<h2 id="reading-and-changing-cells"><a class="anchor" href="#reading-and-changing-cells" aria-hidden="true">#</a>Reading and changing cells</h2>
-<pre><code class="lang-lua">-- On a Body: break the brick above when bumping into it from below
-function hit(other)
-  if other:is(&quot;Tiles&quot;) and onCeiling() then
-    local column, row = other:cellAt(x, y - 20)
-    if other:tileInfo(other:getTile(column, row)).name == &quot;brick&quot; then
-      other:setTile(column, row, -1)
-      sfx(&quot;break&quot;)
-    end
-  end
-end</code></pre>
+<p>A Tiles piece is a grid of tiles from a <code>.tileset</code>. Each tile can have settings such as <code>solid</code>, <code>oneWay</code> or your own (<code>damage</code>).</p>
+<p>Cells are addressed by column and row from the piece's position; (0, 0) is the top-left cell and negatives work. A cell holds a tile number (from 0, in reading order of the tileset picture) or -1 for empty.</p>
+<h2 id="cells"><a class="anchor" href="#cells" aria-hidden="true">#</a>Cells</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>getTile(column, row)</code>, <code>setTile(column, row, tile)</code></td><td>Read and change one cell (-1 empties it)</td></tr>
-<tr><td><code>fill(column, row, columns, rows, tile)</code></td><td>A rectangle of cells at once</td></tr>
-<tr><td><code>clear()</code></td><td>Empties every cell</td></tr>
-<tr><td><code>cellsWith(tile)</code></td><td>Every painted cell (or every cell with one tile), as <code>{column, row, tile}</code></td></tr>
-<tr><td><code>neighbors(column, row, diagonal)</code></td><td>The 4 (or 8) cells around one, as <code>{column, row, tile}</code></td></tr>
-<tr><td><code>tileInfo(tile)</code></td><td>A tile's settings from the tileset: <code>solid</code>, <code>name</code>, <code>damage</code>...</td></tr>
-<tr><td><code>isSolid(column, row)</code></td><td>True if the cell's tile is solid</td></tr></tbody>
+<tbody><tr><td><code>getTile(column, row)</code>, <code>setTile(column, row, tile)</code></td><td>Read or change a cell; -1 empties it</td></tr>
+<tr><td><code>fill(column, row, columns, rows, tile)</code></td><td>Fill a rectangle</td></tr>
+<tr><td><code>clear()</code></td><td>Empty every cell</td></tr>
+<tr><td><code>cellsWith(tile)</code></td><td>Painted cells (or those with <code>tile</code>), as <code>{column, row, tile}</code></td></tr>
+<tr><td><code>neighbors(column, row, diagonal)</code></td><td>Adjacent cells, as <code>{column, row, tile}</code></td></tr>
+<tr><td><code>tileInfo(tile)</code></td><td>The tile's settings</td></tr>
+<tr><td><code>isSolid(column, row)</code></td><td>Whether the cell's tile is solid</td></tr></tbody>
 </table></div>
-<p>Solid tiles block Bodies as soon as they change.</p>
-<h2 id="cells-and-the-scene"><a class="anchor" href="#cells-and-the-scene" aria-hidden="true">#</a>Cells and the scene</h2>
+<h2 id="cells-and-positions"><a class="anchor" href="#cells-and-positions" aria-hidden="true">#</a>Cells and positions</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>cellAt(x, y)</code></td><td>The cell under a point in the scene: column, row</td></tr>
-<tr><td><code>tileAt(x, y)</code></td><td>The tile under a point, or -1</td></tr>
-<tr><td><code>cellPosition(column, row)</code></td><td>A cell's top-left corner in the scene</td></tr>
-<tr><td><code>cellCenter(column, row)</code></td><td>A cell's center in the scene</td></tr>
-<tr><td><code>getTileSize()</code></td><td>One cell's size in the scene</td></tr>
-<tr><td><code>getBounds()</code></td><td>The painted area in the scene: x, y, width, height</td></tr></tbody>
+<tbody><tr><td><code>cellAt(x, y)</code></td><td>The cell under a scene point</td></tr>
+<tr><td><code>tileAt(x, y)</code></td><td>The tile under a scene point, or -1</td></tr>
+<tr><td><code>cellPosition(column, row)</code>, <code>cellCenter(column, row)</code></td><td>A cell's corner or center in the scene</td></tr>
+<tr><td><code>getTileSize()</code></td><td>One cell's size</td></tr>
+<tr><td><code>getBounds()</code></td><td>The painted area: x, y, width, height</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua">-- Turn every coin tile (tile 7) into a coin piece
-function ready()
-  for _, c in ipairs(Level:cellsWith(7)) do
-    local cx, cy = Level:cellCenter(c.column, c.row)
-    spawn(&quot;scenes/coin.scene&quot;, { x = cx, y = cy })
-    Level:setTile(c.column, c.row, -1)
-  end
+<pre><code class="lang-lua">for _, c in ipairs(Level:cellsWith(7)) do
+  local cx, cy = Level:cellCenter(c.column, c.row)
+  spawn(&quot;scenes/coin.scene&quot;, { x = cx, y = cy })
+  Level:setTile(c.column, c.row, -1)
 end</code></pre>
-<h2 id="touching-tiles"><a class="anchor" href="#touching-tiles" aria-hidden="true">#</a>Touching tiles</h2>
-<p>Bodies' <code>hit(other)</code> gets the Tiles piece when they bump into solid tiles. <code>touchingTile(setting)</code> on a Body returns the settings of a tile it touches that has that setting:</p>
-<pre><code class="lang-lua">local spikes = touchingTile(&quot;damage&quot;)
-if spikes then hurt(spikes.damage) end</code></pre>
-<p>Tilesets are described in <a href="formats#tilesets">File formats</a>.</p>
-<h2 id="the-tiles-piece"><a class="anchor" href="#the-tiles-piece" aria-hidden="true">#</a>The Tiles piece</h2>
+<h2 id="collisions"><a class="anchor" href="#collisions" aria-hidden="true">#</a>Collisions</h2>
+<p>A Body's <code>hit(other)</code> receives the Tiles piece. <code>touchingTile(setting)</code> returns the settings of a touched tile that has <code>setting</code>:</p>
+<pre><code class="lang-lua">local t = touchingTile(&quot;damage&quot;)
+if t then hurt(t.damage) end</code></pre>
+<p>Tileset files: <a href="formats#tilesets">File formats</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: a picture cut into tiles, with settings such as solid.</td></tr>
@@ -94,7 +78,7 @@ if spikes then hurt(spikes.damage) end</code></pre>
 <tr><td><code>clear()</code></td><td>Empties every cell.</td></tr>
 <tr><td><code>tileAt(x, y)</code></td><td>The tile number under a point in the scene, or -1.</td></tr>
 <tr><td><code>isSolid(column, row)</code></td><td>True if the cell's tile is marked solid (and solid is on).</td></tr>
-<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal.</td></tr>
+<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Adjacent cells as {column, row, tile}: 4, or 8 with diagonal.</td></tr>
 <tr><td><code>cellCenter(column, row)</code></td><td>The scene position of a cell's center.</td></tr>
 <tr><td><code>getTileSize()</code></td><td>The size of one cell in the scene: width, height.</td></tr>
 <tr><td><code>getBounds()</code></td><td>The painted area in the scene: x, y, width, height (all 0 when empty).</td></tr></tbody>

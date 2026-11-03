@@ -1,14 +1,12 @@
 # Input
 
-Read input by **action**: a name like `jump` or `left` that stands for
-several keys and buttons at once, so a game works with a keyboard and a
-gamepad without extra code. Actions are set in **Project settings › Input**.
+Read input through **actions**: named groups of keys and buttons, set in
+**Project settings › Input**.
 
 ```lua
 function physicsUpdate(dt)
   vx = axis("left", "right") * speed
   if pressed("jump") and onGround() then vy = -jumpSpeed(96) end
-  if down("fire") then shoot() end
 end
 ```
 
@@ -32,107 +30,69 @@ end
 
 ## Actions
 
-Every project starts with these; Project settings › Input adds more and
-changes them.
-
-| Action | Inputs |
+| Action | Default inputs |
 | --- | --- |
-| `left`, `right`, `up`, `down` | Arrow keys, WASD, the d-pad, the left stick |
+| `left`, `right`, `up`, `down` | Arrow keys, WASD, d-pad, left stick |
 | `jump` | Space, gamepad A |
 | `fire` | X, J, left mouse button, gamepad X |
-| `accept` | Enter, Space, gamepad A (presses the focused button) |
+| `accept` | Enter, Space, gamepad A |
 | `cancel` | Escape, Backspace, gamepad B |
 | `pause` | Escape, P, gamepad Start |
 
-`pressed`, `down` and `released` also take a single **input**, for quick
-tests: `pressed("space")`, `down("mouse:2")`, `pressed("pad:start")`.
-`pressed()` with nothing is true when any key, mouse button or gamepad
-button went down this frame ("press any key").
+`pressed`, `down` and `released` also take a single input name:
+`pressed("space")`. `pressed()` with no argument means any input.
 
 ### Input names
 
 | Name | Input |
 | --- | --- |
-| `"a"`, `"space"`, `"left"`, `"lshift"`, `"return"`, `"escape"`, `"1"` | Keys ([LÖVE's key names](https://love2d.org/wiki/KeyConstant)) |
-| `"mouse:1"`, `"mouse:2"`, `"mouse:3"` | Left, right and middle mouse buttons (a touch counts as `mouse:1`) |
-| `"wheel:up"`, `"wheel:down"` | The mouse wheel (pressed for one frame) |
-| `"pad:a"`, `"pad:b"`, `"pad:x"`, `"pad:y"`, `"pad:start"`, `"pad:back"`, `"pad:leftshoulder"`, `"pad:dpleft"`, ... | Gamepad buttons |
-| `"axis:leftx-"`, `"axis:leftx+"`, `"axis:lefty-"`, `"axis:righty+"`, `"axis:triggerleft+"`, ... | Half of a stick or a trigger (counts as pressed past halfway) |
+| `"a"`, `"space"`, `"left"`, `"return"`, ... | Keys ([LÖVE key names](https://love2d.org/wiki/KeyConstant)) |
+| `"mouse:1"`, `"mouse:2"`, `"mouse:3"` | Left, right, middle button; a touch is `mouse:1` |
+| `"wheel:up"`, `"wheel:down"` | Mouse wheel, pressed for one frame |
+| `"pad:a"`, `"pad:start"`, `"pad:dpleft"`, ... | Gamepad buttons |
+| `"axis:leftx-"`, `"axis:triggerleft+"`, ... | Half a stick or a trigger, pressed past halfway |
 
-## Changing controls while the game runs
+## Rebinding
 
-`smitten.input.bind(action, inputs)` adds or replaces an action;
-`bindings(action)` lists its inputs and `lastPressed()` is the input pressed
-this frame, for a "press a key for jump" screen. Save the choice to keep it:
+`smitten.input.bind(action, inputs)` replaces an action's inputs.
+`lastPressed()` returns the input pressed this frame.
 
 ```lua
--- On a "Jump: [space]" button
-local waiting = false
-
-function pressed() waiting = true; text = "Jump: press a key" end
-
-function update(dt)
-  if not waiting then return end
-  local key = smitten.input.lastPressed()
-  if key and key ~= "mouse:1" then
-    smitten.input.bind("jump", { key })
-    save("jumpKey", key)
-    text = `Jump: {key}`
-    waiting = false
-  end
+local key = smitten.input.lastPressed()
+if key then
+  smitten.input.bind("jump", { key })
+  save("jumpKey", key)
 end
 ```
 
-## The mouse
+## Mouse
 
-`mouse()` is the pointer in the scene, through the camera: use it to aim
-or pick things up. `mouseScreen()` is the pointer on the screen, in game
-pixels, for UI. `smitten.mouse.pressed(button)`, `released(button)` and
-`down(button)` work like the actions (button 1 is the left one);
-`smitten.mouse.isOverUI()` is true over a button or panel, so a click meant
-for the UI doesn't also shoot. `smitten.mouse.getDelta()` is how far it
-moved this frame, also while it's captured with
-`smitten.mouse.setRelativeMode(true)`.
+`mouse()` is the pointer in the scene; `mouseScreen()` is on the screen,
+for UI. `smitten.mouse.isOverUI()` is true over a button or panel.
 
 ```lua
-function update(dt)
-  local mx, my = mouse()
-  lookAt(mx, my)
-  if pressed("mouse:1") and not smitten.mouse.isOverUI() then shoot() end
-  if pressed("wheel:up") then Camera.zoom *= 1.1 end
-end
+if pressed("mouse:1") and not smitten.mouse.isOverUI() then shoot() end
 ```
 
 ## Touch
 
-A touch also counts as the left mouse button, so most games work on phones
-as they are. `touches()` lists every finger, for games that need more than
-one: each has an `id`, `x`, `y` (on the screen) and `worldX`, `worldY` (in
-the scene).
+`touches()` returns each finger: `id`, `x`, `y` (screen) and `worldX`,
+`worldY` (scene).
 
 ## Gamepads
 
-The actions already read gamepads. For more: `stick("left")` gives the left
-stick's x, y (with a dead zone), `trigger("right")` the right trigger, and
-`vibrate(0.6, 0.25)` rumbles. Each takes a player number last for local
-multiplayer (`stick("left", 2)`); `smitten.input.gamepads()` is how many
-are connected. LÖVE's [`smitten.joystick`](https://love2d.org/wiki/love.joystick)
-has the rest.
+`stick(side, player)`, `trigger(side, player)` and
+`vibrate(strength, seconds, player)`. `smitten.input.gamepads()` is the
+number connected.
 
 ## Typing
 
-`typed()` is the text typed this frame. The first call turns text input on
-(on phones it shows the keyboard); `smitten.keyboard.setTextInput(false)`
-turns it off.
+`typed()` returns the text typed this frame and turns text input on (the
+on-screen keyboard on phones).
 
 ```lua
-playerName = ""
-
-function update(dt)
-  playerName ..= typed()
-  if pressed("backspace") then playerName = playerName:sub(1, -2) end
-  NameLabel.text = playerName
-end
+name ..= typed()
+if pressed("backspace") then name = name:sub(1, -2) end
 ```
 
 ## smitten.input
@@ -160,7 +120,3 @@ end
 | `smitten.input.trigger(side, player?)` | A gamepad trigger ("left" or "right"): 0 to 1. |
 | `smitten.input.vibrate(strength, seconds, player?)` | Rumbles gamepads (all, or one player's). |
 <!-- end -->
-
-Also: `smitten.keyboard.pressed(key)` and `released(key)`, next to LÖVE's
-`smitten.keyboard.isDown(key)`; `smitten.mouse.x`, `y` (game pixels) and
-`worldX`, `worldY` (scene).
