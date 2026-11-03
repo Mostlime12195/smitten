@@ -1,5 +1,5 @@
 // Account settings: display name, games, password, recovery codes, Hack
-// Club, where you're signed in, and deleting the account.
+// Club, Hackatime, where you're signed in, and deleting the account.
 
 import { $, h, api, send, accountDetails, siteConfig, showError, clearErrors, codesBlock, timeAgo, plays, toast } from './site.js';
 
@@ -117,6 +117,16 @@ function renderPassword(codesLeft) {
   del.confirm.hidden = has;
 }
 
+function renderHackatime(c) {
+  const on = Boolean(c.accounts?.hackatime);
+  $('#hackatime-section').hidden = !on && !user.hackatime;
+  $('#hackatime-status').textContent = user.hackatime
+    ? 'Connected: the editor can get your Hackatime key, and your games show the time you spent on them.'
+    : 'Connect Hackatime, Hack Club’s time tracker, to track time in the editor and show it on your games.';
+  $('#hackatime-connect').hidden = user.hackatime || !on;
+  $('#hackatime-disconnect').hidden = !user.hackatime;
+}
+
 async function start() {
   const details = await accountDetails();
   user = details.user;
@@ -129,6 +139,7 @@ async function start() {
   renderPassword(details.recoveryCodesLeft || 0);
   if (params.get('error')) banner(params.get('error'), 'error');
   else if (params.get('connected') === 'hackclub') banner('Your Hack Club account is connected. You can sign in with it now.');
+  else if (params.get('connected') === 'hackatime') banner('Hackatime is connected. In the editor, Settings › Hackatime › Connect with Hackatime sets up time tracking.');
   if (params.has('error') || params.has('connected')) history.replaceState(null, '', '/account');
 
   $('#name-form').displayName.value = user.displayName;
@@ -158,6 +169,7 @@ async function start() {
   });
 
   siteConfig().then((c) => {
+    renderHackatime(c);
     if (!c.accounts?.hackclub && !user.hackclub) return;
     $('#hackclub-section').hidden = false;
     $('#hackclub-status').textContent = user.hackclub
@@ -165,6 +177,20 @@ async function start() {
       : 'Connect your Hack Club account to sign in with it.';
     $('#hackclub-connect').hidden = user.hackclub || !c.accounts?.hackclub;
   }).catch(() => {});
+  $('#hackatime-disconnect').addEventListener('click', async (e) => {
+    if (!confirm('Disconnect Hackatime? Your games stop showing their hours, and the editor keeps the key it has until you remove it there.')) return;
+    e.target.disabled = true;
+    try {
+      await send('/api/account/hackatime', undefined, 'DELETE');
+      user.hackatime = false;
+      renderHackatime(await siteConfig());
+      toast('Hackatime is disconnected.');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      e.target.disabled = false;
+    }
+  });
 
   $('#signout').addEventListener('click', async () => {
     await send('/api/auth/signout').catch(() => {});

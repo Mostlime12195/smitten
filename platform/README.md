@@ -19,10 +19,12 @@ teenagers, and anywhere else Node 24 runs.
   account, so they can be updated from any computer.
 - **Gallery** (`/`): newest or most played games, and search.
 - **Play** (`/play/<id>`): the game in Smitten's player, who made it,
-  **Remix** (opens the editor with a copy) and **Report**.
+  how long it took ("Made in 12 h 30 min · tracked by Hackatime", when its
+  maker connected Hackatime), **Remix** (opens the editor with a copy) and
+  **Report**.
 - **Profiles** (`/u/<username>`): someone's public games.
 - **Account settings** (`/account`): display name, password, recovery
-  codes, Hack Club, where you're signed in (browsers and editors, each can
+  codes, Hack Club, Hackatime, where you're signed in (browsers and editors, each can
   be signed out), your games, deleting the account.
 - **Moderation**: reports hide a game after three people report it;
   moderators hide, restore and delete games, and ban accounts.
@@ -65,15 +67,18 @@ node tools/platform-tests/test.mjs       # from the repository root
 ```
 
 It starts the server on port 8788 (`PLATFORM_PORT`) with an empty data
-folder, an admin token and a stand-in for Hack Club Auth, and runs 108
-checks: pages and headers, CORS, signing up, in and out, passwords and
-their rate limits, CSRF, recovery codes and reset links, account settings,
-the editor's sign-in and its tokens, publishing, ownership, listing, search
-and profiles, plays, validation and the word filter, remixes, claiming old
-games, reports, moderation, banning, Hack Club sign-in, deleting games and
-accounts, and rate limits. `PLATFORM_URL` tests a running server instead
-(it needs `TRUST_PROXY=1` and `PUBLIC_URL` set to that address; tests that
-need the database or the Hack Club stand-in are skipped).
+folder, an admin token and stand-ins for Hack Club Auth and Hackatime (and,
+for one check, a second server on the next port without Hackatime), and
+runs 126 checks: pages and headers, CORS, signing up, in and out, passwords
+and their rate limits, CSRF, recovery codes and reset links, account
+settings, the editor's sign-in and its tokens, publishing, ownership,
+listing, search and profiles, plays, validation and the word filter,
+remixes, claiming old games, reports, moderation, banning, Hack Club
+sign-in, connecting Hackatime (keys, game hours and their cache, revoked
+tokens, disconnecting, encryption at rest), deleting games and accounts,
+and rate limits. `PLATFORM_URL` tests a running server instead (it needs
+`TRUST_PROXY=1` and `PUBLIC_URL` set to that address; tests that need the
+database or the stand-ins are skipped).
 
 ## How it works
 
@@ -85,6 +90,7 @@ platform/
   src/auth.js              passwords (scrypt), sessions, editor tokens, CSRF and sign-in checks
   src/account.js           sign up/in/out, recovery, settings, profiles, claiming, the editor's sign-in
   src/hackclub.js          Sign in with Hack Club (OpenID Connect)
+  src/hackatime.js         Connect Hackatime (OAuth): the editor's API key, game hours
   src/games.js             publishing, playing, listing, reporting
   src/admin.js             moderation
   src/storage.js           game files on disk
@@ -155,6 +161,8 @@ platform/
   picks a username next; an existing account can connect Hack Club in its
   settings. Register the app at https://auth.hackclub.com/developer/apps
   with the redirect URI `<PUBLIC_URL>/auth/hackclub/callback`.
+- **Connect Hackatime**, when `HACKATIME_CLIENT_ID` and
+  `HACKATIME_CLIENT_SECRET` are set: see [Hackatime](#hackatime) below.
 - **Games belong to accounts.** Publishing, updating and deleting need the
   owner's session or editor token. Games published before accounts (with
   an edit token) have no owner until claimed.
@@ -204,6 +212,63 @@ account settings list them ("The editor at …") with **Sign out**, and
 changing the password revokes them. CORS headers go only to
 `EDITOR_ORIGINS`, never with credentials.
 
+## Hackatime
+
+[Hackatime](https://hackatime.hackclub.com) is Hack Club's time tracker.
+The editor sends it heartbeats with the person's API key
+(`web/editor/hackatime.js`). Connecting it to a Smitten account does two
+things: the editor gets the key with one click instead of copying it, and
+game pages show how long Hackatime tracked for the game.
+
+**Setting it up.** Register a confidential OAuth app in Hackatime with the
+scopes `profile` and `read` and the redirect URI
+`<PUBLIC_URL>/auth/hackatime/callback` (in production,
+`https://games.mostlime.hackclub.app/auth/hackatime/callback`), and set
+`HACKATIME_CLIENT_ID` and `HACKATIME_CLIENT_SECRET` (`HACKATIME_URL` points
+elsewhere, for testing). Without them, the account row, the routes and the
+hours are off (`/api/config` says `accounts.hackatime: false`).
+
+**Connecting.** `/auth/hackatime` (signed in on the site; otherwise it goes
+through sign-in first) sends the browser to Hackatime's
+`/oauth/authorize` with `state` and PKCE (S256), scope `profile read`; the
+callback swaps the code for an access token with the client secret, asks
+`/api/v1/authenticated/me` for the Hackatime user id, and stores it. It
+ends on `/account?connected=hackatime`, or on `next` (the editor uses
+`/hackatime-connected`, which says to go back to the editor). A Hackatime
+account is connected to one Smitten account at a time; connecting it to
+another moves it there.
+
+**From the editor.** Settings › Hackatime › **Connect with Hackatime**
+signs in to the site if needed, asks `GET /api/account/hackatime-key`, and
+if the account isn't connected yet, opens `/auth/hackatime?next=/hackatime-connected`
+in a window and asks again every 2 seconds (for up to 3 minutes, while
+Settings is open). The site fetches the key from Hackatime's
+`/api/v1/authenticated/api_keys` each time and doesn't keep it. Pasting a
+key by hand still works.
+
+**Game hours.** The editor sends its project's name with each publish
+(`meta.hackatimeProject`; it's the `project` its heartbeats name). When the
+game's owner has Hackatime connected, the game's view has
+`hackatime: {seconds, checkedAt}`, from a cache on the game, refreshed in
+the background from `/api/v1/authenticated/projects?projects=<name>` at
+most once an hour per game (when someone looks at it), and right after
+publishing, updating or connecting. If Hackatime is down, the page shows
+the last value, or none. The project name itself isn't shown.
+
+**What's stored, and privacy.** On the account: the Hackatime user id, the
+access token, and when it was connected. The token is encrypted with
+AES-256-GCM, with a key derived from `SECRET` and the account's id as
+associated data; it's never logged or sent to a browser. Nothing else from
+Hackatime (`/me` also returns emails, a Slack id and a GitHub username) is
+kept, and the API key isn't stored at all. On games: the project name and
+the cached seconds. **Disconnecting** (account settings, or
+`DELETE /api/account/hackatime` from the editor) revokes the token at
+Hackatime (best effort) and clears all of it, cached hours included;
+deleting the account revokes it too. When Hackatime says a token was
+revoked (from Hackatime's side), the link is cleared the next time it's
+used. Changing `SECRET` makes stored tokens unreadable, which disconnects
+everyone (they connect again).
+
 ## The editor's side
 
 `web/editor/account.js`:
@@ -211,7 +276,7 @@ changing the password revokes them. CORS headers go only to
 ```js
 import { account, signIn, signOut, onChange, accountEvents } from './account.js';
 
-account();                      // {username, displayName, hasPassword, hackclub, createdAt} or null
+account();                      // {username, displayName, hasPassword, hackclub, hackatime, createdAt} or null
 await signIn();                 // from a click: opens the popup; the user, or null if cancelled
 await signOut();                // revokes the editor's token on the site
 const off = onChange((user, platformUrl) => { /* update the account button */ });
@@ -222,7 +287,8 @@ to the editor's `platformUrl` setting; accounts are kept per site in
 localStorage (`smitten-editor.account`). `onChange` also fires for changes
 in other tabs and when the `platformUrl` setting changes. It also exports
 `refreshAccount()` (asks the site, e.g. after a revoked token),
-`accountToken()` and `clearAccount()`. It uses only `ui.js` and
+`accountToken()`, `clearAccount()` and `accountRequest(path, {method, body})`
+(calls the site's API with the editor's token). It uses only `ui.js` and
 `settings.js`, and existing classes, so it needs no CSS of its own.
 
 `web/editor/publish.js`:
@@ -252,16 +318,16 @@ All responses are JSON, except the game file, the thumbnail and the
 `/auth/hackclub` redirects. Errors are `{"error": "a sentence for people",
 "field": "title"}` with a 4xx status, and `code` where the editor needs to
 tell cases apart (`sign-in`, `signed-out`, `banned`, `use-hackclub`,
-`bad-code`). "Session" means the cookie from a page on this site; "editor"
+`bad-code`, `not-connected`, `hackatime-off`). "Session" means the cookie from a page on this site; "editor"
 means `Authorization: Bearer <editor token>`.
 
 | Endpoint | Who | What it does |
 | --- | --- | --- |
 | `GET /api/config` | anyone | Editor URL and origins, report reasons, modules, limits, `accounts.hackclub` |
 | `GET /api/games?sort=new\|popular&q=&user=&limit=24&cursor=` | anyone | Public games, newest or most played; `q` searches titles and descriptions, `user` filters by username |
-| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`), `game` (the `.love`), optionally `thumbnail` (PNG). `201 {id, game}` |
-| `GET /api/games/<id>` | anyone | A game, with `owner`, `remixOf: {id, title}` and `remixes`; `yours: true` for its owner |
-| `PUT /api/games/<id>` | owner | Publish an update (the same form) |
+| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the `.love`), optionally `thumbnail` (PNG). `201 {id, game}` |
+| `GET /api/games/<id>` | anyone | A game, with `owner`, `remixOf: {id, title}`, `remixes` and `hackatime: {seconds, checkedAt}` (when tracked); `yours: true` for its owner |
+| `PUT /api/games/<id>` | owner | Publish an update (the same form; without `hackatimeProject`, the game keeps its) |
 | `DELETE /api/games/<id>` | owner | Delete the game and its files |
 | `GET /api/games/<id>/<name>.love` | anyone | The game (`application/zip`, as an attachment; ETag and 304s) |
 | `GET /api/games/<id>/thumbnail.png` | anyone | The thumbnail |
@@ -285,8 +351,12 @@ means `Authorization: Bearer <editor token>`.
 | `POST /api/account/sessions/revoke-others` | session | Sign out everywhere else |
 | `GET /api/account/games` | session or editor | Your games, hidden ones too, with `status` |
 | `POST /api/account/claim` | session or editor | `{games: [{id, token}]}`: claim games published with edit tokens |
+| `GET /api/account/hackatime-key` | editor or session | `{key}`: the Hackatime API key, fetched from Hackatime (`no-store`). 404 `{code: "not-connected"}` when not connected, `{code: "hackatime-off"}` when the site has no Hackatime |
+| `DELETE /api/account/hackatime` | session or editor | Disconnect Hackatime (and revoke the token there) |
 | `GET /auth/hackclub?next=&link=1` | anyone | Off to Hack Club's sign-in (when configured) |
 | `GET /auth/hackclub/callback` | Hack Club | Back from it |
+| `GET /auth/hackatime?next=` | session | Off to Hackatime to connect it (when configured) |
+| `GET /auth/hackatime/callback` | Hackatime | Back from it |
 
 Moderation, with `Authorization: Bearer <ADMIN_TOKEN>` (or
 `node scripts/admin.mjs`, which calls them on the same machine):
@@ -313,7 +383,8 @@ owner and admins.
 The audience is teenagers:
 
 - **Little personal data.** Accounts are a username, a display name and a
-  password hash (or a Hack Club id). No email, no real name, no age, no
+  password hash (or a Hack Club id), and, if connected, a Hackatime id and
+  an encrypted Hackatime token. No email, no real name, no age, no
   profile pictures, no comments or messages: people can't contact each
   other through the site. IP addresses are only stored as salted hashes,
   in rate limits and anonymous reports and plays.
@@ -351,7 +422,8 @@ Every setting is an environment variable, also read from `platform/.env`
 lists them all with their defaults; the ones to set when deploying are
 `PUBLIC_URL`, `PORT`, `HOST`, `TRUST_PROXY`, `DATA_DIR`, `EDITOR_URL`,
 `EDITOR_ORIGINS` and `ADMIN_TOKEN`, plus `HACKCLUB_CLIENT_ID` and
-`HACKCLUB_CLIENT_SECRET` for Hack Club's sign-in. `SECRET` is generated
+`HACKCLUB_CLIENT_SECRET` for Hack Club's sign-in and
+`HACKATIME_CLIENT_ID` and `HACKATIME_CLIENT_SECRET` for Hackatime. `SECRET` is generated
 into `DATA_DIR/secret` if not set.
 
 ## Deploying on Hack Club Nest

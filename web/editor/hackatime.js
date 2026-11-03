@@ -1,6 +1,9 @@
 // Hackatime (https://hackatime.hackclub.com), Hack Club's time tracker. With
-// an API key in Settings › Hackatime, the editor sends WakaTime-style
-// heartbeats while you work, and the status bar shows today's total.
+// an API key in Settings › Hackatime (pasted, or fetched by Connect with
+// Hackatime through the sharing site: settings-dialog.js), the editor sends
+// WakaTime-style heartbeats while you work, and the status bar shows today's
+// total. Publishing sends the project's name too, so the game's page can
+// show the time tracked for it.
 //
 // Only real work counts, as Hack Club asks: a heartbeat goes out when you
 // type, click or drag in a workspace, at most every 2 minutes for the same

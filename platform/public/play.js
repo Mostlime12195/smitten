@@ -39,6 +39,14 @@ function mountPlayer() {
   stage.replaceChildren(frame);
 }
 
+/** 45000 → "12 h 30 min". */
+function duration(seconds) {
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  if (!hours) return `${Math.max(1, minutes)} min`;
+  return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+}
+
 function renderMeta() {
   const parts = [];
   if (game.owner) parts.push(h('span', {}, 'by ', h('a', { href: `/u/${game.owner.username}` }, game.owner.displayName)));
@@ -46,6 +54,11 @@ function renderMeta() {
   parts.push(h('span', { id: 'plays' }, plays(game.plays)));
   if (game.remixes) parts.push(h('span', {}, `${game.remixes} remix${game.remixes === 1 ? '' : 'es'}`));
   parts.push(h('span', {}, game.version > 1 ? `Updated ${timeAgo(game.updatedAt)}` : `Published ${timeAgo(game.createdAt)}`));
+  if (game.hackatime?.seconds >= 60) {
+    parts.push(h('span', { title: game.hackatime.checkedAt ? `Checked ${timeAgo(game.hackatime.checkedAt)}` : null },
+      `Made in ${duration(game.hackatime.seconds)} · tracked by `,
+      h('a', { href: 'https://hackatime.hackclub.com', target: '_blank', rel: 'noopener' }, 'Hackatime')));
+  }
   const meta = $('#meta');
   meta.replaceChildren();
   parts.forEach((part, i) => {

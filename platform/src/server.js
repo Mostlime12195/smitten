@@ -7,6 +7,8 @@
 //   /signin /signup /recover /account
 //   /editor-auth            the editor's sign-in popup
 //   /auth/hackclub[/callback]  "Sign in with Hack Club" (when configured)
+//   /auth/hackatime[/callback] "Connect Hackatime" (when configured)
+//   /hackatime-connected    where the editor's Hackatime popup ends up
 //   /player/player.html     the player (copied by scripts/copy-player.sh)
 //   /api/...                the API (README.md lists every endpoint)
 //
@@ -34,6 +36,7 @@ import {
   editorCode, editorToken, revokeEditorToken,
 } from './account.js';
 import * as hackclub from './hackclub.js';
+import * as hackatime from './hackatime.js';
 import {
   adminReports, adminHide, adminRestore, adminDelete,
   adminUser, adminBan, adminUnban, adminResetLink, adminDeleteUser, adminLog, adminRequestInfo,
@@ -77,6 +80,8 @@ const API = [
   ['DELETE', new RegExp(`^/api/account/sessions/${SESSION}$`), revokeSession],
   ['GET', /^\/api\/account\/games$/, myGames],
   ['POST', /^\/api\/account\/claim$/, claimGames],
+  ['GET', /^\/api\/account\/hackatime-key$/, hackatime.getKey],
+  ['DELETE', /^\/api\/account\/hackatime$/, hackatime.disconnect],
 
   ['GET', /^\/api\/admin\/reports$/, adminReports],
   ['GET', /^\/api\/admin\/log$/, adminLog],
@@ -214,6 +219,7 @@ const PAGES = {
   '/recover': ['recover.html', 'auth'],
   '/editor-auth': ['editor-auth.html', 'auth'],
   '/account': ['account.html', 'site'],
+  '/hackatime-connected': ['hackatime-connected.html', 'auth'],
 };
 
 async function route(ctx) {
@@ -234,6 +240,8 @@ async function route(ctx) {
     if (known) return withSecurityHeaders(await page(ctx, known[0]), known[1], config);
     if (path === '/auth/hackclub') return withSecurityHeaders(hackclub.start(ctx), 'auth', config);
     if (path === '/auth/hackclub/callback') return withSecurityHeaders(await hackclub.callback(ctx), 'auth', config);
+    if (path === '/auth/hackatime') return withSecurityHeaders(hackatime.start(ctx), 'auth', config);
+    if (path === '/auth/hackatime/callback') return withSecurityHeaders(await hackatime.callback(ctx), 'auth', config);
   } catch (e) {
     if (e instanceof HttpError) return withSecurityHeaders(text(e.message, e.status), 'file', config);
     throw e;

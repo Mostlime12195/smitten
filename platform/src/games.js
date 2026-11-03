@@ -8,6 +8,7 @@ import { actorKey, currentUser, ipHash, isAdmin, requireUser } from './auth.js';
 import { GAME_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFiles } from './storage.js';
 import { inspectZip } from './zip.js';
 import { checkAddress, noteAddress } from './bans.js';
+import { gameHours, refreshGameHours } from './hackatime.js';
 import {
   LIMITS, MODULES, REPORT_REASONS, USERNAME_RULES,
   cleanTitle, cleanDescription, cleanNote, cleanModules, cleanEngineVersion, inspectPng,
@@ -32,7 +33,8 @@ export const uploadLimit = (config) => config.maxGameBytes + config.maxThumbnail
 // ---------------------------------------------------------------------------
 // Rows and what the API shows of them
 
-const SELECT_GAME = `SELECT g.*, u.username AS owner_username, u.display_name AS owner_name, u.status AS owner_status
+const SELECT_GAME = `SELECT g.*, u.username AS owner_username, u.display_name AS owner_name, u.status AS owner_status,
+    u.hackatime_id IS NOT NULL AS owner_hackatime
   FROM games g LEFT JOIN users u ON u.id = g.owner_id`;
 
 export function getRow(id) {
@@ -43,11 +45,12 @@ export function getRow(id) {
 /** The public view of a game. URLs are absolute so the editor can use them. */
 export function publicGame(row, origin) {
   const base = `${origin}/api/games/${row.id}`;
-  return {
+  const active = row.owner_username && row.owner_status === 'active';
+  const game = {
     id: row.id,
     title: row.title,
     description: row.description,
-    owner: row.owner_username && row.owner_status === 'active' ? { username: row.owner_username, displayName: row.owner_name } : null,
+    owner: active ? { username: row.owner_username, displayName: row.owner_name } : null,
     modules: JSON.parse(row.modules || '[]'),
     engineVersion: row.engine_version,
     version: row.version,
@@ -60,6 +63,10 @@ export function publicGame(row, origin) {
     gameUrl: `${base}/game.love`,
     playUrl: `${origin}/play/${row.id}`,
   };
+  // How long Hackatime tracked for it, when its owner has Hackatime connected.
+  const hours = active ? gameHours(row) : null;
+  if (hours) game.hackatime = hours;
+  return game;
 }
 
 const isOwner = (ctx, row) => {
@@ -92,9 +99,22 @@ function ownedRow(ctx, id) {
 
 // ---------------------------------------------------------------------------
 // Reading an upload: multipart/form-data with
-//   meta       JSON {title, description, modules, engineVersion, remixOf}
+//   meta       JSON {title, description, modules, engineVersion, remixOf, hackatimeProject}
 //   game       the .love (a zip), at most MAX_GAME_BYTES
 //   thumbnail  optional PNG, at most MAX_THUMBNAIL_BYTES
+
+/**
+ * The editor's project name (what its Hackatime heartbeats call the
+ * project), or null; undefined when the editor didn't send one (an update
+ * then keeps the game's).
+ */
+function cleanProjectName(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') throw new HttpError(422, 'hackatimeProject must be a string.', { field: 'hackatimeProject' });
+  const name = value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 200);
+  return name || null;
+}
 
 async function readUpload(ctx) {
   const { request, config } = ctx;
@@ -128,6 +148,7 @@ async function readUpload(ctx) {
     modules: cleanModules(meta.modules),
     engineVersion: cleanEngineVersion(meta.engineVersion),
     remixOf: null,
+    hackatimeProject: cleanProjectName(meta.hackatimeProject),
   };
   if (meta.remixOf != null && meta.remixOf !== '') {
     if (typeof meta.remixOf !== 'string' || !ID_RE.test(meta.remixOf)) throw new HttpError(422, 'remixOf must be a game id.', { field: 'remixOf' });
@@ -162,7 +183,7 @@ export function getConfig(ctx) {
     reportReasons: REPORT_REASONS,
     modules: MODULES,
     limits: limits(config),
-    accounts: { hackclub: Boolean(config.hackclub), usernameRules: USERNAME_RULES },
+    accounts: { hackclub: Boolean(config.hackclub), hackatime: Boolean(config.hackatime), usernameRules: USERNAME_RULES },
   });
 }
 
@@ -179,14 +200,15 @@ export async function publishGame(ctx) {
   try {
     db.run(
       `INSERT INTO games (id, owner_id, title, description, modules, engine_version, remix_of,
-         has_thumbnail, game_size, version, plays, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'public', ?, ?)`,
+         has_thumbnail, game_size, version, plays, status, created_at, updated_at, hackatime_project)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'public', ?, ?, ?)`,
       id, user.id, fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
-      fields.remixOf, thumbnail ? 1 : 0, gameBytes.length, now, now);
+      fields.remixOf, thumbnail ? 1 : 0, gameBytes.length, now, now, fields.hackatimeProject ?? null);
   } catch (e) {
     await removeGameFiles(id);
     throw e;
   }
+  refreshGameHours(ctx.config, id, { force: true });
   return json({ id, game: publicGame(getRow(id), ctx.origin) }, 201);
 }
 
@@ -207,6 +229,11 @@ export async function updateGame(ctx, id) {
      WHERE id = ?`,
     fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
     thumbnail ? 1 : 0, gameBytes.length, version, Date.now(), id);
+  if (fields.hackatimeProject !== undefined && fields.hackatimeProject !== row.hackatime_project) {
+    // Another project: its hours are someone else's count.
+    db.run('UPDATE games SET hackatime_project = ?, hackatime_seconds = NULL, hackatime_checked_at = NULL WHERE id = ?', fields.hackatimeProject, id);
+  }
+  refreshGameHours(ctx.config, id, { force: true });
   const updated = getRow(id);
   return json({ id, game: { ...publicGame(updated, ctx.origin), status: updated.status } });
 }
@@ -259,6 +286,8 @@ export function listGames(ctx) {
 export function getGame(ctx, id) {
   const row = visibleRow(ctx, id);
   const game = publicGame(row, ctx.origin);
+  // In the background: this answer has the cached hours.
+  if (row.owner_hackatime && row.hackatime_project) refreshGameHours(ctx.config, id);
   if (row.remix_of) {
     const original = getRow(row.remix_of);
     game.remixOf = original && original.status === 'public'

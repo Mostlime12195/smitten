@@ -15,6 +15,10 @@
 //                               name, or a token revoked in the site's settings)
 //   accountToken(platformUrl?)  the bearer token for the site's API (publish.js)
 //   clearAccount(platformUrl?)  forgets the account (the site said the token is gone)
+//   accountRequest(path, {method, body, platformUrl}?)
+//                               calls the site's API as the signed-in editor; resolves
+//                               with the JSON, or throws an Error with .status and .data
+//                               (a 401 forgets the account)
 //
 // platformUrl defaults to the editor's "platformUrl" setting. Accounts are
 // kept per site in localStorage under "smitten-editor.account".
@@ -79,7 +83,7 @@ function save(base, entry) {
   if (JSON.stringify(entry ?? null) !== before) emit(base);
 }
 
-/** The signed-in user on the site ({username, displayName, hasPassword, hackclub, createdAt}), or null. */
+/** The signed-in user on the site ({username, displayName, hasPassword, hackclub, hackatime, createdAt}), or null. */
 export function account(platformUrl) {
   return readAll()[baseUrl(platformUrl)]?.user || null;
 }
@@ -138,6 +142,24 @@ export async function refreshAccount(platformUrl) {
       return null;
     }
     return entry.user;
+  }
+}
+
+/**
+ * Calls the site's API with the editor's token, e.g.
+ * accountRequest('/api/account/hackatime-key'). Throws an Error with
+ * .status and .data (the site's {error, code}); 401 when not signed in (or
+ * signed out by the site, which forgets the account here too).
+ */
+export async function accountRequest(path, { method = 'GET', body, platformUrl } = {}) {
+  const base = baseUrl(platformUrl);
+  const token = accountToken(base);
+  if (!token) throw Object.assign(new Error(`Sign in to ${hostOf(base)} first.`), { status: 401, data: { code: 'sign-in' } });
+  try {
+    return await api(base, path, { method, body, token });
+  } catch (e) {
+    if (e.status === 401 && accountToken(base) === token) save(base, null);
+    throw e;
   }
 }
 

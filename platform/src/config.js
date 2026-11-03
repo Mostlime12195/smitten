@@ -73,6 +73,16 @@ export function loadConfig(env = null) {
       scope: env.HACKCLUB_SCOPE || 'openid',
     } : null,
 
+    // "Connect Hackatime" (src/hackatime.js): the editor gets the API key
+    // with one click, and game pages show tracked hours. On when both the
+    // client id and secret are set.
+    hackatime: env.HACKATIME_CLIENT_ID && env.HACKATIME_CLIENT_SECRET ? {
+      clientId: env.HACKATIME_CLIENT_ID,
+      clientSecret: env.HACKATIME_CLIENT_SECRET,
+      url: (env.HACKATIME_URL || 'https://hackatime.hackclub.com').replace(/\/+$/, ''),
+      scope: 'profile read',
+    } : null,
+
     // scrypt's cost (2^n). 15 takes ~50 ms and 32 MB per hash.
     scryptLogN: Math.min(20, Math.max(10, int(env.SCRYPT_LOG_N, 15))),
   };

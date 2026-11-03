@@ -11,6 +11,7 @@ import {
 import { checkPassword, cleanDisplayName, cleanUsername } from './validate.js';
 import { publicGame, removeGame } from './games.js';
 import { checkAddress, noteAddress } from './bans.js';
+import { forgetUser } from './hackatime.js';
 
 const DAY = 86400_000;
 const EDITOR_CODE_MS = 5 * 60_000;
@@ -230,14 +231,16 @@ export async function deleteAccount(ctx) {
   else if (String(body.confirm || '').toLowerCase() !== user.username) {
     throw new HttpError(422, 'Type your username to confirm.', { field: 'confirm' });
   }
-  await deleteUser(user.id);
+  await deleteUser(user.id, ctx.config);
   return json({ deleted: true }, 200, { 'Set-Cookie': clearSessionCookie(ctx) });
 }
 
-/** Removes a user, their games and files, sessions and codes. */
-export async function deleteUser(userId) {
+/** Removes a user, their games and files, sessions and codes, and revokes their Hackatime token (best effort). */
+export async function deleteUser(userId, config) {
+  const user = db.get('SELECT id, hackatime_token FROM users WHERE id = ?', userId);
   for (const { id } of db.all('SELECT id FROM games WHERE owner_id = ?', userId)) await removeGame(id);
   db.run('DELETE FROM users WHERE id = ?', userId);
+  if (config && user) await forgetUser(config, user);
 }
 
 export function listSessions(ctx) {
@@ -266,7 +269,8 @@ export function revokeOtherSessions(ctx) {
 /** The account's games, hidden ones included (with their status). */
 export function myGames(ctx) {
   const user = requireUser(ctx, { editor: true });
-  const rows = db.all(`SELECT g.*, u.username AS owner_username, u.display_name AS owner_name, u.status AS owner_status
+  const rows = db.all(`SELECT g.*, u.username AS owner_username, u.display_name AS owner_name, u.status AS owner_status,
+      u.hackatime_id IS NOT NULL AS owner_hackatime
     FROM games g JOIN users u ON u.id = g.owner_id WHERE g.owner_id = ? ORDER BY g.created_at DESC LIMIT 500`, user.id);
   return json({ games: rows.map((r) => ({ ...publicGame(r, ctx.origin), status: r.status })) });
 }

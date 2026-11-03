@@ -192,7 +192,7 @@ export function adminResetLink(ctx, username) {
 export async function adminDeleteUser(ctx, username) {
   requireAdmin(ctx);
   const user = requireAccount(username);
-  await deleteUser(user.id);
+  await deleteUser(user.id, ctx.config);
   log('delete-user', `user:${user.username}`);
   return json({ username: user.username, deleted: true });
 }
