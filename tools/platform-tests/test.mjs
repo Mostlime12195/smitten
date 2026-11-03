@@ -1,14 +1,15 @@
 // Tests the game-sharing site (platform/): its pages, the API, accounts,
-// sessions, the editor's sign-in, ownership, claiming old games, moderation
-// and banning.
+// sessions, the editor's sign-in, ownership, claiming old games, moderation,
+// banning, and connecting Hackatime.
 //
 //   node tools/platform-tests/test.mjs
 //
 // It starts the server itself on port 8788 (PLATFORM_PORT changes it) with
-// an empty data folder, an admin token, and a stand-in for Hack Club Auth,
-// and stops it at the end. To test a server that's already running instead,
-// set PLATFORM_URL (and ADMIN_TOKEN for the admin checks); tests that need
-// the server's database or the Hack Club stand-in are skipped then. That
+// an empty data folder, an admin token, and stand-ins for Hack Club Auth and
+// Hackatime, and stops it at the end (plus, briefly, a second server on the
+// next port without Hackatime). To test a server that's already running
+// instead, set PLATFORM_URL (and ADMIN_TOKEN for the admin checks); tests
+// that need the server's database or the stand-ins are skipped then. That
 // server must run with TRUST_PROXY=1 and PUBLIC_URL set to PLATFORM_URL:
 // the tests act as many different people by sending X-Forwarded-For.
 
@@ -30,6 +31,7 @@ const PORT = Number(process.env.PLATFORM_PORT || 8788);
 const BASE = (process.env.PLATFORM_URL || `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
 const ADMIN = external ? process.env.ADMIN_TOKEN || null : randomBytes(24).toString('base64url');
 const HC = { clientId: 'smitten-test', clientSecret: randomBytes(16).toString('hex') };
+const HT = { clientId: 'smitten-hackatime-test', clientSecret: randomBytes(16).toString('hex') };
 
 // ---------------------------------------------------------------------------
 // A tiny test runner
@@ -308,47 +310,156 @@ const fakeHackclub = {
   },
 };
 
-async function startServer() {
-  dataDir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-'));
-  await fakeHackclub.start();
-  server = spawn(process.execPath, [`${ROOT}platform/src/server.js`], {
+/**
+ * Hackatime's OAuth and the API endpoints the site uses, as its docs and
+ * OpenAPI describe them. users: access token → the Hackatime user
+ * {id, apiKey, projects: {name: seconds}}.
+ */
+const fakeHackatime = {
+  nextUser: null,
+  codes: new Map(),
+  tokens: new Map(),
+  issued: [],
+  revoked: [],
+  projectCalls: 0,
+  keyCalls: 0,
+  lastAuthorize: null,
+  server: null,
+  url: null,
+  async start() {
+    this.server = createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://x');
+      const send = (status, data, headers = {}) => {
+        res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
+        res.end(data ? JSON.stringify(data) : undefined);
+      };
+      const form = async () => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        return Object.fromEntries(new URLSearchParams(body));
+      };
+      const who = () => this.tokens.get(String(req.headers.authorization || '').replace(/^Bearer /, ''));
+      if (url.pathname === '/oauth/authorize') {
+        const p = Object.fromEntries(url.searchParams);
+        this.lastAuthorize = p;
+        if (p.client_id !== HT.clientId || p.response_type !== 'code' || p.code_challenge_method !== 'S256') return send(400, { error: 'invalid_request' });
+        const code = randomBytes(12).toString('hex');
+        this.codes.set(code, { user: this.nextUser, challenge: p.code_challenge, redirect: p.redirect_uri });
+        return send(302, null, { Location: `${p.redirect_uri}?code=${code}&state=${encodeURIComponent(p.state)}` });
+      }
+      if (url.pathname === '/oauth/token' && req.method === 'POST') {
+        const p = await form();
+        const grant = this.codes.get(p.code);
+        this.codes.delete(p.code);
+        const challenge = b64url(createHash('sha256').update(p.code_verifier || '').digest());
+        if (!grant || p.grant_type !== 'authorization_code' || p.client_secret !== HT.clientSecret || p.client_id !== HT.clientId
+          || p.redirect_uri !== grant.redirect || challenge !== grant.challenge) {
+          return send(400, { error: 'invalid_grant' });
+        }
+        const access = `htat_${randomBytes(16).toString('hex')}`;
+        this.tokens.set(access, grant.user);
+        this.issued.push(access);
+        return send(200, { access_token: access, token_type: 'Bearer', expires_in: 504921600, scope: 'profile read', created_at: Math.floor(Date.now() / 1000) });
+      }
+      if (url.pathname === '/oauth/revoke' && req.method === 'POST') {
+        const p = await form();
+        if (p.client_id !== HT.clientId || p.client_secret !== HT.clientSecret) return send(401, { error: 'invalid_client' });
+        this.revoked.push(p.token);
+        this.tokens.delete(p.token);
+        return send(200, {});
+      }
+      if (this.failing) return send(500, { error: 'Internal Server Error' });
+      const user = who();
+      if (url.pathname.startsWith('/api/v1/authenticated/') && !user) return send(401, { error: 'Unauthorized' });
+      if (url.pathname === '/api/v1/authenticated/me') {
+        return send(200, { id: user.id, emails: [`person${user.id}@example.com`], slack_id: 'U0SECRET', github_username: 'someone', trust_factor: { trust_level: 'blue' } });
+      }
+      if (url.pathname === '/api/v1/authenticated/api_keys') {
+        this.keyCalls++;
+        return send(200, { token: user.apiKey });
+      }
+      if (url.pathname === '/api/v1/authenticated/projects') {
+        this.projectCalls++;
+        const wanted = (url.searchParams.get('projects') || '').split(',').filter(Boolean);
+        const projects = Object.entries(user.projects)
+          .filter(([name]) => !wanted.length || wanted.includes(name))
+          .map(([name, seconds]) => ({ name, total_seconds: seconds, most_recent_heartbeat: new Date().toISOString(), languages: ['Lua'], archived: false }));
+        return send(200, { projects });
+      }
+      return send(404, { error: 'not found' });
+    });
+    await new Promise((resolve) => this.server.listen(0, '127.0.0.1', resolve));
+    this.url = `http://127.0.0.1:${this.server.address().port}`;
+  },
+};
+
+/** Starts the site with env on port; resolves with the child process once it answers. */
+async function spawnServer(port, dir, env) {
+  const child = spawn(process.execPath, [`${ROOT}platform/src/server.js`], {
     env: {
       PATH: process.env.PATH,
-      ENV_FILE: join(dataDir, 'no.env'),
-      PORT: String(PORT),
+      ENV_FILE: join(dir, 'no.env'),
+      PORT: String(port),
       HOST: '127.0.0.1',
-      PUBLIC_URL: BASE,
-      DATA_DIR: dataDir,
-      ADMIN_TOKEN: ADMIN,
+      PUBLIC_URL: `http://127.0.0.1:${port}`,
+      DATA_DIR: dir,
       TRUST_PROXY: '1',
-      HACKCLUB_CLIENT_ID: HC.clientId,
-      HACKCLUB_CLIENT_SECRET: HC.clientSecret,
-      HACKCLUB_AUTH_URL: fakeHackclub.url,
+      ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  server.stdout.on('data', (d) => { output += d; });
-  server.stderr.on('data', (d) => { output += d; });
+  child.stdout.on('data', (d) => { output += d; });
+  child.stderr.on('data', (d) => { output += d; });
+  child.output = () => output;
   for (let i = 0; i < 100; i++) {
     try {
-      await fetch(`${BASE}/api/config`);
-      db = new DatabaseSync(join(dataDir, 'smitten.db'));
-      db.exec('PRAGMA busy_timeout = 5000');
-      return;
+      await fetch(`http://127.0.0.1:${port}/api/config`);
+      return child;
     } catch {
-      if (server.exitCode != null) break;
+      if (child.exitCode != null) break;
       await new Promise((r) => setTimeout(r, 100));
     }
   }
+  child.kill();
   throw new Error(`The server didn't start:\n${output}`);
+}
+
+async function startServer() {
+  dataDir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-'));
+  await fakeHackclub.start();
+  await fakeHackatime.start();
+  server = await spawnServer(PORT, dataDir, {
+    PUBLIC_URL: BASE,
+    ADMIN_TOKEN: ADMIN,
+    HACKCLUB_CLIENT_ID: HC.clientId,
+    HACKCLUB_CLIENT_SECRET: HC.clientSecret,
+    HACKCLUB_AUTH_URL: fakeHackclub.url,
+    HACKATIME_CLIENT_ID: HT.clientId,
+    HACKATIME_CLIENT_SECRET: HT.clientSecret,
+    HACKATIME_URL: fakeHackatime.url,
+  });
+  db = new DatabaseSync(join(dataDir, 'smitten.db'));
+  db.exec('PRAGMA busy_timeout = 5000');
 }
 
 function stopServer() {
   db?.close();
   server?.kill();
   fakeHackclub.server?.close();
+  fakeHackatime.server?.close();
   if (dataDir) rmSync(dataDir, { recursive: true, force: true });
+}
+
+/** Waits until check() returns something truthy (polling every 50 ms), or fails after ms. */
+async function eventually(check, what, ms = 5000) {
+  const until = Date.now() + ms;
+  for (;;) {
+    const value = await check();
+    if (value) return value;
+    if (Date.now() > until) throw new Error(`Timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
 }
 
 /** A game published the old way (before accounts), with an edit token, written straight into the database. */
@@ -387,6 +498,7 @@ async function main() {
     assert.ok(r.data.editorUrl);
     assert.ok(r.data.editorOrigins.includes(EDITOR_ORIGIN));
     assert.equal(typeof r.data.accounts.hackclub, 'boolean');
+    assert.equal(typeof r.data.accounts.hackatime, 'boolean');
   });
   await test('the gallery is HTML with a CSP, nosniff and no framing', async () => {
     const r = await call('GET', '/');
@@ -497,7 +609,7 @@ async function main() {
     const username = uniqueName('alice');
     const r = await call('POST', '/api/auth/signup', { body: { username: username.toUpperCase(), password: PASSWORD, displayName: '  Alice  W. ' }, site: true });
     assert.equal(r.status, 201, JSON.stringify(r.data));
-    assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'hackclub', 'hasPassword', 'username']);
+    assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'hackatime', 'hackclub', 'hasPassword', 'username']);
     assert.equal(r.data.user.username, username, 'usernames are lower case');
     assert.equal(r.data.user.displayName, 'Alice W.');
     assert.equal(r.data.recoveryCodes.length, 8);
@@ -1340,6 +1452,259 @@ async function main() {
       assert.equal(pw.data.code, 'use-hackclub');
       assert.equal((await call('DELETE', '/api/account', { body: { confirm: 'someone-else' }, session: hcSession })).status, 422);
       assert.equal((await call('DELETE', '/api/account', { body: { confirm: me.username }, session: hcSession })).status, 200);
+    });
+  }
+
+
+  // -------------------------------------------------------------------------
+  section('Hackatime');
+  if (external) {
+    skip('Hackatime', 'the stand-in for Hackatime only runs with the test\'s own server');
+  } else {
+    /** Follows the flow: /auth/hackatime → (stand-in) → /auth/hackatime/callback. Returns the callback's response. */
+    const hackatimeFlow = async (session, htUser, { next } = {}) => {
+      fakeHackatime.nextUser = htUser;
+      const start = await call('GET', `/auth/hackatime${next ? `?next=${encodeURIComponent(next)}` : ''}`, { session, site: false });
+      assert.equal(start.status, 302, JSON.stringify(start.data));
+      const authorize = new URL(start.headers.get('location'));
+      assert.equal(authorize.origin + authorize.pathname, `${fakeHackatime.url}/oauth/authorize`);
+      assert.equal(authorize.searchParams.get('client_id'), HT.clientId);
+      assert.equal(authorize.searchParams.get('scope'), 'profile read');
+      assert.equal(authorize.searchParams.get('code_challenge_method'), 'S256');
+      assert.equal(authorize.searchParams.get('redirect_uri'), `${BASE}/auth/hackatime/callback`);
+      assert.ok(start.cookies.smitten_hackatime_flow);
+      const back = await fetch(authorize, { redirect: 'manual' });
+      const callback = new URL(back.headers.get('location'));
+      return call('GET', callback.pathname + callback.search, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session, site: false });
+    };
+    const htUser = (projects = {}) => ({ id: 70000 + Math.floor(Math.random() * 20000), apiKey: `waka_${randomBytes(16).toString('hex')}`, projects });
+    const userRow = (username) => db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    const gameHours = async (id) => (await call('GET', `/api/games/${id}`)).data.game.hackatime;
+
+    const ivy = await person();
+    const ivyHt = htUser({ 'Space Ivy': 45_000, Other: 120 });
+
+    await test('connecting needs a session on the site: otherwise it goes to sign-in and back', async () => {
+      const r = await call('GET', '/auth/hackatime?next=/hackatime-connected');
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), `/signin?next=${encodeURIComponent('/auth/hackatime?next=%2Fhackatime-connected')}`);
+      const editor = await call('GET', '/auth/hackatime', { token: ivy.token });
+      assert.match(editor.headers.get('location'), /^\/signin\?/, 'an editor token is not a session');
+    });
+    await test('before connecting: not-connected, and the account says hackatime: false', async () => {
+      const r = await call('GET', '/api/account/hackatime-key', { token: ivy.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal((await call('GET', '/api/account', { token: ivy.token })).data.user.hackatime, false);
+      assert.equal(fakeHackatime.keyCalls, 0, "Hackatime isn't asked for accounts that aren't connected");
+    });
+    await test('connect: state and PKCE, the code swapped with the secret, then back to the account', async () => {
+      const r = await hackatimeFlow(ivy.session, ivyHt);
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), '/account?connected=hackatime');
+      assert.ok(r.setCookie.some((c) => c.startsWith('smitten_hackatime_flow=;') && /Max-Age=0/.test(c)), 'the flow cookie is cleared');
+      assert.equal((await call('GET', '/api/account', { session: ivy.session })).data.user.hackatime, true);
+      assert.equal((await call('GET', '/api/account', { token: ivy.token })).data.user.hackatime, true);
+    });
+    await test('the editor gets the Hackatime API key (no-store), with its token or a session', async () => {
+      const r = await call('GET', '/api/account/hackatime-key', { token: ivy.token, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.deepEqual(r.data, { key: ivyHt.apiKey });
+      assert.equal(r.headers.get('cache-control'), 'no-store');
+      assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
+      const s = await call('GET', '/api/account/hackatime-key', { session: ivy.session });
+      assert.equal(s.data.key, ivyHt.apiKey);
+      const other = await call('GET', '/api/account/hackatime-key', { session: ivy.session, site: false, headers: { Origin: 'https://evil.example' } });
+      assert.equal(other.status, 403, "other sites can't use the session for it");
+      assert.equal((await call('GET', '/api/account/hackatime-key')).status, 401);
+    });
+    await test('only the Hackatime id and an encrypted token are stored, never the token or key in plain text', async () => {
+      const row = userRow(ivy.username);
+      assert.equal(row.hackatime_id, String(ivyHt.id));
+      assert.match(row.hackatime_token, /^v1\.[\w-]+\.[\w-]+\.[\w-]+$/);
+      const access = fakeHackatime.issued.at(-1);
+      assert.ok(!row.hackatime_token.includes(access));
+      db.exec('PRAGMA wal_checkpoint(PASSIVE)');
+      for (const file of ['smitten.db', 'smitten.db-wal']) {
+        let bytes = '';
+        try { bytes = readFileSync(join(dataDir, file), 'latin1'); } catch { continue; }
+        assert.ok(!bytes.includes(access), `the access token isn't in ${file}`);
+        assert.ok(!bytes.includes(ivyHt.apiKey), `the API key isn't in ${file}`);
+        assert.ok(!bytes.includes('U0SECRET') && !bytes.includes(`person${ivyHt.id}@example.com`), `nothing else from /me is in ${file}`);
+      }
+    });
+    await test('a token moved to another account row does not decrypt there', async () => {
+      const other = await person();
+      const stolen = userRow(ivy.username).hackatime_token;
+      db.prepare('UPDATE users SET hackatime_id = ?, hackatime_token = ? WHERE username = ?').run('copied-id', stolen, other.username);
+      const r = await call('GET', '/api/account/hackatime-key', { token: other.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal(userRow(other.username).hackatime_id, null, 'the broken link is cleared');
+    });
+
+    let ivyGame;
+    await test("a game published with hackatimeProject shows its owner's tracked time, refreshed in the background", async () => {
+      const calls = fakeHackatime.projectCalls;
+      const r = await call('POST', '/api/games', { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      ivyGame = r.data.id;
+      cleanup.push({ id: ivyGame, token: ivy.token });
+      const hours = await eventually(() => gameHours(ivyGame), 'the hours');
+      assert.equal(hours.seconds, 45_000);
+      assert.ok(hours.checkedAt > Date.now() - 60_000);
+      assert.equal(fakeHackatime.projectCalls, calls + 1);
+      assert.equal(db.prepare('SELECT hackatime_project FROM games WHERE id = ?').get(ivyGame).hackatime_project, 'Space Ivy');
+      const list = await call('GET', `/api/games?user=${ivy.username}`);
+      assert.equal(list.data.games[0].hackatime.seconds, 45_000);
+      assert.equal(list.data.games[0].hackatimeProject, undefined, "the project's name isn't shown");
+    });
+    await test('the hours are cached: at most one refresh an hour per game', async () => {
+      const calls = fakeHackatime.projectCalls;
+      ivyHt.projects['Space Ivy'] = 50_000;
+      for (let i = 0; i < 3; i++) assert.equal((await gameHours(ivyGame)).seconds, 45_000);
+      await new Promise((r) => setTimeout(r, 150));
+      assert.equal(fakeHackatime.projectCalls, calls, 'no new requests within the hour');
+      db.prepare('UPDATE games SET hackatime_checked_at = ? WHERE id = ?').run(Date.now() - 2 * 3600_000, ivyGame);
+      assert.equal((await gameHours(ivyGame)).seconds, 45_000, 'the page gets the cached value right away');
+      await eventually(async () => (await gameHours(ivyGame)).seconds === 50_000, 'the refreshed hours');
+      assert.equal(fakeHackatime.projectCalls, calls + 1);
+    });
+    await test('an update refreshes right away, and a new project starts over', async () => {
+      ivyHt.projects['Space Ivy'] = 51_000;
+      const r = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours after an update');
+      assert.equal(db.prepare('SELECT hackatime_project FROM games WHERE id = ?').get(ivyGame).hackatime_project, 'Space Ivy', 'an update without hackatimeProject keeps it');
+      const renamed = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Other' }, mainLuaGame()), token: ivy.token });
+      assert.equal(renamed.status, 200);
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 120, "the other project's hours");
+      const back = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      assert.equal(back.status, 200);
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours again');
+    });
+    await test("games without a project, or whose project Hackatime doesn't know, show no hours", async () => {
+      const plain = await call('POST', '/api/games', { body: form({ title: `No project ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: plain.data.id, token: ivy.token });
+      const unknown = await call('POST', '/api/games', { body: form({ title: `Unknown ${run}`, description: '', hackatimeProject: 'Never tracked' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: unknown.data.id, token: ivy.token });
+      await eventually(() => db.prepare('SELECT hackatime_checked_at FROM games WHERE id = ?').get(unknown.data.id).hackatime_checked_at, 'the check');
+      assert.equal(await gameHours(plain.data.id), undefined);
+      assert.equal(await gameHours(unknown.data.id), undefined);
+      const bad = await call('POST', '/api/games', { body: form({ title: `Bad ${run}`, description: '', hackatimeProject: 42 }, mainLuaGame()), token: ivy.token });
+      assert.equal(bad.status, 422);
+    });
+    await test('when Hackatime fails, the page still works', async () => {
+      fakeHackatime.failing = true;
+      const r = await call('POST', '/api/games', { body: form({ title: `Broken ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: r.data.id, token: ivy.token });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const g = await call('GET', `/api/games/${r.data.id}`);
+      assert.equal(g.status, 200);
+      assert.equal(g.data.game.hackatime, undefined);
+      fakeHackatime.failing = false;
+    });
+
+    await test('connecting from the editor ends on /hackatime-connected', async () => {
+      const jo = await signUp();
+      const r = await hackatimeFlow(jo.session, htUser(), { next: '/hackatime-connected' });
+      assert.equal(r.headers.get('location'), '/hackatime-connected?connected=hackatime');
+      const page = await call('GET', '/hackatime-connected?connected=hackatime');
+      assert.equal(page.status, 200);
+      assert.match(page.headers.get('content-type'), /^text\/html/);
+      assert.equal(page.headers.get('cross-origin-opener-policy'), null);
+    });
+    await test('a callback with the wrong state, or for another account, is refused', async () => {
+      const kim = await signUp();
+      fakeHackatime.nextUser = htUser();
+      const start = await call('GET', '/auth/hackatime', { session: kim.session, site: false });
+      const r = await call('GET', '/auth/hackatime/callback?code=abc&state=wrong', { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: kim.session, site: false });
+      assert.equal(r.status, 302);
+      assert.match(r.headers.get('location'), /^\/account\?error=/);
+      const lee = await signUp();
+      const authorize = new URL(start.headers.get('location'));
+      const back = new URL((await fetch(authorize, { redirect: 'manual' })).headers.get('location'));
+      const swapped = await call('GET', back.pathname + back.search, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: lee.session, site: false });
+      assert.match(swapped.headers.get('location'), /^\/account\?error=/);
+      assert.equal(userRow(kim.username).hackatime_id, null);
+      assert.equal(userRow(lee.username).hackatime_id, null);
+      const cancelled = await call('GET', `/auth/hackatime/callback?error=access_denied&state=x`, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: kim.session, site: false });
+      assert.match(cancelled.headers.get('location'), /^\/account\?error=/);
+    });
+    await test('a Hackatime account connected again elsewhere moves there', async () => {
+      const mo = await signUp();
+      const moHt = htUser();
+      await hackatimeFlow(mo.session, moHt);
+      const nia = await signUp();
+      const before = fakeHackatime.revoked.length;
+      await hackatimeFlow(nia.session, moHt);
+      assert.equal(userRow(nia.username).hackatime_id, String(moHt.id));
+      assert.equal(userRow(mo.username).hackatime_id, null);
+      // Revoked in the background.
+      await eventually(() => fakeHackatime.revoked.length === before + 1, "the old account's token to be revoked");
+    });
+    await test('a token revoked at Hackatime clears the link', async () => {
+      const pat = await person();
+      const patHt = htUser({ Pat: 7200 });
+      await hackatimeFlow(pat.session, patHt);
+      const g = await call('POST', '/api/games', { body: form({ title: `Pat ${run}`, description: '', hackatimeProject: 'Pat' }, mainLuaGame()), token: pat.token });
+      cleanup.push({ id: g.data.id, token: pat.token });
+      await eventually(() => gameHours(g.data.id), "Pat's hours");
+      fakeHackatime.tokens.delete(fakeHackatime.issued.at(-1));
+      const r = await call('GET', '/api/account/hackatime-key', { token: pat.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal((await call('GET', '/api/account', { token: pat.token })).data.user.hackatime, false);
+      assert.equal(userRow(pat.username).hackatime_token, null);
+      assert.equal(await gameHours(g.data.id), undefined, 'no hours without a connection');
+    });
+    await test('disconnect (editor token or session): revoked at Hackatime and forgotten', async () => {
+      const access = (() => {
+        // Ivy's current token is the one the stand-in gave for ivyHt.
+        for (const [token, user] of fakeHackatime.tokens) if (user === ivyHt) return token;
+        return null;
+      })();
+      assert.ok(access);
+      const r = await call('DELETE', '/api/account/hackatime', { token: ivy.token, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.ok(fakeHackatime.revoked.includes(access));
+      const row = userRow(ivy.username);
+      assert.equal(row.hackatime_id, null);
+      assert.equal(row.hackatime_token, null);
+      assert.equal((await call('GET', '/api/account/hackatime-key', { token: ivy.token })).data.code, 'not-connected');
+      assert.equal(await gameHours(ivyGame), undefined);
+      // With a session, from the site's pages only.
+      const qu = await signUp();
+      await hackatimeFlow(qu.session, htUser());
+      assert.equal((await call('DELETE', '/api/account/hackatime', { session: qu.session, site: false, headers: { Origin: 'https://evil.example' } })).status, 403);
+      assert.equal((await call('DELETE', '/api/account/hackatime', { session: qu.session })).status, 200);
+      assert.equal((await call('GET', '/api/account', { session: qu.session })).data.user.hackatime, false);
+    });
+    await test('deleting an account revokes its Hackatime token', async () => {
+      const ro = await signUp();
+      await hackatimeFlow(ro.session, htUser());
+      const access = fakeHackatime.issued.at(-1);
+      assert.equal((await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: ro.session })).status, 200);
+      assert.ok(fakeHackatime.revoked.includes(access));
+    });
+    await test('without HACKATIME_CLIENT_ID and _SECRET, Hackatime is off', async () => {
+      const port = PORT + 1;
+      const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-off-'));
+      let child;
+      try {
+        child = await spawnServer(port, dir, {});
+        const at = (path, init) => fetch(`http://127.0.0.1:${port}${path}`, { redirect: 'manual', ...init });
+        const config = await (await at('/api/config')).json();
+        assert.equal(config.accounts.hackatime, false);
+        assert.equal((await at('/auth/hackatime')).status, 404);
+        assert.equal((await at('/auth/hackatime/callback?code=x&state=y')).status, 404);
+        const key = await at('/api/account/hackatime-key');
+        assert.equal(key.status, 404);
+        assert.equal((await key.json()).code, 'hackatime-off');
+      } finally {
+        child?.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
   }
 

@@ -188,6 +188,7 @@ export function accountView(u) {
     displayName: u.display_name,
     hasPassword: Boolean(u.password_hash),
     hackclub: Boolean(u.hackclub_id),
+    hackatime: Boolean(u.hackatime_id),
     createdAt: u.created_at,
   };
 }
