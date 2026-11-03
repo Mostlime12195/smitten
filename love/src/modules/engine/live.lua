@@ -61,7 +61,12 @@ local function props(n)
 		end
 		name = def.extends
 	end
-	if n.script then
+	if n._scriptVars then
+		for k in pairs(n._scriptVars) do
+			local v = n[k]
+			if type(k) == "string" and k:sub(1, 1) ~= "_" and simple(v) and out[k] == nil then out[k] = v end
+		end
+	elseif n.script then
 		local ok, script = pcall(require("love.assets").script, n.script)
 		if ok then
 			for k, v in pairs(script) do

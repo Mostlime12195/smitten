@@ -1,31 +1,26 @@
 -- Patrol: walks back and forth, turning around at walls and at the edges of
 -- platforms. A classic platformer enemy. Attach it to a scripted Body.
-local Patrol = {}
 
-Patrol.speed = 80           -- pixels per second
-Patrol.gravity = 1800
-Patrol.turnAtEdges = true   -- turn around instead of walking off a platform
+speed = 80           -- pixels per second
+gravity = 1800
+turnAtEdges = true   -- turn around instead of walking off a platform
 
-function Patrol:ready()
-  self.direction = 1
-end
+local facing = 1
 
-function Patrol:physicsUpdate(dt)
-  self.vx = self.direction * self.speed
-  self.vy = math.min(self.vy + self.gravity * dt, 1000)
-  local wasOnGround = self:onGround()
-  local x, y = self.x, self.y
-  self:move()
-  if self:onWall() then
-    self.direction = -self.direction
-  elseif self.turnAtEdges and wasOnGround and not self:onGround() then
+function physicsUpdate(dt)
+  vx = facing * speed
+  vy = math.min(vy + gravity * dt, 1000)
+  local wasOnGround = onGround()
+  local oldX, oldY = x, y
+  move()
+  if onWall() then
+    facing = -facing
+  elseif turnAtEdges and wasOnGround and not onGround() then
     -- About to walk off: step back and turn around.
-    self.x, self.y = x, y
-    self.vy = 0
-    self.direction = -self.direction
+    x, y = oldX, oldY
+    vy = 0
+    facing = -facing
   end
-  local sprite = self:findChildOfType("Sprite")
-  if sprite then sprite.flipX = self.direction < 0 end
+  local sprite = findChildOfType("Sprite")
+  if sprite then sprite.flipX = facing < 0 end
 end
-
-return Patrol

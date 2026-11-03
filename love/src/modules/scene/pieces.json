@@ -23,6 +23,7 @@
         "tag": { "args": "name", "doc": "Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it." },
         "untag": { "args": "name", "doc": "Takes a tag away." },
         "hasTag": { "args": "name", "doc": "True if the piece has the tag." },
+        "is": { "args": "tagOrType", "doc": "True if the piece has the tag or is of the type: other:is(\"enemy\"), other:is(\"Body\")." },
         "on": { "args": "event, fn", "doc": "Calls fn(...) whenever the piece's event happens (\"pressed\", \"entered\", ...). Returns a handle with :off()." },
         "emit": { "args": "event, ...", "doc": "Fires an event: calls the script's function of that name and every listener." },
         "getPath": { "args": "", "doc": "The piece's path from the scene's root, like \"Level/Player\"." },

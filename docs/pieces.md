@@ -26,6 +26,7 @@ Methods:
 - `self:tag(name)`: Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it.
 - `self:untag(name)`: Takes a tag away.
 - `self:hasTag(name)`: True if the piece has the tag.
+- `self:is(tagOrType)`: True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body").
 - `self:on(event, fn)`: Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off().
 - `self:emit(event, ...)`: Fires an event: calls the script's function of that name and every listener.
 - `self:getPath()`: The piece's path from the scene's root, like "Level/Player".

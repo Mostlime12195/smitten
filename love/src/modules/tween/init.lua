@@ -98,16 +98,17 @@ end
 
 setmetatable(tween, { __call = function(_, ...) return tween.to(...) end })
 
----Calls fn once, after some seconds.
-function tween.after(seconds, fn)
+---Calls fn once, after some seconds (not if owner, a piece, is gone by then).
+function tween.after(seconds, fn, owner)
 	if type(fn) ~= "function" then error("after() needs a number of seconds and a function", 2) end
-	return add({ kind = "after", time = 0, duration = seconds or 0, done = fn })
+	return add({ kind = "after", time = 0, duration = seconds or 0, done = fn, target = owner })
 end
 
----Calls fn every so many seconds, until it returns false or is cancelled.
-function tween.every(seconds, fn)
+---Calls fn every so many seconds, until it returns false, is cancelled or
+---owner (a piece) is gone.
+function tween.every(seconds, fn, owner)
 	if type(fn) ~= "function" then error("every() needs a number of seconds and a function", 2) end
-	return add({ kind = "every", time = 0, duration = math.max(seconds or 0, 1e-3), done = fn })
+	return add({ kind = "every", time = 0, duration = math.max(seconds or 0, 1e-3), done = fn, target = owner })
 end
 
 function tween._update(dt)

@@ -1,29 +1,42 @@
-local Main = {}
+-- The smoke test's root: counts coins and ticks, and tries the script API.
+-- (scripts/spin.lua stays in the old style, to check that it still works.)
 
-function Main:ready()
-  self.ticks, self.coins = 0, 0
-  local player = self:find("Player")
-  print("ready", self.name, player.type, player.motion, smitten == love, smitten.version, player:getSize())
-  self:find("Tick"):on("tick", function() self.ticks += 1 end)
-  self:find("UI/Restart"):on("pressed", function() smitten.scene.reload() end)
-  local spawned = smitten.scene.spawn("Shape", { x = 500, y = 200, shape = "circle", radius = 6 })
-  print("spawned", spawned.type, #smitten.scene.tagged("coin"))
+local ticks, coins = 0, 0
+step = "start"
+
+function score() return coins end
+
+function ready()
+  print("ready", name, Player.type, Player.motion, smitten == love, smitten.version, Player:getSize())
+  Tick:on("tick", function() ticks += 1 end)
+  find("UI/Restart"):on("pressed", function() reload() end)
+  local spawned = spawn("Shape", { x = 500, y = 200, shape = "circle", radius = 6 })
+  print("spawned", spawned.type, spawned.parent == self, #tagged("coin"), Coin:is("coin"), Coin:is("Zone"), Coin:is("enemy"))
+  print("api", clamp(5, 0, 3), sign(-2), round(2.6), lerp(0, 10, 0.5), choose(7), dist(0, 0, 3, 4), screenWidth(), rnd({ "only" }))
+  print("own function", score(), self:score())
+  after(0.3, function() print("after 0.3", step) end)
+  wait(0.5)
+  step = "waited"
+  print("ready went on after wait(0.5)")
 end
 
-function Main:collected(item)
-  self.coins += 1
-  print("coin collected")
+function collected(item)
+  coins += 1
+  print("coin collected", item.name, score())
 end
 
-function Main:update(dt)
-  local player = self:find("Player")
-  self:find("UI/Score").text = `Coins: {self.coins}  ticks: {self.ticks}  ground: {player:onGround()}`
+function update(dt)
+  find("UI/Score").text = `Coins: {coins}  ticks: {ticks}  ground: {Player:onGround()}`
 end
 
-function Main:physicsUpdate(dt)
+function physicsUpdate(dt)
   -- Walk right for the test, as if holding the right action.
-  local player = self:find("Player")
-  if player:onGround() then player.vx = 80 end
+  if Player:onGround() then Player.vx = 80 end
 end
 
-return Main
+function draw()
+  pen("#ff4060")
+  rect(4, 340, 12, 12)
+  circle(30, 346, 6, false)
+  write(step, 44, 338)
+end

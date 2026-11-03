@@ -1,34 +1,34 @@
 -- Drag: the player can pick this piece up with the mouse (or a finger) and
 -- move it. For card games, puzzles and level editors.
-local Draggable = {}
 
-Draggable.grabRadius = 32   -- how close the pointer has to be, if it has no shape
+grabRadius = 32   -- how close the pointer has to be, if it has no shape
 
-function Draggable:isUnderPointer(wx, wy)
-  if self.getSize then
-    local w, h = self:getSize()
+local dragging, grabX, grabY = false, 0, 0
+
+local function underPointer(wx, wy)
+  if getSize then
+    local w, h = getSize()
     if w > 0 then
-      local x, y = self:worldPosition()
-      return math.abs(wx - x) <= w / 2 and math.abs(wy - y) <= h / 2
+      local px, py = worldPosition()
+      return math.abs(wx - px) <= w / 2 and math.abs(wy - py) <= h / 2
     end
   end
-  return self:distanceTo(wx, wy) <= self.grabRadius
+  return distanceTo(wx, wy) <= grabRadius
 end
 
-function Draggable:update(dt)
-  local mouse = smitten.mouse
-  if self.dragging then
-    if mouse.down(1) then
-      self:setWorldPosition(mouse.worldX + self.grabX, mouse.worldY + self.grabY)
+function update(dt)
+  local m = smitten.mouse
+  local mx, my = mouse()
+  if dragging then
+    if m.down(1) then
+      setWorldPosition(mx + grabX, my + grabY)
     else
-      self.dragging = false
-      self:emit("dropped")
+      dragging = false
+      emit("dropped")
     end
-  elseif mouse.pressed(1) and not mouse.isOverUI() and self:isUnderPointer(mouse.worldX, mouse.worldY) then
-    local x, y = self:worldPosition()
-    self.dragging, self.grabX, self.grabY = true, x - mouse.worldX, y - mouse.worldY
-    self:emit("pickedUp")
+  elseif m.pressed(1) and not m.isOverUI() and underPointer(mx, my) then
+    local px, py = worldPosition()
+    dragging, grabX, grabY = true, px - mx, py - my
+    emit("pickedUp")
   end
 end
-
-return Draggable

@@ -666,39 +666,38 @@ async function newScene(kind, dir = 'scenes') {
   await openFile(path);
 }
 
+// A new script: the piece's own code. Names in it are the piece's (x, vx,
+// move()...), top-level variables show in the Inspector, and the short API
+// (pressed, spawn, sfx, wait...) is there without smitten. in front.
 const SCRIPT_TEMPLATE = (name, type) => {
-  const cls = name.replace(/[^\w]/g, '').replace(/^\d+/, '').replace(/^\w/, (c) => c.toUpperCase()) || 'Script';
   const extra = type === 'Body' ? `
--- For a scripted Body: set self.vx and self.vy, then call self:move() in
--- physicsUpdate. It stops at walls; self:onGround() says if it landed.
--- Called when it bumps into another body or solid tiles.
-function ${cls}:hit(other)
+-- For a scripted Body: set vx and vy, then move() in physicsUpdate. It stops
+-- at walls; onGround() says if it landed. hit() is called when it bumps into
+-- another body or solid tiles.
+function hit(other)
 end
 ` : type === 'Button' ? `
 -- Called when the button is clicked.
-function ${cls}:pressed()
+function pressed()
 end
 ` : type === 'Zone' ? `
 -- Called when a body or zone comes in.
-function ${cls}:entered(other)
+function entered(other)
 end
 ` : '';
-  return `-- ${cls}${type ? `: a script for a ${type}` : ''}.
-local ${cls} = {}
+  return `-- ${name}${type ? `: a script for a ${type}` : ''}.
 
 -- Variables like this one appear in the Inspector, so each piece can have its own value.
-${cls}.speed = 200
+speed = 200
 
--- Called once, when the piece joins the scene.
-function ${cls}:ready()
+-- Called once, when the piece joins the scene. It can wait(seconds).
+function ready()
 end
 
 -- Called every frame. dt is the time since the last frame, in seconds.
-function ${cls}:update(dt)
+function update(dt)
 end
-${extra}
-return ${cls}
-`;
+${extra}`;
 };
 
 async function newScript(node = null, dir = 'scripts') {
