@@ -5,7 +5,7 @@
 import { basename, joinPath, parseTileset, pngSize, relativePath, tilesetText } from './model.js';
 import {
   History, Viewport, decodeImage, drawChecker, drawGrid, icon, iconButton, isTyping, numberInput, propertyEditor,
-  themeColors,
+  themeColors, withAlpha,
 } from './widgets.js';
 
 export class TilesetEditor {
@@ -332,9 +332,9 @@ export class TilesetEditor {
         ctx.beginPath();
         ctx.rect(x0, y0, x1 - x0, y1 - y0);
         ctx.clip();
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.18)';
+        ctx.fillStyle = withAlpha(colors.danger, 0.18);
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+        ctx.strokeStyle = withAlpha(colors.danger, 0.7);
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         for (let d = -(y1 - y0); d < x1 - x0; d += 8) {
@@ -372,7 +372,7 @@ export class TilesetEditor {
     };
     if (this.hover) box(this.hover.x, this.hover.y, this.hover.x, this.hover.y, colors.muted, 1);
     if (this.sel) {
-      box(this.sel.x0, this.sel.y0, this.sel.x1, this.sel.y1, colors.dark ? '#000' : '#fff', 4);
+      box(this.sel.x0, this.sel.y0, this.sel.x1, this.sel.y1, colors.halo, 4);
       box(this.sel.x0, this.sel.y0, this.sel.x1, this.sel.y1, colors.accent, 2);
     }
     // Tile numbers when zoomed in enough.
@@ -386,7 +386,7 @@ export class TilesetEditor {
           const px = vp.sx(x * tw) + 3;
           const py = vp.sy(y * th) + 3;
           const m = ctx.measureText(text).width;
-          ctx.fillStyle = colors.dark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.75)';
+          ctx.fillStyle = colors.labelBg;
           ctx.fillRect(px - 2, py - 1, m + 4, 12);
           ctx.fillStyle = colors.fg;
           ctx.fillText(text, px, py);

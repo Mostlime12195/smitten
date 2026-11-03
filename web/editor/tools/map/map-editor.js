@@ -1,26 +1,47 @@
-// The map editor: paints tile layers with stamps from a map's tilesets and
-// places objects on object layers. Opens .map.json files.
+// The scene editor: paints tile layers with stamps from a scene's tilesets
+// and places the project's objects (objects/*.lua) on object layers, drawn
+// with their sprites. Opens .scene.json and .map.json files (the same format,
+// docs/reference.md "Maps" and docs/objects-and-scenes.md "Scenes").
 
 import {
-  assetName, basename, joinPath, mapText, newTilesetText, parseMap, parseTileset, pngSize, relativePath,
-  transparentPng,
+  assetName, basename, formatValue, isScenePath, joinPath, mapText, newTilesetText, parseMap, parseTileset, parseValue,
+  pngSize, relativePath, transparentPng,
 } from './model.js';
 import {
-  History, Viewport, decodeImage, drawChecker, drawGrid, icon, iconButton, isTyping, numberInput, propertyEditor,
+  History, Viewport, decodeImage, drawChecker, drawGrid, icon, iconButton, isTyping, propertyEditor,
   themeColors, typeColor,
 } from './widgets.js';
+import { ObjectTypes, drawThumbnail } from './objects.js';
 
 const TILE_TOOLS = ['brush', 'eraser', 'rect', 'fill', 'picker'];
 const OBJECT_TOOLS = ['select', 'object'];
 
+// `more`: in the "…" menu instead of the toolbar (the shortcut still works).
 const TOOLS = [
-  { id: 'brush', icon: 'brush', label: 'Brush', key: 'B', hint: 'Paint the stamp. Right-drag erases, Alt+click picks a tile.' },
+  { id: 'brush', icon: 'brush', label: 'Brush', key: 'B', hint: 'Paint the selected tiles. Right-drag erases, Alt+click picks a tile from the scene.' },
   { id: 'eraser', icon: 'eraser', label: 'Eraser', key: 'E', hint: 'Erase tiles.' },
-  { id: 'rect', icon: 'rectFill', label: 'Rectangle fill', key: 'U', hint: 'Drag to fill a rectangle with the stamp. Right-drag erases.' },
-  { id: 'fill', icon: 'bucket', label: 'Bucket fill', key: 'G', hint: 'Fill the connected area of the same tile. Right-click erases it.' },
-  { id: 'picker', icon: 'picker', label: 'Tile picker', key: 'I', hint: 'Click a tile, or drag over several, to use them as the stamp.' },
-  { id: 'select', icon: 'pointer', label: 'Select and move objects', key: 'V', hint: 'Drag objects to move them (Alt: off the grid). Arrows nudge, Delete removes.' },
-  { id: 'object', icon: 'placeObject', label: 'Place object', key: 'O', hint: 'Click to place an object, or drag to set its size (Alt: off the grid).' },
+  { id: 'rect', icon: 'rectFill', label: 'Rectangle', key: 'U', hint: 'Drag to fill a rectangle with the selected tiles. Right-drag erases.' },
+  { id: 'fill', icon: 'bucket', label: 'Fill', key: 'G', hint: 'Fill the connected area of the same tile. Right-click erases it.' },
+  { id: 'picker', icon: 'picker', label: 'Pick tiles from the scene', key: 'I', hint: 'Click a tile in the scene, or drag over several, to paint with them.', more: true },
+  { id: 'select', icon: 'pointer', label: 'Select and move', key: 'V', hint: 'Click an object to edit it, drag to move it (Alt: off the grid). Arrows nudge, Delete removes.' },
+  { id: 'object', icon: 'placeObject', label: 'Place objects', key: 'O', hint: 'Click to place the chosen object (Alt: off the grid).' },
+];
+
+const SHORTCUTS = [
+  ['B / E / U / G / I', 'Brush, eraser, rectangle, fill, pick tiles'],
+  ['V / O', 'Select and move, place objects'],
+  ['Right-drag', 'Erase tiles'],
+  ['Alt', 'Pick a tile (brush), or place and move objects off the grid'],
+  ['Space+drag, middle-drag', 'Move around'],
+  ['Mouse wheel, + / -', 'Zoom'],
+  ['0', 'Fit the scene in view'],
+  ['#', 'Show or hide the grid'],
+  ['[ / ]', 'Previous or next tileset'],
+  ['Arrows (Shift: a whole tile)', 'Nudge the selected object'],
+  ['Delete', 'Delete the selected object'],
+  ['Ctrl/⌘+D', 'Duplicate the selected object'],
+  ['Ctrl/⌘+Z, Ctrl/⌘+Shift+Z', 'Undo, redo'],
+  ['Esc', 'Deselect'],
 ];
 
 export class MapEditor {
@@ -28,6 +49,8 @@ export class MapEditor {
     this.host = host;
     this.ui = host.ui;
     this.path = host.path;
+    this.noun = isScenePath(this.path) ? 'scene' : 'map';
+    this.Noun = this.noun === 'scene' ? 'Scene' : 'Map';
     this.tilesets = []; // loaded tileset entries, in the map's order
     this.cache = new Map(); // tileset path -> entry (kept while the editor is open)
     this.images = new Map(); // image path -> {bytes, bitmap, promise}
@@ -39,12 +62,15 @@ export class MapEditor {
     this.stamp = { w: 1, h: 1, tiles: Int32Array.of(0) };
     this.paletteSel = { x0: 0, y0: 0, x1: 0, y1: 0 };
     this.selected = null; // selected object id
+    this.hoverObject = null; // id of the object under the pointer
     this.objectType = '';
     this.showGrid = true;
     this.hover = null; // {x, y} world pixels
+    this.altDown = false;
     this.drag = null;
     this.error = null;
     this.history = new History(() => this.updateToolbar());
+    this.types = new ObjectTypes(host, (path, bytes) => this.image(path, bytes));
 
     this.build();
     this.load();
@@ -65,8 +91,10 @@ export class MapEditor {
       this.activeLayer = Math.max(0, this.map.layers.findIndex((l) => l.type === 'tiles'));
       this.lastTileLayer = this.activeLayer;
       this.lastObjectLayer = this.map.layers.findIndex((l) => l.type === 'objects');
-      const types = this.map.layers.flatMap((l) => (l.objects || []).map((o) => o.type)).filter(Boolean);
-      this.objectType = types[0] || 'player';
+      if (!this.objectType) {
+        const used = this.map.layers.flatMap((l) => (l.objects || []).map((o) => o.type)).filter(Boolean);
+        this.objectType = this.types.list()[0]?.type || used[0] || '';
+      }
       this.syncTilesets();
       if (this.tilesets[0]?.count) this.setStampFromPalette(0, 0, 0, 0, 0);
     }
@@ -196,27 +224,35 @@ export class MapEditor {
   build() {
     const { h } = this.ui;
     this.toolButtons = new Map();
-    const toolbar = h('div', { class: 'mt-toolbar', role: 'toolbar', 'aria-label': 'Map tools' });
-    for (const t of TOOLS) {
-      if (t.id === 'select') toolbar.append(h('div', { class: 'mt-sep' }));
-      const b = iconButton(this.ui, { icon: t.icon, title: `${t.label} (${t.key})`, onclick: () => this.setTool(t.id), pressed: false });
-      this.toolButtons.set(t.id, b);
-      toolbar.append(b);
-    }
+    const toolbar = h('div', { class: 'mt-toolbar', role: 'toolbar', 'aria-label': `${this.Noun} tools` });
+    const group = (label, ids) => {
+      const g = h('div', { class: 'mt-group', role: 'group', 'aria-label': label }, h('span', { class: 'mt-label' }, label));
+      for (const id of ids) {
+        const t = TOOLS.find((x) => x.id === id);
+        const b = iconButton(this.ui, { icon: t.icon, title: `${t.label} (${t.key})`, onclick: () => this.setTool(t.id), pressed: false });
+        this.toolButtons.set(t.id, b);
+        g.append(b);
+      }
+      return g;
+    };
     this.undoBtn = iconButton(this.ui, { icon: 'undo', title: `Undo (${this.ui.modKey}+Z)`, onclick: () => this.undo() });
     this.redoBtn = iconButton(this.ui, { icon: 'redo', title: `Redo (${this.ui.modKey}+Shift+Z)`, onclick: () => this.redo() });
-    this.gridBtn = iconButton(this.ui, { icon: 'grid', title: 'Grid (#)', onclick: () => this.toggleGrid(), pressed: true });
-    this.zoomLabel = h('span', { class: 'mt-zoom' }, '100%');
+    this.zoomLabel = h('button', {
+      type: 'button', class: 'btn ghost small mt-zoom', onclick: () => this.vp.fit(),
+      title: 'Zoom. Click to fit the scene (0); scroll the mouse wheel to zoom in and out (+ / -).',
+    }, '100%');
     toolbar.append(
+      group('Tiles', ['brush', 'eraser', 'rect', 'fill']),
+      h('div', { class: 'mt-sep' }),
+      group('Objects', ['select', 'object']),
       h('div', { class: 'mt-sep' }), this.undoBtn, this.redoBtn,
-      h('div', { class: 'mt-sep' }), this.gridBtn,
-      iconButton(this.ui, { icon: 'zoomOut', title: 'Zoom out (-)', onclick: () => this.vp.step(-1) }),
-      this.zoomLabel,
-      iconButton(this.ui, { icon: 'zoomIn', title: 'Zoom in (+)', onclick: () => this.vp.step(1) }),
-      iconButton(this.ui, { icon: 'fit', title: 'Fit the map (0)', onclick: () => this.vp.fit() }),
       h('div', { class: 'spacer' }),
-      h('button', { type: 'button', class: 'btn ghost small', onclick: () => this.mapDialog(), title: 'Size, tile size, background and properties' },
-        icon(this.ui, 'sliders', 14), 'Map'),
+      this.zoomLabel,
+      h('button', {
+        type: 'button', class: 'btn ghost small', onclick: () => this.mapDialog(),
+        title: `${this.Noun} size, tile size, background color and properties`,
+      }, icon(this.ui, 'sliders', 14), this.Noun),
+      iconButton(this.ui, { icon: 'more', title: 'More tools and view options', onclick: (e) => this.moreMenu(e.currentTarget) }),
     );
 
     const viewEl = h('div', { class: 'mt-viewport tool-paint' });
@@ -237,9 +273,10 @@ export class MapEditor {
 
     this.side = h('div', { class: 'mt-side' });
     this.tilesetSection = h('div', { class: 'mt-section' });
-    this.layerSection = h('div', { class: 'mt-section' });
-    this.objectSection = h('div', { class: 'mt-section grow' });
-    this.side.append(this.tilesetSection, this.layerSection, this.objectSection);
+    this.typesSection = h('div', { class: 'mt-section' });
+    this.objectSection = h('div', { class: 'mt-section' });
+    this.layerSection = h('div', { class: 'mt-section mt-section-end' });
+    this.side.append(this.tilesetSection, this.typesSection, this.objectSection, this.layerSection);
 
     this.paletteCanvas = h('canvas');
     this.paletteBox = h('div', { class: 'mt-palette' }, this.paletteCanvas);
@@ -250,17 +287,50 @@ export class MapEditor {
     this.paletteCanvas.addEventListener('pointerleave', () => { this.paletteHover = null; this.drawPalette(); });
 
     this.element = h('div', { class: 'mt-root', tabindex: '0' }, toolbar, viewEl, status, this.side);
+    // Enter in a side panel field commits it; give the keys back to the editor so shortcuts work again.
+    this.side.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter' && e.target instanceof HTMLInputElement && document.activeElement !== e.target) this.focus();
+    });
     this.element.addEventListener('keydown', (e) => {
       if (this.handleKey(e)) {
         e.preventDefault();
         e.stopPropagation();
       }
     });
-    this.onKeyUp = (e) => { if (e.code === 'Space') this.vp.setSpace(false); };
+    this.onKeyUp = (e) => {
+      if (e.code === 'Space' || e.type === 'blur') this.vp.setSpace(false);
+      if ((e.key === 'Alt' || e.type === 'blur') && this.altDown) { this.altDown = false; this.vp.render(); }
+    };
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onKeyUp);
     this.themeObserver = new MutationObserver(() => this.refresh());
-    this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'style', 'class'] });
+  }
+
+  /** The "…" menu: tools and options that are used less often. */
+  moreMenu(anchor) {
+    const picker = TOOLS.find((t) => t.id === 'picker');
+    this.ui.showMenu(anchor, [
+      { label: picker.label, icon: this.tool === 'picker' ? 'check' : null, shortcut: picker.key, action: () => this.setTool('picker') },
+      { label: 'Show the grid', icon: this.showGrid ? 'check' : null, shortcut: '#', action: () => this.toggleGrid() },
+      '-',
+      { label: 'Zoom in', icon: null, shortcut: '+', action: () => this.vp.step(1) },
+      { label: 'Zoom out', icon: null, shortcut: '-', action: () => this.vp.step(-1) },
+      { label: `Fit the ${this.noun}`, icon: 'maximize', shortcut: '0', action: () => this.vp.fit() },
+      '-',
+      { label: 'Add a tile layer', icon: 'grid', action: () => this.addLayer('tiles'), disabled: !this.map },
+      { label: 'Add an object layer', icon: 'package', action: () => this.addLayer('objects'), disabled: !this.map },
+      { label: `${this.Noun} properties…`, icon: 'sliders', action: () => this.mapDialog(), disabled: !this.map },
+      '-',
+      { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => this.shortcutsDialog() },
+    ]);
+  }
+
+  shortcutsDialog() {
+    const { h } = this.ui;
+    const body = h('div', { class: 'mt-dialog-grid mt-shortcuts' },
+      SHORTCUTS.flatMap(([k, what]) => [h('kbd', {}, k), h('span', {}, what)]));
+    this.ui.openDialog({ title: `${this.Noun} editor shortcuts`, body, actions: [{ label: 'Close', value: null, primary: true }] });
   }
 
   /** Redraw everything. */
@@ -275,9 +345,14 @@ export class MapEditor {
     for (const [id, b] of this.toolButtons) b.setAttribute('aria-pressed', String(id === this.tool));
     this.undoBtn.disabled = !this.history.done.length;
     this.redoBtn.disabled = !this.history.undone.length;
-    this.gridBtn.setAttribute('aria-pressed', String(this.showGrid));
     const t = TOOLS.find((x) => x.id === this.tool);
-    this.statusHint.textContent = t ? t.hint : '';
+    let hint = t ? t.hint : '';
+    if (this.tool === 'object') {
+      hint = this.objectType
+        ? `Click to place a ${this.objectType} (Alt: off the grid). Pick another object on the right.`
+        : 'Pick an object on the right, then click to place it.';
+    }
+    this.statusHint.textContent = hint;
     this.viewEl.classList.toggle('tool-paint', TILE_TOOLS.includes(this.tool) || this.tool === 'object');
     this.viewEl.classList.toggle('tool-select', this.tool === 'select');
   }
@@ -287,10 +362,23 @@ export class MapEditor {
     this.emptyEl.replaceChildren();
     let content = null;
     if (this.error) {
-      content = h('div', {}, h('strong', {}, 'This map can\'t be opened'), h('div', { class: 'mt-note warn' }, this.error));
+      content = h('div', {}, h('strong', {}, `This ${this.noun} can't be opened`), h('div', { class: 'mt-note warn' }, this.error));
+    } else if (this.map && !this.tilesets.length && this.isBlank()) {
+      // A new scene without tiles: say what to do first.
+      content = h('div', { class: 'mt-empty-card' },
+        h('strong', {}, `This ${this.noun} is empty`),
+        h('p', { class: 'mt-note' }, 'Paint the ground with tiles from a tileset, and place objects like the player.'),
+        h('div', {},
+          h('button', { type: 'button', class: 'btn primary small', onclick: () => this.newTileset() }, this.ui.icon('plus', 14), 'Create a tileset'),
+          h('button', { type: 'button', class: 'btn small', onclick: () => this.setTool('object') }, icon(this.ui, 'placeObject', 14), 'Place objects')));
     }
     this.emptyEl.hidden = !content;
     if (content) this.emptyEl.append(content);
+  }
+
+  /** Whether the map has no tiles and no objects. */
+  isBlank() {
+    return this.map.layers.every((l) => (l.data ? !l.data.some((g) => g >= 0) : !l.objects.length));
   }
 
   get layer() { return this.map?.layers[this.activeLayer] || null; }
@@ -298,39 +386,70 @@ export class MapEditor {
   // -------------------------------------------------------------------------
   // Side panel
 
+  /** The side panel shows what the active layer needs: tiles for a tile layer, objects for an object layer. */
   renderSide() {
-    this.renderTilesetSection();
+    const objects = this.layer?.type === 'objects';
+    this.tilesetSection.hidden = objects;
+    this.typesSection.hidden = !objects;
+    this.objectSection.hidden = !objects;
+    if (objects) {
+      this.tilesetSection.replaceChildren();
+      this.renderTypesSection();
+      this.renderObjectSection();
+    } else {
+      this.typesSection.replaceChildren();
+      this.objectSection.replaceChildren();
+      this.renderTilesetSection();
+    }
     this.renderLayerSection();
-    this.renderObjectSection();
+  }
+
+  sectionHead(title, ...buttons) {
+    return this.ui.h('div', { class: 'mt-section-head' }, this.ui.h('span', {}, title), ...buttons);
   }
 
   renderTilesetSection() {
     const { h } = this.ui;
     const s = this.tilesetSection;
     s.replaceChildren();
-    if (!this.map) return;
+    if (!this.map || this.layer?.type === 'objects') return;
     const ts = this.tilesets[this.activeTileset];
-    const head = h('div', { class: 'mt-section-head' }, h('span', {}, 'Tileset'),
-      iconButton(this.ui, { icon: 'plus', title: 'Add a tileset', small: true, onclick: (e) => this.tilesetMenu(e.currentTarget) }));
+    const head = this.sectionHead('Tiles');
     if (ts) {
       head.append(
-        iconButton(this.ui, { icon: 'pencil', title: `Draw the tiles (opens ${ts.imagePath || 'the image'} in the pixel editor)`, small: true, onclick: () => ts.imagePath && this.host.openFile(ts.imagePath) }),
-        iconButton(this.ui, { icon: 'settings', title: `Tile properties (opens ${basename(ts.path)})`, small: true, onclick: () => this.host.openFile(ts.path) }),
-        iconButton(this.ui, { icon: 'trash', title: 'Remove this tileset from the map', small: true, onclick: () => this.removeTileset(this.activeTileset) }),
+        iconButton(this.ui, {
+          icon: 'pencil', small: true, title: `Draw these tiles (opens ${ts.imagePath || 'the image'} in the pixel editor)`,
+          onclick: () => ts.imagePath && this.host.openFile(ts.imagePath),
+        }),
+        iconButton(this.ui, {
+          icon: 'more', small: true, title: 'More tileset options',
+          onclick: (e) => this.ui.showMenu(e.currentTarget, [
+            { label: 'Add another tileset…', icon: 'plus', action: () => this.tilesetMenu(head) },
+            { label: 'Tile properties (solid, …)', icon: 'settings', action: () => this.host.openFile(ts.path) },
+            '-',
+            { label: `Remove this tileset from the ${this.noun}`, icon: 'trash', danger: true, action: () => this.removeTileset(this.activeTileset) },
+          ]),
+        }),
       );
     }
     s.append(head);
     const body = h('div', { class: 'mt-section-body' });
     s.append(body);
     if (!this.tilesets.length) {
+      const files = this.host.list();
+      const choices = files.some((p) => /\.(tileset\.json|png)$/i.test(p));
       body.append(
-        h('p', { class: 'mt-note' }, 'This map has no tileset yet. A tileset is a PNG of tiles plus a .tileset.json with their properties.'),
-        h('button', { type: 'button', class: 'btn small', onclick: (e) => this.tilesetMenu(e.currentTarget) }, this.ui.icon('plus', 14), 'Add a tileset'),
+        h('div', { class: 'mt-cta' },
+          h('p', { class: 'mt-cta-title' }, 'No tiles yet'),
+          h('p', { class: 'mt-note' }, 'A tileset is one picture with all your tiles in a grid (ground, walls, grass…). Make one, draw its tiles, then paint them here.'),
+          h('button', { type: 'button', class: 'btn primary small', onclick: () => this.newTileset() }, this.ui.icon('plus', 14), 'Create a tileset'),
+          choices ? h('button', { type: 'button', class: 'btn small', onclick: (e) => this.tilesetMenu(e.currentTarget) }, 'Use an existing one…') : null,
+          h('p', { class: 'mt-note' }, 'You can place objects without tiles: pick Place objects (O) in the toolbar.')),
       );
       return;
     }
     if (this.tilesets.length > 1) {
-      const select = h('select', { class: 'select small', 'aria-label': 'Tileset' },
+      const select = h('select', { class: 'select small', 'aria-label': 'Tileset', title: 'Tileset ([ and ] switch)' },
         this.tilesets.map((t, i) => h('option', { value: String(i), selected: i === this.activeTileset }, assetName(t.path))));
       select.addEventListener('change', () => {
         this.activeTileset = Number(select.value);
@@ -376,10 +495,12 @@ export class MapEditor {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
     // Checkerboard per half tile.
+    ctx.fillStyle = colors.checkB;
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = colors.checkA;
     for (let y = 0; y < ts.imgH; y += th / 2) {
       for (let x = 0; x < ts.imgW; x += tw / 2) {
-        ctx.fillStyle = ((x / (tw / 2) + y / (th / 2)) & 1) ? colors.checkA : colors.checkB;
-        ctx.fillRect(Math.round(x * s), Math.round(y * s), Math.ceil(tw / 2 * s), Math.ceil(th / 2 * s));
+        if ((x / (tw / 2) + y / (th / 2)) & 1) ctx.fillRect(Math.round(x * s), Math.round(y * s), Math.ceil(tw / 2 * s), Math.ceil(th / 2 * s));
       }
     }
     ctx.imageSmoothingEnabled = false;
@@ -403,7 +524,7 @@ export class MapEditor {
     if (sel && sel.ts === this.activeTileset) {
       const x0 = Math.min(sel.x0, sel.x1); const x1 = Math.max(sel.x0, sel.x1);
       const y0 = Math.min(sel.y0, sel.y1); const y1 = Math.max(sel.y0, sel.y1);
-      rect(x0, y0, x1, y1, colors.dark ? '#000' : '#fff', 4 * dpr);
+      rect(x0, y0, x1, y1, colors.halo, 4 * dpr);
       rect(x0, y0, x1, y1, colors.accent, 2 * dpr);
     }
     this.updatePaletteInfo();
@@ -532,8 +653,10 @@ export class MapEditor {
   }
 
   async newTileset() {
+    let n = 1;
+    while (this.host.exists(`tiles/tiles${n > 1 ? n : ''}.png`) || this.host.exists(`tiles/tiles${n > 1 ? n : ''}.tileset.json`)) n++;
     const name = await this.ui.promptDialog({
-      title: 'New tileset', label: 'Name (in tiles/)', value: 'tiles', okLabel: 'Create',
+      title: 'New tileset', label: 'Name (in tiles/)', value: `tiles${n > 1 ? n : ''}`, okLabel: 'Create',
       validate: (v) => {
         if (!/^[\w.-]+$/.test(v)) return 'Use letters, numbers, - and _.';
         if (this.host.exists(`tiles/${v}.png`) || this.host.exists(`tiles/${v}.tileset.json`)) return 'A tileset with that name exists.';
@@ -546,7 +669,7 @@ export class MapEditor {
     await this.host.write(`tiles/${name}.png`, transparentPng(tw * 8, th * 4));
     await this.host.write(`tiles/${name}.tileset.json`, newTilesetText(`${name}.png`, tw, th));
     this.addTileset(`tiles/${name}.tileset.json`);
-    this.host.toast(`Created tiles/${name}.png. Draw its tiles in the pixel editor.`, { type: 'success' });
+    this.host.toast(`Created tiles/${name}.png. Click the pencil above the tiles to draw them in the pixel editor.`, { type: 'success', timeout: 6000 });
   }
 
   async removeTileset(index) {
@@ -573,15 +696,28 @@ export class MapEditor {
     const s = this.layerSection;
     s.replaceChildren();
     if (!this.map) return;
-    s.append(h('div', { class: 'mt-section-head' }, h('span', {}, 'Layers'),
-      iconButton(this.ui, { icon: 'plus', title: 'Add a layer', small: true, onclick: (e) => this.ui.showMenu(e.currentTarget, [
-        { label: 'Tile layer', icon: 'grid', action: () => this.addLayer('tiles') },
-        { label: 'Object layer', icon: 'package', action: () => this.addLayer('objects') },
-      ]) })));
+    const n = this.map.layers.length;
+    const i = this.activeLayer;
+    s.append(this.sectionHead('Layers',
+      iconButton(this.ui, {
+        icon: 'plus', title: 'Add a layer', small: true, onclick: (e) => this.ui.showMenu(e.currentTarget, [
+          { label: 'Tile layer (to paint tiles)', icon: 'grid', action: () => this.addLayer('tiles') },
+          { label: 'Object layer (to place objects)', icon: 'package', action: () => this.addLayer('objects') },
+        ]),
+      }),
+      iconButton(this.ui, {
+        icon: 'more', title: 'Arrange, rename or delete the selected layer', small: true, onclick: (e) => this.ui.showMenu(e.currentTarget, [
+          { label: 'Move up (drawn later, on top)', icon: null, action: () => this.moveLayer(1), disabled: !n || i >= n - 1 },
+          { label: 'Move down', icon: null, action: () => this.moveLayer(-1), disabled: !n || i <= 0 },
+          { label: 'Rename…', icon: 'pencil', action: () => this.renameLayer(i), disabled: !n },
+          '-',
+          { label: 'Delete layer', icon: 'trash', danger: true, action: () => this.deleteLayer(i), disabled: !n },
+        ]),
+      })));
     const list = h('div', { class: 'mt-layers', role: 'listbox', 'aria-label': 'Layers' });
     // Topmost layer first, as it's drawn last.
-    for (let i = this.map.layers.length - 1; i >= 0; i--) {
-      const l = this.map.layers[i];
+    for (let j = n - 1; j >= 0; j--) {
+      const l = this.map.layers[j];
       const eye = iconButton(this.ui, {
         icon: l.visible ? 'eye' : 'eyeOff', title: l.visible ? 'Hide layer' : 'Show layer', small: true,
         onclick: (e) => {
@@ -590,28 +726,18 @@ export class MapEditor {
           this.refresh();
         },
       });
+      const kind = l.type === 'objects' ? 'objects' : 'tiles';
       const row = h('div', {
-        class: `mt-layer${i === this.activeLayer ? ' active' : ''}${l.visible ? '' : ' hidden-layer'}`,
-        role: 'option', 'aria-selected': String(i === this.activeLayer), title: `${l.name} (${l.type === 'objects' ? 'object layer' : 'tile layer'})`,
-      }, eye, h('span', { class: 'mt-layer-kind' }, icon(this.ui, l.type === 'objects' ? 'objectsLayer' : 'tilesLayer', 14)),
-      h('span', { class: 'mt-layer-name' }, l.name));
-      row.addEventListener('click', () => this.selectLayer(i));
-      row.addEventListener('dblclick', () => this.renameLayer(i));
+        class: `mt-layer${j === i ? ' active' : ''}${l.visible ? '' : ' hidden-layer'}`,
+        role: 'option', 'aria-selected': String(j === i),
+        title: `${l.name}: ${kind === 'objects' ? 'objects are placed on it' : 'tiles are painted on it'}. Double-click to rename.`,
+      }, eye, h('span', { class: 'mt-layer-name' }, l.name), h('span', { class: 'mt-layer-kind' }, kind));
+      row.addEventListener('click', () => this.selectLayer(j));
+      row.addEventListener('dblclick', () => this.renameLayer(j));
       list.append(row);
     }
-    if (!this.map.layers.length) list.append(h('p', { class: 'mt-note', style: { padding: '0 6px' } }, 'No layers. Add a tile layer to paint.'));
-    const n = this.map.layers.length;
-    const actions = h('div', { class: 'mt-layer-actions' },
-      iconButton(this.ui, { icon: 'arrowUp', title: 'Move layer up', small: true, onclick: () => this.moveLayer(1) }),
-      iconButton(this.ui, { icon: 'arrowDown', title: 'Move layer down', small: true, onclick: () => this.moveLayer(-1) }),
-      iconButton(this.ui, { icon: 'pencil', title: 'Rename layer', small: true, onclick: () => this.renameLayer(this.activeLayer) }),
-      iconButton(this.ui, { icon: 'trash', title: 'Delete layer', small: true, onclick: () => this.deleteLayer(this.activeLayer) }));
-    const [up, down, rename, del] = actions.children;
-    up.disabled = !n || this.activeLayer >= n - 1;
-    down.disabled = !n || this.activeLayer <= 0;
-    rename.disabled = !n;
-    del.disabled = !n;
-    s.append(list, actions);
+    if (!n) list.append(h('p', { class: 'mt-note', style: { padding: '0 6px' } }, 'No layers. Add a tile layer with + to paint tiles, or an object layer to place objects.'));
+    s.append(list);
   }
 
   selectLayer(i) {
@@ -689,69 +815,203 @@ export class MapEditor {
     this.selectLayer(Math.min(this.activeLayer, this.map.layers.length - 1));
   }
 
+  /** Every object type name used in this map. */
+  usedTypes() {
+    return [...new Set(this.map.layers.flatMap((x) => (x.objects || []).map((o) => o.type)).filter(Boolean))].sort();
+  }
+
+  /** The object palette: the project's object types, types used here without an object file, and "Other…". */
+  renderTypesSection() {
+    const { h } = this.ui;
+    const s = this.typesSection;
+    s.replaceChildren();
+    if (!this.map) return;
+    const known = this.types.list();
+    const plain = this.usedTypes().filter((t) => !this.types.get(t));
+    if (this.objectType && !this.types.get(this.objectType) && !plain.includes(this.objectType)) plain.push(this.objectType);
+    const grid = h('div', { class: 'mt-types', role: 'listbox', 'aria-label': 'Objects to place' });
+    const card = (type, thumb, title) => {
+      const selected = type === this.objectType;
+      const b = h('button', {
+        type: 'button', class: `mt-type${selected ? ' selected' : ''}`, role: 'option', 'aria-selected': String(selected), title,
+        onclick: () => this.chooseType(type),
+      }, thumb, h('span', { class: 'mt-type-name' }, type));
+      grid.append(b);
+    };
+    for (const t of known) {
+      const c = h('canvas', { class: 'mt-type-thumb', 'aria-hidden': 'true' });
+      const drawn = drawThumbnail(c, t, 40);
+      const why = !t.sprite ? 'It has no sprite yet (sprite = "..." in its file).' : t.sprite.error ? `${t.sprite.error}.` : '';
+      card(t.type, drawn ? c : h('span', { class: 'mt-type-thumb mt-type-blank' }, icon(this.ui, 'question', 18)),
+        `${t.type} (${t.path})${t.behaviors.length ? `\nBehaviors: ${t.behaviors.join(', ')}` : ''}${why ? `\n${why}` : ''}\nClick, then click in the ${this.noun} to place it.`);
+    }
+    for (const type of plain.sort()) {
+      card(type, h('span', { class: 'mt-type-thumb mt-type-plain', style: { '--type-color': typeColor(type, themeColors(this.element)) } }),
+        `${type}: there's no objects/${type}.lua, so it's plain data (level:objects("${type}") in code).`);
+    }
+    grid.append(h('button', {
+      type: 'button', class: 'mt-type mt-type-other', title: 'Place an object of another type: a name your code looks for (level:objects("name"))',
+      onclick: () => this.otherType(),
+    }, h('span', { class: 'mt-type-thumb mt-type-blank' }, this.ui.icon('plus', 18)), h('span', { class: 'mt-type-name' }, 'Other…')));
+    s.append(this.sectionHead('Objects'), h('div', { class: 'mt-section-body' },
+      known.length ? null : h('p', { class: 'mt-note' }, 'No objects in this project yet. An object is a thing in your game, like the player or a coin: a script in objects/ with a sprite. Create one with New object, and it shows up here.'),
+      grid,
+      this.selected == null ? h('p', { class: 'mt-note' }, this.objectType
+        ? `Click in the ${this.noun} to place a ${this.objectType}. Click an object with Select (V) to change it.`
+        : `Pick an object, then click in the ${this.noun} to place it.`) : null));
+  }
+
+  chooseType(type) {
+    this.objectType = type;
+    if (this.tool !== 'object') this.setTool('object');
+    else this.refresh();
+  }
+
+  async otherType() {
+    const type = await this.ui.promptDialog({
+      title: 'Other object type', label: 'Type name (your code finds these with level:objects("name"))', value: '', placeholder: 'spawn',
+      okLabel: 'Use', validate: (v) => (!v.trim() ? 'Please enter a name.' : /\s/.test(v.trim()) ? 'Use one word, without spaces.' : ''),
+    });
+    if (type) this.chooseType(type.trim());
+  }
+
+  /** The selected object's inspector. */
   renderObjectSection() {
     const { h } = this.ui;
     const s = this.objectSection;
     s.replaceChildren();
     if (!this.map) return;
     const l = this.layer;
-    if (!l || l.type !== 'objects') {
-      s.append(h('div', { class: 'mt-section-head' }, h('span', {}, 'Map')),
-        h('div', { class: 'mt-section-body' },
-          h('p', { class: 'mt-note' }, `${this.map.width} × ${this.map.height} tiles of ${this.map.tileWidth} × ${this.map.tileHeight} pixels (${this.map.width * this.map.tileWidth} × ${this.map.height * this.map.tileHeight}).`),
-          h('button', { type: 'button', class: 'btn small', onclick: () => this.mapDialog() }, icon(this.ui, 'sliders', 14), 'Map properties…')));
-      return;
-    }
-    const obj = l.objects.find((o) => o.id === this.selected);
-    const types = [...new Set(this.map.layers.flatMap((x) => (x.objects || []).map((o) => o.type)).filter(Boolean))].sort();
-    const listId = `mt-types-${Math.random().toString(36).slice(2)}`;
-    const datalist = h('datalist', { id: listId }, types.map((t) => h('option', { value: t })));
-    if (!obj) {
-      const typeInput = h('input', { class: 'input small', value: this.objectType, list: listId, spellcheck: 'false', 'aria-label': 'Type of new objects' });
-      typeInput.addEventListener('change', () => { this.objectType = typeInput.value.trim() || this.objectType; });
-      const count = l.objects.length;
-      s.append(h('div', { class: 'mt-section-head' }, h('span', {}, 'Objects')),
-        h('div', { class: 'mt-section-body' },
-          h('p', { class: 'mt-note' }, `${count} object${count === 1 ? '' : 's'} on "${l.name}". Select one to edit it, or place new ones with the place tool (O).`),
-          h('div', { class: 'mt-row' }, h('span', { class: 'mt-note', style: { margin: 0 } }, 'New objects:'), typeInput, datalist),
-          h('p', { class: 'mt-note' }, 'The type names the entity class map:spawn creates, e.g. spawn({ player = Player }).')));
-      return;
-    }
+    const obj = l?.objects?.find((o) => o.id === this.selected);
+    s.hidden = !obj;
+    if (!obj) return;
     const commit = (fn) => {
       this.change(fn);
       this.vp.render();
     };
-    const typeInput = h('input', { class: 'input small wide', value: obj.type, list: listId, spellcheck: 'false', 'aria-label': 'Type' });
+    const t = this.types.get(obj.type);
+    const sprite = t?.sprite && !t.sprite.error ? t.sprite : null;
+
+    // Head: thumbnail, type, and buttons to open its files.
+    let thumb;
+    if (sprite) {
+      thumb = h('canvas', { class: 'mt-inspect-thumb', 'aria-hidden': 'true' });
+      drawThumbnail(thumb, t, 22);
+    } else {
+      thumb = h('span', { class: 'mt-inspect-thumb mt-type-plain', style: { '--type-color': typeColor(obj.type, themeColors(this.element)) } });
+    }
+    const head = h('div', { class: 'mt-section-head mt-inspect-head' }, thumb, h('span', {}, obj.type || 'Object'));
+    if (t) {
+      head.append(iconButton(this.ui, { icon: 'script', small: true, title: `Open its script (${t.path})`, onclick: () => this.host.openFile(t.path) }));
+      const spritePath = t.sprite?.imagePath && this.host.exists(t.sprite.imagePath) ? t.sprite.imagePath : null;
+      const sb = iconButton(this.ui, {
+        icon: 'image', small: true,
+        title: spritePath ? `Open its sprite (${spritePath})` : t.sprite ? `${t.sprite.error}` : 'It has no sprite (set sprite = "sprites/name" in its script)',
+        onclick: () => spritePath && this.host.openFile(spritePath),
+      });
+      sb.disabled = !spritePath;
+      head.append(sb);
+    }
+    head.append(iconButton(this.ui, {
+      icon: 'more', small: true, title: 'Duplicate or delete', onclick: (e) => this.ui.showMenu(e.currentTarget, [
+        { label: 'Duplicate', icon: 'copy', shortcut: `${this.ui.modKey}+D`, action: () => this.duplicateObject() },
+        { label: 'Delete', icon: 'trash', shortcut: 'Del', danger: true, action: () => this.deleteObject() },
+      ]),
+    }));
+
+    const types = [...new Set([...this.types.list().map((x) => x.type), ...this.usedTypes()])].sort();
+    const listId = `mt-types-${Math.random().toString(36).slice(2)}`;
+    const datalist = h('datalist', { id: listId }, types.map((x) => h('option', { value: x })));
+    const typeInput = h('input', { class: 'input small', value: obj.type, list: listId, spellcheck: 'false', 'aria-label': 'Type', title: t ? `Defined in ${t.path}` : `No objects/${obj.type || 'type'}.lua: plain data for your code` });
     typeInput.addEventListener('change', () => {
-      const t = typeInput.value.trim();
-      commit(() => { obj.type = t; });
-      if (t) this.objectType = t;
+      const v = typeInput.value.trim();
+      commit(() => { obj.type = v; });
+      if (v) this.objectType = v;
+      this.refresh();
     });
     typeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') typeInput.blur(); });
-    const num = (key, min) => numberInput(this.ui, {
-      value: obj[key], min, title: key, onCommit: (n, input) => {
-        if (min !== undefined && n < min) { input.value = String(obj[key]); return; }
+    // A number field; with a placeholder, empty means "the type's default" (the key is left out).
+    const num = (key, opts = {}) => {
+      const input = h('input', {
+        type: 'number', class: 'input small', value: obj[key] ?? '', min: opts.min, step: 1, title: opts.title || key, 'aria-label': opts.title || key,
+        placeholder: opts.placeholder !== undefined ? String(opts.placeholder) : null,
+      });
+      input.addEventListener('change', () => {
+        const text = input.value.trim();
+        if (text === '' && opts.placeholder !== undefined) {
+          if (obj[key] !== undefined) commit(() => { delete obj[key]; });
+          return;
+        }
+        const n = Number(text);
+        if (text === '' || !Number.isFinite(n) || (opts.min !== undefined && n < opts.min)) { input.value = String(obj[key] ?? ''); return; }
         commit(() => { obj[key] = n; });
-      },
-    });
-    s.append(
-      h('div', { class: 'mt-section-head' }, h('span', {}, `Object ${obj.id}`),
-        iconButton(this.ui, { icon: 'copy', title: `Duplicate (${this.ui.modKey}+D)`, small: true, onclick: () => this.duplicateObject() }),
-        iconButton(this.ui, { icon: 'trash', title: 'Delete (Delete)', small: true, onclick: () => this.deleteObject() })),
-      h('div', { class: 'mt-section-body' },
+      });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+      return input;
+    };
+    const fields = h('div', { class: 'mt-fields' },
+      h('label', {}, 'Type'), h('div', { class: 'wide' }, typeInput, datalist),
+      h('label', { title: sprite ? 'Where the sprite\'s origin is, in pixels from the top left' : 'Pixels from the top left' }, 'X'),
+      num('x', { title: 'X' }), h('label', {}, 'Y'), num('y', { title: 'Y' }));
+    const body = h('div', { class: 'mt-section-body' }, fields);
+
+    if (t) {
+      // The type's values, with its defaults as placeholders; empty = the default.
+      const defs = this.types.fields(t);
+      const defaults = defs.map((d) => d.key);
+      if (defs.length) {
+        const grid = h('div', { class: 'mt-kv' });
+        for (const d of defs) {
+          const shown = d.value && typeof d.value === 'object' ? (Array.isArray(d.value) ? d.value.join(', ') : d.value.expr) : formatValue(d.value);
+          const input = h('input', {
+            class: 'input small', value: d.key in obj.properties ? formatValue(obj.properties[d.key]) : '', placeholder: shown, spellcheck: 'false',
+            'aria-label': d.key, title: d.from === 'definition' ? `${d.key}: ${shown} in ${t.path} unless you set it here` : `${d.key}: ${shown} by default (${d.from} behavior)`,
+          });
+          input.addEventListener('change', () => {
+            const text = input.value;
+            commit(() => {
+              const p = { ...obj.properties };
+              if (text.trim() === '') delete p[d.key];
+              else p[d.key] = parseValue(text);
+              obj.properties = p;
+            });
+          });
+          input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+          grid.append(h('label', { title: input.title }, d.key), input);
+        }
+        body.append(h('div', { class: 'mt-props-title' }, 'Properties', h('span', { class: 'mt-props-sub' }, ' (empty: the default)')), grid);
+      }
+      body.append(propertyEditor(this.ui, {
+        title: defs.length ? 'More properties' : 'Properties',
+        props: obj.properties,
+        hidden: defaults,
+        onCommit: (p) => commit(() => {
+          const keep = {};
+          for (const k of defaults) if (k in obj.properties) keep[k] = obj.properties[k];
+          for (const k of defaults) delete p[k];
+          obj.properties = { ...keep, ...p };
+        }),
+      }));
+      const size = this.types.defaultSize(t);
+      body.append(h('div', { class: 'mt-props-title' }, 'Hitbox size', h('span', { class: 'mt-props-sub' }, ' (empty: from the type)')),
         h('div', { class: 'mt-fields' },
-          h('label', {}, 'Type'), typeInput, datalist,
-          h('label', {}, 'X'), num('x'), h('label', {}, 'Y'), num('y'),
-          h('label', {}, 'W'), num('width', 0), h('label', {}, 'H'), num('height', 0)),
-        propertyEditor(this.ui, {
-          props: obj.properties,
-          onCommit: (props) => commit(() => { obj.properties = props; }),
-        })),
-    );
+          h('label', {}, 'W'), num('width', { min: 0, placeholder: size.width, title: 'Hitbox width' }),
+          h('label', {}, 'H'), num('height', { min: 0, placeholder: size.height, title: 'Hitbox height' })));
+    } else {
+      fields.append(h('label', {}, 'W'), num('width', { min: 0, title: 'Width' }), h('label', {}, 'H'), num('height', { min: 0, title: 'Height' }));
+      body.append(propertyEditor(this.ui, {
+        props: obj.properties,
+        onCommit: (props) => commit(() => { obj.properties = props; }),
+      }));
+      if (obj.type) {
+        body.append(h('p', { class: 'mt-note' }, `There's no objects/${obj.type}.lua, so this is plain data: your code reads it with level:objects("${obj.type}").`));
+      }
+    }
+    s.append(head, body);
   }
 
   // -------------------------------------------------------------------------
-  // Map properties dialog
+  // Scene (map) properties dialog: size, tile size, background, properties
 
   async mapDialog() {
     if (!this.map) return;
@@ -777,7 +1037,11 @@ export class MapEditor {
       }
     }
     const hasBg = h('input', { type: 'checkbox', checked: !!m.background });
-    const color = h('input', { type: 'color', class: 'mt-color', value: (m.background || '#1a1c2c').slice(0, 7), disabled: !m.background, 'aria-label': 'Background color' });
+    const firstColor = this.host.palette?.()?.[0];
+    const color = h('input', {
+      type: 'color', class: 'mt-color', value: (m.background || (/^#[0-9a-f]{6}/i.test(firstColor || '') ? firstColor : '#000000')).slice(0, 7),
+      disabled: !m.background, 'aria-label': 'Background color',
+    });
     hasBg.addEventListener('change', () => { color.disabled = !hasBg.checked; });
     let props = { ...m.properties };
     const body = h('div', {},
@@ -786,9 +1050,9 @@ export class MapEditor {
         h('label', {}, 'Anchor'), h('div', { class: 'mt-pair' }, anchorEl, h('span', {}, 'Where existing tiles stay when resizing')),
         h('label', {}, 'Tile size'), h('div', { class: 'mt-pair' }, tw, h('span', {}, '×'), th, h('span', {}, 'pixels')),
         h('label', {}, 'Background'), h('div', { class: 'mt-pair' }, h('label', { class: 'mt-check', style: { margin: 0 } }, hasBg, 'Color'), color)),
-      propertyEditor(this.ui, { title: 'Map properties (level.properties in code)', props, onCommit: (p) => { props = p; } }));
+      propertyEditor(this.ui, { title: `${this.Noun} properties (level.properties in code)`, props, onCommit: (p) => { props = p; } }));
     const res = await this.ui.openDialog({
-      title: 'Map properties', body, wide: false,
+      title: `${this.Noun} properties`, body, wide: false,
       actions: [{ label: 'Cancel', value: null, ghost: true }, { label: 'Apply', value: 'ok', primary: true, submit: true }],
     });
     if (res !== 'ok') return;
@@ -923,13 +1187,16 @@ export class MapEditor {
     if (!this.map) return;
     if (type === 'leave') {
       this.hover = null;
+      this.hoverObject = null;
       this.updateStatus();
       this.vp.render();
       return;
     }
     this.hover = w;
-    this.updateStatus();
+    this.altDown = e.altKey;
     const l = this.layer;
+    this.hoverObject = l?.type === 'objects' && !this.drag ? this.objectAt(l, w)?.id ?? null : null;
+    this.updateStatus();
     if (l?.type === 'objects' && OBJECT_TOOLS.includes(this.tool)) this.objectPointer(type, e, w, l);
     else if (l?.type === 'tiles' && TILE_TOOLS.includes(this.tool)) this.tilePointer(type, e, w, l);
     else if (type === 'down') this.host.toast(TILE_TOOLS.includes(this.tool) ? 'Select a tile layer to paint on.' : 'Select an object layer to place objects.', { type: 'info' });
@@ -995,6 +1262,12 @@ export class MapEditor {
     const c = this.cellAt(w);
     const erase = e.button === 2 || (e.buttons & 2) !== 0;
     if (type === 'down') {
+      if (!this.tileCount && !erase && ['brush', 'rect', 'fill'].includes(this.tool)) {
+        this.host.toast(this.tilesets.length
+          ? 'This tileset has no tiles to paint with. Check its image in the Tiles panel.'
+          : 'Create or pick a tileset first (Tiles, on the right), then paint with its tiles.', { type: 'info' });
+        return;
+      }
       if (this.tool === 'brush' && e.altKey && !erase) {
         this.drag = { kind: 'pick', x0: c.x, y0: c.y, x1: c.x, y1: c.y };
         return;
@@ -1140,23 +1413,85 @@ export class MapEditor {
     return null;
   }
 
+  /**
+   * Where an object is drawn and hit. Objects of a type with a sprite are
+   * drawn like at runtime: the sprite's origin at the object's x, y, so the
+   * frame's top left is (x - originX, y - originY). Others are boxes from
+   * x, y (their size, or the type's default size, or one tile).
+   */
+  objectBounds(o) {
+    const t = this.types.get(o.type);
+    const s = t?.sprite && !t.sprite.error ? t.sprite : null;
+    if (s) return { x: o.x - s.originX, y: o.y - s.originY, w: s.frameWidth, h: s.frameHeight, sprite: s, type: t };
+    if (t) {
+      const d = this.types.defaultSize(t);
+      return { x: o.x, y: o.y, w: o.width ?? d.width, h: o.height ?? d.height, sprite: null, type: t };
+    }
+    return { x: o.x, y: o.y, w: o.width ?? this.map.tileWidth, h: o.height ?? this.map.tileHeight, sprite: null, type: null };
+  }
+
+  /** Objects in drawing order, as at runtime: by `layer` (the object's, else its type's, else 0), then by y. */
+  sortedObjects(layer) {
+    const key = (o) => {
+      const v = o.properties?.layer ?? this.types.get(o.type)?.def.layer;
+      return typeof v === 'number' ? v : 0;
+    };
+    return layer.objects.map((o, i) => ({ o, i, k: key(o) }))
+      .sort((a, b) => a.k - b.k || a.o.y - b.o.y || a.i - b.i).map((e) => e.o);
+  }
+
   objectAt(layer, w) {
-    for (let i = layer.objects.length - 1; i >= 0; i--) {
-      const o = layer.objects[i];
-      const ow = Math.max(o.width, 4 / this.vp.zoom);
-      const oh = Math.max(o.height, 4 / this.vp.zoom);
-      if (w.x >= o.x && w.y >= o.y && w.x < o.x + ow && w.y < o.y + oh) return o;
+    const list = this.sortedObjects(layer);
+    const min = 4 / this.vp.zoom;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const o = list[i];
+      const b = this.objectBounds(o);
+      const bw = Math.max(b.w, min);
+      const bh = Math.max(b.h, min);
+      if (w.x >= b.x && w.y >= b.y && w.x < b.x + bw && w.y < b.y + bh) return o;
     }
     return null;
   }
 
+  /** Objects drawn as boxes can be resized from their bottom right corner. */
   onResizeHandle(o, w) {
+    const b = this.objectBounds(o);
+    if (b.sprite) return false;
     const r = 6 / this.vp.zoom;
-    return Math.abs(w.x - (o.x + o.width)) <= r && Math.abs(w.y - (o.y + o.height)) <= r;
+    return Math.abs(w.x - (b.x + b.w)) <= r && Math.abs(w.y - (b.y + b.h)) <= r;
   }
 
   snap(v, size, free) {
     return free ? Math.round(v) : Math.round(v / size) * size;
+  }
+
+  /**
+   * Where a new object of a type goes for the pointer at w: objects of a type
+   * are centered on the pointer (free) or in the cells under it (snapped);
+   * the result is the sprite's origin, as at runtime. Other objects fill the
+   * cell under the pointer.
+   */
+  placement(type, w, free) {
+    const { tileWidth: tw, tileHeight: th } = this.map;
+    const t = this.types.get(type);
+    if (t) {
+      const s = t.sprite && !t.sprite.error ? t.sprite : null;
+      const size = s ? { width: s.frameWidth, height: s.frameHeight } : this.types.defaultSize(t);
+      let left = Math.round(w.x - size.width / 2);
+      let top = Math.round(w.y - size.height / 2);
+      if (!free) {
+        // In the whole cells it covers: centered across, and down at their
+        // bottom when the sprite's origin is at its feet (it stands on the
+        // ground below), else centered.
+        const cw = Math.max(1, Math.ceil(size.width / tw)) * tw;
+        const ch = Math.max(1, Math.ceil(size.height / th)) * th;
+        left = Math.round((w.x - cw / 2) / tw) * tw + Math.floor((cw - size.width) / 2);
+        const cellTop = Math.round((w.y - ch / 2) / th) * th;
+        top = cellTop + (s && s.originY >= size.height ? ch - size.height : Math.floor((ch - size.height) / 2));
+      }
+      return { x: left + (s ? s.originX : 0), y: top + (s ? s.originY : 0), typed: true };
+    }
+    return { x: free ? Math.round(w.x) : Math.floor(w.x / tw) * tw, y: free ? Math.round(w.y) : Math.floor(w.y / th) * th, typed: false };
   }
 
   objectPointer(type, e, w, layer) {
@@ -1167,23 +1502,30 @@ export class MapEditor {
       const sel = layer.objects.find((o) => o.id === this.selected);
       if (this.tool === 'select') {
         if (sel && this.onResizeHandle(sel, w)) {
-          this.drag = { kind: 'resize', obj: sel, before: this.snapshot(), w0: sel.width, h0: sel.height, sx: w.x, sy: w.y, moved: false };
+          const b = this.objectBounds(sel);
+          this.drag = { kind: 'resize', obj: sel, before: this.snapshot(), w0: b.w, h0: b.h, sx: w.x, sy: w.y, moved: false };
           return;
         }
         const o = this.objectAt(layer, w);
         this.selected = o ? o.id : null;
         if (o) this.drag = { kind: 'move', obj: o, before: this.snapshot(), x0: o.x, y0: o.y, sx: w.x, sy: w.y, moved: false };
-        this.renderObjectSection();
+        this.renderSide();
         return;
       }
       // Place a new object.
-      const x = free ? Math.round(w.x) : Math.floor(w.x / tw) * tw;
-      const y = free ? Math.round(w.y) : Math.floor(w.y / th) * th;
+      if (!this.objectType) {
+        this.host.toast('Pick an object on the right first.', { type: 'info' });
+        return;
+      }
+      const at = this.placement(this.objectType, w, free);
       const before = this.snapshot();
-      const obj = { id: this.map.nextId++, type: this.objectType || 'entity', x, y, width: tw, height: th, properties: {} };
+      const obj = { id: this.map.nextId++, type: this.objectType, x: at.x, y: at.y };
+      // Typed objects take their size from the type unless it's set; plain ones have one.
+      if (!at.typed) Object.assign(obj, { width: tw, height: th });
+      obj.properties = {};
       layer.objects.push(obj);
       this.selected = obj.id;
-      this.drag = { kind: 'place', obj, before, ax: x, ay: y };
+      this.drag = at.typed ? { kind: 'place-move', obj, before } : { kind: 'place', obj, before, ax: at.x, ay: at.y };
       return;
     }
     const d = this.drag;
@@ -1206,6 +1548,11 @@ export class MapEditor {
         d.obj.width = Math.max(free ? 1 : tw, this.snap(d.w0 + w.x - d.sx, tw, free));
         d.obj.height = Math.max(free ? 1 : th, this.snap(d.h0 + w.y - d.sy, th, free));
         d.moved = true;
+      } else if (d.kind === 'place-move') {
+        // Dragging right after placing moves the new object.
+        const at = this.placement(d.obj.type, w, free);
+        d.obj.x = at.x;
+        d.obj.y = at.y;
       } else if (d.kind === 'place') {
         // The new object covers the cells from where the drag started to here.
         if (free) {
@@ -1229,12 +1576,14 @@ export class MapEditor {
     }
     if (type === 'up' && d) {
       this.drag = null;
-      if (d.kind === 'place' || d.moved) {
+      const placed = d.kind === 'place' || d.kind === 'place-move';
+      if (placed || d.moved) {
         const after = this.snapshot();
         this.history.push({ undo: () => this.restore(d.before), redo: () => this.restore(after) });
         this.markDirty();
       }
-      this.renderObjectSection();
+      if (placed) this.refresh();
+      else this.renderSide();
     }
   }
 
@@ -1253,6 +1602,7 @@ export class MapEditor {
     if (i < 0) return false;
     this.change(() => { l.objects.splice(i, 1); });
     this.selected = null;
+    this.hoverObject = null;
     this.refresh();
     return true;
   }
@@ -1307,7 +1657,7 @@ export class MapEditor {
       }
     } else if (l?.objects) {
       const o = this.objectAt(l, this.hover);
-      this.statusTile.textContent = o ? `${o.type || 'object'} #${o.id}` : '';
+      this.statusTile.textContent = o ? `${o.type || 'object'} #${o.id} at ${o.x}, ${o.y}` : '';
     }
   }
 
@@ -1319,7 +1669,7 @@ export class MapEditor {
     const bmp = ts?.image?.bitmap;
     const { tileWidth: mw, tileHeight: mh } = this.map;
     if (!ts || ts.error) {
-      ctx.fillStyle = 'rgba(255, 0, 128, 0.45)';
+      ctx.fillStyle = this.colors.dangerFill;
       ctx.fillRect(x * mw, y * mh, mw, mh);
       return;
     }
@@ -1331,6 +1681,7 @@ export class MapEditor {
 
   draw(ctx, vp) {
     const colors = themeColors(this.element);
+    this.colors = colors;
     ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     if (!this.map) return;
@@ -1370,6 +1721,7 @@ export class MapEditor {
     }
 
     this.drawPreview(ctx, vp, colors);
+    this.drawPlaceGhost(ctx, vp, colors);
 
     if (this.showGrid) drawGrid(ctx, vp, W, H, m.tileWidth, m.tileHeight, colors.grid);
     // Map border.
@@ -1378,63 +1730,130 @@ export class MapEditor {
     ctx.lineWidth = 1;
     ctx.strokeRect(vp.sx(0) - 0.5, vp.sy(0) - 0.5, vp.sx(W) - vp.sx(0) + 1, vp.sy(H) - vp.sy(0) + 1);
 
-    // Object labels, in screen space so they stay readable.
-    for (const l of m.layers) if (l.visible && l.objects) this.drawObjectLabels(ctx, vp, l, l === active, colors);
+    // Object outlines and names, in screen space so they stay readable.
+    for (const l of m.layers) if (l.visible && l.objects) this.drawObjectOverlays(ctx, vp, l, l === active, colors);
   }
 
   drawObjects(ctx, vp, layer, active, colors) {
-    vp.screenTransform(ctx);
-    for (const o of layer.objects) {
-      const x = vp.sx(o.x);
-      const y = vp.sy(o.y);
-      const w = Math.max(3, vp.sx(o.x + o.width) - x);
-      const h = Math.max(3, vp.sy(o.y + o.height) - y);
-      const color = typeColor(o.type);
-      ctx.globalAlpha = active ? 1 : 0.55;
+    const dim = active || this.layer?.type !== 'objects' ? 1 : 0.55;
+    for (const o of this.sortedObjects(layer)) {
+      const b = this.objectBounds(o);
+      if (b.sprite) {
+        // As the game draws it: the first frame of its starting animation, origin at x, y.
+        const s = b.sprite;
+        const bmp = s.img?.bitmap;
+        vp.worldTransform(ctx);
+        ctx.globalAlpha = dim;
+        if (bmp) {
+          ctx.drawImage(bmp, (s.frame % s.columns) * s.frameWidth, Math.floor(s.frame / s.columns) * s.frameHeight,
+            s.frameWidth, s.frameHeight, b.x, b.y, s.frameWidth, s.frameHeight);
+        }
+        continue;
+      }
+      vp.screenTransform(ctx);
+      const x = vp.sx(b.x);
+      const y = vp.sy(b.y);
+      const w = Math.max(3, vp.sx(b.x + b.w) - x);
+      const h = Math.max(3, vp.sy(b.y + b.h) - y);
+      const color = typeColor(o.type, colors);
+      ctx.globalAlpha = (active ? 1 : 0.55) * 0.22;
       ctx.fillStyle = color;
-      ctx.globalAlpha *= 0.22;
       ctx.fillRect(x, y, w, h);
       ctx.globalAlpha = active ? 1 : 0.55;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
-      if (active && o.id === this.selected) {
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = colors.dark ? '#fff' : '#000';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        ctx.strokeRect(x - 2.5, y - 2.5, w + 5, h + 5);
-        ctx.setLineDash([]);
-        // Resize handle.
-        ctx.fillStyle = colors.accent;
-        ctx.fillRect(x + w - 4, y + h - 4, 8, 8);
-        ctx.strokeStyle = '#fff';
-        ctx.strokeRect(x + w - 4.5, y + h - 4.5, 9, 9);
-      }
     }
     ctx.globalAlpha = 1;
     vp.worldTransform(ctx);
   }
 
-  drawObjectLabels(ctx, vp, layer, active, colors) {
+  /**
+   * Over the objects: names of objects drawn as boxes, and for the active
+   * layer, a subtle outline and name for the hovered object and a clear one
+   * (with its origin, or a resize handle) for the selected one.
+   */
+  drawObjectOverlays(ctx, vp, layer, active, colors) {
     vp.screenTransform(ctx);
     ctx.font = `600 11px ${colors.font}`;
     ctx.textBaseline = 'bottom';
-    for (const o of layer.objects) {
-      if (!o.type) continue;
-      const w = vp.sx(o.x + o.width) - vp.sx(o.x);
-      const text = o.type;
+    const label = (text, x, y, color) => {
       const tw = ctx.measureText(text).width;
-      if (tw > Math.max(w, 40) * 2.5) continue;
-      const x = vp.sx(o.x);
-      const y = vp.sy(o.y) - 3;
-      ctx.globalAlpha = active ? 1 : 0.6;
-      ctx.fillStyle = colors.dark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.8)';
-      ctx.fillRect(x - 1, y - 13, tw + 6, 14);
-      ctx.fillStyle = typeColor(o.type);
-      ctx.fillText(text, x + 2, y);
+      ctx.fillStyle = colors.labelBg;
+      ctx.fillRect(x - 1, y - 14, tw + 6, 14);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x + 2, y - 1);
+    };
+    for (const o of layer.objects) {
+      const b = this.objectBounds(o);
+      const selected = active && o.id === this.selected;
+      const hovered = active && o.id === this.hoverObject && !this.drag;
+      const x = vp.sx(b.x);
+      const y = vp.sy(b.y);
+      const w = Math.max(3, vp.sx(b.x + b.w) - x);
+      const h = Math.max(3, vp.sy(b.y + b.h) - y);
+      if (selected) {
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = colors.halo;
+        ctx.strokeRect(x - 2.5, y - 2.5, w + 5, h + 5);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = colors.accent;
+        ctx.strokeRect(x - 2.5, y - 2.5, w + 5, h + 5);
+        if (b.sprite) {
+          // The origin: the point the object's x, y names.
+          const ox = vp.sx(o.x);
+          const oy = vp.sy(o.y);
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = colors.halo;
+          ctx.beginPath();
+          ctx.moveTo(ox - 4, oy); ctx.lineTo(ox + 4, oy); ctx.moveTo(ox, oy - 4); ctx.lineTo(ox, oy + 4);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = colors.accent;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = colors.accent;
+          ctx.fillRect(x + w - 4, y + h - 4, 8, 8);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = colors.halo;
+          ctx.strokeRect(x + w - 4.5, y + h - 4.5, 9, 9);
+        }
+      } else if (hovered) {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = colors.hover;
+        ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
+      }
+      // Boxes always show their type (they look alike); sprites only when hovered or selected.
+      if (!o.type) continue;
+      if (b.sprite ? !(selected || hovered) : !layer.visible) continue;
+      if (!b.sprite && !selected && !hovered && ctx.measureText(o.type).width > Math.max(w, 40) * 2.5) continue;
+      ctx.globalAlpha = active || selected ? 1 : 0.6;
+      label(o.type, x, y - (selected ? 3 : 2), b.sprite ? colors.fg : typeColor(o.type, colors));
+      ctx.globalAlpha = 1;
     }
-    ctx.globalAlpha = 1;
+  }
+
+  /** The object about to be placed, under the pointer. */
+  drawPlaceGhost(ctx, vp, colors) {
+    if (this.tool !== 'object' || !this.objectType || !this.hover || this.drag || vp.pan || this.layer?.type !== 'objects') return;
+    const at = this.placement(this.objectType, this.hover, this.altDown);
+    const b = this.objectBounds({ type: this.objectType, x: at.x, y: at.y, ...(at.typed ? {} : { width: this.map.tileWidth, height: this.map.tileHeight }) });
+    if (b.sprite?.img?.bitmap) {
+      const s = b.sprite;
+      vp.worldTransform(ctx);
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(s.img.bitmap, (s.frame % s.columns) * s.frameWidth, Math.floor(s.frame / s.columns) * s.frameHeight,
+        s.frameWidth, s.frameHeight, b.x, b.y, s.frameWidth, s.frameHeight);
+      ctx.globalAlpha = 1;
+    }
+    vp.screenTransform(ctx);
+    const x = vp.sx(b.x);
+    const y = vp.sy(b.y);
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = colors.accent;
+    ctx.strokeRect(x - 0.5, y - 0.5, vp.sx(b.x + b.w) - x + 1, vp.sy(b.y + b.h) - y + 1);
+    ctx.setLineDash([]);
   }
 
   drawPreview(ctx, vp, colors) {
@@ -1447,7 +1866,7 @@ export class MapEditor {
       const bx = vp.sx((Math.max(x0, x1) + 1) * m.tileWidth);
       const by = vp.sy((Math.max(y0, y1) + 1) * m.tileHeight);
       ctx.lineWidth = 1;
-      ctx.strokeStyle = colors.dark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
+      ctx.strokeStyle = colors.halo;
       ctx.strokeRect(ax - 1.5, ay - 1.5, bx - ax + 3, by - ay + 3);
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
@@ -1471,7 +1890,7 @@ export class MapEditor {
       const x1 = Math.max(d.x0, d.x1); const y1 = Math.max(d.y0, d.y1);
       if (d.erase) {
         vp.worldTransform(ctx);
-        ctx.fillStyle = 'rgba(255, 80, 80, 0.3)';
+        ctx.fillStyle = colors.dangerFill;
         ctx.fillRect(x0 * m.tileWidth, y0 * m.tileHeight, (x1 - x0 + 1) * m.tileWidth, (y1 - y0 + 1) * m.tileHeight);
       } else ghost(x0, y0, x1, y1, x0, y0);
       outline(x0, y0, x1, y1, d.erase ? colors.danger : colors.accent);
@@ -1501,6 +1920,12 @@ export class MapEditor {
   handleKey(e) {
     if (e.__mapToolHandled) return true;
     if (!this.map || isTyping(e) || document.querySelector('dialog[open]')) return false;
+    if (e.key === 'Alt' && !this.altDown) {
+      // The placing ghost shows where Alt (off the grid) puts the object.
+      this.altDown = true;
+      this.vp.render();
+      return false;
+    }
     const mod = this.ui.isMac ? e.metaKey : e.ctrlKey;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     let used = true;
@@ -1566,6 +1991,11 @@ export class MapEditor {
     const affected = this.tilesets.some((t) => t.path === path || t.imagePath === path)
       || [...this.cache.values()].some((t) => t.path === path || t.imagePath === path);
     if (affected) this.reloadTileset(path);
+    // Object scripts and their sprites: re-read the object types.
+    if (this.types.affects(path)) {
+      this.types.scan();
+      if (this.map) this.refresh();
+    }
   }
 
   destroy() {

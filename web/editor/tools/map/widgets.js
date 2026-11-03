@@ -27,6 +27,8 @@ const ICONS = {
   arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
   sliders: '<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>',
+  script: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/>',
+  question: '<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   solid: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m3 15 6-6"/><path d="m3 21 18-18"/><path d="m9 21 12-12"/><path d="m15 21 6-6"/>',
 };
 
@@ -39,42 +41,76 @@ export function icon(ui, name, size = 16) {
   return span;
 }
 
-/** An icon button: {icon, title, onclick, pressed} */
-export function iconButton(ui, { icon: name, title, onclick, pressed, small = false }) {
+/** An icon button: {icon, title, onclick, pressed}. `title` is its tooltip (with the shortcut, if any). */
+export function iconButton(ui, { icon: name, title, onclick, pressed, small = false, label }) {
   const b = ui.h('button', {
-    type: 'button', class: `icon-btn${small ? ' small' : ''}`, title, 'aria-label': title, onclick,
+    type: 'button', class: `icon-btn${small ? ' small' : ''}`, title, 'aria-label': label || title, onclick,
   }, icon(ui, name));
   if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
   return b;
 }
 
-/** Theme colors from the editor's CSS variables. */
+// Colors in a scratch canvas: any CSS color -> "#rrggbb" or "rgba(...)".
+let colorCtx = null;
+function parseColor(color) {
+  colorCtx ??= document.createElement('canvas').getContext('2d');
+  colorCtx.fillStyle = '#000000';
+  colorCtx.fillStyle = color;
+  const c = colorCtx.fillStyle;
+  if (c.startsWith('#')) return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), 1];
+  const m = /rgba?\(([^)]+)\)/.exec(c);
+  if (!m) return [0, 0, 0, 1];
+  const [r, g, b, a = 1] = m[1].split(',').map(Number);
+  return [r, g, b, a];
+}
+
+/** A CSS color with its opacity multiplied by a (for canvas drawing). */
+export function withAlpha(color, a) {
+  const [r, g, b, a0] = parseColor(color);
+  return `rgba(${r}, ${g}, ${b}, ${+(a0 * a).toFixed(3)})`;
+}
+
+// Theme variables object types are colored with (objects without a sprite).
+const TYPE_VARS = ['--accent', '--success', '--warning', '--syn-keyword', '--syn-string', '--syn-builtin', '--syn-function', '--danger'];
+
+/**
+ * Colors for canvas drawing, all from the editor's CSS variables (editor.css),
+ * so the tools follow the theme, whatever its colors.
+ */
 export function themeColors(el) {
   const cs = getComputedStyle(el);
   const v = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
-  const dark = (document.documentElement.dataset.theme || 'dark') !== 'light';
+  const fg = v('--fg', 'CanvasText');
+  const bg = v('--editor-bg', 'Canvas');
+  const panel = v('--panel-2', bg);
   return {
-    dark,
-    bg: v('--editor-bg', '#141416'),
-    panel: v('--panel-2', '#222226'),
-    border: v('--border-strong', '#3a3a40'),
-    fg: v('--fg', '#ededef'),
-    muted: v('--fg-muted', '#a1a1aa'),
-    accent: v('--accent', '#4d8eff'),
-    danger: v('--danger', '#f87171'),
+    bg,
+    panel,
+    border: v('--border-strong', fg),
+    fg,
+    muted: v('--fg-muted', fg),
+    accent: v('--accent', fg),
+    danger: v('--danger', fg),
     font: v('--font-ui', 'system-ui, sans-serif'),
-    checkA: dark ? '#2a2a2f' : '#e9e9ec',
-    checkB: dark ? '#323238' : '#f7f7f8',
-    grid: dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.13)',
-    gridStrong: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+    // Drawn around accent outlines so they show on any tile.
+    halo: bg,
+    checkA: withAlpha(fg, 0.07),
+    checkB: panel,
+    grid: withAlpha(fg, 0.13),
+    gridStrong: withAlpha(fg, 0.3),
+    hover: withAlpha(fg, 0.55),
+    labelBg: withAlpha(v('--panel-elev', panel), 0.88),
+    dangerFill: withAlpha(v('--danger', fg), 0.3),
+    types: TYPE_VARS.map((name) => v(name, '')).filter(Boolean),
   };
 }
 
-/** A distinct, readable color for an object type name. */
-export function typeColor(type) {
+/** A distinct, readable theme color for an object type name. */
+export function typeColor(type, colors) {
   let h = 0;
   for (const c of type || '?') h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return `hsl(${h % 360} 75% 55%)`;
+  const list = colors?.types?.length ? colors.types : [colors?.accent || 'CanvasText'];
+  return list[h % list.length];
 }
 
 // ---------------------------------------------------------------------------

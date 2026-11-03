@@ -1,5 +1,5 @@
-// The map and tileset editors' styles, added to the page once. They use the
-// editor's theme variables (editor.css), so light and dark themes work.
+// The scene and tileset editors' styles, added to the page once. They use
+// only the editor's theme variables (editor.css), so any theme works.
 
 const CSS = `
 .mt-root {
@@ -11,6 +11,7 @@ const CSS = `
   color: var(--fg);
   font-size: 13px;
   outline: none;
+  container-type: inline-size;
 }
 .mt-toolbar {
   grid-column: 1 / -1;
@@ -28,6 +29,9 @@ const CSS = `
 .mt-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 6px; flex: none; }
 .mt-toolbar .icon-btn[aria-pressed="true"] { color: var(--accent-text); background: var(--accent-soft); }
 .mt-zoom { min-width: 46px; text-align: center; font-size: 12px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.mt-toolbar .btn.mt-zoom { justify-content: center; padding: 0 6px; }
+.mt-group { display: flex; align-items: center; gap: 2px; flex: none; }
+@container (max-width: 720px) { .mt-group > .mt-label { display: none; } }
 .mt-toolbar .mt-label { font-size: 12px; color: var(--fg-muted); margin: 0 4px 0 2px; white-space: nowrap; }
 .mt-toolbar .input.mt-num { width: 52px; }
 .mt-toolbar .select { max-width: 200px; }
@@ -41,11 +45,17 @@ const CSS = `
 .mt-viewport.tool-resize { cursor: nwse-resize; }
 .mt-viewport.tool-paint { cursor: crosshair; }
 .mt-empty {
-  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; pointer-events: none;
   color: var(--fg-muted); text-align: center; padding: 24px; line-height: 1.6;
 }
 .mt-empty > div { pointer-events: auto; max-width: 360px; }
 .mt-empty .btn { margin: 10px 4px 0; }
+.mt-empty:has(.mt-empty-card) { place-items: start center; padding-top: 32px; }
+.mt-empty-card {
+  background: var(--panel-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 14px 18px 16px; color: var(--fg);
+}
+.mt-empty-card .mt-note { margin: 4px 0 0; }
 
 .mt-status {
   display: flex; align-items: center; gap: 16px; min-height: 24px; padding: 0 10px;
@@ -60,7 +70,43 @@ const CSS = `
   background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto;
 }
 .mt-section { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-.mt-section.grow { flex: 1 0 auto; }
+.mt-section[hidden] { display: none; }
+.mt-section-end { border-bottom: none; margin-top: auto; border-top: 1px solid var(--border); }
+.mt-section-head > .icon-btn { flex: none; }
+.mt-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+.mt-cta .mt-note { margin: 0; }
+.mt-cta-title { margin: 0; font-weight: 600; color: var(--fg); }
+
+.mt-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 4px; margin-bottom: 6px; }
+.mt-type {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 5px; min-width: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--editor-bg); color: var(--fg-muted);
+  cursor: pointer; font: inherit;
+}
+.mt-type:hover { background: var(--hover); color: var(--fg); border-color: var(--border-strong); }
+.mt-type.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); box-shadow: inset 0 0 0 1px var(--accent); }
+.mt-type:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mt-type-name { font-size: 11.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-type-thumb { width: 40px; height: 40px; display: block; image-rendering: pixelated; flex: none; }
+.mt-type-blank { display: grid; place-items: center; color: var(--fg-subtle); border-radius: 4px; background: var(--hover); }
+.mt-type-other .mt-type-name { color: var(--fg-subtle); }
+.mt-type-plain {
+  box-sizing: border-box; border-radius: 4px; border: 2px solid var(--type-color, var(--accent));
+  background: color-mix(in srgb, var(--type-color, var(--accent)) 22%, transparent);
+}
+.mt-type .mt-type-plain { width: 28px; height: 28px; margin: 6px; }
+
+.mt-inspect-head { gap: 6px; }
+.mt-inspect-head > span:nth-child(2) { color: var(--fg); }
+.mt-inspect-thumb { width: 22px; height: 22px; flex: none; image-rendering: pixelated; }
+span.mt-inspect-thumb { width: 16px; height: 16px; margin: 3px; }
+.mt-kv { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 4px 8px; align-items: center; }
+.mt-kv label { font-size: 12px; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-kv .input { width: 100%; min-width: 0; }
+.mt-kv .input::placeholder, .mt-fields .input::placeholder { color: var(--fg-subtle); }
+.mt-props-sub { font-weight: 400; color: var(--fg-subtle); }
+.mt-shortcuts { grid-template-columns: auto 1fr; gap: 6px 16px; }
+.mt-shortcuts kbd { font: 11.5px var(--font-mono); color: var(--fg-muted); white-space: nowrap; }
 .mt-section-head {
   display: flex; align-items: center; gap: 2px; height: 34px; padding: 0 6px 0 12px;
   font-size: 12px; font-weight: 600; color: var(--fg-muted);
@@ -88,7 +134,7 @@ const CSS = `
 .mt-layer.active { background: var(--accent-soft); color: var(--fg); }
 .mt-layer .mt-layer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mt-layer.hidden-layer .mt-layer-name { opacity: .55; text-decoration: line-through; text-decoration-color: var(--fg-subtle); }
-.mt-layer .mt-layer-kind { color: var(--fg-subtle); display: inline-flex; }
+.mt-layer .mt-layer-kind { color: var(--fg-subtle); font-size: 11px; padding-right: 4px; }
 .mt-layer .icon-btn { width: 24px; height: 24px; }
 .mt-layer-actions { display: flex; gap: 2px; padding: 6px 6px 0; }
 

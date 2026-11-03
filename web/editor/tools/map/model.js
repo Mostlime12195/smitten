@@ -1,8 +1,13 @@
-// Map and tileset files (docs/reference.md, "Tilesets" and "Maps"): paths,
-// parsing with defaults, saving, and a tiny PNG encoder for new tilesets.
+// Scene, map and tileset files (docs/reference.md, "Tilesets" and "Maps";
+// docs/objects-and-scenes.md, "Scenes"): paths, parsing with defaults,
+// saving, and a tiny PNG encoder for new tilesets. A scene file is a map file
+// with "format": "smitten.scene", so both go through parseMap/mapText.
 
 export const MAP_FORMAT = 'smitten.map';
+export const SCENE_FORMAT = 'smitten.scene';
 export const TILESET_FORMAT = 'smitten.tileset';
+
+export const isScenePath = (path) => /\.scene\.json$/i.test(path);
 
 // ---------------------------------------------------------------------------
 // Paths (project paths have no leading slash; folders end without one)
@@ -39,7 +44,7 @@ export function relativePath(from, target) {
 
 /** "tiles/terrain.tileset.json" -> "terrain" */
 export function assetName(path) {
-  return basename(path).replace(/\.(map|tileset|sprite)\.json$/i, '').replace(/\.[^.]+$/, '');
+  return basename(path).replace(/\.(map|scene|tileset|sprite)\.json$/i, '').replace(/\.[^.]+$/, '');
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +135,8 @@ function parseJson(text, path, format) {
   let data;
   try { data = text.trim() ? JSON.parse(text) : {}; } catch (e) { throw new Error(`${path} isn't valid JSON (${e.message})`); }
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(`${path} should hold a JSON object`);
-  if (data.format != null && data.format !== format) throw new Error(`${path} is a "${data.format}" file, not a ${format} file`);
+  const formats = Array.isArray(format) ? format : [format];
+  if (data.format != null && !formats.includes(data.format)) throw new Error(`${path} is a "${data.format}" file, not a ${formats[0]} file`);
   if (data.version != null && (typeof data.version !== 'number' || data.version > 1)) {
     throw new Error(`${path} was made by a newer version of Smitten (version ${data.version}); update Smitten to edit it`);
   }
@@ -168,11 +174,17 @@ export function tilesetText(ts) {
   }, null, 2)}\n`;
 }
 
-/** Parse a .map.json's text into the editor's model (tile data as Int32Arrays). */
+/**
+ * Parse a .map.json's or .scene.json's text into the editor's model (tile
+ * data as Int32Arrays). The format is kept as it was, or chosen from the
+ * extension for files without one.
+ */
 export function parseMap(text, path) {
-  const data = parseJson(text, path, MAP_FORMAT);
+  const preferred = isScenePath(path) ? SCENE_FORMAT : MAP_FORMAT;
+  const data = parseJson(text, path, [preferred, preferred === MAP_FORMAT ? SCENE_FORMAT : MAP_FORMAT]);
   const { format, version, width, height, tileWidth, tileHeight, tilesets, background, layers, properties, ...extra } = data;
   const map = {
+    format: format || preferred,
     width: posInt(width, 20),
     height: posInt(height, 12),
     tileWidth: posInt(tileWidth, 16),
@@ -196,8 +208,9 @@ export function parseMap(text, path) {
         type: typeof o.type === 'string' ? o.type : '',
         x: Number(o.x) || 0,
         y: Number(o.y) || 0,
-        width: Number(o.width) || 0,
-        height: Number(o.height) || 0,
+        // Objects of a type with an object file may leave the size out (it
+        // then comes from the type); others always have one.
+        ...(o.width != null || o.height != null || !o.type ? { width: Number(o.width) || 0, height: Number(o.height) || 0 } : {}),
         properties: o.properties && typeof o.properties === 'object' && !Array.isArray(o.properties) ? { ...o.properties } : {},
       }));
       for (const o of layer.objects) nextId = Math.max(nextId, o.id + 1);
@@ -220,7 +233,7 @@ export function parseMap(text, path) {
 export function mapText(map) {
   const rows = [];
   const out = {
-    format: MAP_FORMAT,
+    format: map.format || MAP_FORMAT,
     version: 1,
     ...map.extra,
     width: map.width,
@@ -250,10 +263,10 @@ export function mapText(map) {
   return `${text}\n`;
 }
 
-/** A new map's file text. */
-export function newMapText({ width, height, tileWidth = 16, tileHeight = 16, tilesets = [] }) {
+/** A new map's or scene's file text. */
+export function newMapText({ width, height, tileWidth = 16, tileHeight = 16, tilesets = [], format = MAP_FORMAT }) {
   return mapText({
-    width, height, tileWidth, tileHeight, tilesets, background: null, properties: {}, extra: {},
+    format, width, height, tileWidth, tileHeight, tilesets, background: null, properties: {}, extra: {},
     layers: [
       { name: 'ground', type: 'tiles', visible: true, data: new Int32Array(width * height).fill(-1), extra: {} },
       { name: 'objects', type: 'objects', visible: true, objects: [], extra: {} },

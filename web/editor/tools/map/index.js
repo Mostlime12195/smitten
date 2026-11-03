@@ -1,15 +1,15 @@
-// Map editor: tile layers, object layers and tilesets (docs/reference.md,
-// "Tilesets" and "Maps"). .map.json files open in the map editor and
-// .tileset.json files in the tileset editor; tileset images are PNGs, drawn
-// in the pixel editor.
+// Scene editor: tile layers, placed objects and tilesets (docs/reference.md,
+// "Tilesets" and "Maps"; docs/objects-and-scenes.md, "Scenes"). .scene.json
+// and .map.json files open in the scene editor and .tileset.json files in the
+// tileset editor; tileset images are PNGs, drawn in the pixel editor.
 
 import { MapEditor } from './map-editor.js';
 import { TilesetEditor } from './tileset-editor.js';
-import { newMapText, newTilesetText, relativePath, transparentPng } from './model.js';
+import { SCENE_FORMAT, newMapText, newTilesetText, relativePath, transparentPng } from './model.js';
 import { injectStyle } from './style.js';
 
 /**
- * What a new map needs from the project. newAssets' files(base) is only given
+ * What a new scene needs from the project. newAssets' files(base) is only given
  * the new file's path, so this uses the host-like second argument when the
  * editor passes one, and otherwise the editor's debugging handle.
  */
@@ -35,19 +35,21 @@ function projectInfo(ctx) {
 
 export default {
   id: 'map',
-  label: 'Map editor',
-  match: (path) => /\.(map|tileset)\.json$/i.test(path),
+  label: 'Scene editor',
+  match: (path) => /\.(scene|map|tileset)\.json$/i.test(path),
   newAssets: [
     {
-      label: 'Map',
-      folder: 'maps',
-      extension: '.map.json',
+      label: 'Scene',
+      folder: 'scenes',
+      extension: '.scene.json',
       files: (base, ctx) => {
         const { resolution, tilesets } = projectInfo(ctx);
-        const path = `${base}.map.json`;
-        // One screen of 16×16 tiles; with exactly one tileset in the project, use it.
+        const path = `${base}.scene.json`;
+        // One screen of 16×16 tiles, layers "ground" (tiles) and "objects";
+        // with exactly one tileset in the project, use it.
         return {
           [path]: newMapText({
+            format: SCENE_FORMAT,
             width: Math.ceil(resolution[0] / 16),
             height: Math.ceil(resolution[1] / 16),
             tilesets: tilesets.length === 1 ? [relativePath(path, tilesets[0])] : [],
