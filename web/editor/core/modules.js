@@ -1,17 +1,23 @@
 // Which optional engine modules a project needs (DESIGN.md, section 3): from
 // the pieces in its scenes and the APIs its scripts use, plus the overrides
 // in smitten.json ("modules": {"physics2d": "always" | "never"}).
+//
+// physics2d is the scenes' physics (Box2D 3): any Body, Zone or Joint needs
+// it. lovephysics is LÖVE's own love.physics API (Box2D 2.4), for code that
+// makes its own worlds.
 
 import { moduleOfPiece } from './schema.js';
 
 export const MODULES = [
-  { id: 'physics2d', name: 'Physics', what: 'Box2D: Bodies whose motion is physics, Joints, smitten.physics' },
+  { id: 'physics2d', name: 'Physics', what: 'Box2D 3: Bodies, Zones, Joints, and raycasts and other queries' },
+  { id: 'lovephysics', name: 'LÖVE physics', what: "LÖVE's love.physics API (Box2D 2.4), for code that makes its own worlds" },
   { id: 'video', name: 'Video', what: 'Theora video playback: smitten.video' },
   { id: 'synth', name: 'Sound generator', what: 'Plays .sfx and .song files made in Smitten' },
 ];
 
 const CODE_PATTERNS = [
-  { id: 'physics2d', re: /\b(?:smitten|love)\.physics\.|motion\s*=\s*["']physics["']/ },
+  { id: 'physics2d', re: /\b(?:smitten|love)\.physics\.(?:raycast|raycastAll|piecesAt|overlap|getGravity|setGravity)\b|\b(?:make|spawn)\(\s*["'`](?:Body|Zone|Joint)["'`]/ },
+  { id: 'lovephysics', re: /\b(?:smitten|love)\.physics\.(?!(?:raycast|raycastAll|piecesAt|overlap|getGravity|setGravity)\b)\w/ },
   { id: 'video', re: /\b(?:smitten|love)\.video\b|\bnewVideo\s*\(/ },
   { id: 'synth', re: /\b(?:smitten|love)\.synth\b|\.(?:sfx|song)["'`]/ },
 ];

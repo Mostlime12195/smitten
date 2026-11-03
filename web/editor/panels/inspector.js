@@ -19,7 +19,7 @@ const RESOURCE_EXT = {
   scene: /\.scene$/i,
 };
 
-const MODULE_NAMES = { physics2d: 'physics', video: 'video', synth: 'sound generator' };
+const MODULE_NAMES = { physics2d: 'physics', lovephysics: 'LÖVE physics', video: 'video', synth: 'sound generator' };
 
 export class InspectorPanel {
   /** ctx: { project, inputActions(), openScript(node), attachScript(node), openScene(path), openDocs(type) } */

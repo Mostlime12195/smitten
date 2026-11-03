@@ -50,7 +50,8 @@ for (const [name, def] of Object.entries(types)) {
 check('lineage', eq(schemaLib.lineage('Sprite'), ['Piece', 'Group', 'Sprite']));
 check('isA', schemaLib.isA('Body', 'Group') && !schemaLib.isA('Label', 'Group'));
 check('space', schemaLib.space('Label') === 'ui' && schemaLib.space('Body') === 'world' && schemaLib.space('Timer') === 'other');
-check('moduleOfPiece', schemaLib.moduleOfPiece('Body', { motion: 'physics' }) === 'physics2d' && schemaLib.moduleOfPiece('Body', { motion: 'still' }) === null && schemaLib.moduleOf('Joint') === 'physics2d');
+check('moduleOfPiece', schemaLib.moduleOfPiece('Body', { motion: 'physics' }) === 'physics2d' && schemaLib.moduleOfPiece('Body', { motion: 'still' }) === 'physics2d'
+  && schemaLib.moduleOfPiece('Zone') === 'physics2d' && schemaLib.moduleOf('Joint') === 'physics2d' && schemaLib.moduleOf('Hitbox') === null && schemaLib.moduleOf('Sprite') === null);
 const godot = ['Node2D', 'Node3D', 'Sprite2D', 'CharacterBody2D', 'StaticBody2D', 'RigidBody2D', 'Area2D', 'CollisionShape2D', 'TileMap', 'Control'];
 check('no Godot type names', !godot.some((t) => types[t]), godot.filter((t) => types[t]).join(','));
 
@@ -151,7 +152,7 @@ for (const t of TEMPLATES) {
   }
   const mods = detectModules(project);
   const incl = Object.values(mods).filter((m) => m.included).map((m) => m.id).sort();
-  const expected = { physics: ['physics2d'] }[t.id] || [];
+  const expected = { empty: [] }[t.id] || ['physics2d'];
   check(`${t.id}: modules`, eq(incl, expected), incl.join(','));
 }
 const overrides = { paths: () => [], readText: () => '', readJSON: () => null, settings: () => ({ modules: { video: 'always', physics2d: 'never' } }) };
@@ -159,7 +160,10 @@ const om = detectModules(overrides);
 check('module overrides', om.video.included && !om.physics2d.included && om.video.override === 'always');
 const code = { paths: () => ['main.lua'], readText: () => 'local w = smitten.physics.newWorld(0, 9.81)\nsmitten.synth.sfx("a.sfx"):play()', readJSON: () => null, settings: () => ({}) };
 const cm = detectModules(code);
-check('modules from code', cm.physics2d.included && cm.synth.included && !cm.video.included);
+check('modules from code', cm.lovephysics.included && !cm.physics2d.included && cm.synth.included && !cm.video.included);
+const queries = { paths: () => ['main.lua'], readText: () => 'local hit = smitten.physics.raycast(0, 0, 10, 0)\nlocal b = spawn("Body", {})', readJSON: () => null, settings: () => ({}) };
+const qm = detectModules(queries);
+check('scene physics from code', qm.physics2d.included && !qm.lovephysics.included);
 
 // --- Ready-made scripts ------------------------------------------------------------
 for (const sc of SCRIPT_LIBRARY) {

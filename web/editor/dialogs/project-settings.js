@@ -1,5 +1,5 @@
 // Project settings (smitten.json): name and main scene, display, input
-// actions and engine modules.
+// actions, physics and engine modules.
 
 import { h, icon, openDialog, formatBytes } from '../ui.js';
 import { detectModules, moduleSize, MODULES } from '../core/modules.js';
@@ -96,6 +96,25 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     h('p', { class: 'settings-intro' }, 'Actions name what the player does; scripts ask for them with smitten.input.pressed("jump"). List keys (space, a, left), mouse buttons (mouse:1), gamepad buttons (pad:a) and stick directions (axis:leftx-).'),
     inputRows);
 
+  // Physics
+  const physics = s.physics || {};
+  const gravity = Array.isArray(physics.gravity) ? physics.gravity : [0, 980];
+  const gravityX = text(gravity[0], { type: 'number', step: 10, 'aria-label': 'Gravity sideways' });
+  const gravityY = text(gravity[1], { type: 'number', step: 10, 'aria-label': 'Gravity down' });
+  const gravityPresets = h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap' },
+    ...[['Normal (980)', 0, 980], ['Floaty (400)', 0, 400], ['Heavy (2000)', 0, 2000], ['None (top-down, space)', 0, 0]].map(([label, gx, gy]) => {
+      const b = h('button', { type: 'button', class: 'btn small' }, label);
+      b.addEventListener('click', () => {
+        gravityX.value = gx;
+        gravityY.value = gy;
+      });
+      return b;
+    }));
+  const physicsTab = h('div', { class: 'settings-grid' },
+    ...field('Gravity', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, gravityX, '×', gravityY),
+      'How fast physics bodies fall, in pixels per second per second: sideways, then down. Scripts can change it with setGravity(x, y).'),
+    ...field('Presets', gravityPresets));
+
   // Modules
   const moduleList = h('div', { class: 'module-list' });
   const renderModules = async () => {
@@ -130,6 +149,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     general: ['General', 'sliders', general],
     display: ['Display', 'monitor', displayTab],
     input: ['Input', 'gamepad', inputTab],
+    physics: ['Physics', 'bodyPhysics', physicsTab],
     modules: ['Modules', 'package', modulesTab],
   };
   const nav = h('nav', { class: 'settings-nav', 'aria-label': 'Project settings sections' });
@@ -164,6 +184,9 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   };
   const changedInput = Object.keys(input).some((k) => JSON.stringify(input[k]) !== JSON.stringify(DEFAULT_ACTIONS[k])) || Object.keys(DEFAULT_ACTIONS).some((k) => !input[k]);
   next.input = changedInput ? input : undefined;
+  const gx = Number(gravityX.value) || 0;
+  const gy = gravityY.value === '' ? 980 : Number(gravityY.value) || 0;
+  next.physics = gx === 0 && gy === 980 ? undefined : { ...physics, gravity: [gx, gy] };
   if (!Object.keys(modules).length) next.modules = undefined;
   project.updateSettings(next);
   return true;
