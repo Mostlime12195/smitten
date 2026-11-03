@@ -13,7 +13,9 @@ teenagers, and anywhere else Node 24 runs.
 | ![The gallery: newest games as cards with thumbnails and play counts](docs/gallery.png) | ![A game's page: the game running in the player, with Remix, Fullscreen and Report](docs/play.png) |
 
 - **Accounts**: a username, a display name and a password (or Hack Club's
-  sign-in). No email, no real names. Recovery codes instead of email resets.
+  sign-in, or both). No real names. An email is optional, and only when the
+  site is set up to send mail: for password resets and account notes,
+  never shown to anyone. Recovery codes work either way.
 - **Publish** from the editor (`web/editor/publish.js`): signed in, with a
   title, a description and an optional thumbnail. Games belong to the
   account, so they can be updated from any computer.
@@ -23,8 +25,8 @@ teenagers, and anywhere else Node 24 runs.
   maker connected Hackatime), **Remix** (opens the editor with a copy) and
   **Report**.
 - **Profiles** (`/u/<username>`): someone's public games.
-- **Account settings** (`/account`): display name, password, recovery
-  codes, Hack Club, Hackatime, where you're signed in (browsers and editors, each can
+- **Account settings** (`/account`): display name, password, email, recovery
+  codes, Hack Club (connect and disconnect), Hackatime, where you're signed in (browsers and editors, each can
   be signed out), your games, deleting the account.
 - **Moderation**: reports hide a game after three people report it;
   moderators hide, restore and delete games, and ban accounts.
@@ -67,16 +69,24 @@ node tools/platform-tests/test.mjs       # from the repository root
 ```
 
 It starts the server on port 8788 (`PLATFORM_PORT`) with an empty data
-folder, an admin token and stand-ins for Hack Club Auth and Hackatime (and,
-for one check, a second server on the next port without Hackatime), and
-runs 126 checks: pages and headers, CORS, signing up, in and out, passwords
+folder, an admin token and stand-ins for Hack Club Auth, Hackatime and a
+mail server (SMTP on the first free port from 8791, `SMTP_TEST_PORT`, with
+STARTTLS when `openssl` can make a certificate; and, for a few checks, a
+server on the next port without Hackatime or email and one with
+`EMAIL_TRANSPORT=log`), and runs 153 checks: pages and headers, CORS,
+signing up, in and out, passwords
 and their rate limits, CSRF, recovery codes and reset links, account
 settings, the editor's sign-in and its tokens, publishing, ownership,
 listing, search and profiles, plays, validation and the word filter,
 remixes, claiming old games, reports, moderation, banning, Hack Club
-sign-in, connecting Hackatime (keys, game hours and their cache, revoked
-tokens, disconnecting, encryption at rest), deleting games and accounts,
-and rate limits. `PLATFORM_URL` tests a running server instead (it needs
+sign-in (and disconnecting it), email (confirming, changing and removing
+an address, resets by email without saying who has an account, their rate
+limits and address bans, account notes, retries, logs without addresses;
+the SMTP client's STARTTLS, implicit TLS, AUTH PLAIN and LOGIN,
+dot-stuffing, quoted-printable and timeouts; Resend's API; the log
+transport; and email off), connecting Hackatime (keys, game hours and
+their cache, revoked tokens, disconnecting, encryption at rest), deleting
+games and accounts, and rate limits. `PLATFORM_URL` tests a running server instead (it needs
 `TRUST_PROXY=1` and `PUBLIC_URL` set to that address; tests that need the
 database or the stand-ins are skipped).
 
@@ -89,7 +99,9 @@ platform/
   src/db.js                SQLite, migrations, ids, tokens, rate limits
   src/auth.js              passwords (scrypt), sessions, editor tokens, CSRF and sign-in checks
   src/account.js           sign up/in/out, recovery, settings, profiles, claiming, the editor's sign-in
-  src/hackclub.js          Sign in with Hack Club (OpenID Connect)
+  src/email.js             email on accounts: confirming, resets by email, account notes
+  src/mail.js              sending mail: the queue, SMTP, Resend, the log
+  src/hackclub.js          Sign in with Hack Club (OpenID Connect), disconnecting it
   src/hackatime.js         Connect Hackatime (OAuth): the editor's API key, game hours
   src/games.js             publishing, playing, listing, reporting
   src/admin.js             moderation
@@ -108,7 +120,8 @@ platform/
 
 - **Storage.** `<DATA_DIR>/smitten.db` (SQLite in WAL mode) has `users`,
   `sessions`, `editor_codes`, `recovery_codes`, `password_resets`, `games`,
-  `reports`, `plays`, `rate_limits` and `admin_log`.
+  `reports`, `plays`, `rate_limits`, `admin_log`, `address_bans`,
+  `user_addresses`, `email_tokens` and `mail_queue`.
   `<DATA_DIR>/games/<id>/game.love` and `thumbnail.png` are the files,
   written to a temporary file and renamed so a download never sees half of
   one. Migrations (`migrations/NNNN_*.sql`) run on start; `PRAGMA
@@ -130,9 +143,9 @@ platform/
   numbers, `-` and `_`; not reserved names like "admin"; through the word
   filter, look-alike letters included), an optional display name (40
   characters, word filter) and a password (8 to 200 characters; not a
-  common one, not containing the username). No email, no age, no real
-  name; the sign-up page says to use a nickname. Five sign-ups per address
-  and hour.
+  common one, not containing the username), and, only when the site sends
+  mail, an optional email (see [Email](#email)). No age, no real name; the
+  sign-up page says to use a nickname. Five sign-ups per address and hour.
 - **Passwords** are hashed with scrypt (N = 2^15, r = 8, p = 1, a 16-byte
   salt), about 50 ms each. Ten failed sign-ins lock an account for the rest
   of the hour, from any address; each address gets 30 sign-in attempts an
@@ -143,14 +156,13 @@ platform/
   cookie must come from the site's own pages (`Origin`, or
   `Sec-Fetch-Site: same-origin`), so other sites can't use it (CSRF).
   Changing the password or resetting it signs out everywhere else.
-- **Recovery.** Nest blocks outgoing mail on port 25 and has no mail
-  service ([FAQ](https://guides.hackclub.app/index.php/Frequently_Asked_Questions)),
-  and collecting emails from teenagers is data we'd rather not hold. So
-  instead: eight **recovery codes** shown once at sign-up (copy or
-  download, and a checkbox before continuing), each resetting the password
-  once, renewable in settings; and a moderator can make a one-time **reset
-  link** valid for a day (`node scripts/admin.mjs reset-link <username>`)
-  for someone who lost both. Accounts made with Hack Club recover through
+- **Recovery.** Three ways, all at `/recover`: eight **recovery codes**
+  shown once at sign-up (copy or download, and a checkbox before
+  continuing), each resetting the password once, renewable in settings; a
+  **reset link by email** (1 hour) when the account has a confirmed email
+  and the site sends mail; and a one-time **reset link** from a moderator,
+  valid for a day (`node scripts/admin.mjs reset-link <username>`), for
+  someone who lost the rest. Accounts made with Hack Club recover through
   Hack Club.
 - **Sign in with Hack Club**, through [Hack Club Auth's OpenID
   Connect](https://auth.hackclub.com/docs/oidc-guide), when
@@ -159,8 +171,12 @@ platform/
   client secret, and the `sub` from the userinfo endpoint. Only `sub` is
   kept (scope `openid`, so no name or email is even asked for). Someone new
   picks a username next; an existing account can connect Hack Club in its
-  settings. Register the app at https://auth.hackclub.com/developer/apps
-  with the redirect URI `<PUBLIC_URL>/auth/hackclub/callback`.
+  settings (the sign-up page says how), and **disconnect** it there
+  (`DELETE /api/account/hackclub`, with the password) as long as it has a
+  password to sign in with. A Hack Club account sets a password first
+  (which also gives it recovery codes). Register the app at
+  https://auth.hackclub.com/developer/apps with the redirect URI
+  `<PUBLIC_URL>/auth/hackclub/callback`.
 - **Connect Hackatime**, when `HACKATIME_CLIENT_ID` and
   `HACKATIME_CLIENT_SECRET` are set: see [Hackatime](#hackatime) below.
 - **Games belong to accounts.** Publishing, updating and deleting need the
@@ -174,6 +190,52 @@ platform/
   Nothing else is public.
 - **Deleting an account** (password, or typing the username for Hack Club
   accounts without one) deletes its games and their files right away.
+
+### Email
+
+Off unless `EMAIL_TRANSPORT` is set (see [Email on Nest](#email-on-nest)).
+When it's on:
+
+- **An email is optional**, at sign-up or in account settings (add,
+  change, remove; changing and removing ask for the password, if the
+  account has one). It's only shown to its owner on the site: not on
+  profiles, not to the editor, and moderators only see it masked
+  (`k***@g***.com`).
+- **Confirmed by a link** (`/verify-email#token=…`, 24 hours, single use,
+  only the token's SHA-256 stored). Until then the address waits in
+  `email_tokens` and is used for nothing else; only a confirmed address
+  can get reset links. A confirmed address belongs to one account
+  (lower-cased, unique). Changing it keeps the old one until the new one is
+  confirmed, then tells the old one; removing it tells the removed one.
+  Either way, reset links already sent stop working.
+- **No one learns who has an account.** Adding an address that's already
+  on another account gets the same answer as any other; the address gets
+  a note ("it's already on your account") instead of a link. Asking for a
+  reset link always answers "if it's on an account, we've sent a link".
+- **Reset by email** at `/recover`: a link to `/recover#reset=…`, 1 hour,
+  single use, which also says the username (people forget it). Limits per
+  hour: 10 requests per network, 3 per address (whether or not it's on an
+  account, so a 429 says nothing), 3 per account (silently: no mail, same
+  answer). A network a moderator banned can't ask. Banned accounts get
+  nothing.
+- **Account mail**, and nothing else: confirming an address, password
+  resets, "your password was changed", "your email was changed / removed",
+  "a moderator hid your game" and "your game is back" (admin hide and
+  restore). Plain text and simple HTML in the site's look, no images, no
+  tracking, no unsubscribe-worthy marketing. Limits: 5 confirmation mails
+  per account and hour, 3 per address.
+- **Sending never holds up a request.** Messages go into `mail_queue`
+  and a worker in the server sends them one at a time, retrying with
+  backoff (30 s, 2 min, 8 min, … up to 8 attempts); 5xx answers (and 4xx
+  from Resend) are final. A message is deleted once sent, given up on, or
+  past its link's expiry (a day at most), and when its account is deleted.
+  Failures are logged as `Mail #<n>: …` with the reason, never an address,
+  link or body.
+- **SMTP** (`src/mail.js`, no dependencies): STARTTLS on 587 (refusing to
+  send the password if the server doesn't offer it), implicit TLS on 465,
+  AUTH PLAIN or LOGIN, dot-stuffing, CRLF, quoted-printable UTF-8,
+  `multipart/alternative`, `Message-ID`, `Date`, `Auto-Submitted`, and a
+  timeout on every step (`EMAIL_TIMEOUT_SECONDS`, 20).
 
 ### The editor's sign-in
 
@@ -318,12 +380,13 @@ All responses are JSON, except the game file, the thumbnail and the
 `/auth/hackclub` redirects. Errors are `{"error": "a sentence for people",
 "field": "title"}` with a 4xx status, and `code` where the editor needs to
 tell cases apart (`sign-in`, `signed-out`, `banned`, `use-hackclub`,
-`bad-code`, `not-connected`, `hackatime-off`). "Session" means the cookie from a page on this site; "editor"
+`bad-code`, `not-connected`, `hackatime-off`, `email-off`, `bad-link`,
+`email-taken`, `nothing-pending`, `needs-password`, `address-banned`). "Session" means the cookie from a page on this site; "editor"
 means `Authorization: Bearer <editor token>`.
 
 | Endpoint | Who | What it does |
 | --- | --- | --- |
-| `GET /api/config` | anyone | Editor URL and origins, report reasons, modules, limits, `accounts.hackclub` |
+| `GET /api/config` | anyone | Editor URL and origins, report reasons, modules, limits, `accounts.hackclub`, `accounts.hackatime`, `accounts.email` |
 | `GET /api/games?sort=new\|popular&q=&user=&limit=24&cursor=` | anyone | Public games, newest or most played; `q` searches titles and descriptions, `user` filters by username |
 | `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the `.love`), optionally `thumbnail` (PNG). `201 {id, game}` |
 | `GET /api/games/<id>` | anyone | A game, with `owner`, `remixOf: {id, title}`, `remixes` and `hackatime: {seconds, checkedAt}` (when tracked); `yours: true` for its owner |
@@ -334,18 +397,25 @@ means `Authorization: Bearer <editor token>`.
 | `POST /api/games/<id>/play` | anyone | Count a play |
 | `POST /api/games/<id>/report` | anyone | Report: `{reason, note}` |
 | `GET /api/users/<username>` | anyone | A profile: `{username, displayName, createdAt, games}` |
-| `POST /api/auth/signup` | the site's pages | `{username, displayName, password}` (or `{via: "hackclub", username}` after Hack Club). Sets the session; `201 {user, recoveryCodes}` |
+| `POST /api/auth/signup` | the site's pages | `{username, displayName, password, email}` (or `{via: "hackclub", username, email}` after Hack Club; `email` optional, ignored when email is off). Sets the session; `201 {user, recoveryCodes, pendingEmail}` |
 | `POST /api/auth/signin` | the site's pages | `{username, password}`. Sets the session |
 | `POST /api/auth/signout` | session | Ends it |
-| `POST /api/auth/recover` | the site's pages | `{username, code, password}` or `{resetToken, password}`. Signs out everywhere, then in here |
+| `POST /api/auth/recover` | the site's pages | `{username, code, password}` or `{resetToken, password}` (a link by email or from a moderator). Signs out everywhere, then in here |
+| `POST /api/auth/recover/email` | the site's pages | `{email}`: a reset link to it if it's confirmed on an account. Always `{ok: true}` |
+| `POST /api/auth/verify-email` | the site's pages | `{token}` from a confirmation link: `{ok, username, email}`. No session needed |
 | `POST /api/auth/editor/code` | session | `{origin, challenge}`: a one-time code for the editor's popup |
 | `POST /api/auth/editor/token` | editor origin | `{code, verifier}`: `{token, user}` |
 | `DELETE /api/auth/editor/token` | editor | Sign the editor out |
-| `GET /api/account` | session or editor | `{user, via}` or `{user: null}` (401 for an editor token that no longer works) |
+| `GET /api/account` | session or editor | `{user, via}` or `{user: null}` (401 for an editor token that no longer works); with a session also `recoveryCodesLeft`, `email` and `pendingEmail: {address, expiresAt}` |
 | `PATCH /api/account` | session | `{displayName}` |
 | `DELETE /api/account` | session | `{password}` or `{confirm: username}`: delete the account and its games |
 | `POST /api/account/password` | session | `{current, password}`: change (or set) it; signs out everywhere else |
 | `POST /api/account/recovery-codes` | session | `{password}`: eight new codes |
+| `POST /api/account/email` | session | `{email, password}`: add or change it (confirmed by a link first). `{email, pendingEmail}` |
+| `DELETE /api/account/email` | session | `{password}`: remove it (and any waiting); works when email is off too |
+| `POST /api/account/email/resend` | session | A new confirmation link for the address waiting |
+| `POST /api/account/email/cancel` | session | Forget the address waiting |
+| `DELETE /api/account/hackclub` | session | `{password}`: disconnect Hack Club (409 `needs-password` without a password) |
 | `GET /api/account/sessions` | session | Where you're signed in |
 | `DELETE /api/account/sessions/<id>` | session | Sign one out |
 | `POST /api/account/sessions/revoke-others` | session | Sign out everywhere else |
@@ -364,10 +434,10 @@ Moderation, with `Authorization: Bearer <ADMIN_TOKEN>` (or
 | Endpoint | What it does |
 | --- | --- |
 | `GET /api/admin/reports` | Hidden and reported games, with owners and open reports |
-| `POST /api/admin/games/<id>/hide` | Hide a game |
-| `POST /api/admin/games/<id>/restore` | Make it public again and close its reports |
+| `POST /api/admin/games/<id>/hide` | Hide a game (its owner gets an email, if they have one) |
+| `POST /api/admin/games/<id>/restore` | Make it public again and close its reports (and tell its owner) |
 | `DELETE /api/admin/games/<id>` | Delete it |
-| `GET /api/admin/users/<username>` | An account: status, how it signs in, its games |
+| `GET /api/admin/users/<username>` | An account: status, how it signs in, its email (masked) and whether one waits, its games |
 | `POST /api/admin/users/<username>/ban` | `{reason}`: sign it out everywhere, hide its public games and profile, block sign-in |
 | `POST /api/admin/users/<username>/unban` | Lift the ban; games the ban hid come back |
 | `POST /api/admin/users/<username>/reset-password` | A one-time reset link, valid a day |
@@ -384,7 +454,10 @@ The audience is teenagers:
 
 - **Little personal data.** Accounts are a username, a display name and a
   password hash (or a Hack Club id), and, if connected, a Hackatime id and
-  an encrypted Hackatime token. No email, no real name, no age, no
+  an encrypted Hackatime token, and, if the person adds one, a confirmed
+  email (plus one waiting for confirmation, for 24 hours at most), used
+  only for account mail and shown to no one else. Mail waiting to go out
+  sits in `mail_queue` for a day at most. No real name, no age, no
   profile pictures, no comments or messages: people can't contact each
   other through the site. IP addresses are only stored as salted hashes,
   in rate limits and anonymous reports and plays.
@@ -423,8 +496,11 @@ lists them all with their defaults; the ones to set when deploying are
 `PUBLIC_URL`, `PORT`, `HOST`, `TRUST_PROXY`, `DATA_DIR`, `EDITOR_URL`,
 `EDITOR_ORIGINS` and `ADMIN_TOKEN`, plus `HACKCLUB_CLIENT_ID` and
 `HACKCLUB_CLIENT_SECRET` for Hack Club's sign-in and
-`HACKATIME_CLIENT_ID` and `HACKATIME_CLIENT_SECRET` for Hackatime. `SECRET` is generated
-into `DATA_DIR/secret` if not set.
+`HACKATIME_CLIENT_ID` and `HACKATIME_CLIENT_SECRET` for Hackatime, and
+`EMAIL_TRANSPORT`, `EMAIL_FROM` and `RESEND_API_KEY` (or `SMTP_*`) for
+email. `SECRET` is generated into `DATA_DIR/secret` if not set. The server
+refuses to start when `EMAIL_TRANSPORT` is set but its settings are
+incomplete, and prints whether email is on.
 
 ## Deploying on Hack Club Nest
 
@@ -445,9 +521,10 @@ What Nest gives you, from its guides:
   ([Systemd](https://guides.hackclub.app/index.php/Systemd)).
 - Automatic daily backups of the container at 9 pm UTC, restorable from
   the dashboard ([Dashboard](https://guides.hackclub.app/index.php/Dashboard)).
-- No database service and no email: port 25 is blocked
-  ([FAQ](https://guides.hackclub.app/index.php/Frequently_Asked_Questions)).
-  Hence SQLite in a file, and recovery codes rather than email resets.
+- No database service and no mail server, and outgoing port 25 is
+  blocked ([FAQ](https://guides.hackclub.app/index.php/Frequently_Asked_Questions)).
+  Hence SQLite in a file, and email through a provider on port 587/465 or
+  its HTTPS API (both are open), below.
 
 Older guides describe Nest as a shared server with a personal Caddyfile and
 `nest` commands; today's guides describe the container and the dashboard.
@@ -512,6 +589,52 @@ address, list it in `TRUST_PROXY` instead. If there's no `X-Forwarded-For`
 at all, rate limits for signed-out people are shared by everyone (account
 limits still work).
 
+### Email on Nest
+
+Nest blocks outgoing port 25, but 587, 465 and HTTPS are open (checked:
+`smtp.resend.com:587/465`, `smtp.gmail.com:587/465`, `api.resend.com:443`),
+so mail goes through a provider. Without it the site works as before:
+recovery codes and moderators' reset links.
+
+**With Resend** (its free tier is plenty for account mail; check its
+current limits):
+
+1. Make an account at https://resend.com, add the domain mail should come
+   from (for example `games.example.com`, or a subdomain like
+   `mail.example.com`) and add the DNS records it shows (SPF and DKIM; a
+   DMARC record helps too). A `*.hackclub.app` domain can't be verified,
+   since you don't control its DNS: use your own domain.
+2. Make an API key with **Sending access** only, for that domain.
+3. In `/etc/smitten/env`:
+
+   ```bash
+   EMAIL_TRANSPORT=resend
+   EMAIL_FROM=Smitten <no-reply@games.example.com>
+   RESEND_API_KEY=re_…
+   ```
+
+   or the same through Resend's SMTP:
+
+   ```bash
+   EMAIL_TRANSPORT=smtp
+   EMAIL_FROM=Smitten <no-reply@games.example.com>
+   SMTP_HOST=smtp.resend.com
+   SMTP_PORT=587        # or 465
+   SMTP_USER=resend
+   SMTP_PASS=re_…
+   ```
+
+4. `systemctl restart smitten`; the log says `Email: on (resend, from …)`.
+   Sign up with your own address and check the link arrives (and not in
+   spam). Failures show up in `journalctl -u smitten` as `Mail #<n>: …`.
+
+**Any other SMTP provider** works the same way (`SMTP_HOST`, `SMTP_PORT`
+587 or 465, `SMTP_USER`, `SMTP_PASS`). Gmail needs an app password and
+sends as that Gmail address, which suits testing better than a site.
+
+To try it locally without sending anything, `EMAIL_TRANSPORT=log` writes
+each message to the console, or to `EMAIL_LOG_FILE`.
+
 ### Hosting the editor too
 
 The editor is static files (`dist/` from `python3 build.py`). Copy them up,
@@ -544,13 +667,18 @@ origin, and in the editor, **Settings › Publishing** is the site's URL.
   Game files are only ever replaced whole, so the container backup (or
   `rsync -a /var/lib/smitten/games/ …`) covers them.
 - **Moderating:** `node scripts/admin.mjs reports | ban <username> |
-  reset-link <username> | …` (with `ENV_FILE=/etc/smitten/env`).
+  reset-link <username> | email <username> | …` (with
+  `ENV_FILE=/etc/smitten/env`). `email` says whether an account has a
+  confirmed email, masked, never the whole address.
 
 ## Limits of this version
 
-- **Moderation is a command line.** No dashboard and no notifications when
-  a game is hidden; the admin log is there, but there's one shared admin
-  token rather than moderator accounts.
+- **Moderation is a command line.** No dashboard; a game's owner gets an
+  email when a moderator hides or restores it only if they added one (and
+  not when reports hide it); the admin log is there, but there's one
+  shared admin token rather than moderator accounts.
+- **Email is one provider at a time**, with no bounce handling: an address
+  that bounces stays on the account until its owner changes or removes it.
 - **Accounts are open to everyone**, so a banned person can make a new one.
   When someone keeps coming back, ban their network too:
   `node scripts/admin.mjs ban-network <username>` (the account and the

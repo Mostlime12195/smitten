@@ -21,7 +21,8 @@
 --
 -- Assigning a name that isn't a local sets it on the piece. A few calls are
 -- decided the other way: spawn() adds to the scene (self:spawn() adds inside
--- this piece). find() is the piece's (relative), root() is the scene's root.
+-- this piece), and type() is Lua's (the piece's type is self.type). find() is
+-- the piece's (relative), root() is the scene's root.
 --
 -- ready() and every event function (hit, entered, pressed, tick, a custom
 -- emit("name")...) run as tasks, so they can wait(seconds); task(fn) runs
@@ -102,25 +103,52 @@ end
 
 ---------------------------------------------------------------------------
 -- The short API: global in scripts. Everything in smitten.* stays there too.
+-- web/editor/core/script-api.js lists it for completions and the docs.
 
 local api = {}
 M.api = api
 
 local function input() return require("love.input") end
 local function scene() return require("love.scene") end
+local function sound() return require("love.scene.audio") end
 
+-- Input. pressed(), down() and released() take an action ("jump") or an
+-- input ("space", "mouse:1", "pad:a"); pressed() alone is any press.
 function api.pressed(action) return input().pressed(action) end
 function api.down(action) return input().down(action) end
 function api.released(action) return input().released(action) end
 function api.axis(negative, positive) return input().axis(negative, positive) end
 function api.vector(left, right, up, down) return input().vector(left, right, up, down) end
+function api.wheel() return input().wheel() end
+function api.typed() return input().typed() end
+function api.touches() return input().touches() end
+function api.stick(side, player) return input().stick(side, player) end
+function api.trigger(side, player) return input().trigger(side, player) end
+function api.vibrate(strength, seconds, player) return input().vibrate(strength, seconds, player) end
 
+---Where the mouse is in the scene (x, y).
+function api.mouse()
+	local m = love.mouse
+	return m.worldX, m.worldY
+end
+
+---Where the mouse is on the screen, in game pixels (x, y): for UI.
+function api.mouseScreen()
+	local m = love.mouse
+	return m.x, m.y
+end
+
+-- Scenes
 function api.go(path, ...) return scene().go(path, ...) end
 function api.reload() return scene().reload() end
+function api.transition(kind, seconds, color) return scene().transition(kind, seconds, color) end
 function api.make(what, props, script) return scene().make(what, props, script) end
 function api.tagged(tag) return scene().tagged(tag) end
 function api.first(tag) return scene().first(tag) end
 function api.root() return scene().current end
+
+---The camera in use, or nil.
+function api.camera() return require("love.scene.nodes2d").currentCamera() end
 
 ---Spawns into the scene (or into parent); self:spawn() spawns inside this piece.
 function api.spawn(what, props, parent)
@@ -130,6 +158,24 @@ function api.spawn(what, props, parent)
 	parent = parent or s.current
 	if not parent then error("spawn() needs a running scene (or a parent to add to)", 2) end
 	return parent:add(n)
+end
+
+---State for the whole game, kept when the scene changes: game.score += 1.
+api.game = {}
+
+-- Pausing and time
+function api.pauseGame() scene().paused = true end
+function api.resumeGame() scene().paused = false end
+function api.isPaused() return scene().paused == true end
+
+---timeScale(0.5): slow motion; timeScale(): how fast time goes now.
+function api.timeScale(scale)
+	local s = scene()
+	if scale ~= nil then
+		if type(scale) ~= "number" or scale < 0 then error("timeScale() needs a number, 0 or more", 2) end
+		s.timeScale = scale
+	end
+	return s.timeScale
 end
 
 -- Sound: a bare name finds the sound file with that name anywhere in the
@@ -157,8 +203,9 @@ local function indexSounds(dir, out)
 	return out
 end
 
-local function soundPath(name)
-	if type(name) ~= "string" or name == "" then error("give a sound's name, like \"coin\", or its file", 3) end
+---The file of a sound by name ("coin") or path; errors at level.
+local function soundPath(name, level)
+	if type(name) ~= "string" or name == "" then error("give a sound's name, like \"coin\", or its file", level + 1) end
 	if name:find("[/.]") then return name end
 	soundIndex = soundIndex or indexSounds("", {})
 	local p = soundIndex[name]
@@ -169,50 +216,36 @@ local function soundPath(name)
 	if not p then
 		local names = {}
 		for k in pairs(soundIndex) do names[#names + 1] = k end
-		error(("there's no sound called %q%s"):format(name, require("love.engine.util").didYouMean(name, names)), 3)
+		error(("there's no sound called %q%s"):format(name, require("love.engine.util").didYouMean(name, names)), level + 1)
 	end
 	return p
 end
+M.soundPath = soundPath
 
----Plays a sound once: sfx("coin"), sfx("sounds/hit.wav", 0.5).
+---Plays a sound once: sfx("coin"), sfx("hit", 0.5), sfx("hit", { volume = 0.5, pitch = 1.2 }).
 function api.sfx(name, volume, pitch)
-	local snd = require("love.assets").audio(soundPath(name))
-	if snd.song then
-		snd.song:setVolume(volume or 1)
-		snd.song:play()
-		return snd.song
-	end
-	local src = snd:newSource()
-	src:setVolume(volume or 1)
-	if pitch then src:setPitch(pitch) end
-	src:play()
-	return src
+	return sound().sfx(soundPath(name, 2), volume, pitch)
 end
 
-local playingMusic = nil
-
----Plays music on a loop, instead of any music playing: music("theme").
-function api.music(name, volume)
-	api.stopMusic()
-	local snd = require("love.assets").audio(soundPath(name))
-	if snd.song then
-		snd.song:setVolume(volume or 1)
-		snd.song:play()
-		playingMusic = snd.song
-	else
-		local src = snd:newSource()
-		src:setLooping(true)
-		src:setVolume(volume or 1)
-		src:play()
-		playingMusic = src
-	end
-	return playingMusic
+---Plays music on a loop, instead of any music playing: music("theme"),
+---music("boss", { volume = 0.6, fade = 1 }). The same music keeps playing.
+function api.music(name, options)
+	return sound().music(soundPath(name, 2), options)
 end
 
-function api.stopMusic()
-	if playingMusic then playingMusic:stop() end
-	playingMusic = nil
+function api.stopMusic(fade) return sound().stopMusic(fade) end
+function api.pauseMusic() return sound().pauseMusic() end
+function api.resumeMusic() return sound().resumeMusic() end
+
+---masterVolume(0.5) turns every sound down; masterVolume() is the volume now.
+function api.masterVolume(volume)
+	if volume ~= nil then love.audio.setVolume(math.max(0, volume)) end
+	return love.audio.getVolume()
 end
+
+-- Saving: values kept between plays, for this game.
+function api.save(key, value) return require("love.storage").save(key, value) end
+function api.load(key, default) return require("love.storage").load(key, default) end
 
 -- Time
 api.wait = wait
@@ -259,10 +292,11 @@ end
 function api.screenWidth() return require("love.display").width end
 function api.screenHeight() return require("love.display").height end
 
----Where the mouse is in the scene (x, y).
-function api.mouse()
-	local m = love.mouse
-	return m.worldX, m.worldY
+---fullscreen(true) fills the screen (on the web, after the player clicks or
+---presses a key); fullscreen() is true while it does.
+function api.fullscreen(on)
+	if on ~= nil and love.window then love.window.setFullscreen(on == true) end
+	return love.window ~= nil and (love.window.getFullscreen()) == true
 end
 
 -- Drawing, for draw() (in the piece's own coordinates). The names differ
@@ -280,13 +314,87 @@ local function setColor(r, g, b, a)
 end
 ---The color to draw with: pen(1, 0, 0), pen({1, 0, 0, 0.5}), pen("#ff8800").
 api.pen = setColor
+---How thick lines and outlines are, in pixels.
+function api.penSize(width) love.graphics.setLineWidth(width or 1) end
+
+---Fills the whole screen with a color (the pen's, if none is given).
+function api.clearScreen(r, g, b, a)
+	local gr = love.graphics
+	gr.push("all")
+	if r ~= nil then setColor(r, g, b, a) end
+	gr.origin()
+	local canvas = gr.getCanvas()
+	if canvas then
+		gr.rectangle("fill", 0, 0, canvas:getDimensions())
+	else
+		gr.rectangle("fill", require("love.display").getWindowRect())
+	end
+	gr.pop()
+end
+
 function api.rect(x, y, w, h, fill) love.graphics.rectangle(fill == false and "line" or "fill", x, y, w, h) end
 function api.circle(x, y, r, fill) love.graphics.circle(fill == false and "line" or "fill", x, y, r) end
+function api.oval(x, y, rx, ry, fill) love.graphics.ellipse(fill == false and "line" or "fill", x, y, rx, ry) end
 function api.line(...) love.graphics.line(...) end
-function api.write(text, x, y) love.graphics.print(tostring(text), x or 0, y or 0) end
+---One pixel (of the game's resolution).
+function api.dot(x, y) love.graphics.rectangle("fill", x, y, 1, 1) end
+
+---A polygon through points: poly({x1, y1, x2, y2, x3, y3}, fill).
+function api.poly(points, fill)
+	if type(points) ~= "table" or #points < 6 then error("poly() needs a list of at least 3 points: {x1, y1, x2, y2, x3, y3}", 2) end
+	if fill == false then
+		love.graphics.polygon("line", points)
+	elseif love.math.isConvex(points) then
+		love.graphics.polygon("fill", points)
+	else
+		for _, tri in ipairs(love.math.triangulate(points)) do love.graphics.polygon("fill", tri) end
+	end
+end
+
+---Text at x, y: write("Hi", 10, 10), write("Hi", 10, 10, 24) (a size), or
+---write("Hi", 160, 10, { size = 24, align = "center", font = "pixel", width = 200 }).
+---align lines the text up around x; width wraps it.
+function api.write(text, x, y, options)
+	text, x, y = tostring(text), x or 0, y or 0
+	local o = type(options) == "table" and options or { size = options }
+	local font, scale = require("love.assets").font(o.font or "", o.size or 16, require("love.scene.nodes2d").textScale)
+	local s = 1 / scale
+	local g = love.graphics
+	g.setFont(font)
+	local align = o.align or "left"
+	if o.width then
+		local ox = align == "center" and o.width / 2 or align == "right" and o.width or 0
+		g.printf(text, x - ox, y, o.width * scale, align, 0, s, s)
+	else
+		local w = font:getWidth(text) * s
+		local ox = align == "center" and w / 2 or align == "right" and w or 0
+		g.print(text, x - ox, y, 0, s, s)
+	end
+end
+
+---An image, or one frame of a sprite sheet: sprite("art/star.png", x, y),
+---sprite("art/hero.sprite", x, y, { frame = 2, scale = 2, flipX = true }).
+---Options: frame, rotation, scale, scaleX, scaleY, flipX, flipY, centered,
+---columns and rows (to cut a plain picture into frames).
 function api.sprite(path, x, y, r, sx, sy)
-	local img = require("love.assets").image(path)
-	love.graphics.draw(img, x or 0, y or 0, r or 0, sx or 1, sy or sx or 1)
+	local assets = require("love.assets")
+	x, y = x or 0, y or 0
+	if type(r) ~= "table" then
+		local img = assets.image(path)
+		love.graphics.draw(img, x, y, r or 0, sx or 1, sy or sx or 1)
+		return
+	end
+	local o = r
+	local sheet
+	if path:match("%.sprite$") then sheet = assets.sprite(path) else sheet = assets.sheet(path, o.columns or 1, o.rows or 1) end
+	local quad = sheet.quads[((o.frame or 0) % sheet.frameCount) + 1]
+	local fw, fh = sheet.frameWidth, sheet.frameHeight
+	local ox, oy = 0, 0
+	if o.centered then ox, oy = fw / 2, fh / 2 elseif sheet.hasOrigin then ox, oy = sheet.originX, sheet.originY end
+	local scx, scy = o.scaleX or o.scale or 1, o.scaleY or o.scale or 1
+	if o.flipX then scx = -scx end
+	if o.flipY then scy = -scy end
+	love.graphics.draw(sheet.image, quad, x, y, o.rotation or 0, scx, scy, ox, oy)
 end
 
 ---------------------------------------------------------------------------
@@ -377,6 +485,8 @@ function M.instantiate(n, s)
 			local f = fns[k]
 			if f then return f end
 			if k == "spawn" then return SPAWN end
+			-- type() is Lua's; the piece's type is self.type.
+			if k == "type" then return type end
 			local v = n[k]
 			if v ~= nil then
 				if type(v) == "function" then return bind(v) end

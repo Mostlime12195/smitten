@@ -111,14 +111,25 @@ function tween.every(seconds, fn, owner)
 	return add({ kind = "every", time = 0, duration = math.max(seconds or 0, 1e-3), done = fn, target = owner })
 end
 
+-- While the game is paused, tweens and timers of pieces wait too (unless
+-- the piece runs while paused).
+local function frozen(h, scene)
+	local t = h.target
+	return t ~= nil and t.children ~= nil and not scene.runsWhilePaused(t)
+end
+
 function tween._update(dt)
 	local list = active
 	local n = #list
+	local scene = package.loaded["love.scene"]
+	local paused = scene ~= nil and scene.paused
 	for i = 1, n do
 		local h = list[i]
 		if h.active then
 			if h.target and h.target._dead then
 				h.active = false
+			elseif paused and frozen(h, scene) then
+				-- waits
 			else
 				h.time = h.time + dt
 				if h.kind == "tween" then

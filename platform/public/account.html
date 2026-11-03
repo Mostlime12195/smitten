@@ -67,6 +67,39 @@
     <p class="fine">Changing it signs you out everywhere else, the editor included.</p>
   </section>
 
+  <section class="panel" id="email-section" hidden>
+    <h2>Email</h2>
+    <div class="status-row" id="email-current" hidden>
+      <strong id="email-address"></strong>
+      <span class="badge ok">Confirmed</span>
+    </div>
+    <div class="banner" id="email-pending" role="status" hidden>
+      <p id="email-pending-text"></p>
+      <div class="row-actions">
+        <button type="button" class="btn small" id="email-resend">Send the link again</button>
+        <button type="button" class="btn ghost small" id="email-cancel">Cancel</button>
+      </div>
+    </div>
+    <form class="form" id="email-form" novalidate>
+      <label class="field">
+        <span id="email-label">Email</span>
+        <input class="input" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+        <span class="field-error" data-error-for="email"></span>
+      </label>
+      <label class="field" id="email-password-field">
+        <span>Your password</span>
+        <input class="input" name="password" type="password" autocomplete="current-password" maxlength="200">
+        <span class="field-error" data-error-for="current"></span>
+      </label>
+      <p class="field-error" data-error-for="form"></p>
+      <div class="row-actions">
+        <button type="submit" class="btn" id="email-submit">Add email</button>
+        <button type="button" class="btn ghost danger" id="email-remove" hidden>Remove email</button>
+      </div>
+    </form>
+    <p class="fine">Only for resetting your password and notes about your account, like a moderator hiding one of your games. No newsletters. It's never shown to anyone, and you can remove it any time. A new address works once you open the link we send to it.</p>
+  </section>
+
   <section class="panel" id="codes-section" hidden>
     <h2>Recovery codes</h2>
     <p id="codes-left"></p>
@@ -82,8 +115,19 @@
 
   <section class="panel" id="hackclub-section" hidden>
     <h2>Hack Club</h2>
-    <p id="hackclub-status"></p>
+    <div class="status-row">
+      <span id="hackclub-status"></span>
+      <span class="badge ok" id="hackclub-badge" hidden>Connected</span>
+    </div>
     <a class="btn" id="hackclub-connect" href="/auth/hackclub?link=1" hidden>Connect your Hack Club account</a>
+    <form class="inline-form" id="hackclub-disconnect-form" novalidate hidden>
+      <input class="input" name="password" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">
+      <button type="submit" class="btn">Disconnect Hack Club</button>
+      <p class="field-error" data-error-for="current"></p>
+      <p class="field-error" data-error-for="password"></p>
+      <p class="field-error" data-error-for="form"></p>
+    </form>
+    <p class="fine" id="hackclub-fine"></p>
   </section>
 
   <section class="panel" id="hackatime-section" hidden>

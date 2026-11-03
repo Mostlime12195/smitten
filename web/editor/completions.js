@@ -138,6 +138,7 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
   const unionMethods = [...allMethods].map(([m, ts]) => ({
     label: m, type: 'method', detail: ts.length > 3 ? `${ts.slice(0, 3).join(', ')}, …` : ts.join(', '),
   }));
+  const pieceAndLoveMethods = [...nodeMethods, ...unionMethods.filter((o) => !nodeMethodMap.has(o.label))];
 
   const libMembers = {};
   for (const [lib, names] of Object.entries(LUA_LIBS)) {
@@ -157,7 +158,7 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
   // A script is the piece: its methods (move(), onGround()...), the short API
   // (pressed, spawn, sfx, wait...) and the callbacks it can define.
   const scriptApiOptions = SCRIPT_API.map(([name, sig, doc]) => ({
-    label: name, type: 'function', detail: sig.slice(name.length), info: doc, boost: 2,
+    label: name, type: sig.includes('(') ? 'function' : 'variable', detail: sig.slice(name.length) || undefined, info: doc, boost: 2,
   }));
   const callbackOptions = SCRIPT_CALLBACKS.map((name) => {
     const e = scriptEvents.get(name);
@@ -256,7 +257,8 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
       const type = m[1] === ')' ? null : inferType(state.doc.toString(), m[1]);
       let options = type && typeMethods[type];
       if (type === 'Joint') options = typeMethods.Joint;
-      return { from: pos - m[2].length, options: options || unionMethods, validFor: /^\w*$/ };
+      // Pieces (Camera:follow, other:is...) come first when the type isn't known.
+      return { from: pos - m[2].length, options: options || pieceAndLoveMethods, validFor: /^\w*$/ };
     }
     if ((m = /(?:^|[^\w.:])([A-Za-z_]\w*)$/.exec(before))) {
       return { from: pos - m[1].length, options: [...keywordOptions, ...callbackOptions, ...scriptApiOptions, ...nodeMethods, ...globalOptions, ...documentWords(state, m[1])], validFor: /^\w*$/ };

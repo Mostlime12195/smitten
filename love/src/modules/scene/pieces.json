@@ -11,18 +11,22 @@
     "Piece": {
       "group": "basic", "icon": "piece", "abstract": true,
       "description": "Everything in a scene is a piece. Pieces nest: a piece's children belong to it.",
-      "properties": {},
+      "properties": {
+        "pausable": { "type": "bool", "default": true, "group": "Behavior", "description": "Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running." }
+      },
       "methods": {
         "find": { "args": "path", "doc": "A child by name, or a deeper piece by path (\"UI/Score\"); nil if there isn't one." },
         "findDeep": { "args": "name", "doc": "The first piece with this name anywhere inside this one." },
         "findChildOfType": { "args": "type", "doc": "The first child of a type (\"Sprite\"), or nil." },
         "isA": { "args": "type", "doc": "True if the piece is of a type, or a type made from it." },
         "add": { "args": "piece", "doc": "Adds a piece as the last child; returns it." },
+        "remove": { "args": "", "doc": "Takes the piece out of its parent now, without destroying it, so it can be added somewhere else." },
         "spawn": { "args": "sceneOrType, properties?", "doc": "Makes a piece from a scene file or a piece type and adds it as a child: self:spawn(\"scenes/bullet.scene\", { x = 10 })." },
         "destroy": { "args": "", "doc": "Removes the piece and everything inside it at the end of the frame." },
         "tag": { "args": "name", "doc": "Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it." },
         "untag": { "args": "name", "doc": "Takes a tag away." },
         "hasTag": { "args": "name", "doc": "True if the piece has the tag." },
+        "hasAnyTag": { "args": "tags", "doc": "True if the piece has any of the tags in a comma-separated list: hasAnyTag(\"enemy, spikes\")." },
         "is": { "args": "tagOrType", "doc": "True if the piece has the tag or is of the type: other:is(\"enemy\"), other:is(\"Body\")." },
         "on": { "args": "event, fn", "doc": "Calls fn(...) whenever the piece's event happens (\"pressed\", \"entered\", ...). Returns a handle with :off()." },
         "emit": { "args": "event, ...", "doc": "Fires an event: calls the script's function of that name and every listener." },
@@ -30,7 +34,7 @@
         "isAlive": { "args": "", "doc": "True while the piece is in the running scene and not destroyed." }
       },
       "events": {
-        "ready": { "args": "", "doc": "The piece and everything inside it have joined the scene." },
+        "ready": { "args": "...", "doc": "The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values." },
         "update": { "args": "dt", "doc": "Every frame. dt is the time since the last frame, in seconds." },
         "physicsUpdate": { "args": "dt", "doc": "60 times a second, before bodies move. Use it for movement." },
         "draw": { "args": "", "doc": "Draw extra things on top of the piece, in its own coordinates." },
@@ -94,10 +98,13 @@
         "flipY": { "type": "bool", "default": false, "group": "Picture", "description": "Mirror top to bottom." }
       },
       "methods": {
-        "play": { "args": "name?", "doc": "Plays an animation (or resumes the current one)." },
+        "play": { "args": "name?, restart?", "doc": "Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing." },
+        "pause": { "args": "", "doc": "Stops the animation where it is; play() continues it." },
+        "stop": { "args": "", "doc": "Stops the animation and goes back to its first frame." },
         "hasAnimation": { "args": "name", "doc": "True if the .sprite file has an animation with this name." },
-        "stop": { "args": "", "doc": "Stops the animation on the current frame." },
-        "getSize": { "args": "", "doc": "Width and height of one frame, in pixels." }
+        "animations": { "args": "", "doc": "The names of the .sprite file's animations, sorted." },
+        "getSize": { "args": "", "doc": "Width and height of one frame, in pixels." },
+        "getRect": { "args": "", "doc": "The rectangle the picture covers, in the piece's own coordinates: x, y, width, height." }
       },
       "events": { "finished": { "args": "animation", "doc": "A non-looping animation reached its last frame." } }
     },
@@ -115,6 +122,9 @@
         "filled": { "type": "bool", "default": true, "group": "Shape", "description": "Fill the shape; off draws only its outline." },
         "lineWidth": { "type": "number", "default": 2, "min": 0, "group": "Shape", "unit": "px", "description": "Outline and line thickness." },
         "centered": { "type": "bool", "default": true, "group": "Shape", "description": "Center the rectangle on the piece's position.", "when": { "shape": ["rectangle"] } }
+      },
+      "methods": {
+        "getRect": { "args": "", "doc": "The rectangle the shape covers, in the piece's own coordinates: x, y, width, height." }
       }
     },
     "Text": {
@@ -143,7 +153,15 @@
         "tileInfo": { "args": "tile", "doc": "The settings of a tile in the tileset (solid, name, ...)." },
         "cellAt": { "args": "x, y", "doc": "The cell under a point in the scene: column, row." },
         "cellPosition": { "args": "column, row", "doc": "The scene position of a cell's top-left corner." },
-        "cellsWith": { "args": "tile?", "doc": "A list of {column, row, tile} for every painted cell (or every cell with that tile)." }
+        "cellsWith": { "args": "tile?", "doc": "A list of {column, row, tile} for every painted cell (or every cell with that tile)." },
+        "fill": { "args": "column, row, columns, rows, tile", "doc": "Sets a rectangle of cells to one tile (-1 empties them)." },
+        "clear": { "args": "", "doc": "Empties every cell." },
+        "tileAt": { "args": "x, y", "doc": "The tile number under a point in the scene, or -1." },
+        "isSolid": { "args": "column, row", "doc": "True if the cell's tile is marked solid (and solid is on)." },
+        "neighbors": { "args": "column, row, diagonal?", "doc": "The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal." },
+        "cellCenter": { "args": "column, row", "doc": "The scene position of a cell's center." },
+        "getTileSize": { "args": "", "doc": "The size of one cell in the scene: width, height." },
+        "getBounds": { "args": "", "doc": "The painted area in the scene: x, y, width, height (all 0 when empty)." }
       }
     },
     "Camera": {
@@ -153,6 +171,9 @@
         "active": { "type": "bool", "default": true, "group": "Camera", "description": "Use this camera. When several are active, the first in the scene wins." },
         "zoom": { "type": "number", "default": 1, "min": 0.01, "step": 0.1, "group": "Camera", "description": "2 shows everything twice as big." },
         "smoothing": { "type": "number", "default": 0, "min": 0, "step": 1, "group": "Camera", "description": "How gently it catches up: 0 sticks exactly, 5 glides." },
+        "target": { "type": "piecepath", "default": "", "group": "Camera", "description": "A piece to follow, wherever the camera is in the scene (empty: the camera's own position)." },
+        "offsetX": { "type": "number", "default": 0, "group": "Camera", "unit": "px", "description": "Looks this far right of what it follows." },
+        "offsetY": { "type": "number", "default": 0, "group": "Camera", "unit": "px", "description": "Looks this far below what it follows." },
         "left": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything left of this (empty for no edge)." },
         "top": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything above this." },
         "right": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything right of this." },
@@ -160,6 +181,12 @@
       },
       "methods": {
         "shake": { "args": "strength?, seconds?", "doc": "Shakes the view: shake(6, 0.3)." },
+        "follow": { "args": "piece", "doc": "Follows a piece (nil: back to target, or the camera's own position)." },
+        "snap": { "args": "", "doc": "Jumps straight to what it follows, without smoothing (after a teleport)." },
+        "setLimits": { "args": "left, top, right, bottom", "doc": "Sets the edges it doesn't show past (nil for no edge)." },
+        "limitTo": { "args": "piece", "doc": "Keeps the view inside the painted part of a Tiles piece." },
+        "makeCurrent": { "args": "", "doc": "Makes this the camera in use, turning the others off." },
+        "getView": { "args": "", "doc": "The part of the scene on screen: x, y, width, height." },
         "screenToWorld": { "args": "sx, sy", "doc": "A point on the screen, as a point in the scene." },
         "worldToScreen": { "args": "x, y", "doc": "A point in the scene, as a point on the screen." }
       }
@@ -186,9 +213,14 @@
         "followPiece": { "type": "bool", "default": false, "group": "Motion", "description": "Particles move with the piece instead of staying where they were born." }
       },
       "methods": {
-        "emit": { "args": "count", "doc": "Makes count particles right now." },
-        "restart": { "args": "", "doc": "Clears every particle and starts again." }
-      }
+        "emit": { "args": "count", "doc": "Makes count particles right now. emit(\"event\", ...) still fires an event." },
+        "start": { "args": "", "doc": "Starts making particles (a burst makes its particles again)." },
+        "stop": { "args": "", "doc": "Stops making particles; the ones already out live on." },
+        "clear": { "args": "", "doc": "Removes every particle now." },
+        "restart": { "args": "", "doc": "Clears every particle and starts again." },
+        "getCount": { "args": "", "doc": "How many particles are out now." }
+      },
+      "events": { "finished": { "args": "", "doc": "The last particle is gone and no more are coming (after a burst or stop()). Good for destroy()." } }
     },
 
     "Body": {
@@ -330,13 +362,17 @@
       "methods": {
         "getRect": { "args": "", "doc": "Where it is on the screen now: x, y, width, height." },
         "isHovered": { "args": "", "doc": "True while the mouse is over it." }
+      },
+      "events": {
+        "hovered": { "args": "", "doc": "The pointer came over it (not Labels)." },
+        "unhovered": { "args": "", "doc": "The pointer left it." }
       }
     },
     "Label": {
       "extends": "UI", "group": "ui", "icon": "label",
       "description": "Words on the screen: scores, timers, titles, dialog.",
       "properties": {
-        "text": { "type": "text", "default": "Label", "group": "Text", "description": "What it says. Change it from a script: self.text = `Score: {score}`." },
+        "text": { "type": "text", "default": "Label", "group": "Text", "description": "What it says. Change it from a script: text = `Score: {score}`." },
         "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Text", "description": "A .ttf/.otf font, \"pixel\", or empty for the default font." },
         "size": { "type": "int", "default": 20, "min": 1, "group": "Text", "unit": "px", "description": "Font size." },
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
@@ -355,9 +391,15 @@
         "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Button", "description": "Background color." },
         "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Button", "description": "Text color." },
         "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
-        "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." }
+        "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." },
+        "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus." }
       },
-      "events": { "pressed": { "args": "", "doc": "The button was clicked or tapped." } }
+      "methods": {
+        "focus": { "args": "", "doc": "Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses)." },
+        "isFocused": { "args": "", "doc": "True while it has the keyboard focus." },
+        "isDown": { "args": "", "doc": "True while it's held down." }
+      },
+      "events": { "pressed": { "args": "", "doc": "The button was clicked, tapped, or pressed with accept while focused." } }
     },
     "Panel": {
       "extends": "UI", "group": "ui", "icon": "panel",
@@ -367,7 +409,8 @@
         "cornerRadius": { "type": "number", "default": 8, "min": 0, "group": "Panel", "unit": "px", "description": "Rounds the corners." },
         "borderColor": { "type": "color", "default": [1, 1, 1, 0.15], "group": "Panel", "description": "Outline color." },
         "borderWidth": { "type": "number", "default": 1, "min": 0, "group": "Panel", "unit": "px", "description": "Outline thickness; 0 for none." }
-      }
+      },
+      "events": { "pressed": { "args": "", "doc": "The panel was clicked or tapped (not on a button inside it)." } }
     },
     "Picture": {
       "extends": "UI", "group": "ui", "icon": "picture",
@@ -376,7 +419,8 @@
         "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Picture", "description": "The picture." },
         "fit": { "type": "enum", "options": ["stretch", "contain", "cover", "center", "tile"], "default": "contain", "group": "Picture", "description": "How the picture fills the rectangle." },
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Picture", "description": "Tint." }
-      }
+      },
+      "events": { "pressed": { "args": "", "doc": "The picture was clicked or tapped." } }
     },
     "Bar": {
       "extends": "UI", "group": "ui", "icon": "bar",
@@ -403,11 +447,16 @@
         "pitch": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Sound", "description": "1 is normal; 2 is an octave up." }
       },
       "methods": {
-        "play": { "args": "", "doc": "Plays the sound. Calling it again while it plays starts another copy (good for effects)." },
+        "play": { "args": "", "doc": "Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one." },
         "stop": { "args": "", "doc": "Stops every copy." },
         "pause": { "args": "", "doc": "Pauses." },
         "resume": { "args": "", "doc": "Continues after pause()." },
-        "isPlaying": { "args": "", "doc": "True while it's playing." }
+        "isPlaying": { "args": "", "doc": "True while it's playing." },
+        "fadeIn": { "args": "seconds, volume?", "doc": "Plays from silence up to its volume (or volume) over some seconds." },
+        "fadeOut": { "args": "seconds", "doc": "Fades to silence, then stops; volume goes back to what it was." },
+        "seek": { "args": "seconds", "doc": "Jumps to a time in the sound." },
+        "tell": { "args": "", "doc": "Where it's playing, in seconds." },
+        "getDuration": { "args": "", "doc": "How long the sound is, in seconds." }
       },
       "events": { "finished": { "args": "", "doc": "The sound reached its end (not when looping)." } }
     }

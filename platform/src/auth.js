@@ -13,7 +13,7 @@
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { HttpError, readCookie } from './http.js';
-import { db, hmac, newToken, randomCode, safeEqual, sha256 } from './db.js';
+import { checkLimit, countHit, db, hmac, newToken, randomCode, safeEqual, sha256 } from './db.js';
 
 export const SESSION_COOKIE = 'smitten_session';
 const DAY = 86400_000;
@@ -51,6 +51,19 @@ export async function verifyPassword(password, stored, config) {
   const key = await scryptAsync(String(password || ''), Buffer.from(salt, 'base64url'), Number(logN), Number(r), Number(p));
   const expected = Buffer.from(hash, 'base64url');
   return key.length === expected.length && timingSafeEqual(key, expected);
+}
+
+// Failed sign-ins (or recovery attempts) per username and hour.
+export const FAILED_PER_USER = 10;
+
+/** Checks the signed-in user's current password for a sensitive change (403 if wrong; counts as a failed sign-in). */
+export async function confirmPassword(ctx, user, password) {
+  const key = `signin-failed:${user.username}`;
+  checkLimit(key, FAILED_PER_USER, 'tried to sign in to this account');
+  if (!(await verifyPassword(password, user.password_hash, ctx.config))) {
+    countHit(key);
+    throw new HttpError(403, "That isn't your current password.", { field: 'current' });
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -457,7 +457,7 @@ a:hover { text-decoration: underline; }
 /* Accounts: sign in, sign up, recovery, settings, profiles */
 
 .account-link { max-width: 200px; color: var(--fg); }
-.brand + .make, .brand + .account-link { margin-left: auto; }
+.brand + .make, .brand + .account-link, .brand + .docs-link { margin-left: auto; }
 .account-link span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .card-meta .card-owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .card-meta .dot { color: var(--fg-subtle); }
@@ -551,6 +551,13 @@ a.btn[aria-disabled="true"] { opacity: 0.55; }
 .inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline-form .input { flex: 1 1 220px; width: auto; }
 .inline-form .field-error { flex-basis: 100%; }
+.status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.settings .panel > .status-row + *, .settings .panel > .banner + * { margin-top: 14px; }
+.settings .form .row-actions { flex-wrap: wrap; }
+#email-pending { display: flex; flex-direction: column; gap: 10px; }
+#email-pending[hidden] { display: none; }
+#email-current + .banner { margin-top: 14px !important; }
+.hint-below { margin-top: 8px !important; text-align: center; }
 #new-codes:not(:empty) { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .danger-zone { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
 
@@ -559,6 +566,7 @@ a.btn[aria-disabled="true"] { opacity: 0.55; }
 .list-row:first-child { border-top: 0; padding-top: 0; }
 .list-row .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .badge { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--fg-muted); font-size: 12px; }
+.badge.ok { background: var(--accent-soft); color: var(--accent); }
 .badge.warn { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 
 #intro #meta { color: var(--fg-muted); }
@@ -590,6 +598,8 @@ a.btn[aria-disabled="true"] { opacity: 0.55; }
   .actions .btn { flex: 1; }
   .account-link { max-width: 120px; margin-left: auto; }
   .account-link + .make { margin-left: 0; }
+  .docs-link { margin-left: auto; height: 34px; padding: 0 10px; }
+  .docs-link + .make, .docs-link + .account-link { margin-left: 0; }
   .panel { padding: 20px 16px; }
   .codes { grid-template-columns: 1fr; }
 }

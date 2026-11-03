@@ -5,10 +5,12 @@
 //   /play/<id>              a game's page, running it in Smitten's player
 //   /u/<username>           someone's games
 //   /signin /signup /recover /account
+//   /verify-email           where a link to confirm an email address goes
 //   /editor-auth            the editor's sign-in popup
 //   /auth/hackclub[/callback]  "Sign in with Hack Club" (when configured)
 //   /auth/hackatime[/callback] "Connect Hackatime" (when configured)
 //   /hackatime-connected    where the editor's Hackatime popup ends up
+//   /docs/[page]            the docs (public/docs/, made by tools/gen-docs.mjs)
 //   /player/player.html     the player (copied by scripts/copy-player.sh)
 //   /api/...                the API (README.md lists every endpoint)
 //
@@ -37,6 +39,8 @@ import {
 } from './account.js';
 import * as hackclub from './hackclub.js';
 import * as hackatime from './hackatime.js';
+import { cancelPendingEmail, removeEmail, requestReset, resendVerification, setEmail, verifyEmail } from './email.js';
+import { startMailWorker, stopMailWorker } from './mail.js';
 import {
   adminReports, adminHide, adminRestore, adminDelete,
   adminUser, adminBan, adminUnban, adminResetLink, adminDeleteUser, adminLog, adminRequestInfo,
@@ -66,6 +70,8 @@ const API = [
   ['POST', /^\/api\/auth\/signin$/, signIn],
   ['POST', /^\/api\/auth\/signout$/, signOut],
   ['POST', /^\/api\/auth\/recover$/, recover],
+  ['POST', /^\/api\/auth\/recover\/email$/, requestReset],
+  ['POST', /^\/api\/auth\/verify-email$/, verifyEmail],
   ['POST', /^\/api\/auth\/editor\/code$/, editorCode],
   ['POST', /^\/api\/auth\/editor\/token$/, editorToken],
   ['DELETE', /^\/api\/auth\/editor\/token$/, revokeEditorToken],
@@ -80,6 +86,11 @@ const API = [
   ['DELETE', new RegExp(`^/api/account/sessions/${SESSION}$`), revokeSession],
   ['GET', /^\/api\/account\/games$/, myGames],
   ['POST', /^\/api\/account\/claim$/, claimGames],
+  ['POST', /^\/api\/account\/email$/, setEmail],
+  ['DELETE', /^\/api\/account\/email$/, removeEmail],
+  ['POST', /^\/api\/account\/email\/resend$/, resendVerification],
+  ['POST', /^\/api\/account\/email\/cancel$/, cancelPendingEmail],
+  ['DELETE', /^\/api\/account\/hackclub$/, hackclub.disconnect],
   ['GET', /^\/api\/account\/hackatime-key$/, hackatime.getKey],
   ['DELETE', /^\/api\/account\/hackatime$/, hackatime.disconnect],
 
@@ -217,10 +228,20 @@ const PAGES = {
   '/signin': ['signin.html', 'auth'],
   '/signup': ['signup.html', 'auth'],
   '/recover': ['recover.html', 'auth'],
+  '/verify-email': ['verify-email.html', 'auth'],
   '/editor-auth': ['editor-auth.html', 'auth'],
   '/account': ['account.html', 'site'],
   '/hackatime-connected': ['hackatime-connected.html', 'auth'],
 };
+
+// The docs (public/docs/, made by tools/gen-docs.mjs): /docs/ and
+// /docs/<page>. Their CSS, JS and search index are ordinary static files.
+function docsPage(ctx, path) {
+  if (path === '/docs') return Promise.resolve(redirect('/docs/', 301));
+  const m = /^\/docs\/([a-z0-9-]*)$/.exec(path);
+  if (!m) return null;
+  return staticFile(ctx, `/docs/${m[1] || 'index'}.html`).then((res) => res || page(ctx, '404.html', { status: 404 }));
+}
 
 async function route(ctx) {
   const { request, url, config } = ctx;
@@ -238,6 +259,8 @@ async function route(ctx) {
     if (/^\/u\/[^/]+\/?$/.test(path)) return withSecurityHeaders(await page(ctx, 'profile.html'), 'site', config);
     const known = PAGES[path.replace(/\/$/, '')];
     if (known) return withSecurityHeaders(await page(ctx, known[0]), known[1], config);
+    const docs = docsPage(ctx, path);
+    if (docs) return withSecurityHeaders(await docs, 'site', config);
     if (path === '/auth/hackclub') return withSecurityHeaders(hackclub.start(ctx), 'auth', config);
     if (path === '/auth/hackclub/callback') return withSecurityHeaders(await hackclub.callback(ctx), 'auth', config);
     if (path === '/auth/hackatime') return withSecurityHeaders(hackatime.start(ctx), 'auth', config);
@@ -349,12 +372,15 @@ export function createApp(config) {
 export function startServer(config = loadConfig()) {
   openDb(config.dbFile);
   initStorage(config);
+  startMailWorker(config);
   const server = createServer(createApp(config));
   server.listen(config.port, config.host, () => {
     console.log(`Smitten games on ${config.publicOrigin} (listening on ${config.host}:${config.port}, data in ${config.dataDir})`);
     if (!config.adminToken) console.log('ADMIN_TOKEN is not set: the admin endpoints are off.');
+    console.log(config.email ? `Email: on (${config.email.transport}, from ${config.email.fromAddress})` : 'Email: off (EMAIL_TRANSPORT is not set)');
   });
   const stop = () => {
+    stopMailWorker();
     server.close(() => {
       db.close();
       process.exit(0);

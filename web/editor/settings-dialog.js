@@ -231,6 +231,7 @@ function buildSections(shortcutGroups) {
       id: 'appearance', label: 'Appearance', icon: 'sun', rows: [
         { key: 'theme', label: 'Theme', desc: 'System follows your operating system.', control: () => segmentedControl('theme', [['system', 'System', 'monitor'], ['light', 'Light', 'sun'], ['dark', 'Dark', 'moon']]) },
         { key: 'contrast', label: 'Contrast', desc: 'High draws outlines around panels and controls, with stronger text. System follows your operating system.', control: () => segmentedControl('contrast', [['system', 'System', 'monitor'], ['standard', 'Standard'], ['more', 'High', 'contrast']]) },
+        { key: 'uiScale', label: 'Interface size', desc: 'Makes everything in the editor bigger or smaller.', keywords: 'ui scale zoom', control: () => stepperControl('uiScale', { min: 75, max: 150, step: 5, unit: '%' }) },
         { key: 'editorFontSize', label: 'Editor font size', desc: `Also ${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} + and ${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} − in the editor.`, control: () => stepperControl('editorFontSize', { min: 9, max: 28, unit: ' px' }) },
       ],
     },

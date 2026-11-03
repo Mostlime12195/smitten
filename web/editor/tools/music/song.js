@@ -1,4 +1,4 @@
-// The .song model (docs/reference.md, "Songs"): defaults, normalizing
+// The .song model (docs/formats.md, "Songs"): defaults, normalizing
 // decoded JSON (keeping fields the editor doesn't know), the default song and
 // the file's text.
 

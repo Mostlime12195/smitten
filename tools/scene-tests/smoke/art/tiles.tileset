@@ -1,0 +1,8 @@
+{
+  "format": "smitten.tileset",
+  "version": 1,
+  "image": "tiles.png",
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "tiles": { "0": { "solid": true }, "1": { "name": "dirt" } }
+}
