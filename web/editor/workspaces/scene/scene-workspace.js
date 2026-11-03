@@ -181,8 +181,8 @@ export class SceneWorkspace extends EventTarget {
     this.selectionPanelHost.hidden = false;
     if (!this.tilemapPanel) {
       try {
-        const { TileMapPanel } = await import('./tilemap-panel.js');
-        this.tilemapPanel = new TileMapPanel(this.selectionPanelHost, { doc: this.active, project: this.project, viewport: this.view });
+        const { TilesPanel } = await import('./tilemap-panel.js');
+        this.tilemapPanel = new TilesPanel(this.selectionPanelHost, { doc: this.active, project: this.project, viewport: this.view });
       } catch (e) {
         this.selectionPanelHost.replaceChildren(h('p', { class: 'insp-hint' }, `The tile panel couldn't load: ${e.message}`));
         return;

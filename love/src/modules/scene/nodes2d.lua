@@ -541,6 +541,58 @@ local function byZ(p, q)
 	return p.order < q.order
 end
 
+local buckets = {}  -- z -> the items on that layer, in tree order (reused)
+local layers = {}   -- the z values in use, sorted
+
+-- Puts list[1..n] in draw order: by z, then tree order. Items arrive in tree
+-- order, so with one layer (most scenes) there's nothing to do, and with a
+-- few layers sorting them into buckets is quicker than table.sort.
+local function sortItems(list, n)
+	local z0 = list[1].z
+	local sorted, usable = true, true
+	local nlayers = 0
+	for i = 1, n do
+		local z = list[i].z
+		if z ~= z then
+			usable = false -- NaN can't be a table key
+			break
+		end
+		if z < z0 then sorted = false end
+		z0 = z
+		local b = buckets[z]
+		if not b then
+			b = { count = 0 }
+			buckets[z] = b
+		end
+		if b.count == 0 then
+			nlayers = nlayers + 1
+			layers[nlayers] = z
+		end
+		b.count = b.count + 1
+		b[b.count] = list[i]
+	end
+	if not usable or nlayers > 32 then
+		table.sort(list, byZ)
+	elseif not sorted then
+		for i = nlayers + 1, #layers do layers[i] = nil end
+		table.sort(layers)
+		local k = 0
+		for i = 1, nlayers do
+			local b = buckets[layers[i]]
+			for j = 1, b.count do
+				k = k + 1
+				list[k] = b[j]
+			end
+		end
+	end
+	for i = 1, nlayers do
+		local b = buckets[layers[i]]
+		for j = 1, b.count do b[j] = nil end
+		b.count = 0
+	end
+	if nlayers > 64 then buckets = {} end
+end
+
 ---Draws the pieces of a tree (called by love.scene).
 function M.render(root)
 	count, order = 0, 0
@@ -551,7 +603,7 @@ function M.render(root)
 	local list = M._sorted
 	for i = 1, count do list[i] = items[i] end
 	for i = count + 1, #list do list[i] = nil end
-	table.sort(list, byZ)
+	sortItems(list, count)
 	local g = love.graphics
 	g.push("all")
 	setMatrix(M._world, ca, cb, cc, cd, ctx, cty)

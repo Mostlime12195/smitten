@@ -321,11 +321,27 @@ function Node:hasTag(name)
 	return self._tags ~= nil and self._tags[name] == true
 end
 
+-- Comma-separated tag lists, split once (collisions check them constantly).
+local tagLists, tagListCount = {}, 0
+
+local function splitTags(list)
+	local t = tagLists[list]
+	if t then return t end
+	t = {}
+	for g in list:gmatch("[^,%s]+") do t[#t + 1] = g end
+	if tagListCount >= 512 then tagLists, tagListCount = {}, 0 end
+	tagLists[list] = t
+	tagListCount = tagListCount + 1
+	return t
+end
+
 ---True if the piece has any of the tags in a comma-separated list.
 function Node:hasAnyTag(list)
-	if not self._tags or list == nil or list == "" then return false end
-	for t in list:gmatch("[^,%s]+") do
-		if self._tags[t] then return true end
+	local tags = self._tags
+	if not tags or list == nil or list == "" then return false end
+	local t = splitTags(list)
+	for i = 1, #t do
+		if tags[t[i]] then return true end
 	end
 	return false
 end

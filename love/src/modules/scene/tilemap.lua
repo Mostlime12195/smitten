@@ -3,7 +3,8 @@
 -- The painted cells are stored in the scene as one rectangle:
 --   "cells": { "x": 0, "y": 0, "w": 64, "h": 12, "data": "-1*130,3*5,..." }
 -- data lists tile numbers row by row (-1 is empty); "n*k" repeats n k times.
--- Drawing uses one SpriteBatch, rebuilt when a cell changes.
+-- Drawing uses a SpriteBatch for each 32x32 cells, drawn only when it's on
+-- screen and rebuilt only when one of its cells changes.
 
 local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
@@ -69,16 +70,28 @@ function Tiles.encodeCells(grid)
 	return { x = x0, y = y0, w = x1 - x0 + 1, h = y1 - y0 + 1, data = table.concat(out, ",") }
 end
 
+local CHUNK = 32 -- cells per side of a chunk
+
+local function chunkKey(kx, ky) return kx * 4194304 + ky end
+
+-- Everything needs drawing again (new cells or a new tileset). _changes
+-- counts changes, for rigid2d's solid tiles.
+local function changedAll(self)
+	self._oldChunks = self._oldChunks or self._chunks
+	self._chunks = nil
+	self._changes = (self._changes or 0) + 1
+end
+
 local function ensure(self)
 	if self._cellsSource ~= self.cells then
 		self._grid = decodeCells(self.cells)
 		self._cellsSource = self.cells
-		self._dirty = true
+		changedAll(self)
 	end
 	if self._tilesetPath ~= self.tileset then
 		self._tilesetPath = self.tileset
 		self._ts = (self.tileset ~= nil and self.tileset ~= "") and assets.tileset(self.tileset) or nil
-		self._dirty = true
+		changedAll(self)
 	end
 	return self._ts
 end
@@ -144,7 +157,13 @@ function Tiles:setTile(cx, cy, tile)
 		end
 		row[cx] = tile
 	end
-	self._dirty = true
+	self._changes = (self._changes or 0) + 1
+	local chunks = self._chunks
+	if chunks then
+		local kx, ky = floor(cx / CHUNK), floor(cy / CHUNK)
+		local k = chunkKey(kx, ky)
+		if chunks[k] then chunks[k].dirty = true else chunks[k] = { kx = kx, ky = ky, dirty = true } end
+	end
 end
 
 function Tiles:tileInfo(tile)
@@ -177,24 +196,82 @@ function Tiles:cellsWith(tile)
 	return out
 end
 
+-- The chunks that have tiles: key -> {kx, ky, dirty = true}.
+local function listChunks(self)
+	local chunks = {}
+	for cy, row in pairs(self._grid) do
+		local ky = floor(cy / CHUNK)
+		for cx in pairs(row) do
+			local k = chunkKey(floor(cx / CHUNK), ky)
+			if not chunks[k] then chunks[k] = { kx = floor(cx / CHUNK), ky = ky, dirty = true } end
+		end
+	end
+	-- Keep the batches of the chunks that are still there.
+	local old = self._oldChunks
+	if old then
+		for k, c in pairs(chunks) do
+			if old[k] then c.batch = old[k].batch end
+		end
+	end
+	return chunks
+end
+
+local function buildChunk(self, chunk, ts)
+	local grid, tw, th = self._grid, ts.tileWidth, ts.tileHeight
+	local x0, y0 = chunk.kx * CHUNK, chunk.ky * CHUNK
+	local n = 0
+	for cy = y0, y0 + CHUNK - 1 do
+		local row = grid[cy]
+		if row then
+			for cx = x0, x0 + CHUNK - 1 do
+				if row[cx] then n = n + 1 end
+			end
+		end
+	end
+	local batch = chunk.batch
+	if batch and chunk.image == ts.image and batch:getBufferSize() >= n then
+		batch:clear()
+	elseif n > 0 then
+		batch = love.graphics.newSpriteBatch(ts.image, n, "static")
+	end
+	for cy = y0, y0 + CHUNK - 1 do
+		local row = grid[cy]
+		if row then
+			for cx = x0, x0 + CHUNK - 1 do
+				local tile = row[cx]
+				local q = tile and ts.quads[tile + 1]
+				if q then batch:add(q, cx * tw, cy * th) end
+			end
+		end
+	end
+	chunk.batch, chunk.image, chunk.dirty = n > 0 and batch or nil, ts.image, false
+end
+
 function Tiles:_draw()
 	local ts = ensure(self)
 	if not ts then return end
-	if self._dirty or not self._batch or self._batchImage ~= ts.image then
-		local n = 0
-		for _, row in pairs(self._grid) do
-			for _ in pairs(row) do n = n + 1 end
-		end
-		local batch = love.graphics.newSpriteBatch(ts.image, math.max(n, 1), "static")
-		for cy, row in pairs(self._grid) do
-			for cx, tile in pairs(row) do
-				local q = ts.quads[tile + 1]
-				if q then batch:add(q, cx * ts.tileWidth, cy * ts.tileHeight) end
-			end
-		end
-		self._batch, self._batchImage, self._dirty = batch, ts.image, false
+	if not self._chunks then
+		self._chunks = listChunks(self)
+		self._oldChunks = nil
 	end
-	love.graphics.draw(self._batch)
+	-- The part of the map on screen, in the map's own coordinates.
+	local g = love.graphics
+	local display = require("love.display")
+	local w, h = g.getDimensions()
+	w, h = math.max(w, display.width or 0), math.max(h, display.height or 0)
+	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+	for i = 0, 3 do
+		local x, y = g.inverseTransformPoint(i % 2 * w, floor(i / 2) * h)
+		x0, y0, x1, y1 = math.min(x0, x), math.min(y0, y), math.max(x1, x), math.max(y1, y)
+	end
+	local cw, ch = CHUNK * ts.tileWidth, CHUNK * ts.tileHeight
+	local kx0, ky0, kx1, ky1 = floor(x0 / cw), floor(y0 / ch), floor(x1 / cw), floor(y1 / ch)
+	for _, chunk in pairs(self._chunks) do
+		if chunk.kx >= kx0 and chunk.kx <= kx1 and chunk.ky >= ky0 and chunk.ky <= ky1 then
+			if chunk.dirty or chunk.image ~= ts.image then buildChunk(self, chunk, ts) end
+			if chunk.batch then g.draw(chunk.batch) end
+		end
+	end
 end
 
 return Tiles

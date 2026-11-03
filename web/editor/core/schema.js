@@ -31,19 +31,42 @@ export function typeNames({ includeAbstract = false } = {}) {
   return Object.keys(getSchema().types).filter((t) => includeAbstract || !getSchema().types[t].abstract);
 }
 
-/** Type and its ancestors, base first: ['Piece', 'Group', 'Sprite']. */
-export function lineage(type) {
-  const out = [];
-  let t = type;
-  while (t && getSchema().types[t]) {
-    out.unshift(t);
-    t = getSchema().types[t].extends;
+// Lineages and property definitions by type, worked out once per schema
+// (the scene view and panels ask for them for every piece, often).
+let cachedFor = null;
+let lineages = new Map();
+let propertyDefs = new Map();
+
+function caches() {
+  if (cachedFor !== schema) {
+    cachedFor = schema;
+    lineages = new Map();
+    propertyDefs = new Map();
+  }
+}
+
+function cachedLineage(type) {
+  caches();
+  let out = lineages.get(type);
+  if (!out) {
+    out = [];
+    let t = type;
+    while (t && getSchema().types[t]) {
+      out.unshift(t);
+      t = getSchema().types[t].extends;
+    }
+    lineages.set(type, out);
   }
   return out;
 }
 
+/** Type and its ancestors, base first: ['Piece', 'Group', 'Sprite']. */
+export function lineage(type) {
+  return [...cachedLineage(type)];
+}
+
 export function isA(type, base) {
-  return lineage(type).includes(base);
+  return cachedLineage(type).includes(base);
 }
 
 /**
@@ -64,11 +87,23 @@ export function properties(type) {
 }
 
 export function propertyDef(type, name) {
+  caches();
+  let defs = propertyDefs.get(type);
+  if (!defs) {
+    defs = new Map();
+    propertyDefs.set(type, defs);
+  }
+  if (defs.has(name)) return defs.get(name);
+  let found = null;
   for (const t of lineage(type).reverse()) {
     const p = getSchema().types[t].properties?.[name];
-    if (p) return p;
+    if (p) {
+      found = p;
+      break;
+    }
   }
-  return null;
+  defs.set(name, found);
+  return found;
 }
 
 export function defaultOf(type, name) {
@@ -128,7 +163,11 @@ export function isShown(def, get) {
 }
 
 export function clone(v) {
-  return v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+  if (v === undefined) return undefined;
+  // Values that come back the same from JSON need no copy (NaN, Infinity
+  // and -0 don't: JSON makes them null and 0).
+  if (typeof v === 'string' || typeof v === 'boolean' || v === null || (Number.isFinite(v) && !Object.is(v, -0))) return v;
+  return JSON.parse(JSON.stringify(v));
 }
 
 export function equal(a, b) {

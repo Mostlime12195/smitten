@@ -35,6 +35,9 @@ export class InspectorPanel {
       // Re-render unless the change came from this panel's own input, or (for
       // the live game's values, which refresh often) while you're typing.
       if (this.editing) return;
+      // A change to another piece's properties doesn't show here.
+      const d = e.detail;
+      if (d?.kind === 'props' && d.node && !this.doc?.selection.has(d.node.id)) return;
       if (this.doc?.live && this.body.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       this.render();
     };
