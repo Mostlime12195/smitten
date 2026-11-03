@@ -224,57 +224,73 @@
     },
 
     "Body": {
-      "extends": "Group", "group": "physics", "icon": "body",
-      "description": "Something solid: it bumps into other bodies and solid tiles. Pick how it moves: still (walls and floors), scripted (players and enemies you move in code) or physics (crates that fall and tumble). Put a Sprite or Shape inside it and its shape fits itself.",
+      "extends": "Group", "group": "physics", "icon": "body", "module": "physics2d",
+      "description": "Solid. motion: still (walls), scripted (moved with move()) or physics (simulated). Takes its shape from a Sprite or Shape inside it.",
       "properties": {
-        "motion": { "type": "enum", "options": ["still", "scripted", "physics"], "default": "scripted", "group": "Body", "description": "Still never moves on its own; scripted moves when its script calls move(); physics falls, bounces and gets pushed." },
-        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Body", "description": "Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes. Physics turns shapes with the Body; scripted Bodies and Zones collide as if unturned." },
-        "width": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
-        "height": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "motion": { "type": "enum", "options": ["still", "scripted", "physics"], "default": "scripted", "group": "Body", "description": "still: moves only when a script sets x/y. scripted: moved by move(). physics: simulated." },
+        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "capsule", "polygon", "none"], "default": "auto", "group": "Body", "description": "auto fits the Sprites and Shapes inside. capsule has round ends. none: Hitboxes only." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle or capsule width.", "when": { "shape": ["rectangle", "capsule"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle or capsule height.", "when": { "shape": ["rectangle", "capsule"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Body", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
-        "vx": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed sideways, used by move() (scripted) or physics.", "when": { "motion": ["scripted", "physics"] } },
-        "vy": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed down, used by move() (scripted) or physics.", "when": { "motion": ["scripted", "physics"] } },
-        "slope": { "type": "angle", "default": 0.7854, "group": "Movement", "description": "The steepest surface that still counts as ground.", "when": { "motion": ["scripted"] } },
-        "mass": { "type": "number", "default": 1, "min": 0.001, "step": 0.1, "group": "Physics", "unit": "kg", "description": "How heavy it is.", "when": { "motion": ["physics"] } },
-        "friction": { "type": "number", "default": 0.3, "min": 0, "step": 0.05, "group": "Physics", "description": "How much it grips what it touches.", "when": { "motion": ["physics", "still"] } },
-        "bounce": { "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.05, "group": "Physics", "description": "How much it bounces: 0 none, 1 forever.", "when": { "motion": ["physics", "still"] } },
-        "gravity": { "type": "number", "default": 1, "step": 0.1, "group": "Physics", "description": "How strongly gravity pulls it; 0 floats.", "when": { "motion": ["physics"] } },
-        "drag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Air resistance.", "when": { "motion": ["physics"] } },
+        "points": { "type": "points", "default": [0, -16, 16, 16, -16, 16], "group": "Body", "description": "Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).", "when": { "shape": ["polygon"] } },
+        "vx": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Horizontal speed (px/s).", "when": { "motion": ["scripted", "physics"] } },
+        "vy": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.", "when": { "motion": ["scripted", "physics"] } },
+        "spin": { "type": "number", "default": 0, "step": 0.1, "group": "Movement", "unit": "rad/s", "description": "How fast it turns (clockwise is positive). Scripted: move() turns it this fast.", "when": { "motion": ["scripted", "physics"] } },
+        "slope": { "type": "angle", "default": 0.7854, "group": "Movement", "description": "The steepest surface that still counts as ground: move() walks up it without sliding back.", "when": { "motion": ["scripted"] } },
+        "mass": { "type": "number", "default": 1, "min": 0.001, "step": 0.1, "group": "Physics", "unit": "kg", "description": "Kilograms. A scripted body pushes physics bodies by its mass against theirs.", "when": { "motion": ["physics", "scripted"] } },
+        "friction": { "type": "number", "default": 0.3, "min": 0, "step": 0.05, "group": "Physics", "description": "How much it grips what it touches: 0 is ice.", "when": { "motion": ["physics", "still", "scripted"] } },
+        "bounce": { "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.05, "group": "Physics", "description": "How much it bounces: 0 none, 1 forever.", "when": { "motion": ["physics", "still", "scripted"] } },
+        "gravity": { "type": "number", "default": 1, "step": 0.1, "group": "Physics", "description": "How strongly gravity pulls it; 0 floats, -1 falls up.", "when": { "motion": ["physics"] } },
+        "drag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Air resistance: slows its movement down.", "when": { "motion": ["physics"] } },
+        "spinDrag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Slows its turning down.", "when": { "motion": ["physics"] } },
         "fixedRotation": { "type": "bool", "default": false, "group": "Physics", "description": "Never tip over or spin.", "when": { "motion": ["physics"] } },
-        "passThrough": { "type": "tags", "default": "", "group": "Collisions", "description": "Tags of things it doesn't bump into, like \"ghost, pickup\"." }
+        "bullet": { "type": "bool", "default": false, "group": "Physics", "description": "Continuous collision against moving bodies, for small fast objects.", "when": { "motion": ["physics"] } },
+        "asleep": { "type": "bool", "default": false, "group": "Physics", "description": "At rest until touched. Physics bodies sleep when they stop.", "when": { "motion": ["physics"] } },
+        "passThrough": { "type": "tags", "default": "", "group": "Collisions", "description": "Tags of things it doesn't bump into, like \"ghost, pickup\" (\"tiles\" for solid tiles)." }
       },
       "methods": {
-        "move": { "args": "", "doc": "Moves by vx, vy for this step, sliding along walls and floors (scripted bodies)." },
+        "move": { "args": "", "doc": "Moves by vx, vy for this step: slides along walls, climbs slopes, rides platforms, pushes physics bodies." },
         "moveBy": { "args": "dx, dy", "doc": "Moves by an offset and stops at the first thing in the way; returns what it hit, or nil." },
         "onGround": { "args": "", "doc": "True if the last move ended standing on something." },
-        "onWall": { "args": "", "doc": "True if the last move hit a wall." },
-        "onCeiling": { "args": "", "doc": "True if the last move hit a ceiling." },
+        "onWall": { "args": "", "doc": "True if the last move ran into a wall." },
+        "onCeiling": { "args": "", "doc": "True if the last move ran into a ceiling." },
+        "applyImpulse": { "args": "ix, iy, x?, y?", "doc": "Instant change of velocity by impulse / mass. At a point, also spins." },
+        "applyForce": { "args": "fx, fy, x?, y?", "doc": "Force for this step; call every physicsUpdate. At its center or a point." },
+        "applyTorque": { "args": "torque", "doc": "Turns it steadily for this step (physics bodies)." },
+        "applyAngularImpulse": { "args": "impulse", "doc": "A sudden twist (physics bodies)." },
+        "push": { "args": "ix, iy", "doc": "The same as applyImpulse(ix, iy)." },
+        "wake": { "args": "", "doc": "Wakes a sleeping physics body." },
+        "grab": { "args": "x, y, strength?", "doc": "Holds it by a scene point for dragTo(); drop() releases with momentum." },
+        "dragTo": { "args": "x, y", "doc": "Moves the grabbed point towards x, y." },
+        "drop": { "args": "", "doc": "Lets go after grab(); a physics body keeps its speed." },
         "touching": { "args": "tagOrPiece", "doc": "The first body or zone with a tag (or that piece) touching this one, or nil." },
+        "isTouching": { "args": "other", "doc": "True if it touches a piece (a body, zone or Tiles) or anything with a tag." },
+        "contacts": { "args": "", "doc": "Current contacts: {piece, x, y, nx, ny, impulse}." },
         "touchingTile": { "args": "setting", "doc": "The settings of a touching tile that has this setting (like \"damage\"), or nil." },
-        "push": { "args": "ix, iy", "doc": "A sudden kick, like a jump or a hit (physics bodies)." },
-        "applyForce": { "args": "fx, fy", "doc": "Pushes steadily this frame (physics bodies)." },
-        "getSize": { "args": "", "doc": "The size of its shape: width, height." }
+        "getSize": { "args": "", "doc": "The size of the box around its shapes: width, height." }
       },
       "events": {
-        "hit": { "args": "other", "doc": "It bumped into another body or solid tiles." },
+        "hit": { "args": "other, contact", "doc": "Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse." },
         "entered": { "args": "zone", "doc": "It went into a zone." },
         "exited": { "args": "zone", "doc": "It left a zone." }
       }
     },
     "Zone": {
-      "extends": "Group", "group": "physics", "icon": "zone",
-      "description": "An area that notices bodies and zones going in and out: pickups, checkpoints, danger. Nothing bumps into it.",
+      "extends": "Group", "group": "physics", "icon": "zone", "module": "physics2d",
+      "description": "An area that detects bodies and zones entering and leaving. Doesn't block. Ignores still bodies.",
       "properties": {
-        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Zone", "description": "Auto fits the Sprites and Shapes inside it." },
-        "width": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
-        "height": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "capsule", "polygon", "none"], "default": "auto", "group": "Zone", "description": "Auto fits the Sprites and Shapes inside it. Shapes turn and scale with the Zone." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle or capsule width.", "when": { "shape": ["rectangle", "capsule"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle or capsule height.", "when": { "shape": ["rectangle", "capsule"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Zone", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "points": { "type": "points", "default": [0, -16, 16, 16, -16, 16], "group": "Zone", "description": "Corner points x1, y1, x2, y2, ... (up to 8 corners).", "when": { "shape": ["polygon"] } },
         "detects": { "type": "tags", "default": "", "group": "Zone", "description": "Only notices things with one of these tags (empty: everything)." },
         "active": { "type": "bool", "default": true, "group": "Zone", "description": "Notice things going in and out." }
       },
       "methods": {
         "inside": { "args": "", "doc": "A list of the bodies and zones inside it now." },
-        "touching": { "args": "tagOrPiece", "doc": "The first body or zone with a tag (or that piece) inside it, or nil." }
+        "touching": { "args": "tagOrPiece", "doc": "The first body or zone with a tag (or that piece) inside it, or nil." },
+        "isTouching": { "args": "other", "doc": "True if a piece (or anything with a tag) is inside it." }
       },
       "events": {
         "entered": { "args": "other", "doc": "A body or zone came in." },
@@ -283,26 +299,51 @@
     },
     "Hitbox": {
       "extends": "Group", "group": "physics", "icon": "hitbox",
-      "description": "An extra collision shape for the Body or Zone it's inside, for shapes auto can't make: an L shape, a sword's reach.",
+      "description": "An extra collision shape for the Body or Zone it's inside.",
       "parent": ["Body", "Zone"],
       "properties": {
-        "shape": { "type": "enum", "options": ["rectangle", "circle"], "default": "rectangle", "group": "Hitbox", "description": "Shapes move and scale with their piece. They turn with it only for physics (Bodies moved by physics, and what they land on)." },
-        "width": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
-        "height": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "shape": { "type": "enum", "options": ["rectangle", "circle", "capsule", "polygon"], "default": "rectangle", "group": "Hitbox", "description": "The shape, placed and turned by the Hitbox's position and rotation." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle or capsule width.", "when": { "shape": ["rectangle", "capsule"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle or capsule height.", "when": { "shape": ["rectangle", "capsule"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Hitbox", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "points": { "type": "points", "default": [0, -16, 16, 16, -16, 16], "group": "Hitbox", "description": "Corner points x1, y1, x2, y2, ... (up to 8 corners).", "when": { "shape": ["polygon"] } },
         "off": { "type": "bool", "default": false, "group": "Hitbox", "description": "Turn this shape off." }
       }
     },
     "Joint": {
       "extends": "Group", "group": "physics", "icon": "joint", "module": "physics2d",
-      "description": "Connects two physics bodies: a pin, a rope, a spring or a weld.",
+      "description": "Connects body a to body b, or to its own position.",
       "properties": {
-        "kind": { "type": "enum", "options": ["pin", "rope", "spring", "weld"], "default": "pin", "group": "Joint", "description": "How the bodies are connected." },
-        "a": { "type": "piecepath", "default": "", "group": "Joint", "description": "The first body." },
-        "b": { "type": "piecepath", "default": "", "group": "Joint", "description": "The second body (empty: pinned in place)." },
-        "length": { "type": "number", "default": 0, "min": 0, "group": "Joint", "unit": "px", "description": "Rope and spring length; 0 uses the distance when the scene starts." },
-        "stiffness": { "type": "number", "default": 4, "min": 0, "group": "Joint", "description": "Spring stiffness (wobbles per second)." },
-        "damping": { "type": "number", "default": 0.5, "min": 0, "max": 1, "group": "Joint", "description": "How quickly a spring stops wobbling." }
+        "kind": { "type": "enum", "options": ["pin", "weld", "rope", "spring", "distance", "slider", "wheel", "mouse"], "default": "pin", "group": "Joint", "description": "pin, weld, rope, spring, distance, slider (x axis), wheel (y axis spring) or mouse." },
+        "a": { "type": "piecepath", "default": "", "group": "Joint", "description": "The body it holds." },
+        "b": { "type": "piecepath", "default": "", "group": "Joint", "description": "The body it connects a to (empty: the place where the Joint is).", "when": { "kind": ["pin", "weld", "rope", "spring", "distance", "slider", "wheel"] } },
+        "length": { "type": "number", "default": 0, "min": 0, "group": "Joint", "unit": "px", "description": "How far apart; 0 uses the distance when the joint is made.", "when": { "kind": ["rope", "spring", "distance"] } },
+        "spring": { "type": "bool", "default": false, "group": "Joint", "description": "Springy: a pin or slider pulls back to where it started, a weld wobbles.", "when": { "kind": ["pin", "weld", "slider"] } },
+        "stiffness": { "type": "number", "default": 4, "min": 0, "step": 0.5, "group": "Joint", "unit": "Hz", "description": "How stiff the spring is: wobbles per second.", "when": { "kind": ["pin", "weld", "spring", "slider", "wheel", "mouse"] } },
+        "damping": { "type": "number", "default": 0.5, "min": 0, "step": 0.1, "group": "Joint", "description": "How quickly the spring stops wobbling: 1 doesn't overshoot.", "when": { "kind": ["pin", "weld", "spring", "slider", "wheel", "mouse"] } },
+        "motor": { "type": "bool", "default": false, "group": "Joint", "description": "Drive it: turn a pin or wheel, or move a slider, at motorSpeed.", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
+        "motorSpeed": { "type": "number", "default": 2, "step": 0.1, "group": "Joint", "description": "Radians per second (pin, wheel) or pixels per second (slider, distance).", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
+        "motorStrength": { "type": "number", "default": 100000, "min": 0, "step": 1000, "group": "Joint", "description": "The most torque (pin, wheel) or force (slider, distance) the motor uses.", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
+        "limit": { "type": "bool", "default": false, "group": "Joint", "description": "Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.", "when": { "kind": ["pin", "slider", "wheel"] } },
+        "minAngle": { "type": "angle", "default": -0.7854, "group": "Joint", "description": "The furthest a pin turns anticlockwise.", "when": { "kind": ["pin"] } },
+        "maxAngle": { "type": "angle", "default": 0.7854, "group": "Joint", "description": "The furthest a pin turns clockwise.", "when": { "kind": ["pin"] } },
+        "lower": { "type": "number", "default": -50, "group": "Joint", "unit": "px", "description": "The furthest a slider or wheel goes back.", "when": { "kind": ["slider", "wheel"] } },
+        "upper": { "type": "number", "default": 50, "group": "Joint", "unit": "px", "description": "The furthest a slider or wheel goes forward.", "when": { "kind": ["slider", "wheel"] } },
+        "strength": { "type": "number", "default": 0, "min": 0, "group": "Joint", "description": "The most force a mouse joint pulls with; 0 is plenty for the body's mass.", "when": { "kind": ["mouse"] } },
+        "collide": { "type": "bool", "default": false, "group": "Joint", "description": "The two bodies still bump into each other." },
+        "breakForce": { "type": "number", "default": 0, "min": 0, "group": "Joint", "description": "Breaks (and sends broke) when pulled harder than this; 0 never breaks." }
+      },
+      "methods": {
+        "getAngle": { "args": "", "doc": "How far a pin has turned (radians)." },
+        "getTranslation": { "args": "", "doc": "How far a slider has slid (pixels)." },
+        "getLength": { "args": "", "doc": "How far apart a rope, spring or distance joint's ends are." },
+        "getSpeed": { "args": "", "doc": "How fast a pin turns or a slider slides." },
+        "getForce": { "args": "", "doc": "How hard the joint pulls now." },
+        "getTorque": { "args": "", "doc": "How hard the joint twists now." },
+        "isBroken": { "args": "", "doc": "True once breakForce broke it." }
+      },
+      "events": {
+        "broke": { "args": "", "doc": "It was pulled harder than breakForce and let go." }
       }
     },
 

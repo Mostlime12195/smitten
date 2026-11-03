@@ -23,6 +23,7 @@
 | `display.filter` | `smooth`, or `pixel` for crisp pixel art |
 | `display.background` | Background color |
 | `input` | Extra [input actions](input.md#actions) |
+| `physics.gravity` | Gravity, `[x, y]` in px/s² (default `[0, 980]`). See [Physics](physics.md) |
 | `modules` | `"always"` or `"never"` per engine module |
 | `identity` | Save folder name, if not `name` |
 
@@ -52,7 +53,8 @@ Optional parts of the engine download only when a game uses them:
 
 | Module | Used by |
 | --- | --- |
-| `physics2d` | Bodies with physics motion, Joints, `smitten.physics` |
+| `physics2d` | Bodies, Zones, Joints, `smitten.physics` ([Physics](physics.md)) |
+| `lovephysics` | LÖVE's `love.physics` |
 | `video` | `smitten.video` |
 | `synth` | `.sfx` and `.song` files, `smitten.synth` |
 

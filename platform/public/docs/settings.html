@@ -48,6 +48,7 @@
 <tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for crisp pixel art</td></tr>
 <tr><td><code>display.background</code></td><td>Background color</td></tr>
 <tr><td><code>input</code></td><td>Extra <a href="input#actions">input actions</a></td></tr>
+<tr><td><code>physics.gravity</code></td><td>Gravity, <code>[x, y]</code> in px/s² (default <code>[0, 980]</code>). See <a href="physics">Physics</a></td></tr>
 <tr><td><code>modules</code></td><td><code>&quot;always&quot;</code> or <code>&quot;never&quot;</code> per engine module</td></tr>
 <tr><td><code>identity</code></td><td>Save folder name, if not <code>name</code></td></tr></tbody>
 </table></div>
@@ -69,7 +70,8 @@
 <p>Optional parts of the engine download only when a game uses them:</p>
 <div class="table"><table>
 <thead><tr><th>Module</th><th>Used by</th></tr></thead>
-<tbody><tr><td><code>physics2d</code></td><td>Bodies with physics motion, Joints, <code>smitten.physics</code></td></tr>
+<tbody><tr><td><code>physics2d</code></td><td>Bodies, Zones, Joints, <code>smitten.physics</code> (<a href="physics">Physics</a>)</td></tr>
+<tr><td><code>lovephysics</code></td><td>LÖVE's <code>love.physics</code></td></tr>
 <tr><td><code>video</code></td><td><code>smitten.video</code></td></tr>
 <tr><td><code>synth</code></td><td><code>.sfx</code> and <code>.song</code> files, <code>smitten.synth</code></td></tr></tbody>
 </table></div>

@@ -141,21 +141,56 @@ end`),
 }
 
 function physicsToy(name) {
-  const crates = [];
-  for (let i = 0; i < 10; i++) {
-    crates.push(p(`Crate${i + 1}`, 'Body', { motion: 'physics', x: 520 + (i % 5) * 52, y: 120 + Math.floor(i / 5) * 60, rotation: 0.1 * i, bounce: 0.1 },
-      [look(48, 48, [0.82, 0.58 + (i % 3) * 0.06, 0.34, 1], { cornerRadius: 4 })], { script: 'scripts/drag.lua', tags: ['crate'] }));
+  const dark = [0.3, 0.33, 0.4, 1];
+  const wall = (wname, x, y, w, h, extra = {}) => p(wname, 'Body', { x, y, motion: 'still', ...extra }, [look(w, h, dark)]);
+  const drag = { script: 'scripts/drag.lua' };
+  const things = [];
+  for (let i = 0; i < 8; i++) {
+    things.push(p(`Crate${i + 1}`, 'Body', { motion: 'physics', x: 140 + (i % 4) * 54, y: 120 + Math.floor(i / 4) * 56, rotation: 0.15 * i, friction: 0.5 },
+      [look(48, 48, [0.82, 0.58 + (i % 3) * 0.06, 0.34, 1], { cornerRadius: 4 })], { ...drag, tags: ['thing'] }));
   }
+  for (let i = 0; i < 3; i++) {
+    things.push(p(`Barrel${i + 1}`, 'Body', { motion: 'physics', x: 560 + i * 60, y: 80, mass: 2, friction: 0.6 },
+      [p('Look', 'Shape', { shape: 'circle', radius: 22, color: [0.55, 0.36, 0.25, 1] })], { ...drag, tags: ['thing'] }));
+  }
+  things.push(p('Ball', 'Body', { motion: 'physics', x: 420, y: 60, bounce: 0.75, mass: 0.5 },
+    [p('Look', 'Shape', { shape: 'circle', radius: 26, color: [0.4, 0.8, 1, 1] })], { ...drag, tags: ['thing'] }));
   return {
     'smitten.json': settings(name, 'scenes/toy.scene'),
     'scenes/toy.scene': scene(p('Toy', 'Group', null, [
-      p('Floor', 'Body', { x: 640, y: 690, motion: 'still' }, [look(1280, 60, [0.3, 0.33, 0.4, 1])]),
-      p('Ramp', 'Body', { x: 300, y: 520, rotation: 0.35, motion: 'still' }, [look(420, 24, [0.4, 0.43, 0.5, 1])]),
-      ...crates,
-      p('Ball', 'Body', { motion: 'physics', x: 200, y: 100, bounce: 0.7 },
-        [p('Look', 'Shape', { shape: 'circle', radius: 26, color: [0.4, 0.8, 1, 1] })], { script: 'scripts/drag.lua' }),
-      p('UI', 'Group', null, [p('Help', 'Label', { anchor: 'top', y: 20, width: 600, align: 'center', text: 'Drag the crates and the ball with the mouse', outline: true })]),
-    ])),
+      wall('Floor', 640, 700, 1280, 40),
+      wall('Ceiling', 640, -20, 1280, 40),
+      wall('LeftWall', -20, 360, 40, 720),
+      wall('RightWall', 1300, 360, 40, 720),
+      // Things roll down the ramp and off its end.
+      wall('Ramp', 330, 440, 520, 24, { rotation: 0.42, friction: 0.05 }),
+      // A seesaw: a plank pinned on a triangle.
+      p('Stand', 'Body', { x: 900, y: 655, motion: 'still', shape: 'polygon', points: [0, -36, 40, 26, -40, 26] },
+        [p('Look', 'Shape', { shape: 'polygon', points: [0, -36, 40, 26, -40, 26], color: dark })]),
+      p('Plank', 'Body', { motion: 'physics', x: 900, y: 612, mass: 3, friction: 0.6 },
+        [look(340, 16, [0.62, 0.45, 0.3, 1], { cornerRadius: 3 })], { ...drag }),
+      p('Hinge', 'Joint', { x: 900, y: 616, kind: 'pin', a: 'Plank' }),
+      // A wrecking ball on a rope.
+      p('Rope', 'Joint', { x: 1130, y: 0, kind: 'rope', a: 'Wrecker' }),
+      p('Wrecker', 'Body', { motion: 'physics', x: 900, y: 190, mass: 6, friction: 0.4 },
+        [p('Look', 'Shape', { shape: 'circle', radius: 30, color: [0.35, 0.37, 0.42, 1] })], { ...drag, tags: ['thing'] }),
+      ...things,
+      p('UI', 'Group', null, [p('Help', 'Label', { anchor: 'top', y: 20, width: 700, align: 'center', text: 'Drag and throw things with the mouse. Space makes everything jump.', outline: true })]),
+    ], { script: 'scripts/toy.lua' })),
+    'scripts/toy.lua': `-- The toy: space (the jump action) kicks every thing up into the air.
+
+kick = 600   -- how hard (pixels per second, for any mass)
+
+function update(dt)
+  if pressed("jump") then
+    for _, thing in ipairs(tagged("thing")) do
+      -- An impulse is mass times speed: the same kick for light and heavy things.
+      thing:applyImpulse(rnd(400) - 200, -kick * thing.mass)
+      thing:applyAngularImpulse((rnd(2) - 1) * 2000 * thing.mass)
+    end
+  end
+end
+`,
     'scripts/drag.lua': libraryScript('drag'),
   };
 }
@@ -164,7 +199,7 @@ export const TEMPLATES = [
   { id: 'empty', name: 'Empty', description: 'A scene with a camera, ready for your pieces.', icon: 'square', build: empty },
   { id: 'platformer', name: 'Platformer', description: 'Run, jump, collect coins and dodge a patrolling enemy. Shows scenes inside scenes.', icon: 'footprints', build: platformer },
   { id: 'topdown', name: 'Top-down', description: 'Move in any direction and survive enemies that chase you.', icon: 'gamepad', build: topdown },
-  { id: 'physics', name: 'Physics toy', description: 'Crates and a ball that fall, stack and tumble. Drag them around.', icon: 'bodyPhysics', build: physicsToy },
+  { id: 'physics', name: 'Physics toy', description: 'Crates, barrels and a ball that fall, roll and tumble: throw them around, rock the seesaw, swing the wrecking ball.', icon: 'bodyPhysics', build: physicsToy },
   { id: 'pixel', name: 'Pixel art platformer', description: 'The platformer at 320×180, scaled up with crisp pixels.', icon: 'grid', build: (name) => pixelPlatformer(name) },
 ];
 

@@ -619,7 +619,8 @@ struct OptionalModule
 
 static const OptionalModule optionalModules[] =
 {
-	{ "love.physics", "physics2d", "luaopen_love_physics", "physics (Bodies whose motion is physics, Joints, smitten.physics)" },
+	{ "love.box2d", "physics2d", "luaopen_love_box2d", "physics (Bodies, Zones and Joints)" },
+	{ "love.lovephysics", "lovephysics", "luaopen_love_physics", "love.physics (LÖVE's Box2D 2.4 API)" },
 	{ "love.video", "video", "luaopen_love_video", "video (smitten.video)" },
 	{ "love.synth", "synth", "luaopen_love_synth", "generated sounds and music (.sfx and .song files)" },
 	{ nullptr, nullptr, nullptr, nullptr }

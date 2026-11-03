@@ -272,7 +272,8 @@ downloads when it uses them:
 | Module | What's in it | Size |
 | --- | --- | --- |
 | core | Lua and the JIT, LÖVE's modules, scenes, pieces, UI | 6.91 MB |
-| `physics2d` | Box2D, `smitten.physics` | 0.24 MB |
+| `physics2d` | Box2D 3: Bodies, Zones, Joints, `smitten.physics` queries | 0.33 MB |
+| `lovephysics` | LÖVE's `love.physics` (Box2D 2.4) | 0.23 MB |
 | `video` | Theora, `smitten.video` | 0.13 MB |
 | `synth` | the synthesizer, `.sfx` and `.song` files | 0.03 MB |
 
@@ -497,7 +498,8 @@ Smitten is a fork: its features are part of the engine, not a module on
 top of it. DESIGN.md, section 9, summarizes what it changes from LÖVE.
 
 - `love.cpp` makes the engine table both `love` and `smitten`, registers
-  the embedded Lua modules (`build/gen/engine_lua.h`), gives `love.physics`,
+  the embedded Lua modules (`build/gen/engine_lua.h`), gives `love.box2d`
+  (the scenes' Box2D 3), `love.lovephysics` (LÖVE's `love.physics`),
   `love.video` and `love.synth` loaders that `dlopen` the side module the
   player loaded (or explain which module to turn on), and exposes the live
   tweaking channel (`love._livePoll`, fed by `web_main.cpp`).

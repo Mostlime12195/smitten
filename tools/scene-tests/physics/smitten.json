@@ -1,0 +1,11 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Physics test",
+  "main": "scenes/main.scene",
+  "display": {
+    "width": 1280,
+    "height": 720,
+    "stretch": "fit"
+  }
+}
