@@ -18,12 +18,17 @@
 // shows a placeholder page for it.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = join(root, 'docs');
-const outDir = join(root, 'platform', 'public', 'docs');
+// node tools/gen-docs.mjs [--out dir --local]: --local writes a copy for the
+// editor's built-in docs panel (dist/docs): plain .html links, its own
+// stylesheet, no links back to the site.
+const argv = process.argv.slice(2);
+const LOCAL = argv.includes('--local');
+const outDir = argv.includes('--out') ? resolve(argv[argv.indexOf('--out') + 1]) : join(root, 'platform', 'public', 'docs');
 const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/pieces.json'), 'utf8'));
 const { SCRIPT_API_GROUPS, SCRIPT_CALLBACKS } = await import(pathToFileURL(join(root, 'web/editor/core/script-api.js')).href);
 const { SMITTEN_MODULES, LOVE_ADDITIONS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
@@ -220,7 +225,7 @@ const slug = (s) => s.toLowerCase().replace(/`/g, '').replace(/<[^>]+>/g, '').re
 // docs links: "camera.md#follow" -> "camera#follow"; "reference.md" -> "./".
 function href(h) {
   const m = /^([\w-]+)\.md(#.*)?$/.exec(h);
-  if (m) return `${m[1] === 'reference' ? './' : m[1]}${m[2] || ''}`;
+  if (m) return `${pageHref(m[1])}${m[2] || ''}`;
   return h;
 }
 
@@ -388,7 +393,10 @@ const plain = (md) => md.replace(/```[\s\S]*?```/g, ' ').replace(/<!--[\s\S]*?--
 const HEART = '<svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
 const SEARCH_ICON = '<svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 
-const pageHref = (name) => (name === 'reference' ? './' : name);
+function pageHref(name) {
+  if (LOCAL) return name === 'reference' ? 'index.html' : `${name}.html`;
+  return name === 'reference' ? './' : name;
+}
 
 function sidebar(current, headings) {
   return NAV.map((s) => `<div class="nav-section"><div class="nav-title">${esc(s.title)}</div><ul>${s.pages.map(([name, title]) => {
@@ -415,8 +423,7 @@ function pageHtml(name, { title, html, headings }) {
 <title>${esc(docTitle)}</title>
 <meta name="description" content="Smitten's documentation: ${esc(title)}.">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../site.css">
+${LOCAL ? '' : '<link rel="icon" href="../favicon.svg" type="image/svg+xml">\n'}<link rel="stylesheet" href="${LOCAL ? 'site.css' : '../site.css'}">
 <link rel="stylesheet" href="docs.css">
 <script type="module" src="docs.js"></script>
 </head>
@@ -424,9 +431,9 @@ function pageHtml(name, { title, html, headings }) {
 <header class="topbar">
   <div class="topbar-inner">
     <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-    <a class="brand" href="../" aria-label="Smitten games">${HEART}<span>Smitten</span></a>
-    <a class="docs-home" href="./">Docs</a>
-    <form class="search" role="search" id="docs-search" action="./">
+    ${LOCAL ? `<a class="brand" href="index.html" aria-label="Smitten docs">${HEART}<span>Docs</span></a>` : `<a class="brand" href="../" aria-label="Smitten games">${HEART}<span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>`}
+    <form class="search" role="search" id="docs-search" action="${LOCAL ? 'index.html' : './'}">
       ${SEARCH_ICON}
       <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
       <div class="search-results" id="docs-results" role="listbox" hidden></div>
@@ -709,4 +716,5 @@ if (existsSync(imagesDir)) {
 writeFileSync(join(outDir, 'search.json'), JSON.stringify(search));
 writeFileSync(join(outDir, 'docs.css'), CSS);
 writeFileSync(join(outDir, 'docs.js'), JS);
+if (LOCAL) writeFileSync(join(outDir, 'site.css'), readFileSync(join(root, 'platform/public/site.css')));
 console.log(`docs: ${count} pages in platform/public/docs, ${search.length} search entries; docs/pieces.md, api.md, engine.md written`);

@@ -544,6 +544,8 @@ def copy_web():
         player.write_text(player.read_text().replace("__SMITTEN_BUILD__", build_id()))
     # The piece schema, for the editor (web/editor/core/schema.js).
     shutil.copy(MODULES / "scene" / "pieces.json", DIST / "pieces.json")
+    # The docs, for the editor's Docs panel (tools/gen-docs.mjs --local).
+    subprocess.run(["node", str(ROOT / "tools" / "gen-docs.mjs"), "--out", str(DIST / "docs"), "--local"], check=True, stdout=subprocess.DEVNULL)
 
 
 if __name__ == "__main__":

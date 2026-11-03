@@ -31,7 +31,6 @@ import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
 import { createLoveCompletions } from './completions.js';
-import { docsUrl } from './smitten-docs.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
@@ -210,8 +209,10 @@ async function openProject(id) {
     files: { id: 'files', title: 'Files', region: 'left', el: panelEl() },
     inspector: { id: 'inspector', title: 'Inspector', region: 'right', el: panelEl() },
     output: { id: 'output', title: 'Output', region: 'bottom', el: panelEl() },
+    docs: { id: 'docs', title: 'Docs', region: 'right', el: panelEl() },
   };
   ed.dock = new DockManager(shell, center, Object.values(panels));
+  ed.docsHost = panels.docs.el;
   ed.dock.addEventListener('change', () => saveLayout());
   ed.dock.addEventListener('resize', () => ed.ws && ed.workspaces[ed.ws]?.resize());
 
@@ -234,7 +235,7 @@ async function openProject(id) {
     openScript: (node) => openFile(sceneWs().doc.scriptOf(node)),
     attachScript: (node) => attachScript(node),
     openScene: (path) => openFile(path),
-    openDocs: (type) => nodeDocs(type),
+    openDocs: (type) => openDocs('pieces', type),
   });
   buildFilesPanel(panels.files.el);
   buildOutputPanel(panels.output.el);
@@ -964,8 +965,8 @@ function mainMenu() {
     { label: 'Editor settings…', icon: 'settings', action: () => openSettings({}) },
     { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
-    { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
-    { label: 'Documentation', icon: 'help', action: () => openDocs() },
+    { label: 'Piece reference', icon: 'book', action: () => openDocs('pieces') },
+    { label: 'Documentation', icon: 'help', shortcut: 'F1', action: () => openDocs() },
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
@@ -1039,7 +1040,7 @@ function nodeDocs(type) {
       h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `${m}(${d.args})`), ` — ${d.doc}`))),
       Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
       h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function ${m}(${d.args})`), ` — ${d.doc}`))),
-      h('p', {}, h('a', { href: docsUrl(settings.get('platformUrl'), 'pieces', t), target: '_blank', rel: 'noopener' }, `${t} in the docs`)),
+      h('p', {}, h('a', { href: '#', onclick: (e) => { e.preventDefault(); openDocs('pieces', t); } }, `${t} in the docs`)),
     ].filter(Boolean));
   };
   import('./core/schema.js').then(({ typesByGroup }) => {
@@ -1057,13 +1058,30 @@ function nodeDocs(type) {
   openDialog({ title: 'Piece reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
 }
 
-/** The docs on the sharing site, in a new tab. */
+/**
+ * The docs, in the Docs panel: the editor's own copy (dist/docs), so they
+ * open beside your work, offline too. It floats at first and docks like any
+ * panel.
+ */
 function openDocs(page = '', anchor = '') {
-  window.open(docsUrl(settings.get('platformUrl'), page, anchor), '_blank', 'noopener');
+  if (!ed.docsFrame) {
+    ed.docsFrame = h('iframe', { class: 'docs-frame', title: 'Smitten docs' });
+    ed.docsHost.append(h('div', { class: 'panel' }, ed.docsFrame));
+  }
+  const file = page && page !== 'reference' ? page : 'index';
+  ed.docsFrame.src = `docs/${file}.html${anchor ? `#${String(anchor).toLowerCase()}` : ''}`;
+  if (ed.dock.isVisible('docs')) {
+    ed.dock.show('docs');
+    return;
+  }
+  const box = ed.dock.shell.getBoundingClientRect();
+  const w = Math.round(Math.min(520, box.width - 32));
+  const hh = Math.round(Math.min(700, box.height - 32));
+  ed.dock.float('docs', { x: box.width - w - 16, y: 16, w, h: hh });
 }
 
 const SHORTCUTS = [
-  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'],
+  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'], ['Docs', 'F1'],
   ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
   ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a piece', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a piece', 'F2'],
   ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
@@ -1096,7 +1114,7 @@ function commands() {
     { label: 'Publish…', run: () => publish() },
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
-    { label: 'Piece reference', run: () => nodeDocs(null) },
+    { label: 'Piece reference', run: () => openDocs('pieces') },
     { label: 'Documentation', run: () => openDocs() },
     { label: 'Script API (docs)', run: () => openDocs('api') },
     { label: 'Editor settings', run: () => openSettings({}) },
@@ -1159,6 +1177,7 @@ function handleGlobalKey(e) {
   if (e.key === 'F5') { play(e.shiftKey ? null : ed.lastRun ?? null); return true; }
   if (e.key === 'F6') { const d = sceneWs().doc; if (d) play(d.path); return true; }
   if (e.key === 'F8') { stop(); return true; }
+  if (e.key === 'F1') { openDocs(); return true; }
   if (mod && (k === 'k' || (e.shiftKey && k === 'p'))) { commandPalette(); return true; }
   if (mod && k === 'p') { commandPalette(true); return true; }
   if (mod && k === 's') { saveAll(); toast('Saved.'); return true; }
