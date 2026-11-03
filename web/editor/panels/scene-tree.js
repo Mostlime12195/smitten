@@ -13,6 +13,7 @@ export class SceneTreePanel {
     this.actions = actions;
     this.doc = null;
     this.collapsed = new Set();
+    this.openInstances = new Set(); // placed scenes start closed, like Godot
     this.filter = '';
 
     const add = h('button', { type: 'button', class: 'icon-btn', title: `Add a node (${modKey}+A)`, 'aria-label': 'Add a node' }, icon('plus', 16));
@@ -76,21 +77,30 @@ export class SceneTreePanel {
       if (this.filter && !anyMatch(n)) return;
       rows.push(this.row(n, depth));
       const kids = doc.effectiveChildren(n);
-      if (kids.length && (this.filter || !this.collapsed.has(n.id))) for (const c of kids) visit(c, depth + 1);
+      if (kids.length && (this.filter || this.isOpen(n))) for (const c of kids) visit(c, depth + 1);
     };
     visit(doc.root, 0);
     this.list.append(...rows);
   }
 
+  isOpen(n) {
+    return n.instance ? this.openInstances.has(n.id) : !this.collapsed.has(n.id);
+  }
+
+  setOpen(n, open) {
+    const set = n.instance ? this.openInstances : this.collapsed;
+    if (open === !!n.instance) set.add(n.id); else set.delete(n.id);
+    this.render();
+  }
+
   row(n, depth) {
     const doc = this.doc;
     const kids = doc.effectiveChildren(n);
-    const open = !this.collapsed.has(n.id);
+    const open = this.isOpen(n);
     const twisty = h('span', { class: `twisty ${kids.length ? '' : 'leaf'}` }, icon(open ? 'chevronDown' : 'chevronRight', 14));
     twisty.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (open) this.collapsed.add(n.id); else this.collapsed.delete(n.id);
-      this.render();
+      this.setOpen(n, !open);
     });
     const badges = h('span', { class: 'node-badges' });
     const script = doc.scriptOf(n);
@@ -222,8 +232,7 @@ export class SceneTreePanel {
       const n = sel[0];
       if (!n) return;
       e.preventDefault();
-      if (e.key === 'ArrowLeft') this.collapsed.add(n.id); else this.collapsed.delete(n.id);
-      this.render();
+      this.setOpen(n, e.key === 'ArrowRight');
     } else if (e.key === 'F2') {
       e.preventDefault();
       this.renameSelected();

@@ -839,7 +839,7 @@ function nodeDocs(type) {
     for (const el of list.children) el.classList?.toggle('active', el.dataset.type === t);
     const ownMethods = methods(t);
     const ev = events(t);
-    page.replaceChildren(
+    page.replaceChildren(...[
       h('h3', {}, nodeIcon(t, 20), t),
       h('p', {}, def.description),
       def.extends ? h('p', { class: 'module-note' }, `Also has everything a ${def.extends} has.`) : null,
@@ -849,7 +849,7 @@ function nodeDocs(type) {
       h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `self:${m}(${d.args})`), ` — ${d.doc}`))),
       Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
       h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function Name:${m}(${d.args})`), ` — ${d.doc}`))),
-    );
+    ].filter(Boolean));
   };
   import('./core/schema.js').then(({ typesByGroup }) => {
     for (const g of typesByGroup()) {

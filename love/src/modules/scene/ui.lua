@@ -72,9 +72,11 @@ function Label:_drawUI(x, y, w, h, alpha)
 	local font, s = scaledFont(self.font, self.size)
 	local text = tostring(self.text)
 	if self.outline then
+		-- One screen pixel each way, however the game is scaled.
+		local px = math.max(s, 1 / math.max(1, require("love.display").scale))
 		love.graphics.setColor(0, 0, 0, 0.8 * alpha)
 		for _, o in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
-			printIn(text, font, s, x + o[1], y + o[2], w, h, self.align, self.valign)
+			printIn(text, font, s, x + o[1] * px, y + o[2] * px, w, h, self.align, self.valign)
 		end
 	end
 	setColor(self.color, alpha)

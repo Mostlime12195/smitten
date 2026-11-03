@@ -35,7 +35,7 @@ export function addNodeDialog(parentType) {
     const ev = Object.keys(events(type)).filter((e) => !['ready', 'update', 'physicsUpdate', 'draw', 'removed'].includes(e));
     const own = Object.keys(def.properties || {});
     const mod = moduleOf(type);
-    help.append(
+    help.append(...[
       h('h3', {}, nodeIcon(type, 20), type),
       h('p', {}, def.description),
       def.parent ? h('p', { class: 'module-note' }, `Put it inside a ${def.parent.join(' or ')}.`) : null,
@@ -43,7 +43,7 @@ export function addNodeDialog(parentType) {
       ev.length ? h('div', {}, h('div', { class: 'add-node-group', style: 'padding: 0 0 4px' }, 'Script functions it calls'), h('ul', {}, ...ev.map((e) => h('li', {}, `${e}(${events(type)[e].args})`)))) : null,
       mod ? h('p', { class: 'module-note' }, `Uses the ${MODULE_NAMES[mod] || mod} module, added to your game automatically.`) : null,
       def.extends ? h('p', { class: 'module-note' }, `A kind of ${def.extends}: it has everything a ${def.extends} has.`) : null,
-    );
+    ].filter(Boolean));
   };
 
   const item = (type, extra) => {

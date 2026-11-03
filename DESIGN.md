@@ -298,7 +298,7 @@ layers and collides with the bodies on the layers in its mask.
 │     Camera   │ │                                                     │ │ ▾ Script variables  │
 ├──────────────┤ └─────────────────────────────────────────────────────┘ │   speed 140         │
 │ Files        ├─────────────────────────────────────────────────────────┤                     │
-│ ▸ scenes     │ Output  Problems                                        │                     │
+│ ▸ scenes     │ Output                                                  │                     │
 │ ▸ art        │ > Game started                                          │                     │
 └──────────────┴─────────────────────────────────────────────────────────┴─────────────────────┘
 ```
