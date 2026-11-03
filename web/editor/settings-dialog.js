@@ -45,7 +45,7 @@ function textControl(key, placeholder = '') {
 // of pasting it: the site's account connects to Hackatime once
 // (platform/src/hackatime.js), and the editor asks the site for the key.
 function hackatimeKeyControl() {
-  const input = h('input', { type: 'password', class: 'input', spellcheck: 'false', autocomplete: 'off', placeholder: 'Paste your API key', style: 'width: 220px' });
+  const input = h('input', { type: 'password', class: 'input', spellcheck: 'false', autocomplete: 'off', placeholder: 'Paste your API key', style: 'width: 220px; max-width: 100%; flex: 1 1 160px' });
   input.value = settings.get('hackatimeKey');
   const status = h('div', { class: 'setting-desc', role: 'status', style: 'min-height: 1.4em' });
   let checked = null;
@@ -73,8 +73,8 @@ function hackatimeKeyControl() {
   if (input.value) check();
   const connect = h('button', { type: 'button', class: 'btn' }, 'Connect with Hackatime');
   connect.addEventListener('click', () => connectHackatime(connect, setStatus));
-  const el = h('div', { style: 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px' },
-    h('div', { style: 'display: flex; gap: 8px; align-items: center' }, input, connect), status);
+  const el = h('div', { style: 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%' },
+    h('div', { style: 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; max-width: 100%' }, input, connect), status);
   return {
     el,
     sync: () => {

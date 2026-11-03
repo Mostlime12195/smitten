@@ -728,7 +728,9 @@ kbd {
 .settings-search .input { width: 100%; padding-left: 32px; }
 .settings-search .icon { position: absolute; left: 10px; top: 0; bottom: 0; color: var(--fg-subtle); pointer-events: none; }
 .settings-section h3 { margin: 22px 0 2px; font-size: 13px; font-weight: 600; }
-.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 11px 0; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 11px 0; flex-wrap: wrap; }
+.setting-row .setting-text { flex: 1 1 240px; }
+.setting-row .setting-control { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; min-width: 0; }
 .setting-row + .setting-row { box-shadow: 0 -1px 0 var(--border); }
 .setting-text { min-width: 0; }
 .setting-label { font-weight: 500; }
@@ -775,4 +777,14 @@ kbd {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* Narrow screens: settings dialogs in one column, sections as a row of chips. */
+@media (max-width: 640px) {
+  .settings-dialog { height: calc(100vh - 32px); }
+  .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-nav { flex-direction: row; overflow-x: auto; padding: 0 12px 8px; gap: 4px; }
+  .settings-nav button { flex: none; height: 28px; }
+  .settings-nav .nav-spacer { display: none; }
+  .settings-content { margin: 0 12px 12px; }
 }
