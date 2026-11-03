@@ -98,6 +98,7 @@ const ASSET_ICONS = [
   [/\.sprite\.json$/i, 'image'],
   [/\.tileset\.json$/i, 'grid'],
   [/\.map\.json$/i, 'map'],
+  [/\.scene\.json$/i, 'map'],
   [/\.sfx\.json$/i, 'wave'],
   [/\.song\.json$/i, 'music'],
   [/(^|\/)smitten\.json$/i, 'heart'],

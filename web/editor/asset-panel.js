@@ -7,6 +7,7 @@ import { h, icon } from './ui.js';
 import { baseName, dirName, extOf, mimeOf } from './file-types.js';
 import { snippetFor, thumbnailUrl } from './file-tree.js';
 import { resolvePath } from './references.js';
+import { parseObjectDefinition } from './tools/map/objects.js';
 
 const AUDIO_EXT = /\.(ogg|oga|opus|wav|mp3|flac|m4a|aac)$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|bmp|webp)$/i;
@@ -19,13 +20,13 @@ const parseJSON = (text) => {
 
 const formatTime = (s) => (s < 60 ? `${s.toFixed(s < 10 ? 2 : 1)} s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
 
-/** What an object file says about itself: its sprite and behaviors. */
+/** What an object file says about itself: its sprite and behaviors (read like the scene editor does). */
 export function objectInfo(text) {
-  if (typeof text !== 'string') return {};
-  const sprite = /\bsprite\s*=\s*["']([^"']+)["']/.exec(text)?.[1];
-  const list = /\bbehaviors\s*=\s*\{([^}]*)\}/.exec(text)?.[1];
-  const behaviors = list ? [...list.matchAll(/["']([\w-]+)["']/g)].map((m) => m[1]) : [];
-  return { sprite, behaviors };
+  const fields = parseObjectDefinition(text) || {};
+  return {
+    sprite: typeof fields.sprite === 'string' ? fields.sprite : undefined,
+    behaviors: Array.isArray(fields.behaviors) ? fields.behaviors : [],
+  };
 }
 
 /** The PNG a sprite reference points at ("sprites/hero" -> "sprites/hero.png"). */
