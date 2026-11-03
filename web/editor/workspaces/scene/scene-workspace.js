@@ -79,11 +79,7 @@ export class SceneWorkspace extends EventTarget {
     this.collisionsBtn.addEventListener('click', () => {
       const on = this.collisionsBtn.getAttribute('aria-pressed') !== 'true';
       this.collisionsBtn.setAttribute('aria-pressed', String(on));
-      const vp = this.viewports['2d'];
-      if (vp) {
-        vp.ctx.settings.showCollisions = on;
-        vp.setDoc(this.active);
-      }
+      this.viewports['2d']?.setShowCollisions?.(on);
     });
     bar.append(this.collisionsBtn);
     const frame = h('button', { type: 'button', class: 'tool-btn', title: 'Frame the selection (F)' }, icon('focus', 15));
