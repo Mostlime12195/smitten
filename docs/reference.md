@@ -346,11 +346,18 @@ jump.duration                            -- seconds
   (`attack`, `decay`, `release` in seconds, `sustain` level 0–1),
   `duty`, vibrato, `lowpass`. The note sounds for `length` steps, then
   releases.
-- Sound-effect instruments play an `.sfx.json` per note; with
-  `pitched: true` its `frequency` is shifted by the note's distance from
-  60.
+- Sound-effect instruments play an `.sfx.json` per note, whole (a note's
+  `length` doesn't cut it); with `pitched: true` its `frequency` (and
+  `minFrequency`) is shifted by the note's distance from 60. An optional
+  `volume` (default 1) scales them.
 - `loop`: whether playback loops; `loopStart` is the index in `order` it
-  loops back to.
+  loops back to. When looping, notes still ringing at the end of the song
+  ring on over the start of the next loop.
+- Missing fields take these defaults: `bpm` 120, `stepsPerBeat` 4,
+  `patternLength` 32, `loop` true, `loopStart` 0; a channel's `instrument`
+  is its own index and `volume` 1; synth instruments' fields as in "Square
+  lead" above; a note's `channel` 0, `step` 0, `length` 1, `note` 60,
+  `volume` 1. Steps and lengths may be fractional.
 
 ### Lua
 
@@ -370,8 +377,11 @@ ordinary LÖVE Source, so they keep playing in background tabs.
 
 ```lua
 smitten.synth.renderSfx(params)            -- params: a decoded .sfx.json table -> SoundData
-smitten.synth.renderSong(song, basePath)   -- a decoded .song.json table; basePath resolves its sfx paths -> SoundData
+smitten.synth.renderSong(song, basePath)   -- a decoded .song.json table; basePath (the song's path or folder) resolves its sfx paths -> SoundData
 ```
+
+SoundData is 44100 Hz, 16-bit, mono. `renderSong` renders one pass through
+`order`, followed by whatever still rings.
 
 ## Editor tools
 

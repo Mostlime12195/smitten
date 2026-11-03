@@ -20,6 +20,11 @@ namespace smitten
 // Defined in wrap_Native.cpp.
 extern const luaL_Reg native_functions[];
 
+// wrap_Synth.cpp
+int w_synthRenderSfx(lua_State *L);
+int w_synthRenderSong(lua_State *L);
+int w_synthNewLoopDecoder(lua_State *L);
+
 } // smitten
 } // love
 

@@ -1,0 +1,13 @@
+{
+  "format": "smitten.sfx",
+  "version": 1,
+  "wave": "sine",
+  "volume": 0.9,
+  "attack": 0,
+  "sustain": 0.03,
+  "punch": 0.4,
+  "decay": 0.22,
+  "frequency": 150,
+  "minFrequency": 0,
+  "slide": -5
+}

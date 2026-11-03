@@ -1,0 +1,10 @@
+_malloc
+_free
+_synth_sfx_size
+_synth_instrument_size
+_synth_render_sfx
+_synth_render_song
+_synth_samples
+_synth_loop_point
+_synth_pass_seconds
+_synth_checksum
