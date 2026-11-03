@@ -1,7 +1,7 @@
 // Resizable split panes. Sizes are CSS custom properties on #app and are
 // remembered in localStorage.
 
-const KEY = 'lws.layout';
+const KEY = 'smitten-editor.layout';
 
 const DEFAULTS = { sidebar: 240, right: 0.44, game: 0.6 };
 const LIMITS = {

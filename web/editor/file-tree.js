@@ -38,7 +38,7 @@ export class FileTree {
 
   /** Restore expanded folders for a project. */
   setProject(projectId) {
-    this.storageKey = `lws.expanded.${projectId}`;
+    this.storageKey = `smitten-editor.expanded.${projectId}`;
     try {
       this.expanded = new Set(JSON.parse(localStorage.getItem(this.storageKey) || '[]'));
     } catch {

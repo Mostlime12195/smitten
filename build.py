@@ -230,7 +230,7 @@ def main():
         "-sMAX_WEBGL_VERSION=2", "-sMIN_WEBGL_VERSION=2", "-sFULL_ES3=1",
         "-sGL_ENABLE_GET_PROC_ADDRESS=1",
         "-sFORCE_FILESYSTEM=1",
-        "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,callMain,ccall,cwrap,HEAPU8",
+        "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,ENV,callMain,ccall,cwrap,HEAPU8",
         "-sEXPORTED_FUNCTIONS=" + ",".join([
             "_main", "_malloc", "_free",
             "_loveweb_quit", "_loveweb_set_paused", "_loveweb_fit_window",

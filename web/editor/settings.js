@@ -1,7 +1,6 @@
 // User preferences: defaults, persistence and change notifications.
 
-const KEY = 'cupid.settings';
-const OLD_KEYS = ['smitten.settings']; // the project's earlier name
+const KEY = 'smitten-editor.settings';
 
 export const DEFAULTS = {
   // Appearance
@@ -37,16 +36,9 @@ const listeners = new Set();
 function load() {
   let saved = {};
   try {
-    const raw = localStorage.getItem(KEY) ?? OLD_KEYS.map((k) => localStorage.getItem(k)).find((v) => v != null);
-    saved = JSON.parse(raw || '{}') || {};
+    saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
   } catch { /* ignore */ }
-  // Preferences from before there was a settings menu.
-  const legacy = (k) => { try { const v = localStorage.getItem(k); return v === null ? undefined : JSON.parse(v); } catch { return localStorage.getItem(k); } };
-  const migrated = {};
-  if (saved.theme === undefined && ['light', 'dark'].includes(legacy('lws.theme'))) migrated.theme = legacy('lws.theme');
-  if (saved.autorun === undefined && typeof legacy('lws.autorun') === 'boolean') migrated.autorun = legacy('lws.autorun');
-  if (saved.clearConsoleOnRun === undefined && typeof legacy('lws.clearOnRun') === 'boolean') migrated.clearConsoleOnRun = legacy('lws.clearOnRun');
-  const v = { ...DEFAULTS, ...migrated };
+  const v = { ...DEFAULTS };
   for (const k of Object.keys(DEFAULTS)) if (k in saved && typeof saved[k] === typeof DEFAULTS[k]) v[k] = saved[k];
   return v;
 }

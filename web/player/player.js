@@ -1,4 +1,4 @@
-// Cupid player.
+// Smitten player.
 //
 // Standalone:  player.html?game=path/to/game.love   (or drop a .love on the page)
 // Embedded:    <iframe src="player.html?embed=1">, then postMessage
@@ -12,7 +12,12 @@
 const BUILD = '__LOVE_BUILD__';
 const { default: createLove } = await import(`./love.mjs?v=${BUILD}`);
 
-const SAVE_ROOT = '/home/web_user/.local/share/love';
+// Save files live under Smitten's own data folder (XDG_DATA_HOME, set in
+// preRun below). IDBFS names its IndexedDB database after the mount point, so
+// this also keeps Smitten's saves apart from other LÖVE web players on the
+// same origin.
+const DATA_HOME = '/home/web_user/.local/share/smitten';
+const SAVE_ROOT = `${DATA_HOME}/love`;
 const GAME_DIR = '/game';
 const GAME_FILE = '/game.love';
 
@@ -217,6 +222,7 @@ function instantiateEngine(imports, done) {
 
 const engineReady = createLove({
   canvas,
+  preRun: [(M) => { M.ENV.XDG_DATA_HOME = DATA_HOME; }],
   locateFile: (path, prefix) => `${prefix}${path}?v=${BUILD}`,
   instantiateWasm: instantiateEngine,
   print: (t) => output('out', t),
@@ -306,7 +312,7 @@ async function start(game) {
   const pageTitle = document.title;
   let lastTitle = '';
   const onTitle = () => {
-    if (document.title === 'Untitled' && pageTitle !== 'Cupid Player') document.title = pageTitle;
+    if (document.title === 'Untitled' && pageTitle !== 'Smitten Player') document.title = pageTitle;
     if (document.title !== lastTitle) {
       lastTitle = document.title;
       post({ type: 'title', title: lastTitle });

@@ -1,4 +1,4 @@
-// Cupid editor: application glue.
+// Smitten editor: application glue.
 
 import {
   h, icon, hydrateIcons, openDialog, promptDialog, confirmDialog, showMenu, toast, downloadBlob, formatBytes, timeAgo, isMac, modKey,
@@ -55,7 +55,7 @@ async function init() {
   for (const k of document.querySelectorAll('kbd.mod')) k.textContent = modKey;
   applyTheme();
   initLayout($('#app'));
-  setSidebarVisible(LS.get('lws.sidebar', innerWidth > 860), false);
+  setSidebarVisible(LS.get('smitten-editor.sidebar', innerWidth > 860), false);
 
   consolePanel = new ConsolePanel($('#console-output'), {
     filter: $('#console-filter'), level: $('#console-level'), autoscroll: $('#console-autoscroll'),
@@ -114,13 +114,13 @@ async function init() {
   }
   if (!opened) {
     const projects = await store.listProjects();
-    const last = LS.get('lws.lastProject');
+    const last = LS.get('smitten-editor.lastProject');
     const target = projects.find((p) => p.id === last) || projects[0];
     if (target) await openProject(target.id);
     else {
       const p = await store.createProject('My First Game', BLANK.files);
       await openProject(p.id);
-      consolePanel.info('Welcome to Cupid! Press F5 to run, or open the project menu to try the examples.');
+      consolePanel.info('Welcome to Smitten! Press F5 to run, or open the project menu to try the examples.');
     }
   }
   window.addEventListener('hashchange', () => importShareHash().catch((e) => toast(e.message, { type: 'error' })));
@@ -156,11 +156,11 @@ async function openProject(id) {
   state.saved.clear();
   state.dirty.clear();
   state.errors.clear();
-  LS.set('lws.lastProject', id);
+  LS.set('smitten-editor.lastProject', id);
 
   $('#project-name').textContent = project.name;
   $('#game-title').textContent = project.name;
-  document.title = `${project.name} · Cupid`;
+  document.title = `${project.name} · Smitten`;
   tree.setProject(id);
   await refreshEntries();
 
@@ -267,7 +267,7 @@ async function openProjectsDialog() {
           if (current) {
             state.project.name = name;
             $('#project-name').textContent = name;
-            document.title = `${name} · Cupid`;
+            document.title = `${name} · Smitten`;
           }
           projectList = await store.listProjects();
           renderList();
@@ -1113,7 +1113,7 @@ function commandList() {
     ]],
     ['Help', [
       { id: 'docs', label: 'LÖVE documentation', icon: 'book', run: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
-      { id: 'source', label: 'Cupid on GitHub', icon: 'globe', run: () => window.open('https://github.com/Mostlime12195/cupid', '_blank', 'noopener') },
+      { id: 'source', label: 'Smitten on GitHub', icon: 'globe', run: () => window.open('https://github.com/Mostlime12195/smitten', '_blank', 'noopener') },
     ]],
   ];
 }
@@ -1139,8 +1139,8 @@ function showHelpMenu() {
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => showSettings('shortcuts') },
     '-',
     { label: 'LÖVE documentation', icon: 'book', action: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
-    { label: 'Lua compatibility notes', icon: 'info', action: () => window.open('https://github.com/Mostlime12195/cupid#lua-compatibility', '_blank', 'noopener') },
-    { label: 'Cupid on GitHub', icon: 'globe', action: () => window.open('https://github.com/Mostlime12195/cupid', '_blank', 'noopener') },
+    { label: 'Lua compatibility notes', icon: 'info', action: () => window.open('https://github.com/Mostlime12195/smitten#lua-compatibility', '_blank', 'noopener') },
+    { label: 'Smitten on GitHub', icon: 'globe', action: () => window.open('https://github.com/Mostlime12195/smitten', '_blank', 'noopener') },
   ]);
 }
 
@@ -1213,7 +1213,7 @@ function goToSymbol() {
 function setSidebarVisible(visible, persist = true) {
   $('#app').classList.toggle('sidebar-hidden', !visible);
   $('#btn-sidebar').setAttribute('aria-pressed', String(visible));
-  if (persist) LS.set('lws.sidebar', visible);
+  if (persist) LS.set('smitten-editor.sidebar', visible);
 }
 
 function cycleTab(dir) {
@@ -1364,5 +1364,5 @@ window.studio = {
 init().catch((e) => {
   console.error(e);
   $('#app').classList.remove('booting');
-  toast(`Cupid failed to start: ${e.message}`, { type: 'error', timeout: 10000 });
+  toast(`Smitten failed to start: ${e.message}`, { type: 'error', timeout: 10000 });
 });

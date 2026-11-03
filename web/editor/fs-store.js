@@ -6,7 +6,7 @@
 // Paths are relative, use '/' and never start with a slash. Text files are
 // stored as strings and everything else as Uint8Array.
 
-const DB_NAME = 'love-web-studio';
+const DB_NAME = 'smitten';
 const DB_VERSION = 1;
 
 let dbPromise = null;

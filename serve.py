@@ -6,7 +6,7 @@ Unlike `python3 -m http.server`, this disables HTTP caching (so rebuilt
 engine files are always picked up) and serves .wasm as application/wasm so
 browsers can compile it while it downloads.
 
-    python3 serve.py            # http://localhost:8765
+    python3 serve.py            # http://localhost:8766
     python3 serve.py 9000
 """
 import functools
@@ -35,7 +35,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
     handler = functools.partial(Handler, directory=str(DIST))
     with http.server.ThreadingHTTPServer(("", port), handler) as httpd:
         print(f"Serving {DIST} at http://localhost:{port}/")
