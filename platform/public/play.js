@@ -28,6 +28,10 @@ function mountPlayer() {
   const loveUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.love`;
   const p = new URLSearchParams({ game: loveUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
+  // The start screen shows the game's name, maker and blurred thumbnail.
+  p.set('title', game.title);
+  if (game.owner?.displayName || game.owner?.username) p.set('by', game.owner.displayName || `@${game.owner.username}`);
+  if (game.thumbnail) p.set('poster', game.thumbnail);
   const frame = h('iframe', {
     id: 'player',
     src: `/player/player.html?${p}`,
