@@ -469,6 +469,9 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
         modules,
         engineVersion: version,
         remixOf: existing ? undefined : origin || undefined,
+        // The project its Hackatime heartbeats name (hackatime.js), so the
+        // game's page can show the time tracked for it.
+        hackatimeProject: project.name,
       }));
       body.append('game', new Blob([love], { type: 'application/zip' }), 'game.love');
       if (thumbPath) body.append('thumbnail', new Blob([asBytes(files[thumbPath])], { type: 'image/png' }), 'thumbnail.png');
