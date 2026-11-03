@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Getting started.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started" aria-current="page">Getting started</a><ul class="nav-sub"><li><a href="#1-make-a-project">1. Make a project</a></li><li><a href="#2-build-a-scene">2. Build a scene</a></li><li><a href="#3-give-it-a-script">3. Give it a script</a></li><li><a href="#4-coins">4. Coins</a></li><li><a href="#5-try-things-while-it-runs">5. Try things while it runs</a></li><li><a href="#6-share-it">6. Share it</a></li><li><a href="#next">Next</a></li></ul></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Getting started</h1>
+<p>Make a small game: a player who runs and jumps and collects coins. Everything happens in the editor, in the browser; nothing to install.</p>
+<h2 id="1-make-a-project"><a class="anchor" href="#1-make-a-project" aria-hidden="true">#</a>1. Make a project</h2>
+<p>Open the editor and pick a template, or <strong>Empty</strong>. A project is a folder of files: scenes (<code>.scene</code>), scripts (<code>.lua</code>), pictures, sounds and a <code>smitten.json</code> with the project's settings. The editor keeps it in your browser until you share or export it.</p>
+<p>The editor has workspaces across the top: <strong>Scene</strong> (build levels), <strong>Script</strong> (code), <strong>Paint</strong> (pictures and sprite sheets), <strong>Sound</strong> (sound effects) and <strong>Music</strong> (songs).</p>
+<h2 id="2-build-a-scene"><a class="anchor" href="#2-build-a-scene" aria-hidden="true">#</a>2. Build a scene</h2>
+<p>A scene is a tree of <strong>pieces</strong>. Each piece does one thing:</p>
+<div class="table"><table>
+<thead><tr><th>Piece</th><th>Does</th></tr></thead>
+<tbody><tr><td>Group</td><td>Holds other pieces; they move with it</td></tr>
+<tr><td>Sprite, Shape, Text</td><td>Something you see</td></tr>
+<tr><td>Body</td><td>Something solid: a player, a wall, a crate</td></tr>
+<tr><td>Zone</td><td>An area that notices things going in: a coin, a checkpoint</td></tr>
+<tr><td>Tiles</td><td>A grid of tiles painted from a tileset</td></tr>
+<tr><td>Camera</td><td>Which part of the scene is on screen</td></tr>
+<tr><td>Label, Button, Bar, Panel, Picture</td><td>UI on top of the game</td></tr>
+<tr><td>Sound, Timer, Particles</td><td>Sound, countdowns, effects</td></tr></tbody>
+</table></div>
+<p>Add pieces with <strong>Ctrl+A</strong> (Cmd+A on a Mac). Put pieces inside each other by dragging them in the Scene panel: a Shape inside a Body gives the Body its look and its collision shape.</p>
+<p>For the player: add a <strong>Body</strong>, name it <code>Player</code>, put a <strong>Shape</strong> (or a Sprite) inside it, and give it the tag <code>player</code> in the Inspector. For the floor: another Body with motion <strong>still</strong> and a wide Shape inside.</p>
+<h2 id="3-give-it-a-script"><a class="anchor" href="#3-give-it-a-script" aria-hidden="true">#</a>3. Give it a script</h2>
+<p>Select the player and choose <strong>Attach a script… › Platformer player</strong>. The script is copied into your project (<code>scripts/platformer.lua</code>); open it and read it, it's yours to change. Press <strong>F5</strong> to play.</p>
+<p>A script is the piece's own code. Names in it are the piece's:</p>
+<pre><code class="lang-lua">speed = 220            -- a script variable: shown in the Inspector
+
+function physicsUpdate(dt)
+  vx = axis(&quot;left&quot;, &quot;right&quot;) * speed   -- vx is the Body's speed
+  vy += 1800 * dt                      -- gravity
+  move()                               -- the Body's move(): slides along walls
+  if pressed(&quot;jump&quot;) and onGround() then vy = -600 end
+end</code></pre>
+<h2 id="4-coins"><a class="anchor" href="#4-coins" aria-hidden="true">#</a>4. Coins</h2>
+<p>Add a <strong>Zone</strong> with a yellow circle Shape inside, and attach the ready-made <strong>Pickup</strong> script. When something tagged <code>player</code> goes in, it plays a sound (set <code>sound</code> in the Inspector) and tells the scene's root piece with an event. Count them in a script on the root:</p>
+<pre><code class="lang-lua">-- scripts/level.lua, on the scene's root piece
+coins = 0
+
+function collected(coin)
+  coins += 1
+  find(&quot;HUD/Score&quot;).text = `Coins: {coins}`   -- a Label inside a Group called HUD
+end</code></pre>
+<p>Save the coin as its own scene (right-click it › <strong>Save as its own scene…</strong>) and place it as many times as you like; change <code>scenes/coin.scene</code> once and every coin changes.</p>
+<h2 id="5-try-things-while-it-runs"><a class="anchor" href="#5-try-things-while-it-runs" aria-hidden="true">#</a>5. Try things while it runs</h2>
+<p>While the game runs, select a piece and change its properties: the running game changes, your files don't (<strong>live tweaking</strong>). When you like a value, type it into the scene.</p>
+<h2 id="6-share-it"><a class="anchor" href="#6-share-it" aria-hidden="true">#</a>6. Share it</h2>
+<p><strong>Project › Copy share link</strong> gives a link anyone can open to play and remix their own copy. <strong>Publish</strong> puts it on the sharing site. See <a href="sharing">Sharing and publishing</a>.</p>
+<h2 id="next"><a class="anchor" href="#next" aria-hidden="true">#</a>Next</h2>
+<ul><li><a href="scripts">Scripts</a>: how scripts work, events and waiting.</li><li><a href="api">Script API</a>: everything a script can call.</li><li><a href="pieces">Pieces</a>: every piece's properties and methods.</li></ul>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="./"><span>Previous</span>Overview</a><a class="next" href="scripts"><span>Next</span>Scripts</a></nav>
+  </main>
+</div>
+</body>
+</html>

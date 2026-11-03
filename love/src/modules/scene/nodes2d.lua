@@ -115,10 +115,10 @@ function Group:moveToward(x, y, distance)
 	local dx, dy = x - gx, y - gy
 	local len = sqrt(dx * dx + dy * dy)
 	if len <= distance or len == 0 then
-		self:setGlobalPosition(x, y)
+		self:setWorldPosition(x, y)
 		return true
 	end
-	self:setGlobalPosition(gx + dx / len * distance, gy + dy / len * distance)
+	self:setWorldPosition(gx + dx / len * distance, gy + dy / len * distance)
 	return false
 end
 
@@ -185,7 +185,13 @@ function Sprite:_process(dt)
 	self.frame = frames[i + 1]
 end
 
-function Sprite:play(name)
+---Plays an animation, or resumes the current one; restart starts it again
+---from its first frame even if it's already playing.
+function Sprite:play(name, restart)
+	if restart then
+		self._time = 0
+		self._done = false
+	end
 	if name and name ~= self.animation then
 		local sheet = sheetOf(self)
 		if sheet and not sheet.animations[name] then
@@ -204,8 +210,30 @@ function Sprite:play(name)
 	self.playing = true
 end
 
+---Stops the animation where it is; play() continues it.
+function Sprite:pause()
+	self.playing = false
+end
+
+---Stops the animation and goes back to its first frame.
 function Sprite:stop()
 	self.playing = false
+	self._time = 0
+	self._done = false
+	local sheet = sheetOf(self)
+	local anim = sheet and sheet.animations[self.animation]
+	if anim then self.frame = anim.frames[1] or 0 end
+end
+
+---The names of the .sprite file's animations, sorted.
+function Sprite:animations()
+	local sheet = sheetOf(self)
+	local out = {}
+	if sheet then
+		for n in pairs(sheet.animations) do out[#out + 1] = n end
+	end
+	table.sort(out)
+	return out
 end
 
 ---True if the sprite's .sprite file has an animation with this name.
@@ -341,8 +369,67 @@ local function currentCamera()
 end
 M.currentCamera = currentCamera
 
+-- What the camera looks at: the piece it follows (follow(), or target),
+-- else its own position; plus offsetX, offsetY.
+local function lookAtPoint(self)
+	local t = self._follow
+	if t ~= nil and (t._dead or not t._inside) then
+		t = nil
+		self._follow = nil
+	end
+	if t == nil and self.target ~= nil and self.target ~= "" then
+		if self._targetPath ~= self.target or (self._target and not self._target._inside) then
+			local path = self.target
+			self._targetPath = path
+			self._target = (self.parent and self.parent:find(path)) or require("love.scene").find(path)
+		end
+		t = self._target
+	end
+	local x, y
+	if t and t.worldPosition then
+		x, y = t:worldPosition()
+	else
+		x, y = self:worldPosition()
+	end
+	return x + (self.offsetX or 0), y + (self.offsetY or 0)
+end
+
+---Follows a piece (nil: back to target, or where the camera is).
+function Camera:follow(piece)
+	if piece ~= nil and (type(piece) ~= "table" or not piece.worldPosition) then
+		error("follow() needs a piece with a position (or nil)", 2)
+	end
+	self._follow = piece
+end
+
+---Jumps straight to what it looks at, without smoothing (after a teleport).
+function Camera:snap()
+	self._cx, self._cy = lookAtPoint(self)
+end
+
+---Sets the edges it doesn't show past (nil: no edge on that side).
+function Camera:setLimits(left, top, right, bottom)
+	self.left, self.top, self.right, self.bottom = left, top, right, bottom
+end
+
+---Keeps the view inside a piece's area: the painted part of a Tiles piece
+---(or anything with getBounds()).
+function Camera:limitTo(piece)
+	if type(piece) ~= "table" or type(piece.getBounds) ~= "function" then
+		error("limitTo() needs a Tiles piece (or a piece with getBounds())", 2)
+	end
+	local x, y, w, h = piece:getBounds()
+	self:setLimits(x, y, x + w, y + h)
+end
+
+---Makes this the camera in use (turning the other cameras off).
+function Camera:makeCurrent()
+	for i = 1, #cameras do cameras[i].active = false end
+	self.active = true
+end
+
 function Camera:_process(dt)
-	local x, y = self:worldPosition()
+	local x, y = lookAtPoint(self)
 	if self._cx == nil or self.smoothing <= 0 then
 		self._cx, self._cy = x, y
 	else
@@ -361,11 +448,12 @@ function Camera:shake(strength, seconds)
 	self._shakeLeft = self._shakeTime
 end
 
--- The view: where the camera looks, with limits and shake. Returns the
--- matrix from scene coordinates to game coordinates.
-local function cameraMatrix()
+-- The view: where the camera (the current one, by default) looks, with
+-- limits and shake. Returns the matrix from scene coordinates to game
+-- coordinates.
+local function cameraMatrix(cam)
 	local display = require("love.display")
-	local cam = currentCamera()
+	cam = cam or currentCamera()
 	if not cam then return 1, 0, 0, 1, 0, 0 end
 	local vw, vh = display.viewWidth, display.viewHeight
 	local zoom = cam.zoom
@@ -382,7 +470,7 @@ local function cameraMatrix()
 		if t and cy - hh < t then cy = t + hh end
 		if b and cy + hh > b then cy = b - hh end
 	end
-	if cam._shakeLeft > 0 then
+	if (cam._shakeLeft or 0) > 0 then
 		local s = cam._shake * (cam._shakeLeft / cam._shakeTime)
 		cx = cx + (love.math.random() * 2 - 1) * s
 		cy = cy + (love.math.random() * 2 - 1) * s
@@ -407,6 +495,15 @@ end
 
 function Camera:screenToWorld(sx, sy) return M.toWorld(sx, sy) end
 function Camera:worldToScreen(x, y) return M.toScreen(x, y) end
+
+---The part of the scene this camera shows: x, y, width, height.
+function Camera:getView()
+	local display = require("love.display")
+	if self._cx == nil then self._cx, self._cy = lookAtPoint(self) end
+	local zoom, _, _, _, tx, ty = cameraMatrix(self)
+	return (display.viewX - tx) / zoom, (display.viewY - ty) / zoom,
+		display.viewWidth / zoom, display.viewHeight / zoom
+end
 
 ---------------------------------------------------------------------------
 -- Particles
@@ -468,15 +565,46 @@ function Particles:_process(dt)
 		ps:moveTo(x, y)
 	end
 	ps:update(dt)
+	-- finished(): the last particle is gone and no more are coming.
+	local alive = ps:getCount() > 0
+	if self._alive and not alive and (self.burst or not self.emitting) then self:emit("finished") end
+	self._alive = alive
 end
 
-function Particles:emit(count)
+local nodeEmit = nodeLib.Node.emit
+
+---emit(count) makes particles now; emit("event", ...) fires an event, as on
+---any piece.
+function Particles:emit(count, ...)
+	if type(count) == "string" then return nodeEmit(self, count, ...) end
 	configure(self):emit(count or 1)
 end
 
 function Particles:restart()
 	configure(self):reset()
 	if self.burst then self._ps:emit(math.floor(self.rate)) end
+end
+
+---Starts making particles (a burst makes its particles again).
+function Particles:start()
+	self.emitting = true
+	if self.burst then configure(self):emit(math.floor(self.rate)) end
+end
+
+---Stops making particles; the ones already out live on.
+function Particles:stop()
+	self.emitting = false
+end
+
+---Removes every particle now.
+function Particles:clear()
+	if self._ps then self._ps:reset() end
+	self._alive = false
+end
+
+---How many particles are out now.
+function Particles:getCount()
+	return self._ps and self._ps:getCount() or 0
 end
 
 function Particles:_draw(tr, tg, tb, ta)

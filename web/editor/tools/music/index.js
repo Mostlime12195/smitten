@@ -1,4 +1,4 @@
-// Music editor: opens .song files (docs/reference.md, "Songs"). A piano
+// Music editor: opens .song files (docs/formats.md, "Songs"). A piano
 // roll for one channel of one pattern at a time, with the channels,
 // patterns, instruments and the arrangement (order list) around it.
 // Playback renders the song with the editor's synthesizer (host.synth()), so

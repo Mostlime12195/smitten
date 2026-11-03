@@ -457,7 +457,7 @@ a:hover { text-decoration: underline; }
 /* Accounts: sign in, sign up, recovery, settings, profiles */
 
 .account-link { max-width: 200px; color: var(--fg); }
-.brand + .make, .brand + .account-link { margin-left: auto; }
+.brand + .make, .brand + .account-link, .brand + .docs-link { margin-left: auto; }
 .account-link span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .card-meta .card-owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .card-meta .dot { color: var(--fg-subtle); }
@@ -598,6 +598,8 @@ a.btn[aria-disabled="true"] { opacity: 0.55; }
   .actions .btn { flex: 1; }
   .account-link { max-width: 120px; margin-left: auto; }
   .account-link + .make { margin-left: 0; }
+  .docs-link { margin-left: auto; height: 34px; padding: 0 10px; }
+  .docs-link + .make, .docs-link + .account-link { margin-left: 0; }
   .panel { padding: 20px 16px; }
   .codes { grid-template-columns: 1fr; }
 }

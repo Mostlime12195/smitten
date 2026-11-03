@@ -5,7 +5,7 @@
 // module detection, the templates, the ready-made scripts and script
 // variables.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -47,6 +47,30 @@ for (const [name, def] of Object.entries(types)) {
     if (d.when) for (const k of Object.keys(d.when)) check(`${name}.${p} "when" names a property`, !!schemaLib.propertyDef(name, k), k);
   }
 }
+// The catalogue matches the engine: every method is defined in a scene file,
+// every event is emitted, every name of the short API is in script.lua.
+const sceneDir = join(root, 'love', 'src', 'modules', 'scene');
+const engineLua = readdirSync(sceneDir).filter((f) => f.endsWith('.lua'))
+  .map((f) => readFileSync(join(sceneDir, f), 'utf8')).join('\n');
+const LIFECYCLE = new Set(['ready', 'update', 'physicsUpdate', 'draw', 'removed']);
+for (const [name, def] of Object.entries(types)) {
+  for (const m of Object.keys(def.methods || {})) {
+    check(`${name}:${m}() is defined in the engine`, new RegExp(`function \\w+[:.]${m}\\(|\\b\\w+\\.${m}\\s*=\\s*\\w`).test(engineLua));
+  }
+  for (const e of Object.keys(def.events || {})) {
+    if (!LIFECYCLE.has(e)) check(`${name} event ${e} is emitted`, engineLua.includes(`emit("${e}"`));
+  }
+}
+const scriptLua = readFileSync(join(sceneDir, 'script.lua'), 'utf8');
+const { SCRIPT_API } = await import(editor('core/script-api.js'));
+for (const [name] of SCRIPT_API) {
+  check(`short API ${name} is in script.lua`, new RegExp(`\\b(?:api|pieceApi)\\.${name}\\b\\s*=|function (?:api|pieceApi)\\.${name}\\(`).test(scriptLua));
+}
+for (const m of scriptLua.matchAll(/^function api\.(\w+)\(|^api\.(\w+) =/gm)) {
+  const name = m[1] || m[2];
+  check(`script.lua's ${name} is in script-api.js`, SCRIPT_API.some(([n]) => n === name));
+}
+
 check('lineage', eq(schemaLib.lineage('Sprite'), ['Piece', 'Group', 'Sprite']));
 check('isA', schemaLib.isA('Body', 'Group') && !schemaLib.isA('Label', 'Group'));
 check('space', schemaLib.space('Label') === 'ui' && schemaLib.space('Body') === 'world' && schemaLib.space('Timer') === 'other');

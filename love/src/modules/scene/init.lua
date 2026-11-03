@@ -21,8 +21,11 @@ scene.current = nil
 scene.path = nil
 ---What the last go() passed after the path.
 scene.args = {}
----While true, nodes don't update and physics doesn't run (drawing goes on).
+---While true, pieces don't update and physics doesn't run (drawing goes on),
+---except pieces whose pausable is false and what's inside them.
 scene.paused = false
+---How fast time goes: 0.5 is slow motion, 2 double speed.
+scene.timeScale = 1
 
 local STEP = 1 / 60
 local MAX_STEPS = 4
@@ -219,7 +222,7 @@ end
 
 local pending = nil
 
-local function setRoot(root, path)
+local function setRoot(root, path, args)
 	for _, sys in ipairs(tree.systemList) do
 		if sys.reset then sys.reset() end
 	end
@@ -231,7 +234,11 @@ local function setRoot(root, path)
 	tree.root = root
 	scene.current = root
 	scene.path = path
-	if root then nodeLib.enterTree(root) end
+	if root then
+		-- The root's ready() gets go()'s extra values.
+		if args and #args > 0 then root._readyArgs = args end
+		nodeLib.enterTree(root)
+	end
 end
 
 local function load(path)
@@ -240,15 +247,36 @@ local function load(path)
 	return root
 end
 
----Goes to another scene at the end of this frame. Extra arguments are kept
----in smitten.scene.args for the new scene's scripts.
+-- The transition go() uses (transition()), and the one running: it covers
+-- the screen ("out"), changes the scene, then uncovers it ("in").
+local style = { kind = "none", seconds = 0.4, color = { 0, 0, 0, 1 } }
+local fading = nil -- { phase = "out" | "in", time = 0 }
+
+---Sets how go() and reload() change scenes: transition("fade", 0.4) fades
+---to black and back, transition("fade", 0.4, {1, 1, 1}) to white,
+---transition("none") cuts.
+function scene.transition(kind, seconds, color)
+	if kind ~= "none" and kind ~= "fade" then error('transition() takes "fade" or "none"', 2) end
+	style.kind = kind
+	if seconds then style.seconds = math.max(0, seconds) end
+	if color then style.color = { color[1] or 0, color[2] or 0, color[3] or 0, color[4] or 1 } end
+end
+
+---True while the scene is about to change or a transition is running.
+function scene.isChanging()
+	return pending ~= nil or fading ~= nil
+end
+
+---Goes to another scene at the end of this frame (or once the transition
+---covers the screen). Extra values go to the new scene root's ready(...)
+---and stay in smitten.scene.args.
 function scene.go(path, ...)
 	if type(path) ~= "string" then error("go() needs the path of a .scene file", 2) end
 	local args = { ... }
 	path = assets.normalize(path)
 	if not tree.root then
 		scene.args = args
-		local ok, err = pcall(function() setRoot(load(path), path) end)
+		local ok, err = pcall(function() setRoot(load(path), path, args) end)
 		if not ok then error(err, 2) end
 		return
 	end
@@ -256,6 +284,11 @@ function scene.go(path, ...)
 	local ok, root = pcall(load, path)
 	if not ok then error(root, 2) end
 	pending = { root = root, path = path, args = args }
+	if style.kind == "fade" and style.seconds > 0 and not (fading and fading.phase == "out") then
+		-- Covering starts from however covered the screen is now.
+		local covered = fading and (1 - fading.time / style.seconds) or 0
+		fading = { phase = "out", time = covered * style.seconds }
+	end
 end
 
 ---Starts the running scene again from its file.
@@ -289,58 +322,94 @@ local function freeNodes()
 	end
 end
 
-local function physicsTraverse(n, h)
+-- frozen: the game is paused and this piece doesn't run while it is
+-- (pieces with pausable = false, and what's inside them, still run).
+local function physicsTraverse(n, h, frozen)
 	if n._dead then return end
-	if n._physics then n:_physics(h) end
-	local f = n.physicsUpdate
-	if f then
-		f(n, h)
-		local after = n._afterScript
-		if after then after(n) end
+	if frozen and n.pausable == false then frozen = false end
+	if not frozen then
+		if n._physics then n:_physics(h) end
+		local f = n.physicsUpdate
+		if f then
+			f(n, h)
+			local after = n._afterScript
+			if after then after(n) end
+		end
 	end
 	local ch = n.children
 	for i = 1, #ch do
 		local c = ch[i]
-		if c then physicsTraverse(c, h) end
+		if c then physicsTraverse(c, h, frozen) end
 	end
 end
 
-local function processTraverse(n, dt)
+local function processTraverse(n, dt, frozen)
 	if n._dead then return end
-	if n._process then n:_process(dt) end
-	local f = n.update
-	if f then
-		f(n, dt)
-		local after = n._afterScript
-		if after then after(n) end
+	if frozen and n.pausable == false then frozen = false end
+	if not frozen then
+		if n._process then n:_process(dt) end
+		local f = n.update
+		if f then
+			f(n, dt)
+			local after = n._afterScript
+			if after then after(n) end
+		end
 	end
 	local ch = n.children
 	for i = 1, #ch do
 		local c = ch[i]
-		if c then processTraverse(c, dt) end
+		if c then processTraverse(c, dt, frozen) end
 	end
+end
+
+---True if a piece runs while the game is paused: it, or a piece it's
+---inside, has pausable = false.
+function scene.runsWhilePaused(n)
+	while n do
+		if n.pausable == false then return true end
+		n = n.parent
+	end
+	return false
 end
 
 local function physicsStep(h)
 	tree.dt = h
 	tree.epoch = tree.epoch + 1
-	physicsTraverse(tree.root, h)
-	local systems = tree.systemList
-	for i = 1, #systems do
-		local s = systems[i]
-		if s.step and tree.root then s.step(h) end
+	local paused = scene.paused
+	physicsTraverse(tree.root, h, paused)
+	if not paused then
+		local systems = tree.systemList
+		for i = 1, #systems do
+			local s = systems[i]
+			if s.step and tree.root then s.step(h) end
+		end
 	end
 	freeNodes()
 end
 
-function scene._update(dt)
-	if pending then
-		local p = pending
-		pending = nil
-		scene.args = p.args
-		setRoot(p.root, p.path)
+local function changeScene()
+	local p = pending
+	pending = nil
+	scene.args = p.args
+	setRoot(p.root, p.path, p.args)
+end
+
+-- dt is scaled by timeScale; realDt isn't (transitions use it).
+function scene._update(dt, realDt)
+	realDt = realDt or dt
+	if fading then
+		fading.time = fading.time + realDt
+		if fading.time >= style.seconds then
+			if fading.phase == "out" then
+				fading = { phase = "in", time = 0 }
+				if pending then changeScene() end
+			else
+				fading = nil
+			end
+		end
 	end
-	if not tree.root or scene.paused then return end
+	if pending and not (fading and fading.phase == "out") then changeScene() end
+	if not tree.root then return end
 	tree.frame = tree.frame + 1
 	tree.accumulator = tree.accumulator + dt
 	local steps = 0
@@ -353,8 +422,10 @@ function scene._update(dt)
 	if not tree.root then return end
 	tree.dt = dt
 	tree.epoch = tree.epoch + 1
-	processTraverse(tree.root, dt)
+	processTraverse(tree.root, dt, scene.paused)
 	freeNodes()
+	-- UI answers the pointer and the keyboard even while paused.
+	if tree.root then require("love.scene.ui").update(tree.root) end
 end
 
 ---The length of the current step: the frame's dt in update(), the fixed
@@ -363,12 +434,23 @@ function scene.getDelta()
 	return tree.dt
 end
 
--- Drawing: the world, the game's own smitten.draw, then UI on top.
+-- Drawing: the world, the game's own smitten.draw, then UI on top, then
+-- the transition's cover.
 function scene._draw(userDraw)
 	local root = tree.root
 	if root then require("love.scene.nodes2d").render(root) end
 	if userDraw then userDraw() end
 	if root then require("love.scene.ui").render(root) end
+	if fading then
+		local t = style.seconds > 0 and math.min(1, fading.time / style.seconds) or 1
+		local a = fading.phase == "out" and t or 1 - t
+		local c = style.color
+		local d = require("love.display")
+		love.graphics.push("all")
+		love.graphics.setColor(c[1], c[2], c[3], (c[4] or 1) * a)
+		love.graphics.rectangle("fill", d.viewX, d.viewY, d.viewWidth, d.viewHeight)
+		love.graphics.pop()
+	end
 end
 
 ---Sends an input event to the tree's UI (called by love.engine).

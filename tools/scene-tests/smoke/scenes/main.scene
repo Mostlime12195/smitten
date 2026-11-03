@@ -10,10 +10,18 @@
         "children": [ { "name": "Look", "type": "Shape", "properties": { "width": 24, "height": 32 } } ] },
       { "name": "Coin", "type": "Zone", "script": "scripts/pickup.lua", "properties": { "x": 300, "y": 300 }, "tags": ["coin"],
         "children": [ { "name": "Look", "type": "Shape", "script": "scripts/spin.lua", "properties": { "shape": "circle", "radius": 10, "color": [1, 0.8, 0.2, 1] } } ] },
+      { "name": "Ground", "type": "Tiles", "properties": { "x": 16, "y": 40, "tileset": "art/tiles.tileset",
+        "cells": { "x": 0, "y": 0, "w": 4, "h": 1, "data": "1*4" } } },
+      { "name": "Pic", "type": "Sprite", "properties": { "x": 200, "y": 60, "image": "art/tiles.png", "columns": 2, "frame": 1 } },
+      { "name": "Sparks", "type": "Particles", "script": "scripts/sparks.lua", "properties": { "x": 400, "y": 200, "burst": true, "rate": 20, "lifetime": 0.3 } },
+      { "name": "Beep", "type": "Sound", "properties": { "sound": "sounds/blip.wav", "volume": 0.3 } },
+      { "name": "Menu", "type": "Group", "script": "scripts/counter.lua", "properties": { "pausable": false } },
+      { "name": "Walker", "type": "Group", "script": "scripts/counter.lua" },
       { "name": "Camera", "type": "Camera", "properties": { "x": 320, "y": 180 } },
       { "name": "UI", "type": "Group", "children": [
         { "name": "Score", "type": "Label", "properties": { "text": "Coins: 0", "x": 16, "y": 12, "width": 400 } },
-        { "name": "Restart", "type": "Button", "properties": { "anchor": "topRight", "x": 16, "y": 12, "text": "Restart" } },
+        { "name": "Restart", "type": "Button", "properties": { "anchor": "topRight", "x": 16, "y": 12, "text": "Restart", "autofocus": true } },
+        { "name": "Other", "type": "Button", "properties": { "anchor": "topRight", "x": 16, "y": 60, "text": "Other" } },
         { "name": "Bar", "type": "Bar", "properties": { "anchor": "bottom", "y": 16, "width": 300, "height": 14, "value": 30 } }
       ] },
       { "name": "Tick", "type": "Timer", "properties": { "seconds": 0.5, "running": true } }

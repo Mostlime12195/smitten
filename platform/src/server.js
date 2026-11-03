@@ -10,6 +10,7 @@
 //   /auth/hackclub[/callback]  "Sign in with Hack Club" (when configured)
 //   /auth/hackatime[/callback] "Connect Hackatime" (when configured)
 //   /hackatime-connected    where the editor's Hackatime popup ends up
+//   /docs/[page]            the docs (public/docs/, made by tools/gen-docs.mjs)
 //   /player/player.html     the player (copied by scripts/copy-player.sh)
 //   /api/...                the API (README.md lists every endpoint)
 //
@@ -233,6 +234,15 @@ const PAGES = {
   '/hackatime-connected': ['hackatime-connected.html', 'auth'],
 };
 
+// The docs (public/docs/, made by tools/gen-docs.mjs): /docs/ and
+// /docs/<page>. Their CSS, JS and search index are ordinary static files.
+function docsPage(ctx, path) {
+  if (path === '/docs') return Promise.resolve(redirect('/docs/', 301));
+  const m = /^\/docs\/([a-z0-9-]*)$/.exec(path);
+  if (!m) return null;
+  return staticFile(ctx, `/docs/${m[1] || 'index'}.html`).then((res) => res || page(ctx, '404.html', { status: 404 }));
+}
+
 async function route(ctx) {
   const { request, url, config } = ctx;
   const path = url.pathname;
@@ -249,6 +259,8 @@ async function route(ctx) {
     if (/^\/u\/[^/]+\/?$/.test(path)) return withSecurityHeaders(await page(ctx, 'profile.html'), 'site', config);
     const known = PAGES[path.replace(/\/$/, '')];
     if (known) return withSecurityHeaders(await page(ctx, known[0]), known[1], config);
+    const docs = docsPage(ctx, path);
+    if (docs) return withSecurityHeaders(await docs, 'site', config);
     if (path === '/auth/hackclub') return withSecurityHeaders(hackclub.start(ctx), 'auth', config);
     if (path === '/auth/hackclub/callback') return withSecurityHeaders(await hackclub.callback(ctx), 'auth', config);
     if (path === '/auth/hackatime') return withSecurityHeaders(hackatime.start(ctx), 'auth', config);

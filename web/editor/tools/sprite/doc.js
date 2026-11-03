@@ -1,5 +1,5 @@
 // The image being edited: frames as straight RGBA buffers plus the .sprite
-// fields (frame size, origin, animations; docs/reference.md, "Sprites"), and
+// fields (frame size, origin, animations; docs/formats.md, "Sprites"), and
 // reading and writing those files. A plain image is one frame and needs no
 // .sprite file. Older projects named the file .sprite.json; it is still read,
 // and saving writes .sprite.

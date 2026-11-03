@@ -94,7 +94,7 @@ export function languageLabel(path, data) {
   return { text: 'Plain text', image: 'Image', audio: 'Audio', font: 'Font', binary: 'Binary' }[kind];
 }
 
-// Files made by Smitten's tools (see docs/reference.md).
+// Files made by Smitten's tools (see docs/formats.md).
 const ASSET_ICONS = [
   [/\.scene$/i, 'scene'],
   [/\.sprite$/i, 'image'],
