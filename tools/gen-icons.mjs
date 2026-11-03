@@ -35,6 +35,9 @@ const NAMES = {
   // Ready-made scripts
   footprints: 'footprints', walk: 'move', patrol: 'arrow-left-right', chase: 'crosshair', fly: 'send',
   coins: 'coins', spin: 'refresh-cw', bob: 'waves', hand: 'hand',
+  floatWin: 'picture-in-picture-2', dockLeft: 'panel-left', dockRight: 'panel-right', dockBottom: 'panel-bottom',
+  minus: 'minus', user: 'circle-user-round', logOut: 'log-out', contrast: 'contrast', layout: 'layout-dashboard',
+  menu: 'menu', chevronsUpDown: 'chevrons-up-down',
 };
 
 const res = await fetch(URL_);

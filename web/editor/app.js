@@ -125,6 +125,8 @@ function showHome() {
 function closeEditor() {
   saveAll();
   ed.runner?.destroy();
+  ed.dock?.dispose();
+  window.removeEventListener('resize', moveWorkspaceIndicator);
   ed = null;
 }
 
@@ -144,13 +146,18 @@ async function openProject(id) {
   migrateProject(project);
   ed = { project, workspaces: {}, ws: null, layouts: loadLayouts(), clipboard: [] };
 
-  // Top bar
+  // Top bar: home, the project (its menu holds what you can do with it),
+  // undo and redo; the workspaces; publishing, your account and Play.
+  ed.titleEl = h('span', { class: 'project-name' }, project.name);
+  const projectBtn = menuButton(h('span', {}, ed.titleEl, icon('chevronDown', 14)), mainMenu, { class: 'project-btn', title: 'Project, panels, settings and help' });
+  ed.undoBtn = h('button', { type: 'button', class: 'icon-btn', title: `Undo (${modKey}+Z)`, 'aria-label': 'Undo' }, icon('undo', 16));
+  ed.redoBtn = h('button', { type: 'button', class: 'icon-btn', title: `Redo (${modKey}+Shift+Z)`, 'aria-label': 'Redo' }, icon('redo', 16));
+  ed.undoBtn.addEventListener('click', () => sceneWs().doc?.undo());
+  ed.redoBtn.addEventListener('click', () => sceneWs().doc?.redo());
   const menus = h('div', { class: 'tb-left' },
-    h('a', { class: 'brand', href: '#', title: 'Home: all your games' }, h('span', { class: 'brand-mark' }, icon('heart', 16)), h('span', {}, 'Smitten')),
-    menuButton('Project', projectMenu), menuButton('Edit', editMenu), menuButton('View', viewMenu), menuButton('Help', helpMenu),
-    ed.titleEl = h('span', { class: 'project-title', title: 'Project settings' }, project.name));
-  ed.titleEl.addEventListener('click', () => openProjectSettings());
-  const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' });
+    h('a', { class: 'brand', href: '#', title: 'All your games', 'aria-label': 'Home: all your games' }, h('span', { class: 'brand-mark' }, icon('heart', 18))),
+    projectBtn, h('span', { class: 'tb-sep' }), ed.undoBtn, ed.redoBtn);
+  const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' }, ed.wsIndicator = h('span', { class: 'ws-indicator' }));
   WORKSPACES.forEach((w, i) => {
     const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
     b.addEventListener('click', () => switchWorkspace(w.id));
@@ -158,9 +165,13 @@ async function openProject(id) {
   });
   ed.playBtn = h('button', { type: 'button', class: 'play-btn primary', title: 'Play the game from its main scene (F5)' }, icon('play', 14), 'Play');
   ed.playBtn.addEventListener('click', () => play());
-  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop');
+  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
   ed.stopBtn.addEventListener('click', () => stop());
-  const titlebar = h('header', { class: 'titlebar' }, menus, switcher, h('div', { class: 'tb-right' }, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
+  const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
+  publishBtn.addEventListener('click', () => publish());
+  ed.accountSlot = h('div', { class: 'account-slot' });
+  const titlebar = h('header', { class: 'titlebar' }, menus, switcher,
+    h('div', { class: 'tb-right' }, publishBtn, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
 
   // Center: workspaces and the game view
   const area = h('div', { class: 'workspace-area' });
@@ -312,6 +323,19 @@ async function openProject(id) {
   if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
   window.addEventListener('beforeunload', saveAll);
   hydrateIcons(app);
+
+  // Undo and redo follow the open scene's history.
+  let watched = null;
+  const watchDoc = () => {
+    watched?.removeEventListener('change', updateUndoButtons);
+    watched = sceneWs().doc;
+    watched?.addEventListener('change', updateUndoButtons);
+    updateUndoButtons();
+  };
+  ed.workspaces.scene.addEventListener('activate', watchDoc);
+  watchDoc();
+  window.addEventListener('resize', moveWorkspaceIndicator);
+  requestAnimationFrame(moveWorkspaceIndicator);
 }
 
 let apiPromise = null;
@@ -352,10 +376,29 @@ function sceneWs() {
   return ed.workspaces.scene;
 }
 
-function menuButton(label, items) {
-  const b = h('button', { type: 'button', class: 'menubar-btn', 'aria-haspopup': 'menu' }, label);
-  b.addEventListener('click', () => showMenu(b, items()));
+function menuButton(label, items, attrs = {}) {
+  const b = h('button', { type: 'button', class: 'menubar-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', ...attrs }, label);
+  b.addEventListener('click', () => {
+    b.setAttribute('aria-expanded', 'true');
+    showMenu(b, items(), { onClose: () => b.setAttribute('aria-expanded', 'false') });
+  });
   return b;
+}
+
+/** Slides the workspace highlight under the active workspace's button. */
+function moveWorkspaceIndicator() {
+  const b = app.querySelector('.workspace-switch button[aria-pressed="true"]');
+  if (!b || !ed?.wsIndicator) return;
+  ed.wsIndicator.style.width = `${b.offsetWidth}px`;
+  ed.wsIndicator.style.transform = `translateX(${b.offsetLeft}px)`;
+}
+
+/** Undo and redo in the top bar follow the open scene's history. */
+function updateUndoButtons() {
+  if (!ed?.undoBtn) return;
+  const doc = ed.ws === 'scene' ? sceneWs().doc : null;
+  ed.undoBtn.disabled = !doc?.undoStack?.length;
+  ed.redoBtn.disabled = !doc?.redoStack?.length;
 }
 
 function switchWorkspace(id, { focus = true } = {}) {
@@ -364,6 +407,8 @@ function switchWorkspace(id, { focus = true } = {}) {
   ed.ws = id;
   for (const el of app.querySelectorAll('.workspace')) el.hidden = el.dataset.ws !== id;
   for (const b of app.querySelectorAll('.workspace-switch button')) b.setAttribute('aria-pressed', String(b.dataset.ws === id));
+  moveWorkspaceIndicator();
+  updateUndoButtons();
   ed.dock.setLayout(ed.layouts[id] || DEFAULT_LAYOUTS[id]);
   const ws = ed.workspaces[id];
   ws.show?.();
@@ -844,6 +889,7 @@ function runState(s) {
   if (s !== 'running' && s !== 'paused' && s !== 'loading') stopLive();
   const running = s === 'loading' || s === 'running' || s === 'paused';
   ed.stopBtn.disabled = !running;
+  ed.stopBtn.classList.toggle('running', running);
   ed.playBtn.classList.toggle('primary', !running);
   ed.playBtn.lastChild.textContent = running ? 'Restart' : 'Play';
   if (!running && s !== 'crashed') ed.gameView.hidden = true;
@@ -860,52 +906,28 @@ function missingModule(name) {
 // ---------------------------------------------------------------------------
 // Menus
 
-function projectMenu() {
+/** The project menu in the top bar: the project, panels, settings and help. */
+function mainMenu() {
+  const panel = (id, label) => ({ label, checked: ed.dock.isVisible(id), action: () => ed.dock.toggle(id) });
   return [
     { label: 'New scene…', icon: 'box', action: () => newScene() },
     { label: 'New script…', icon: 'code', action: () => newScript() },
     '-',
-    { label: 'Project settings…', icon: 'settings', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
+    { label: 'Project settings…', icon: 'sliders', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
     { label: 'Publish…', icon: 'publish', action: () => publish() },
     { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     '-',
-    { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
-  ];
-}
-
-function editMenu() {
-  const doc = ed.ws === 'scene' ? sceneWs().doc : null;
-  return [
-    { label: 'Undo', icon: 'undo', shortcut: `${modKey}+Z`, disabled: !doc?.undoStack.length, action: () => doc.undo() },
-    { label: 'Redo', icon: 'redo', shortcut: `${modKey}+Shift+Z`, disabled: !doc?.redoStack.length, action: () => doc.redo() },
-    '-',
-    { label: 'Add a piece…', icon: 'plus', shortcut: `${modKey}+A`, disabled: !doc, action: () => addNodeTo(ed.panels.tree.targetParent()) },
-    { label: 'Duplicate', icon: 'copy', shortcut: `${modKey}+D`, disabled: !doc?.selection.size, action: () => doc.select(doc.duplicate(doc.selected())) },
-    { label: 'Delete', icon: 'trash', shortcut: 'Delete', disabled: !doc?.selection.size, action: () => doc.remove(doc.selected()) },
-    '-',
-    { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
-    { label: 'Editor settings…', icon: 'sliders', action: () => openSettings({}) },
-  ];
-}
-
-function viewMenu() {
-  const panelItem = (id, label) => ({ label: `${ed.dock.isVisible(id) ? '✓ ' : '   '}${label}`, action: () => ed.dock.toggle(id) });
-  return [
     { heading: 'Panels' },
-    panelItem('scene', 'Scene'), panelItem('files', 'Files'), panelItem('inspector', 'Inspector'), panelItem('output', 'Output'),
+    panel('scene', 'Scene'), panel('files', 'Files'), panel('inspector', 'Inspector'), panel('output', 'Output'),
+    { label: 'Reset layout', icon: 'layout', action: () => resetLayout() },
     '-',
-    { label: 'Reset layout', icon: 'restart', action: () => resetLayout() },
-    '-',
-    { heading: 'Theme' },
-    ...['system', 'light', 'dark'].map((t) => ({ label: `${settings.get('theme') === t ? '✓ ' : '   '}${t[0].toUpperCase()}${t.slice(1)}`, action: () => settings.set('theme', t) })),
-  ];
-}
-
-function helpMenu() {
-  return [
+    { label: 'Editor settings…', icon: 'settings', action: () => openSettings({}) },
+    { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
     { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
+    '-',
+    { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
 }
 
