@@ -93,7 +93,19 @@ export function languageLabel(path, data) {
   return { text: 'Plain text', image: 'Image', audio: 'Audio', font: 'Font', binary: 'Binary' }[kind];
 }
 
+// Files made by Smitten's tools (see docs/reference.md).
+const ASSET_ICONS = [
+  [/\.sprite\.json$/i, 'image'],
+  [/\.tileset\.json$/i, 'grid'],
+  [/\.map\.json$/i, 'map'],
+  [/\.sfx\.json$/i, 'wave'],
+  [/\.song\.json$/i, 'music'],
+  [/(^|\/)smitten\.json$/i, 'heart'],
+];
+
 export function iconFor(path, data) {
+  const asset = ASSET_ICONS.find(([re]) => re.test(path));
+  if (asset) return asset[1];
   const lang = languageOf(path);
   if (lang) return 'code';
   return { text: 'file', image: 'image', audio: 'music', font: 'font', binary: 'binary' }[kindOf(path, data)];

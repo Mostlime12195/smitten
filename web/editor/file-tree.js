@@ -2,9 +2,40 @@
 // the app performs the actual file operations.
 
 import { h, icon } from './ui.js';
-import { iconFor, dirName } from './file-types.js';
+import { iconFor, dirName, kindOf, mimeOf } from './file-types.js';
 
-const INTERNAL_TYPE = 'application/x-lws-path';
+const INTERNAL_TYPE = 'application/x-smitten-path';
+
+// Object URLs for image thumbnails, per path; replaced when the data changes.
+const thumbs = new Map(); // path -> {data, url}
+function thumbnailUrl(path, data) {
+  const cached = thumbs.get(path);
+  if (cached?.data === data) return cached.url;
+  if (cached) URL.revokeObjectURL(cached.url);
+  const url = URL.createObjectURL(new Blob([data], { type: mimeOf(path) }));
+  thumbs.set(path, { data, url });
+  return url;
+}
+
+/**
+ * What dragging a file into code inserts: the code that loads it.
+ * sprites/hero.png -> smitten.sprite("sprites/hero")
+ */
+export function snippetFor(path) {
+  const strip = (re) => path.replace(re, '');
+  if (/\.sprite\.json$/i.test(path)) return `smitten.sprite("${strip(/\.sprite\.json$/i)}")`;
+  if (/\.tileset\.json$/i.test(path)) return `smitten.tileset("${strip(/\.tileset\.json$/i)}")`;
+  if (/\.map\.json$/i.test(path)) return `smitten.map("${strip(/\.map\.json$/i)}")`;
+  if (/\.sfx\.json$/i.test(path)) return `smitten.sfx("${strip(/\.sfx\.json$/i)}"):play()`;
+  if (/\.song\.json$/i.test(path)) return `smitten.song("${strip(/\.song\.json$/i)}"):play()`;
+  if (/\.png$/i.test(path)) return `smitten.sprite("${strip(/\.png$/i)}")`;
+  if (/\.lua$/i.test(path)) return `require("${strip(/(\/init)?\.lua$/i).replace(/\//g, '.')}")`;
+  const kind = kindOf(path);
+  if (kind === 'image') return `love.graphics.newImage("${path}")`;
+  if (kind === 'audio') return `love.audio.newSource("${path}", "static")`;
+  if (kind === 'font') return `love.graphics.newFont("${path}", 16)`;
+  return `"${path}"`;
+}
 
 export class FileTree {
   /**
@@ -147,7 +178,9 @@ export class FileTree {
       dataset: { path: node.path, kind: node.kind },
     },
     h('span', { class: 'twisty' }, isDir ? icon(open ? 'chevronDown' : 'chevronRight', 14) : null),
-    icon(isDir ? (open ? 'folderOpen' : 'folder') : iconFor(node.path, node.data), 15),
+    !isDir && node.data instanceof Uint8Array && kindOf(node.path, node.data) === 'image'
+      ? h('img', { class: 'thumb', src: thumbnailUrl(node.path, node.data), alt: '', draggable: 'false' })
+      : icon(isDir ? (open ? 'folderOpen' : 'folder') : iconFor(node.path, node.data), 15),
     h('span', { class: 'name' }, node.name),
     dirty ? h('span', { class: 'dirty-dot', title: 'Unsaved changes', 'aria-label': 'Unsaved changes' }) : null,
     h('button', { type: 'button', class: 'row-menu icon-btn', tabindex: '-1', title: 'More actions', 'aria-label': `Actions for ${node.name}` }, icon('more', 14)));
@@ -247,8 +280,9 @@ export class FileTree {
       const row = e.target.closest('.tree-row');
       if (!row) return;
       e.dataTransfer.setData(INTERNAL_TYPE, row.dataset.path);
-      e.dataTransfer.setData('text/plain', row.dataset.path);
-      e.dataTransfer.effectAllowed = 'move';
+      // Dropped into the code editor, a file becomes the code that loads it.
+      e.dataTransfer.setData('text/plain', row.dataset.kind === 'file' ? snippetFor(row.dataset.path) : row.dataset.path);
+      e.dataTransfer.effectAllowed = 'copyMove';
       row.classList.add('dragging');
     });
     root.addEventListener('dragend', (e) => {

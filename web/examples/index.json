@@ -1,6 +1,7 @@
 [
+  {"id": "platformer", "name": "Platformer", "description": "Run, jump and collect coins: sprites, a tile map, sound effects, music, scenes and input, all made in Smitten.", "files": ["conf.lua", "entities/coin.lua", "entities/goal.lua", "entities/player.lua", "main.lua", "maps/level1.map.json", "music/theme.song.json", "scenes/game.lua", "scenes/title.lua", "sfx/coin.sfx.json", "sfx/hurt.sfx.json", "sfx/jump.sfx.json", "sfx/kick.sfx.json", "sfx/snare.sfx.json", "sfx/win.sfx.json", "smitten.json", "sprites/coin.png", "sprites/coin.sprite.json", "sprites/player.png", "sprites/player.sprite.json", "tiles/terrain.png", "tiles/terrain.tileset.json"]},
   {"id": "hello", "name": "Hello", "description": "The classic: a circling heart, mouse clicks and text.", "files": ["main.lua"]},
-  {"id": "platformer", "name": "Platformer", "description": "Run, jump and collect coins. Keyboard input, tile collisions and a scrolling camera.", "files": ["main.lua", "player.lua", "conf.lua"]},
+  {"id": "love-platformer", "name": "Platformer (plain LÖVE)", "description": "The same kind of game with only the love API: hand-written tiles, input and collisions, no smitten module.", "files": ["main.lua", "player.lua", "conf.lua"]},
   {"id": "particles", "name": "Particles", "description": "Fire, magic and snow from a ParticleSystem with a texture generated at runtime.", "files": ["main.lua", "conf.lua"]},
   {"id": "shader", "name": "Shaders", "description": "A plasma pixel shader and a ripple + pixelate post-processing effect.", "files": ["main.lua", "conf.lua"]},
   {"id": "physics", "name": "Physics", "description": "Box2D world with falling boxes, a spinning paddle and mouse dragging.", "files": ["main.lua", "conf.lua"]},

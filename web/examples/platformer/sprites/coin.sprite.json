@@ -1,0 +1,23 @@
+{
+  "format": "smitten.sprite",
+  "version": 1,
+  "image": "coin.png",
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "origin": [
+    8,
+    8
+  ],
+  "animations": {
+    "spin": {
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8,
+      "loop": true
+    }
+  }
+}

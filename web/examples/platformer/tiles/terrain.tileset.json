@@ -1,0 +1,50 @@
+{
+  "format": "smitten.tileset",
+  "version": 1,
+  "image": "terrain.png",
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "tiles": {
+    "0": {
+      "solid": true
+    },
+    "1": {
+      "solid": true
+    },
+    "2": {
+      "solid": true
+    },
+    "3": {
+      "solid": true
+    },
+    "4": {
+      "name": "spikes",
+      "damage": 1
+    },
+    "5": {
+      "name": "flag"
+    },
+    "6": {
+      "name": "flag"
+    },
+    "10": {
+      "solid": true
+    },
+    "11": {
+      "solid": true
+    },
+    "12": {
+      "name": "water",
+      "damage": 1
+    },
+    "13": {
+      "solid": true
+    },
+    "14": {
+      "solid": true
+    },
+    "15": {
+      "solid": true
+    }
+  }
+}

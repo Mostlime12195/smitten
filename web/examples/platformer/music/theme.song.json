@@ -1,0 +1,707 @@
+{
+  "format": "smitten.song",
+  "version": 1,
+  "bpm": 140,
+  "stepsPerBeat": 4,
+  "patternLength": 32,
+  "loop": true,
+  "loopStart": 0,
+  "channels": [
+    {
+      "name": "Lead",
+      "instrument": 0,
+      "volume": 0.55
+    },
+    {
+      "name": "Bass",
+      "instrument": 1,
+      "volume": 0.7
+    },
+    {
+      "name": "Kick",
+      "instrument": 2,
+      "volume": 0.8
+    },
+    {
+      "name": "Snare",
+      "instrument": 3,
+      "volume": 0.5
+    }
+  ],
+  "instruments": [
+    {
+      "name": "Square lead",
+      "type": "synth",
+      "wave": "square",
+      "volume": 0.45,
+      "attack": 0.005,
+      "decay": 0.08,
+      "sustain": 0.55,
+      "release": 0.06,
+      "duty": 0.25,
+      "vibratoDepth": 0.15,
+      "vibratoSpeed": 5.5,
+      "lowpass": 0.85
+    },
+    {
+      "name": "Triangle bass",
+      "type": "synth",
+      "wave": "triangle",
+      "volume": 0.7,
+      "attack": 0.003,
+      "decay": 0.05,
+      "sustain": 0.8,
+      "release": 0.03,
+      "duty": 0.5,
+      "vibratoDepth": 0,
+      "vibratoSpeed": 5,
+      "lowpass": 1
+    },
+    {
+      "name": "Kick",
+      "type": "sfx",
+      "sfx": "../sfx/kick.sfx.json",
+      "pitched": false
+    },
+    {
+      "name": "Snare",
+      "type": "sfx",
+      "sfx": "../sfx/snare.sfx.json",
+      "pitched": false
+    }
+  ],
+  "patterns": [
+    {
+      "name": "A",
+      "notes": [
+        {
+          "channel": 0,
+          "step": 0,
+          "length": 2,
+          "note": 72,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 2,
+          "length": 2,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 4,
+          "length": 2,
+          "note": 79,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 6,
+          "length": 2,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 8,
+          "length": 3,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 12,
+          "length": 2,
+          "note": 79,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 14,
+          "length": 2,
+          "note": 83,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 16,
+          "length": 3,
+          "note": 81,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 20,
+          "length": 2,
+          "note": 77,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 22,
+          "length": 2,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 24,
+          "length": 4,
+          "note": 74,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 28,
+          "length": 4,
+          "note": 79,
+          "volume": 0.8
+        },
+        {
+          "channel": 1,
+          "step": 0,
+          "length": 2,
+          "note": 36,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 2,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 4,
+          "length": 2,
+          "note": 43,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 6,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 8,
+          "length": 2,
+          "note": 40,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 10,
+          "length": 2,
+          "note": 52,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 12,
+          "length": 2,
+          "note": 47,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 14,
+          "length": 2,
+          "note": 52,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 16,
+          "length": 2,
+          "note": 41,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 18,
+          "length": 2,
+          "note": 53,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 20,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 22,
+          "length": 2,
+          "note": 53,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 24,
+          "length": 2,
+          "note": 43,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 26,
+          "length": 2,
+          "note": 55,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 28,
+          "length": 2,
+          "note": 50,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 30,
+          "length": 2,
+          "note": 55,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 0,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 4,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 8,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 12,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 16,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 20,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 24,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 28,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 2,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 10,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 18,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 26,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 6,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 14,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 22,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 30,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "notes": [
+        {
+          "channel": 0,
+          "step": 0,
+          "length": 2,
+          "note": 81,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 2,
+          "length": 2,
+          "note": 79,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 4,
+          "length": 2,
+          "note": 77,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 6,
+          "length": 2,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 8,
+          "length": 4,
+          "note": 77,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 12,
+          "length": 2,
+          "note": 72,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 14,
+          "length": 2,
+          "note": 74,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 16,
+          "length": 4,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 20,
+          "length": 2,
+          "note": 72,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 22,
+          "length": 2,
+          "note": 76,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 24,
+          "length": 6,
+          "note": 74,
+          "volume": 0.8
+        },
+        {
+          "channel": 0,
+          "step": 30,
+          "length": 2,
+          "note": 71,
+          "volume": 0.8
+        },
+        {
+          "channel": 1,
+          "step": 0,
+          "length": 2,
+          "note": 45,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 2,
+          "length": 2,
+          "note": 57,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 4,
+          "length": 2,
+          "note": 52,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 6,
+          "length": 2,
+          "note": 57,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 8,
+          "length": 2,
+          "note": 41,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 10,
+          "length": 2,
+          "note": 53,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 12,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 14,
+          "length": 2,
+          "note": 53,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 16,
+          "length": 2,
+          "note": 36,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 18,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 20,
+          "length": 2,
+          "note": 43,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 22,
+          "length": 2,
+          "note": 48,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 24,
+          "length": 2,
+          "note": 43,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 26,
+          "length": 2,
+          "note": 55,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 28,
+          "length": 2,
+          "note": 50,
+          "volume": 1
+        },
+        {
+          "channel": 1,
+          "step": 30,
+          "length": 2,
+          "note": 55,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 0,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 4,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 8,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 12,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 16,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 20,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 24,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 2,
+          "step": 28,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 2,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 10,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 18,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 26,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 6,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 14,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 22,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        },
+        {
+          "channel": 3,
+          "step": 30,
+          "length": 1,
+          "note": 60,
+          "volume": 1
+        }
+      ]
+    }
+  ],
+  "order": [
+    0,
+    1,
+    0,
+    1
+  ]
+}

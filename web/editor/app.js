@@ -15,10 +15,12 @@ import { Runner, openPopup, showInPopup } from './runner.js';
 import { FileTree, readDataTransfer } from './file-tree.js';
 import { initLayout } from './layout.js';
 import { BLANK, loadExampleIndex, loadTemplateFiles } from './templates.js';
-import { buildLove, buildWebExport, unzipToProjectFiles, slugify } from './exporter.js';
+import { buildLove, buildWebExport, unzipToProjectFiles, slugify, zipFiles } from './exporter.js';
+import { smittenOnlyFeatures } from './portability.js';
 import { createShareLink, readShareHash } from './share.js';
 import { checkProject } from './compat.js';
 import { ToolHost } from './tool-host.js';
+import { referenceUpdates, companionsOf } from './references.js';
 
 const $ = (sel) => document.querySelector(sel);
 const LS = {
@@ -552,8 +554,17 @@ async function writeProjectFile(path, data, source = null) {
   tree.render();
 }
 
+/** Ask the browser not to evict projects (once, after the first save). */
+let persistRequested = false;
+function requestPersistentStorage() {
+  if (persistRequested) return;
+  persistRequested = true;
+  navigator.storage?.persist?.().catch(() => {});
+}
+
 async function saveAll({ quiet = false } = {}) {
   const paths = [...state.dirty];
+  if (paths.length) requestPersistentStorage();
   for (const p of paths) await saveFile(p);
   if (paths.length) {
     renderTabs();
@@ -761,8 +772,17 @@ async function doMove(from, to) {
       if ((p === from || p.startsWith(`${from}/`)) && tools.isDirty(p)) await saveFile(p);
     }
     const moved = await store.renameEntry(state.project.id, from, to);
+    // A sprite's .sprite.json is found by its image's name, so it moves along.
+    const isFile = (p) => state.entries.get(p)?.kind === 'file';
+    if (isFile(from) && /\.png$/i.test(to)) {
+      for (const companion of companionsOf(from, isFile)) {
+        const target = `${to.replace(/\.png$/i, '')}.sprite.json`;
+        if (!state.entries.has(target)) moved.push(...await store.renameEntry(state.project.id, companion, target));
+      }
+    }
     remapPaths(moved);
     await refreshEntries();
+    await updateReferences(moved);
     if (state.active) {
       tree.setActive(state.active);
       $('#status-lang').textContent = languageLabel(state.active, state.entries.get(state.active)?.data);
@@ -773,6 +793,30 @@ async function doMove(from, to) {
   } catch (e) {
     toast(e.message, { type: 'error' });
   }
+}
+
+/** After files moved: fix paths in Smitten's JSON files, and offer to fix code that loads them. */
+async function updateReferences(moves) {
+  if (!moves.length) return;
+  const files = {};
+  for (const e of state.entries.values()) if (e.kind === 'file') files[e.path] = e.data;
+  const { json, code } = referenceUpdates(files, moves);
+  for (const [path, text] of Object.entries(json)) await writeProjectFile(path, text);
+  const skipped = Object.keys(code).filter((p) => state.dirty.has(p));
+  const paths = Object.keys(code).filter((p) => !state.dirty.has(p));
+  const count = paths.reduce((n, p) => n + code[p].count, 0);
+  if (count) {
+    const ok = await confirmDialog({
+      title: 'Update code?',
+      message: `${count} place${count === 1 ? '' : 's'} in ${paths.length === 1 ? paths[0] : `${paths.length} files`} load${count === 1 ? 's' : ''} the old path. Update ${count === 1 ? 'it' : 'them'} to the new one?`,
+      okLabel: 'Update', cancelLabel: 'Leave as is',
+    });
+    if (ok) {
+      for (const p of paths) await writeProjectFile(p, code[p].text);
+      flashStatus(`Updated ${count} reference${count === 1 ? '' : 's'}`);
+    }
+  }
+  if (skipped.length) toast(`${skipped.join(', ')} ${skipped.length === 1 ? 'has' : 'have'} unsaved changes and may still use the old path.`, { timeout: 6000 });
 }
 
 async function deleteEntry(path, kind) {
@@ -1063,6 +1107,25 @@ function toggleGameFullscreen() {
 async function exportLove() {
   try {
     const files = await collectFiles();
+    const uses = await smittenOnlyFeatures(files);
+    if (uses.length) {
+      const list = h('ul', { class: 'dialog-list' }, ...uses.slice(0, 6).map((u) => h('li', {}, `${u.path}:${u.line}: ${u.feature}`)),
+        uses.length > 6 ? h('li', {}, `and ${uses.length - 6} more`) : null);
+      const res = await openDialog({
+        title: 'This game needs Smitten',
+        body: h('div', {},
+          h('p', { class: 'dialog-message' }, 'A .love file runs in desktop LÖVE, which doesn’t have the smitten module or Smitten’s Lua syntax, so this game won’t start there:'),
+          list,
+          h('p', { class: 'dialog-message' }, 'Export it for the web to share it, or download the project to keep a copy.')),
+        actions: [
+          { label: 'Download .love anyway', value: 'love', ghost: true, left: true },
+          { label: 'Cancel', value: null },
+          { label: 'Export for web', value: 'web', primary: true, submit: true },
+        ],
+      });
+      if (res === 'web') return exportWeb();
+      if (res !== 'love') return;
+    }
     const bytes = await buildLove(files);
     downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}.love`);
     warnCompat(files);
@@ -1085,6 +1148,16 @@ async function exportWeb() {
   }
 }
 
+async function exportProject() {
+  try {
+    const bytes = await zipFiles(await collectFiles());
+    downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}.zip`);
+    toast(`Downloaded ${slugify(state.project.name)}.zip (${formatBytes(bytes.length)}). Open it again with Projects › Open .zip.`, { type: 'success', timeout: 6000 });
+  } catch (e) {
+    toast(`Download failed: ${e.message}`, { type: 'error' });
+  }
+}
+
 async function warnCompat(files) {
   if (!settings.get('compatCheck')) return;
   consolePanel.separator(`Web compatibility · ${new Date().toLocaleTimeString()}`);
@@ -1101,10 +1174,10 @@ async function share() {
       title: 'Can’t create a share link',
       body: h('p', { class: 'dialog-message' }, e.message),
       actions: [
-        { label: 'Export .love', value: 'love', ghost: true, left: true },
+        { label: 'Export for web', value: 'love', ghost: true, left: true },
         { label: 'OK', value: null, primary: true, submit: true },
       ],
-    }).then((r) => r === 'love' && exportLove());
+    }).then((r) => r === 'love' && exportWeb());
     return;
   }
   let copied = false;
@@ -1134,8 +1207,9 @@ async function share() {
 function showExportMenu() {
   showMenu($('#btn-export'), [
     { heading: 'Export' },
-    { label: 'Download .love', icon: 'package', action: exportLove },
     { label: 'Export for web (.zip for itch.io)', icon: 'globe', action: exportWeb },
+    { label: 'Download project (.zip)', icon: 'archive', action: exportProject },
+    { label: 'Download .love (desktop LÖVE)', icon: 'package', action: exportLove },
     '-',
     { label: 'Open game in new window', icon: 'popout', action: popOutGame },
     { label: 'Copy share link', icon: 'link', action: share },
