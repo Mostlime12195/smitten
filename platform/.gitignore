@@ -5,3 +5,7 @@ data/
 .env
 # Copied from the engine build by scripts/copy-player.sh
 public/player/
+
+# Local settings (copy deploy/env.example to .env)
+.env
+.dev.vars
