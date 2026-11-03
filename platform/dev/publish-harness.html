@@ -42,6 +42,15 @@
   </section>
 
   <section>
+    <h2>Account <span style="font-weight: 400; color: var(--fg-muted)">(web/editor/account.js)</span></h2>
+    <div class="row">
+      <button class="btn" id="sign-in">Sign in…</button>
+      <button class="btn ghost" id="sign-out">Sign out</button>
+    </div>
+    <pre id="account">Not signed in.</pre>
+  </section>
+
+  <section>
     <h2>Project</h2>
     <div class="row">
       <select class="select" id="source">
@@ -65,7 +74,7 @@
   </section>
 
   <section>
-    <h2>This browser's edit tokens <span style="font-weight: 400; color: var(--fg-muted)">(localStorage “smitten-editor.published”)</span></h2>
+    <h2>Published from this browser <span style="font-weight: 400; color: var(--fg-muted)">(localStorage “smitten-editor.published”)</span></h2>
     <div class="row"><button class="btn ghost" id="forget">Forget all</button></div>
     <pre id="tokens"></pre>
   </section>
@@ -79,6 +88,8 @@
 
 <script type="module">
 import { publishDialog, fetchRemix, publishedGames, rememberRemix } from '../../web/editor/publish.js';
+import { account, signIn, signOut, onChange } from '../../web/editor/account.js';
+import { settings } from '../../web/editor/settings.js';
 
 const $ = (s) => document.querySelector(s);
 const show = (el, value) => { $(el).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
@@ -165,13 +176,23 @@ const harness = {
   },
   publishedGames,
   rememberRemix,
+  account: () => account(harness.platformUrl()),
+  signIn: () => signIn({ platformUrl: harness.platformUrl() }),
+  signOut: () => signOut({ platformUrl: harness.platformUrl() }),
 };
 window.harness = harness;
 
 function showTokens() {
   const all = publishedGames();
-  show('#tokens', Object.keys(all).length ? Object.fromEntries(Object.entries(all).map(([id, e]) => [id, { ...e, token: `${e.token.slice(0, 6)}…` }])) : 'None.');
+  show('#tokens', Object.keys(all).length ? Object.fromEntries(Object.entries(all).map(([id, e]) => [id, e.token ? { ...e, token: `${e.token.slice(0, 6)}…` } : e])) : 'None.');
 }
+
+function showAccount() {
+  const user = account(harness.platformUrl());
+  show('#account', user ? user : 'Not signed in.');
+  showTokens();
+}
+onChange(showAccount);
 
 const run = (fn) => async () => {
   try {
@@ -186,7 +207,17 @@ $('#publish').addEventListener('click', run(() => harness.publish()));
 $('#remix').addEventListener('click', run(() => harness.fetchRemix()));
 $('#open-remix').addEventListener('click', run(() => harness.openRemix()));
 $('#forget').addEventListener('click', () => { localStorage.removeItem('smitten-editor.published'); showTokens(); });
-$('#platform').addEventListener('change', () => { $('#open-site').href = `${harness.platformUrl()}/`; });
+$('#platform').addEventListener('change', () => {
+  $('#open-site').href = `${harness.platformUrl()}/`;
+  // account.js reads the editor's platformUrl setting.
+  settings.set('platformUrl', harness.platformUrl());
+  showAccount();
+});
+$('#sign-in').addEventListener('click', () => { signIn({ platformUrl: harness.platformUrl() }).then(showAccount).catch((e) => show('#result', `Error: ${e.message}`)); });
+$('#sign-out').addEventListener('click', run(() => signOut({ platformUrl: harness.platformUrl() })));
+$('#platform').value = settings.get('platformUrl');
+$('#open-site').href = `${harness.platformUrl()}/`;
+showAccount();
 
 showTokens();
 harness.load().catch((e) => show('#project-info', `Error: ${e.message}`));
