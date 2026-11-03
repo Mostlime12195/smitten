@@ -8,7 +8,7 @@ const INTERNAL_TYPE = 'application/x-smitten-path';
 
 // Object URLs for image thumbnails, per path; replaced when the data changes.
 const thumbs = new Map(); // path -> {data, url}
-function thumbnailUrl(path, data) {
+export function thumbnailUrl(path, data) {
   const cached = thumbs.get(path);
   if (cached?.data === data) return cached.url;
   if (cached) URL.revokeObjectURL(cached.url);

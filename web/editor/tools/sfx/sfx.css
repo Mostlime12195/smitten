@@ -190,7 +190,7 @@
 }
 .sfx-preset .icon { color: var(--fg-muted); }
 .sfx-preset:hover { background: var(--hover); }
-.sfx-preset:hover .icon { color: var(--brand); }
+.sfx-preset:hover .icon { color: var(--accent-text); }
 .sfx-preset:active { background: var(--active); }
 
 .sfx-main {
@@ -209,7 +209,7 @@
   place-items: center;
   border: 0;
   border-radius: var(--radius-lg);
-  background: var(--brand);
+  background: var(--accent);
   color: #fff;
   cursor: pointer;
   transition: filter .12s, transform .06s;

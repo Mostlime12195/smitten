@@ -34,10 +34,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+class Server(http.server.ThreadingHTTPServer):
+    # The editor loads dozens of modules at once; the default backlog of 5
+    # makes the OS reset some of those connections.
+    request_queue_size = 128
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
     handler = functools.partial(Handler, directory=str(DIST))
-    with http.server.ThreadingHTTPServer(("", port), handler) as httpd:
+    with Server(("", port), handler) as httpd:
         print(f"Serving {DIST} at http://localhost:{port}/")
         httpd.serve_forever()
 

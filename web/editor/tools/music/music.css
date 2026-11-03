@@ -200,7 +200,7 @@
 .mus-slot.drop-after::after { right: -4px; }
 .mus-slot-num { font: 600 11px var(--font-mono); color: var(--fg-muted); }
 .mus-slot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.mus-slot-flag { color: var(--brand); display: inline-flex; margin-right: -2px; }
+.mus-slot-flag { color: var(--accent-text); display: inline-flex; margin-right: -2px; }
 .mus-slot-flag svg { fill: currentColor; }
 .mus-slot-add {
   display: grid;

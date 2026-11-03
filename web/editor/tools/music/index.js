@@ -25,7 +25,7 @@ const EDGE = 6; // px at a note's right end that resize it
 const ZOOM_X = [8, 64];
 const ZOOM_Y = [7, 24];
 
-const CHANNEL_COLORS = ['#e74a99', '#4d8eff', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ef4444', '#84cc16'];
+const CHANNEL_COLORS = ['#4d8eff', '#e74a99', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ef4444', '#84cc16'];
 const channelColor = (i) => CHANNEL_COLORS[i % CHANNEL_COLORS.length];
 const isBlack = (midi) => [1, 3, 6, 8, 10].includes(((midi % 12) + 12) % 12);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));

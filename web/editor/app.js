@@ -17,6 +17,11 @@ import { initLayout } from './layout.js';
 import { BLANK, loadExampleIndex, loadTemplateFiles } from './templates.js';
 import { buildLove, buildWebExport, unzipToProjectFiles, slugify, zipFiles } from './exporter.js';
 import { smittenOnlyFeatures } from './portability.js';
+import { AssetPanel, VIEWS } from './asset-panel.js';
+import { renderHome } from './home.js';
+import { openProjectSettings } from './project-settings.js';
+import { parseManifest, manifestText } from './project.js';
+import { SMITTEN, SMITTEN_NAMESPACES, SMITTEN_TYPES } from './smitten-docs.js';
 import { createShareLink, readShareHash } from './share.js';
 import { checkProject } from './compat.js';
 import { ToolHost } from './tool-host.js';
@@ -50,6 +55,7 @@ let runner;
 let consolePanel;
 let tree;
 let tools;
+let assets;
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -108,7 +114,22 @@ async function init() {
     openFile: (path) => openFile(path, { focus: true }),
   });
 
+  assets = new AssetPanel($('#asset-view'), {
+    entries: () => state.entries,
+    active: () => state.active,
+    isDirty: (p) => state.dirty.has(p),
+    open: (p) => openFile(p, { focus: true }),
+    menu: (p, point) => showTreeMenu(p, 'file', point),
+    create: (label) => createAsset(label),
+    importFiles: () => importTarget('files', ''),
+    synth: () => tools.createHost('').synth(),
+    toast: (m) => toast(m, { type: 'error' }),
+  });
+
   wireUi();
+  setView(LS.get('smitten-editor.view', 'files'));
+  setConsoleCollapsed(LS.get('smitten-editor.consoleCollapsed', false));
+  setGamePanelVisible(LS.get('smitten-editor.gamePanel', true));
   loadApi();
 
   editor = await createEditor($('#editor-host'), {
@@ -182,11 +203,11 @@ async function openProject(id) {
   await refreshEntries();
 
   const tabs = (project.tabs || []).filter((p) => state.entries.get(p)?.kind === 'file');
-  if (!tabs.length && state.entries.has('main.lua')) tabs.push('main.lua');
   state.tabs = tabs;
-  const active = tabs.includes(project.active) ? project.active : tabs[0];
+  // New projects (and ones last left on Home) open on the Home tab.
+  const active = tabs.includes(project.active) ? project.active : null;
   if (active) await openFile(active, { persist: false });
-  else showEmptyEditor();
+  else showHome();
   renderTabs();
   consolePanel.separator(`Opened ${project.name}`);
 }
@@ -201,6 +222,19 @@ async function refreshEntries() {
     h('span', {}, `${files.length} file${files.length === 1 ? '' : 's'}`),
     h('span', {}, formatBytes(size)),
   );
+  onProjectFilesChanged();
+}
+
+/** Keep everything that summarizes the project's files up to date. */
+function onProjectFilesChanged() {
+  assets?.refresh();
+  const [w, hh] = manifest().resolution;
+  $('#status-resolution').textContent = `${w} × ${hh}`;
+  if (!state.active && state.project) renderHomeView();
+}
+
+function manifest() {
+  return parseManifest(state.entries.get('smitten.json')?.data);
 }
 
 let persistTimer = 0;
@@ -393,7 +427,8 @@ async function openFile(path, { line, focus = false, persist = true, asText = fa
     state.tabs.splice(i < 0 ? state.tabs.length : i + 1, 0, path);
   }
   state.active = path;
-  $('#editor-empty').hidden = true;
+  $('#home-view').hidden = true;
+  rememberRecent(path);
 
   if (asText && tools.has(path)) {
     if (tools.isDirty(path)) await saveFile(path);
@@ -422,10 +457,12 @@ async function openFile(path, { line, focus = false, persist = true, asText = fa
   $('#status-lang').textContent = tools.has(path) ? tools.toolFor(path).label : languageLabel(path, entry.data);
   tree.setActive(path);
   renderTabs();
+  assets.refresh();
   if (persist) persistTabs();
 }
 
 function renderTabs() {
+  $('#tab-home').setAttribute('aria-selected', String(!state.active));
   const host = $('#tabs');
   host.replaceChildren(...state.tabs.map((path) => {
     const entry = state.entries.get(path);
@@ -487,15 +524,65 @@ async function closeTab(path) {
 }
 
 function showEmptyEditor() {
+  showHome();
+}
+
+/** The Home tab: the project overview, shown when no file is selected. */
+function showHome() {
   state.active = null;
   editor?.hide();
   tools?.hide();
   hidePreview();
-  $('#editor-empty').hidden = false;
+  $('#home-view').hidden = false;
   $('#status-cursor').textContent = '';
   $('#status-lang').textContent = '';
   tree.setActive(null);
+  renderTabs();
+  renderHomeView();
+  assets?.refresh();
   persistTabs();
+}
+
+function projectFlags() {
+  return state.project?.flags || {};
+}
+
+async function setProjectFlag(name, value) {
+  if (!state.project || projectFlags()[name] === value) return;
+  state.project.flags = { ...projectFlags(), [name]: value };
+  await store.updateProject(state.project.id, { flags: state.project.flags }).catch(() => {});
+  if (!state.active) renderHomeView();
+}
+
+let recentTimer = 0;
+function rememberRecent(path) {
+  if (!state.project) return;
+  const recent = [path, ...(state.project.recent || []).filter((p) => p !== path)].slice(0, 12);
+  state.project.recent = recent;
+  clearTimeout(recentTimer);
+  const id = state.project.id;
+  recentTimer = setTimeout(() => store.updateProject(id, { recent }).catch(() => {}), 500);
+}
+
+function renderHomeView() {
+  if (!state.project) return;
+  renderHome($('#home-view'), {
+    project: state.project,
+    manifest: manifest(),
+    entries: state.entries,
+    recent: state.project.recent || [],
+    flags: projectFlags(),
+    run: () => run(),
+    share,
+    open: (p) => openFile(p, { focus: true }),
+    create: (label) => createAsset(label),
+    projectSettings: editProjectSettings,
+    openProjects: openProjectsDialog,
+    showApi: showSmittenApi,
+    showShortcuts: () => showSettings('shortcuts'),
+    setFlag: setProjectFlag,
+    showView: (v) => { setView(v); setSidebarVisible(true); },
+  });
 }
 
 let autoSaveTimer = 0;
@@ -533,6 +620,7 @@ async function saveFile(path) {
   state.saved.set(path, text);
   state.dirty.delete(path);
   tools.changed(path);
+  onProjectFilesChanged();
   return true;
 }
 
@@ -552,6 +640,7 @@ async function writeProjectFile(path, data, source = null) {
   }
   tools.changed(path, source);
   tree.render();
+  if (!isNew) onProjectFilesChanged();
 }
 
 /** Ask the browser not to evict projects (once, after the first save). */
@@ -670,8 +759,9 @@ function validatePath(path, { allowExisting = null } = {}) {
 
 const joinPath = (dir, name) => (dir ? `${dir}/${name}` : name);
 
-async function newFile(dir = '') {
-  const defaultName = state.entries.has(joinPath(dir, 'untitled.lua')) ? '' : 'untitled.lua';
+async function newFile(dir = '', suggested = 'untitled.lua') {
+  let defaultName = suggested;
+  for (let n = 2; state.entries.has(joinPath(dir, defaultName)); n++) defaultName = suggested.replace(/(\.\w+)$/, `${n}$1`);
   const name = await promptDialog({
     title: 'New file', label: dir ? `In ${dir}/` : 'File name (use / for folders)', value: defaultName, placeholder: 'player.lua', okLabel: 'Create',
     selectBase: true, validate: (v) => validatePath(store.normalizePath(joinPath(dir, v))),
@@ -707,6 +797,17 @@ async function newAsset(asset, dir = '') {
   for (const p of Object.keys(files)) tools.changed(p);
   if (folder) tree.toggle(folder, true);
   await openFile(path, { focus: true });
+}
+
+/** Make something new from a view's or Home's "+" (label: 'script' or a tool's newAssets label). */
+async function createAsset(label) {
+  const view = { script: 'code', Sprite: 'art', Tileset: 'maps', Map: 'maps', 'Sound effect': 'sounds', Song: 'music' }[label];
+  const asset = tools.newAssets.find((a) => a.label === label);
+  if (label === 'script') await newFile('', 'script.lua');
+  else if (asset) await newAsset(asset, '');
+  else await newFile('');
+  // Show the new file where it belongs, unless the full file list is open.
+  if (view && state.view !== 'files') setView(view);
 }
 
 function showNewMenu(anchor) {
@@ -1018,6 +1119,7 @@ async function run({ focus = settings.get('focusGameOnRun') } = {}) {
     toast('Add a main.lua to run the game.', { type: 'error' });
     return;
   }
+  if ($('#app').classList.contains('right-hidden')) setGamePanelVisible(true);
   if (settings.get('clearConsoleOnRun')) consolePanel.clear();
   consolePanel.separator(`Run · ${new Date().toLocaleTimeString()}`);
   state.errors.clear();
@@ -1030,6 +1132,7 @@ async function run({ focus = settings.get('focusGameOnRun') } = {}) {
   if (settings.get('scaleMode') !== 'fit') query.scale = settings.get('scaleMode');
   if (!settings.get('jit')) query.jit = '0';
   runner.run({ files }, { focus, query });
+  setProjectFlag('played', true);
   if (settings.get('compatCheck')) reportCompat(files);
   else setProblems([]);
 }
@@ -1143,6 +1246,7 @@ async function exportWeb() {
     downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}-web.zip`);
     warnCompat(files);
     toast(`Exported ${slugify(state.project.name)}-web.zip (${formatBytes(bytes.length)}). Upload it to itch.io as an HTML game.`, { type: 'success', timeout: 6000 });
+    setProjectFlag('shared', true);
   } catch (e) {
     toast(`Web export failed: ${e.message}`, { type: 'error' });
   }
@@ -1180,6 +1284,7 @@ async function share() {
     }).then((r) => r === 'love' && exportWeb());
     return;
   }
+  setProjectFlag('shared', true);
   let copied = false;
   try {
     await navigator.clipboard.writeText(link.url);
@@ -1238,12 +1343,14 @@ const alt = isMac ? '⌥' : 'Alt';
 function commandList() {
   const m = modKey;
   return [
-    ['Run', [
-      { id: 'run', label: 'Run game', keys: [['F5'], [m, 'Enter']], icon: 'play', run: () => run() },
+    ['Play', [
+      { id: 'run', label: 'Play game', keys: [['F5'], [m, 'Enter']], icon: 'play', run: () => run() },
       { id: 'stop', label: 'Stop game', keys: [['Shift', 'F5']], icon: 'stop', run: stop },
       { id: 'pause', label: 'Pause or resume game', keys: [['F8']], icon: 'pause', run: togglePause },
       { id: 'autorun', label: () => `${settings.get('autorun') ? 'Turn off' : 'Turn on'} run after saving`, icon: 'zap', run: () => toggleSetting('autorun', 'Run after saving') },
       { id: 'fullscreen', label: 'Game fullscreen', icon: 'maximize', run: toggleGameFullscreen },
+      { id: 'gameFocus', label: 'Focus on the game', keys: [[m, 'Shift', 'F']], icon: 'expand', run: () => setGameFocus(!$('#app').classList.contains('game-focus')) },
+      { id: 'pixelPerfect', label: () => `${settings.get('scaleMode') === 'integer' ? 'Turn off' : 'Turn on'} pixel-perfect scaling`, icon: 'grid', run: togglePixelPerfect },
       { id: 'popout', label: 'Open game in a new window', icon: 'popout', run: popOutGame },
       { id: 'compat', label: 'Check web compatibility', icon: 'alert', run: async () => { await saveAll({ quiet: true }); consolePanel.separator('Web compatibility'); const n = await reportCompat(await collectFiles()); if (!(state.problems || []).length) flashStatus('No web compatibility issues'); else if (n) showProblems(); } },
     ]],
@@ -1259,8 +1366,18 @@ function commandList() {
       { id: 'prevTab', label: 'Previous tab', keys: [[alt, '[']], run: () => cycleTab(-1) },
       { id: 'import', label: 'Import files', icon: 'upload', run: () => importTarget('files', '') },
     ]],
+    ['Create', [
+      { id: 'newScript', label: 'New script', icon: 'code', run: () => createAsset('script') },
+      { id: 'newSprite', label: 'New sprite', icon: 'image', run: () => createAsset('Sprite') },
+      { id: 'newTileset', label: 'New tileset', icon: 'grid', run: () => createAsset('Tileset') },
+      { id: 'newMap', label: 'New map', icon: 'map', run: () => createAsset('Map') },
+      { id: 'newSound', label: 'New sound effect', icon: 'wave', run: () => createAsset('Sound effect') },
+      { id: 'newSong', label: 'New song', icon: 'music', run: () => createAsset('Song') },
+    ]],
     ['Project', [
       { id: 'projects', label: 'Open project', keys: [[m, 'O']], icon: 'folderOpen', run: openProjectsDialog },
+      { id: 'projectSettings', label: 'Project settings', icon: 'sliders', run: editProjectSettings },
+      { id: 'home', label: 'Go to Home', keys: [[m, 'Shift', 'H']], icon: 'home', run: showHome },
       { id: 'share', label: 'Copy share link', icon: 'link', run: share },
       { id: 'exportLove', label: 'Download .love', icon: 'package', run: exportLove },
       { id: 'exportWeb', label: 'Export for web (.zip)', icon: 'globe', run: exportWeb },
@@ -1282,12 +1399,18 @@ function commandList() {
       { id: 'palette', label: 'Command palette', keys: [[m, 'Shift', 'P'], ['F1']], icon: 'command', run: commandPalette },
       { id: 'settings', label: 'Settings', keys: [[m, ',']], icon: 'settings', run: () => showSettings() },
       { id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', run: () => showSettings('shortcuts') },
-      { id: 'sidebar', label: 'Toggle file panel', keys: [[m, 'B']], icon: 'sidebar', run: () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')) },
+      { id: 'sidebar', label: 'Toggle side panel', keys: [[m, 'B']], icon: 'sidebar', run: () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')) },
+      ...['files', 'code', 'art', 'maps', 'sounds', 'music'].map((v, i) => ({
+        id: `view-${v}`, label: `Show ${VIEWS[v].title.toLowerCase()}`, keys: [[alt, String(i + 1)]], icon: VIEWS[v].icon, run: () => onActivity(v),
+      })),
+      { id: 'gamePanel', label: 'Show or hide the game panel', keys: [[m, 'Shift', 'G']], icon: 'gamepad', run: () => setGamePanelVisible($('#app').classList.contains('right-hidden')) },
+      { id: 'console', label: 'Show or hide the console', keys: [[m, 'J']], icon: 'terminal', run: () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')) },
       { id: 'theme', label: () => `Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} theme`, icon: 'sun', run: () => settings.set('theme', document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark') },
       { id: 'clearConsole', label: 'Clear console', icon: 'clear', run: () => consolePanel.clear() },
       { id: 'copyConsole', label: 'Copy console output', icon: 'copy', run: () => consolePanel.copyAll() },
     ]],
     ['Help', [
+      { id: 'api', label: 'smitten cheat sheet', icon: 'book', run: showSmittenApi },
       { id: 'docs', label: 'LÖVE documentation', icon: 'book', run: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
       { id: 'source', label: 'Smitten on GitHub', icon: 'globe', run: () => window.open('https://github.com/Mostlime12195/smitten', '_blank', 'noopener') },
     ]],
@@ -1313,6 +1436,7 @@ function showHelpMenu() {
   showMenu($('#btn-help'), [
     { label: 'Command palette', icon: 'command', shortcut: `${modKey} Shift P`, action: commandPalette },
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => showSettings('shortcuts') },
+    { label: 'smitten cheat sheet', icon: 'book', action: showSmittenApi },
     '-',
     { label: 'LÖVE documentation', icon: 'book', action: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
     { label: 'Lua compatibility notes', icon: 'info', action: () => window.open('https://github.com/Mostlime12195/smitten#lua-compatibility', '_blank', 'noopener') },
@@ -1344,6 +1468,7 @@ function onSettingChanged(key, value) {
     case 'consoleTimestamps': consolePanel.setTimestamps(value); break;
     case 'consoleWrap': consolePanel.setWrap(value); break;
     case 'autoSave': clearTimeout(autoSaveTimer); break;
+    case 'scaleMode': $('#btn-pixel-perfect').setAttribute('aria-pressed', String(value === 'integer')); break;
     default: break;
   }
   if (['tabSize', 'insertSpaces', 'wordWrap', 'lineNumbers', 'highlightActiveLine', 'closeBrackets', 'autocomplete', 'showWhitespace'].includes(key)) {
@@ -1386,6 +1511,128 @@ function goToSymbol() {
 // ---------------------------------------------------------------------------
 // Shell: sidebar, keyboard, drag & drop
 
+// ---------------------------------------------------------------------------
+// Side panel views, project settings, game focus
+
+/** Show a section of the side panel: 'files' (the tree) or an asset view. */
+function setView(view) {
+  if (!VIEWS[view]) view = 'files';
+  state.view = view;
+  LS.set('smitten-editor.view', view);
+  for (const b of document.querySelectorAll('#activity-bar .activity[data-view]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.view === view));
+  }
+  $('#sidebar-title').textContent = VIEWS[view].title;
+  const files = view === 'files';
+  $('#file-tree').hidden = !files;
+  $('#sidebar-actions').hidden = !files;
+  $('#asset-view').hidden = files;
+  assets.setView(view);
+}
+
+/** Activity bar: open a section, or hide the side panel when it's already showing. */
+function onActivity(view) {
+  const hidden = $('#app').classList.contains('sidebar-hidden');
+  if (state.view === view && !hidden) setSidebarVisible(false);
+  else {
+    setView(view);
+    setSidebarVisible(true);
+  }
+}
+
+async function editProjectSettings() {
+  if (!state.project) return;
+  const result = await openProjectSettings({ name: state.project.name, manifest: manifest() });
+  if (!result) return;
+  if (result.name !== state.project.name) await renameProject(state.project.id, result.name);
+  const { format, version, engine, resolution, palette, ...rest } = result.manifest;
+  await writeProjectFile('smitten.json', manifestText({ format, version, engine, resolution, palette, ...rest }));
+  flashStatus('Project settings saved');
+}
+
+async function renameProject(id, name) {
+  await store.updateProject(id, { name });
+  if (state.project?.id === id) {
+    state.project.name = name;
+    $('#project-name').textContent = name;
+    $('#game-title').textContent = name;
+    document.title = `${name} · Smitten`;
+    if (!state.active) renderHomeView();
+  }
+}
+
+function showProjectMenu() {
+  showMenu($('#btn-project'), [
+    { label: 'All projects…', icon: 'folderOpen', shortcut: `${modKey} O`, action: openProjectsDialog },
+    { label: 'Project settings…', icon: 'sliders', action: editProjectSettings },
+    '-',
+    {
+      label: 'Rename…', icon: 'pencil', action: async () => {
+        const name = await promptDialog({ title: 'Rename project', label: 'Name', value: state.project.name, okLabel: 'Rename', validate: validateProjectName });
+        if (name) await renameProject(state.project.id, name);
+      },
+    },
+    {
+      label: 'Duplicate', icon: 'copy', action: async () => {
+        await saveAll({ quiet: true });
+        const copy = await store.duplicateProject(state.project.id, await uniqueProjectName(`${state.project.name} copy`));
+        toast(`Duplicated “${state.project.name}”`, { type: 'success' });
+        if (copy?.id) await openProject(copy.id);
+      },
+    },
+    { label: 'Download project (.zip)', icon: 'archive', action: exportProject },
+    { label: 'Open .love / .zip as new project…', icon: 'package', action: () => $('#input-open-project').click() },
+  ]);
+}
+
+/** The smitten module at a glance: every function with its arguments and what it does. */
+function showSmittenApi() {
+  const row = (name, d) => h('div', { class: 'api-row' },
+    h('code', {}, d ? `${name}(${d[0]})` : name), h('span', {}, d ? d[1] : ''));
+  const sections = [
+    ['smitten', Object.entries(SMITTEN).filter(([n, d]) => d || n === 'version').map(([n, d]) => row(`smitten.${n}`, d))],
+    ...Object.entries(SMITTEN_NAMESPACES).map(([ns, members]) => [`smitten.${ns}`,
+      Object.entries(members).filter(([, d]) => d).map(([n, d]) => row(`smitten.${ns}.${n}`, d))]),
+    ...Object.entries(SMITTEN_TYPES).map(([type, members]) => [type,
+      Object.entries(members).filter(([, d]) => d).map(([n, d]) => row(`${type.toLowerCase()}:${n}`, d))]),
+  ];
+  openDialog({
+    title: 'smitten cheat sheet',
+    wide: true,
+    body: h('div', { class: 'api-sheet' },
+      h('p', { class: 'dialog-message' }, 'Everything the smitten module adds to LÖVE. Drag a file from the side panel into your code to get the line that loads it.'),
+      ...sections.map(([title, rows]) => h('section', {}, h('h3', {}, title), ...rows))),
+    actions: [{ label: 'Close', value: null, primary: true, submit: true }],
+  });
+}
+
+function setGameFocus(on) {
+  $('#app').classList.toggle('game-focus', on);
+  $('#btn-game-focus').setAttribute('aria-pressed', String(on));
+  $('#btn-game-focus').title = on ? 'Back to the editor (Ctrl+Shift+F)' : 'Focus on the game (Ctrl+Shift+F)';
+  editor?.remeasure?.();
+  if (on) runner.focus();
+}
+
+function setGamePanelVisible(visible) {
+  $('#app').classList.toggle('right-hidden', !visible);
+  $('#btn-toggle-game').setAttribute('aria-pressed', String(visible));
+  LS.set('smitten-editor.gamePanel', visible);
+  editor?.remeasure?.();
+}
+
+function setConsoleCollapsed(collapsed) {
+  $('#app').classList.toggle('console-collapsed', collapsed);
+  $('#console-toggle').setAttribute('aria-expanded', String(!collapsed));
+  LS.set('smitten-editor.consoleCollapsed', collapsed);
+}
+
+function togglePixelPerfect() {
+  settings.set('scaleMode', settings.get('scaleMode') === 'integer' ? 'fit' : 'integer');
+  flashStatus(`Pixel-perfect scaling: ${settings.get('scaleMode') === 'integer' ? 'on' : 'off'}`);
+  if (runner.active) run({ focus: false });
+}
+
 function setSidebarVisible(visible, persist = true) {
   $('#app').classList.toggle('sidebar-hidden', !visible);
   $('#btn-sidebar').setAttribute('aria-pressed', String(visible));
@@ -1423,6 +1670,15 @@ function handleShortcut(e, fromGame = false) {
   if (mod && !e.shiftKey && lower === 'p') { quickOpen(); return true; }
   if (mod && !e.shiftKey && lower === 'o') { openProjectsDialog(); return true; }
   if (mod && !e.shiftKey && lower === 'b') { setSidebarVisible($('#app').classList.contains('sidebar-hidden')); return true; }
+  if (e.altKey && !mod && !e.shiftKey && /^Digit[1-6]$/.test(e.code)) {
+    onActivity(['files', 'code', 'art', 'maps', 'sounds', 'music'][Number(e.code.slice(5)) - 1]);
+    return true;
+  }
+  if (mod && !e.shiftKey && lower === 'j') { setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')); return true; }
+  if (mod && e.shiftKey && lower === 'f') { setGameFocus(!$('#app').classList.contains('game-focus')); return true; }
+  if (mod && e.shiftKey && lower === 'g') { setGamePanelVisible($('#app').classList.contains('right-hidden')); return true; }
+  if (mod && e.shiftKey && lower === 'h') { showHome(); return true; }
+  if (key === 'Escape' && $('#app').classList.contains('game-focus')) { setGameFocus(false); return true; }
   if (e.altKey && !mod && e.code === 'KeyW') { closeTab(state.active); return true; }
   if (e.altKey && !mod && e.code === 'KeyN') { newFile(''); return true; }
   if (e.altKey && !mod && e.code === 'BracketRight') { cycleTab(1); return true; }
@@ -1443,7 +1699,18 @@ function wireUi() {
   $('#btn-stop').addEventListener('click', stop);
   $('#btn-restart').addEventListener('click', () => run());
   $('#btn-pause').addEventListener('click', togglePause);
-  $('#btn-project').addEventListener('click', openProjectsDialog);
+  $('#btn-project').addEventListener('click', showProjectMenu);
+  $('#btn-project-settings').addEventListener('click', editProjectSettings);
+  $('#status-resolution').addEventListener('click', editProjectSettings);
+  for (const b of document.querySelectorAll('#activity-bar .activity[data-view]')) {
+    b.addEventListener('click', () => onActivity(b.dataset.view));
+  }
+  $('#tab-home').addEventListener('click', showHome);
+  $('.brand').addEventListener('click', (e) => { e.preventDefault(); showHome(); });
+  $('#btn-pixel-perfect').addEventListener('click', togglePixelPerfect);
+  $('#btn-game-focus').addEventListener('click', () => setGameFocus(!$('#app').classList.contains('game-focus')));
+  $('#btn-toggle-game').addEventListener('click', () => setGamePanelVisible($('#app').classList.contains('right-hidden')));
+  $('#console-toggle').addEventListener('click', () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')));
   $('#btn-share').addEventListener('click', share);
   $('#btn-export').addEventListener('click', showExportMenu);
   $('#btn-help').addEventListener('click', showHelpMenu);

@@ -3,7 +3,7 @@
 
 const KEY = 'smitten-editor.layout';
 
-const DEFAULTS = { sidebar: 240, right: 0.44, game: 0.6 };
+const DEFAULTS = { sidebar: 256, right: 0.36, game: 0.62 };
 const LIMITS = {
   sidebar: { min: 160, max: 480 },
   right: { min: 0.22, max: 0.7 }, // fraction of the workspace width
@@ -40,7 +40,7 @@ export function initLayout(app, { onResize } = {}) {
     const which = splitter.dataset.split;
     const update = (clientX, clientY) => {
       if (which === 'sidebar') {
-        sizes.sidebar = clamp(clientX - workspace.getBoundingClientRect().left, LIMITS.sidebar);
+        sizes.sidebar = clamp(clientX - app.querySelector('#sidebar').getBoundingClientRect().left, LIMITS.sidebar);
       } else if (which === 'right') {
         const r = workspace.getBoundingClientRect();
         sizes.right = clamp((r.right - clientX) / r.width, LIMITS.right);

@@ -15,7 +15,7 @@ export const DEFAULTS = {
   closeBrackets: true,
   autocomplete: true,
   showWhitespace: false,
-  autoSave: 'off',          // 'off' | 'delay' | 'blur'
+  autoSave: 'delay',        // 'off' | 'delay' | 'blur'
   trimWhitespaceOnSave: true,
   finalNewlineOnSave: true,
   // Running
