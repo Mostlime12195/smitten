@@ -68,8 +68,8 @@ behind Smitten.
 ## Performance
 
 Lua runs on PUC Lua 5.1 plus a JIT that compiles hot functions to
-WebAssembly: 1.7–5.6× faster than the plain interpreter on Lua-heavy code
-(Cupid's README has the full measurements). Drawing, physics, audio and
+WebAssembly: 1.7–14× faster than the plain interpreter on Lua-heavy code
+(see "The Lua JIT" below). Drawing, physics, audio and
 image decoding are LÖVE's own C++ code, batched into WebGL 2. Compared with
 desktop LÖVE on LuaJIT, pure-Lua code is slower and engine-side work is
 about the same, so games that spend their frame drawing lose little.
@@ -167,16 +167,58 @@ compiles that to machine code like any other wasm.
   them, so compiled code can be entered and left at any instruction: after
   calls, when a coroutine resumes, from the middle of a hot loop, or to hand
   a frame back to the interpreter when a debug hook is set.
-- Arithmetic, comparisons, numeric `for` loops, tests, moves, constants, and
-  reads and writes of table fields (constant string keys, hashed at compile
-  time) and array slots run inline. Everything that can involve metatables,
-  the GC, errors or calls goes to helpers that are copies of the
-  interpreter's own code, so behavior (including error messages) is
-  identical.
-- Compiled functions call other compiled functions directly, up to 64 deep.
+- Like V8's optimizing tiers, it speculates on what the interpreter has
+  seen. Arithmetic and comparisons that have only seen numbers, and field
+  reads whose result is used as a number, check their values once and
+  keep them in wasm locals across instructions and loop iterations, with no
+  more loads or type checks. When a check fails the function *deopts*: the
+  interpreter carries on from that instruction, the site is noted, and the
+  function is compiled again later without that guess (after five deopts,
+  without guessing at all). The interpreter notes arithmetic and
+  comparisons that go the slow way, so code that uses metamethods isn't
+  compiled with guesses that would fail.
+- The Lua stack is still written as the code goes, so leaving compiled code
+  needs nothing written back, and after every helper call (which may run
+  any Lua code, even `debug.setlocal` on our locals) the values kept in
+  locals are reloaded and checked.
+- Innermost loops become wasm loops, which V8 optimizes as loops.
+- Moves, constants, tests, numeric `for` loops, reads of table fields
+  (constant string keys hashed at compile time, following `__index` tables
+  up to three levels: an object, its class, the class's base) and array
+  slots, writes of existing fields and array slots and of new fields when
+  their slot in the hash part is free (table constructors), and returns run
+  inline. Everything else that can involve metatables, the GC, errors or
+  calls goes to helpers that are copies of the interpreter's own code, so
+  behavior (including error messages and their line numbers) is identical.
+- Compiled functions call other compiled functions directly, up to 64 deep,
+  setting up the callee's frame without going through `luaD_precall` when
+  nothing unusual (varargs, hooks, a growing stack) is involved.
 - Frames with a line or count hook are interpreted, so `debug.sethook` and
   `love.thread`'s scheduler work unchanged.
 - `?jit=0` on the player turns it off.
+
+`tools/jit/bench.lua` (run by `node tools/jit/bench.mjs`, which prints
+the median of several runs with the JIT on and off), on an Apple M5 with
+Node 26:
+
+| Benchmark | Interpreter | JIT | Speedup |
+|---|---|---|---|
+| `fib(27)` | 19.1 ms | 6.1 ms | 3.1× |
+| tables + `table.sort` | 28.8 ms | 26.1 ms | 1.1× |
+| strings | 20.7 ms | 18.7 ms | 1.1× |
+| closures/OOP | 87.0 ms | 52.5 ms | 1.7× |
+| mandelbrot 200 | 44.7 ms | 3.2 ms | 14× |
+| particles update 10k | 19.5 ms | 3.3 ms | 5.9× |
+| sieve 1e6 | 33.6 ms | 6.9 ms | 4.9× |
+| entities update 5k (methods, inheritance) | 22.2 ms | 6.9 ms | 3.2× |
+| vector math 100k (small tables) | 71.3 ms | 37.8 ms | 1.9× |
+| collisions 300 (all pairs) | 12.2 ms | 1.8 ms | 6.8× |
+
+It compiled 23 functions into 76 KiB of wasm in 2.7 ms (including the
+browser's own compile of each module). Allocation-heavy code is still
+bound by the C heap and Lua's GC, and sorting and string functions are C
+code the JIT doesn't touch. Desktop LuaJIT remains much faster on
+call-heavy code (`fib(27)` in about 1 ms).
 
 `tools/jit/` builds the standalone interpreter for Node and runs a
 differential test suite: every test must print exactly the same with the
@@ -190,6 +232,16 @@ sh tools/jit/build-node.sh
 ```bash
 bash tools/jit/test.sh
 ```
+
+```bash
+node tools/jit/bench.mjs
+```
+
+`node tools/jit/run.mjs --stats file.lua` prints how many functions were
+compiled, the wasm's size, the time spent compiling and the deopts. The
+`spec-*` tests make each speculation fail: types changing mid-loop,
+metatables appearing later, `debug.setlocal` from a callee or on a
+suspended coroutine, hooks set mid-loop, errors in speculated code.
 
 ## Building
 
