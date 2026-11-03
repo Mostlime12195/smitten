@@ -44,6 +44,11 @@ export class SceneWorkspace extends EventTarget {
     el.append(this.tabs, this.toolbar, h('div', { style: 'flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0' }, this.host, this.status, this.emptyEl), this.selectionPanelHost);
 
     this.host.addEventListener('viewport-status', (e) => { this.status.textContent = e.detail.text; });
+    // A view's own Q/W/E/R keys: keep the toolbar in step.
+    this.host.addEventListener('viewport-tool', (e) => {
+      this.tool = e.detail.tool;
+      for (const [id, b] of Object.entries(this.toolButtons)) b.setAttribute('aria-pressed', String(id === this.tool));
+    });
     this.host.addEventListener('viewport-context', (e) => {
       const { node, x, y } = e.detail;
       if (node && !this.active.selection.has(node.id)) this.active.select([node]);
