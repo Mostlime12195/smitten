@@ -194,7 +194,12 @@ export function accountView(u) {
 
 /** A salted hash of the client's address (rate limits, report and play de-duplication). */
 export function ipHash(ctx) {
-  return hmac(ctx.config.secret, `ip|${ctx.ip}`).slice(0, 32);
+  return ipHashOf(ctx.config, ctx.ip);
+}
+
+/** The same hash for any address (a moderator banning one by hand). */
+export function ipHashOf(config, ip) {
+  return hmac(config.secret, `ip|${ip}`).slice(0, 32);
 }
 
 /** Who to count a report or play for: the account if signed in, else the address. */

@@ -1216,6 +1216,47 @@ async function main() {
       assert.equal(r.data.clientIp, '203.0.113.7');
       assert.equal((await call('GET', '/api/admin/request')).status, 401);
     });
+    section('Address bans');
+    const network = '198.51.100.20';
+    const someone = await person();
+    const theirGame = await publish({ title: `On a banned network ${tag}` }, mainLuaGame(), null, { token: someone.token });
+    await test('a banned address can\'t make accounts, publish or report, but can still play', async () => {
+      const r = await call('POST', '/api/admin/addresses/ban', { body: { ip: network, reason: 'test' }, token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.banned, 1);
+      assert.equal(r.data.days, 30);
+      const signup = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: network });
+      assert.equal(signup.status, 403);
+      assert.equal(signup.data.code, 'address-banned');
+      assert.match(signup.data.error, /still play/);
+      const pub = await call('POST', '/api/games', { body: form({ title: 'nope' }, love), token: someone.token, ip: network });
+      assert.equal(pub.status, 403);
+      const rep = await call('POST', `/api/games/${theirGame.data.id}/report`, { body: { reason: 'scam' }, ip: network });
+      assert.equal(rep.status, 403);
+      assert.equal((await call('GET', `/api/games/${theirGame.data.id}`, { ip: network })).status, 200);
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true })).status, 201);
+    });
+    await test('address bans are listed as hashes and can be lifted', async () => {
+      const list = await call('GET', '/api/admin/addresses', { token: ADMIN });
+      assert.ok(list.data.bans.length >= 1);
+      assert.ok(!JSON.stringify(list.data).includes(network), 'no raw addresses');
+      assert.ok(list.data.bans.every((b) => b.expiresAt > Date.now()));
+      const r = await call('POST', '/api/admin/addresses/unban', { body: { ip: network }, token: ADMIN });
+      assert.equal(r.data.unbanned, 1);
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: network })).status, 201);
+    });
+    await test('banning an account can ban the addresses it used', async () => {
+      const home = '198.51.100.33';
+      const signin = await call('POST', '/api/auth/signin', { body: { username: someone.username, password: PASSWORD }, site: true, ip: home });
+      assert.equal(signin.status, 200);
+      const r = await call('POST', `/api/admin/users/${someone.username}/ban`, { body: { reason: 'keeps coming back', addresses: true, days: 7 }, token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.ok(r.data.addressesBanned >= 1);
+      const again = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: home });
+      assert.equal(again.status, 403);
+      assert.equal((await call('POST', '/api/admin/addresses/unban', { body: { username: someone.username }, token: ADMIN })).status, 200);
+      assert.equal((await call('POST', '/api/admin/addresses/ban', { body: { ip: home, days: -1 }, token: ADMIN })).status, 422);
+    });
     await test('what moderators do is logged', async () => {
       const r = await call('GET', '/api/admin/log', { token: ADMIN });
       const actions = r.data.log.map((l) => `${l.action} ${l.target}`);

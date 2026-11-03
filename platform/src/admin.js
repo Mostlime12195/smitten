@@ -3,7 +3,8 @@
 
 import { HttpError, json, readJson } from './http.js';
 import { db } from './db.js';
-import { isAdmin, publicUser } from './auth.js';
+import { ipHashOf, isAdmin, publicUser } from './auth.js';
+import { DEFAULT_BAN_DAYS, addressesOf, banAddresses, listAddressBans, unbanAddresses } from './bans.js';
 import { getRow, publicGame, removeGame } from './games.js';
 import { createResetLink, deleteUser } from './account.js';
 
@@ -106,8 +107,10 @@ export function adminUser(ctx, username) {
 }
 
 /**
- * Bans an account: {reason}. It's signed out everywhere and can't sign in,
- * its profile is gone and its public games are hidden (hidden_by 'ban').
+ * Bans an account: {reason, addresses, days}. It's signed out everywhere and
+ * can't sign in, its profile is gone and its public games are hidden
+ * (hidden_by 'ban'). With addresses: true, the addresses it was used from
+ * lately are banned too (bans.js), for days (default 30; 0 until lifted).
  */
 export async function adminBan(ctx, username) {
   requireAdmin(ctx);
@@ -119,8 +122,10 @@ export async function adminBan(ctx, username) {
     db.run('DELETE FROM sessions WHERE user_id = ?', user.id);
     db.run("UPDATE games SET status = 'hidden', hidden_by = 'ban' WHERE owner_id = ? AND status = 'public'", user.id);
   });
-  log('ban', `user:${user.username}`, reason);
-  return json({ username: user.username, status: 'banned' });
+  let addresses = 0;
+  if (body.addresses) addresses = banAddresses(addressesOf(user.id), reason || `account ${user.username}`, banDays(body.days));
+  log('ban', `user:${user.username}`, addresses ? `${reason} (+${addresses} addresses)` : reason);
+  return json({ username: user.username, status: 'banned', addressesBanned: addresses });
 }
 
 /** Lifts a ban; games hidden by the ban come back (others stay as they are). */
@@ -133,6 +138,46 @@ export function adminUnban(ctx, username) {
   });
   log('unban', `user:${user.username}`);
   return json({ username: user.username, status: 'active' });
+}
+
+function banDays(days) {
+  const n = days === undefined || days === null || days === '' ? DEFAULT_BAN_DAYS : Number(days);
+  if (!Number.isFinite(n) || n < 0 || n > 3650) throw new HttpError(422, 'days must be between 0 (until lifted) and 3650.');
+  return Math.round(n);
+}
+
+/** The hashes a ban request names: {ip} (an address), {hash}, or {username} (its recent addresses). */
+function addressTargets(ctx, body) {
+  if (body.ip) return [ipHashOf(ctx.config, String(body.ip).trim())];
+  if (body.hash) return [String(body.hash).trim()];
+  if (body.username) return addressesOf(requireAccount(body.username).id);
+  throw new HttpError(422, 'Name an ip, a hash or a username.');
+}
+
+/** Bans addresses: {ip | hash | username, reason, days}. */
+export async function adminBanAddress(ctx) {
+  requireAdmin(ctx);
+  const body = await readJson(ctx.request);
+  const hashes = addressTargets(ctx, body);
+  const reason = String(body.reason || '').slice(0, 500);
+  const days = banDays(body.days);
+  const n = banAddresses(hashes, reason, days);
+  log('ban-address', body.username ? `user:${body.username}` : body.hash ? `hash:${body.hash}` : 'ip', `${n} address(es), ${days ? `${days} days` : 'until lifted'}${reason ? `: ${reason}` : ''}`);
+  return json({ banned: n, days });
+}
+
+/** Lifts address bans: {ip | hash | username}. */
+export async function adminUnbanAddress(ctx) {
+  requireAdmin(ctx);
+  const body = await readJson(ctx.request);
+  const n = unbanAddresses(addressTargets(ctx, body));
+  log('unban-address', body.username ? `user:${body.username}` : body.hash ? `hash:${body.hash}` : 'ip', `${n} address(es)`);
+  return json({ unbanned: n });
+}
+
+export function adminAddressBans(ctx) {
+  requireAdmin(ctx);
+  return json({ bans: listAddressBans() });
 }
 
 /** A one-time link (24 hours) to set a new password, for someone who lost theirs and their recovery codes. */

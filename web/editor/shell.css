@@ -415,6 +415,17 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
 .card:hover .card-more, .card .card-more:focus-visible { opacity: 1; }
 .card .tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--panel-3); color: var(--fg-muted); }
 
+/* The top bar makes room: labels on the right go first, then the
+ * workspaces' labels. */
+@media (max-width: 1240px) {
+  .tb-right .label { display: none; }
+  .tb-right .btn.ghost { padding: 0 8px; }
+}
+@media (max-width: 1000px) {
+  .workspace-switch .ws-label { display: none; }
+  .project-btn { max-width: 180px; }
+}
+
 /* Narrow screens: docked panels overlay the stage. */
 @media (max-width: 760px) {
   .titlebar { grid-template-columns: auto 1fr auto; }

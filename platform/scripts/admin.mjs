@@ -7,6 +7,10 @@
 //   node scripts/admin.mjs delete <game id>
 //   node scripts/admin.mjs user <username>          an account and its games
 //   node scripts/admin.mjs ban <username> [reason]  sign out, hide games, block sign-in
+//   node scripts/admin.mjs ban-network <username> [reason]  the account and the addresses it used (30 days)
+//   node scripts/admin.mjs ban-ip <address> [reason]     no new accounts, publishing or reports from it (30 days)
+//   node scripts/admin.mjs unban-ip <address>
+//   node scripts/admin.mjs ip-bans                      address bans in force (as hashes)
 //   node scripts/admin.mjs unban <username>
 //   node scripts/admin.mjs reset-link <username>    a one-time link to set a new password
 //   node scripts/admin.mjs delete-user <username>   the account and all its games
@@ -29,12 +33,16 @@ const COMMANDS = {
   user: ['GET', (name) => `/api/admin/users/${encodeURIComponent(name)}`],
   ban: ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/ban`, () => ({ reason: rest.join(' ') })],
   unban: ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/unban`],
+  'ban-network': ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/ban`, () => ({ reason: rest.join(' '), addresses: true })],
+  'ban-ip': ['POST', () => '/api/admin/addresses/ban', (ip) => ({ ip, reason: rest.join(' ') })],
+  'unban-ip': ['POST', () => '/api/admin/addresses/unban', (ip) => ({ ip })],
+  'ip-bans': ['GET', () => '/api/admin/addresses'],
   'reset-link': ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/reset-password`],
   'delete-user': ['DELETE', (name) => `/api/admin/users/${encodeURIComponent(name)}`],
 };
 
 const spec = COMMANDS[command];
-if (!spec || (spec[1].length && !arg)) {
+if (!spec || ((spec[1].length || spec[2]?.length) && !arg)) {
   console.error('Usage: node scripts/admin.mjs <command> [argument]\nCommands: ' + Object.keys(COMMANDS).join(', '));
   process.exit(2);
 }
@@ -45,7 +53,7 @@ if (!config.adminToken) {
 
 const [method, path, body] = spec;
 const headers = { Authorization: `Bearer ${config.adminToken}` };
-const payload = body ? JSON.stringify(body()) : undefined;
+const payload = body ? JSON.stringify(body(arg)) : undefined;
 if (payload) headers['Content-Type'] = 'application/json';
 let res;
 try {

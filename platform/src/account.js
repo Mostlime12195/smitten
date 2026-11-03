@@ -10,6 +10,7 @@ import {
 } from './auth.js';
 import { checkPassword, cleanDisplayName, cleanUsername } from './validate.js';
 import { publicGame, removeGame } from './games.js';
+import { checkAddress, noteAddress } from './bans.js';
 
 const DAY = 86400_000;
 const EDITOR_CODE_MS = 5 * 60_000;
@@ -28,6 +29,7 @@ const banned = () => new HttpError(403, 'This account has been suspended by a mo
 
 /** Signs a browser in: a new web session and its cookie. */
 function signedIn(ctx, user, body = {}, status = 200) {
+  noteAddress(ctx, user.id);
   const { token } = createSession(user.id, 'web');
   return json({ user: accountView(user), ...body }, status, { 'Set-Cookie': sessionCookie(ctx, token) });
 }
@@ -68,6 +70,7 @@ export async function signUp(ctx) {
     throw new HttpError(409, 'That Hack Club account already has a Smitten account. Sign in with Hack Club instead.');
   }
   rateLimit(`signup:ip:${ipHash(ctx)}`, ctx.config.signupLimit, 'made accounts');
+  checkAddress(ctx, 'make accounts');
 
   const passwordHash = password ? await hashPassword(password, ctx.config) : null;
   const now = Date.now();

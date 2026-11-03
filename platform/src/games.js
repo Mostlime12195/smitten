@@ -7,6 +7,7 @@ import { db, newId, rateLimit, ID_PATTERN } from './db.js';
 import { actorKey, currentUser, ipHash, isAdmin, requireUser } from './auth.js';
 import { GAME_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFiles } from './storage.js';
 import { inspectZip } from './zip.js';
+import { checkAddress, noteAddress } from './bans.js';
 import {
   LIMITS, MODULES, REPORT_REASONS, USERNAME_RULES,
   cleanTitle, cleanDescription, cleanNote, cleanModules, cleanEngineVersion, inspectPng,
@@ -167,7 +168,9 @@ export function getConfig(ctx) {
 
 export async function publishGame(ctx) {
   const user = requireUser(ctx, { editor: true });
+  checkAddress(ctx, 'publish games');
   rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
+  noteAddress(ctx, user.id);
   const { fields, gameBytes, thumbnail } = await readUpload(ctx);
 
   const id = newId();
@@ -189,7 +192,9 @@ export async function publishGame(ctx) {
 
 export async function updateGame(ctx, id) {
   const { user, row } = ownedRow(ctx, id);
+  checkAddress(ctx, 'publish games');
   rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
+  noteAddress(ctx, user.id);
   const { fields, gameBytes, thumbnail } = await readUpload(ctx);
 
   const version = row.version + 1;
@@ -341,6 +346,7 @@ export async function reportGame(ctx, id) {
   if (row.status !== 'public') return json({ ok: true, hidden: true });
 
   const who = actorKey(ctx);
+  checkAddress(ctx, 'report games');
   // Signed-in or not, each address has the same hourly limit.
   rateLimit(`report:ip:${ipHash(ctx)}`, config.reportLimit, 'sent reports');
   if (who.startsWith('u:')) rateLimit(`report:${who}`, config.reportLimit, 'sent reports');

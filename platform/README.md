@@ -479,9 +479,13 @@ origin, and in the editor, **Settings › Publishing** is the site's URL.
 - **Moderation is a command line.** No dashboard and no notifications when
   a game is hidden; the admin log is there, but there's one shared admin
   token rather than moderator accounts.
-- **A banned person can make a new account** (sign-ups are limited per
-  address, which a school network shares). Requiring Hack Club's sign-in,
-  or its `verification_status`, would make bans stick.
+- **Accounts are open to everyone**, so a banned person can make a new one.
+  When someone keeps coming back, ban their network too:
+  `node scripts/admin.mjs ban-network <username>` (the account and the
+  addresses it used lately) or `ban-ip <address>`. A banned network can't
+  make accounts, publish or report, but can still play; bans last 30 days
+  (`days` in the API; 0 until lifted), since schools share an address.
+  Only salted hashes of addresses are stored.
 - **Anonymous reports and plays go by address**: a whole school behind one
   address counts as one reporter. Signed-in reports count per account.
 - **The player shares the site's origin**, as before: the iframe sandbox

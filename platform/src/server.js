@@ -37,6 +37,7 @@ import * as hackclub from './hackclub.js';
 import {
   adminReports, adminHide, adminRestore, adminDelete,
   adminUser, adminBan, adminUnban, adminResetLink, adminDeleteUser, adminLog, adminRequestInfo,
+  adminBanAddress, adminUnbanAddress, adminAddressBans,
 } from './admin.js';
 import { MODULES } from './validate.js';
 
@@ -80,7 +81,9 @@ const API = [
   ['GET', /^\/api\/admin\/reports$/, adminReports],
   ['GET', /^\/api\/admin\/log$/, adminLog],
   ['GET', /^\/api\/admin\/request$/, adminRequestInfo],
-  ['GET', /^\/api\/admin\/request$/, adminRequestInfo],
+  ['GET', /^\/api\/admin\/addresses$/, adminAddressBans],
+  ['POST', /^\/api\/admin\/addresses\/ban$/, adminBanAddress],
+  ['POST', /^\/api\/admin\/addresses\/unban$/, adminUnbanAddress],
   ['POST', new RegExp(`^/api/admin/games/${ID}/hide$`), adminHide],
   ['POST', new RegExp(`^/api/admin/games/${ID}/restore$`), adminRestore],
   ['DELETE', new RegExp(`^/api/admin/games/${ID}$`), adminDelete],

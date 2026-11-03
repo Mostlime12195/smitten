@@ -945,7 +945,7 @@ function renderAccount() {
   const user = account();
   const site = String(settings.get('platformUrl')).replace(/\/+$/, '');
   if (!user) {
-    const b = h('button', { type: 'button', class: 'btn ghost', title: `Sign in to ${site.replace(/^https?:\/\//, '')} to publish games` }, icon('user', 16), 'Sign in');
+    const b = h('button', { type: 'button', class: 'btn ghost', title: `Sign in to ${site.replace(/^https?:\/\//, '')} to publish games` }, icon('user', 16), h('span', { class: 'label' }, 'Sign in'));
     b.addEventListener('click', () => signIn().catch((e) => toast(e.message, { type: 'error' })));
     ed.accountSlot.replaceChildren(b);
     return;
