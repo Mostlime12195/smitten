@@ -299,9 +299,11 @@ a:hover { text-decoration: underline; }
   padding-top: 24px;
 }
 
+/* The stage takes the game's shape (--game-aspect, set by play.js from the
+   game's resolution): a phone game stands up instead of sitting in bars. */
 .stage {
-  width: var(--stage-w);
-  aspect-ratio: 16 / 9;
+  width: min(var(--stage-w), max(min(100%, 240px), calc((100vh - 230px) * var(--game-aspect, 16 / 9))));
+  aspect-ratio: var(--game-aspect, 16 / 9);
   margin: 0 auto;
   overflow: hidden;
   border-radius: 12px;
@@ -659,7 +661,7 @@ a.btn[aria-disabled="true"] { opacity: 0.55; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px 12px; }
   .thumb.placeholder { font-size: 34px; }
   .play-page { padding-top: 12px; }
-  .stage { width: 100%; border-radius: 8px; }
+  .stage { width: min(100%, max(240px, calc((100svh - 160px) * var(--game-aspect, 16 / 9)))); border-radius: 8px; }
   .details h1 { font-size: 21px; }
   .actions { width: 100%; }
   .actions .btn { flex: 1; }

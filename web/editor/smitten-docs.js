@@ -80,7 +80,7 @@ export const SMITTEN_MODULES = {
     toGame: ['x, y', 'Window coordinates to game coordinates.'],
     toWindow: ['x, y', 'Game coordinates to window coordinates.'],
     getWindowRect: ['', 'The game\'s area in the window: x, y, width, height.'],
-    width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null,
+    width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null, antialias: null, background: null,
   },
   json: {
     decode: ['text', 'JSON text to Lua values.'],

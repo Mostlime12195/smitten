@@ -18,6 +18,7 @@
 #include <emscripten/eventloop.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -335,7 +336,26 @@ EMSCRIPTEN_KEEPALIVE int loveweb_fit_window(int w, int h)
 	int curw = 0, curh = 0;
 	SDL_GetWindowSize(window, &curw, &curh);
 	if (curw != w || curh != h)
+	{
 		SDL_SetWindowSize(window, w, h);
+		return 1;
+	}
+
+	// Same size, but the page's pixel ratio changed (zoom, or the window
+	// moved to another screen): SDL only picks the new ratio up when the size
+	// changes, so step to another size and back. The game draws at the
+	// screen's real resolution again.
+	if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIGH_PIXEL_DENSITY) != 0)
+	{
+		int pw = 0, ph = 0;
+		SDL_GetWindowSizeInPixels(window, &pw, &ph);
+		double ratio = emscripten_get_device_pixel_ratio();
+		if (std::abs(pw - (int) std::lround(w * ratio)) > 1 || std::abs(ph - (int) std::lround(h * ratio)) > 1)
+		{
+			SDL_SetWindowSize(window, w + 1, h);
+			SDL_SetWindowSize(window, w, h);
+		}
+	}
 	return 1;
 }
 

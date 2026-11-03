@@ -92,6 +92,12 @@ function flushError() {
 // LÖVE's error handler prints "Error: ..." followed by a traceback. Group
 // those lines so the embedding page gets the whole error at once.
 function output(level, text) {
+  // The game's display settings (love.display), for the page around the
+  // player: it can give the player the game's shape.
+  if (text.startsWith('\x01display ')) {
+    onDisplay(text.slice(9));
+    return;
+  }
   post({ type: 'log', level, text });
   // Live tweaking's answers (engine/live.lua) are for the editor only.
   if (text.startsWith('\x01live ')) return;
@@ -144,16 +150,17 @@ function fail(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Canvas fitting. SDL sizes the canvas to the LÖVE window; we scale it to fit
-// the page while keeping its aspect ratio.
+// Canvas fitting. Smitten games (and resizable LÖVE games) get the whole
+// page, like a maximized desktop window: the window is resized to it, the
+// canvas has a pixel for each of the screen's (SDL's high-DPI support), and
+// the game fits itself in (love.display). Fixed-size games are scaled to fit.
 
 function fitCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const sw = window.innerWidth;
-  const sh = window.innerHeight;
+  const stage = canvas.parentElement;
+  const sw = stage.clientWidth || window.innerWidth;
+  const sh = stage.clientHeight || window.innerHeight;
 
-  // Resizable games get the whole page, like a maximized desktop window
-  // (they receive love.resize). Fixed-size games are scaled to fit.
   if (running && Module?._loveweb_fit_window?.(sw, sh)) {
     canvas.style.setProperty('--fit-w', `${sw}px`);
     canvas.style.setProperty('--fit-h', `${sh}px`);
@@ -174,6 +181,28 @@ function fitCanvas() {
 
 new MutationObserver(fitCanvas).observe(canvas, { attributes: true, attributeFilter: ['width', 'height', 'style'] });
 window.addEventListener('resize', fitCanvas);
+// Phones resize the visual viewport, not always the window, when browser
+// bars slide in and out.
+window.visualViewport?.addEventListener('resize', fitCanvas);
+
+// The pixel ratio changes with zoom and when the window moves to another
+// screen, sometimes without a resize event: the game then draws at the new
+// resolution (loveweb_fit_window notices the change).
+function watchPixelRatio() {
+  matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`).addEventListener('change', () => {
+    fitCanvas();
+    watchPixelRatio();
+  }, { once: true });
+}
+watchPixelRatio();
+
+// Tells the page around the player (the sharing site, the editor) the game's
+// resolution and stretch mode.
+function onDisplay(json) {
+  let display;
+  try { display = JSON.parse(json); } catch { return; }
+  if (window.parent !== window) window.parent.postMessage({ source: 'love-player', type: 'display', ...display }, '*');
+}
 
 $('#btn-fullscreen').addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen();

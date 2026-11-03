@@ -201,6 +201,26 @@ end
 ---------------------------------------------------------------------------
 -- Fonts
 
+-- Text is drawn with fonts made at the size it shows on screen, so resizing
+-- the window makes new ones: only the most recently used are kept.
+local FONT_LIMIT = 48
+local fontTick, fontUsed = 0, {}
+
+local function forgetOldFonts()
+	local fonts = cache.font
+	if not fonts then return end
+	local count, oldest, oldestTick = 0, nil, math.huge
+	for key in pairs(fonts) do
+		count = count + 1
+		local t = fontUsed[key] or 0
+		if t < oldestTick then oldest, oldestTick = key, t end
+	end
+	if count >= FONT_LIMIT and oldest then
+		fonts[oldest] = nil
+		fontUsed[oldest] = nil
+	end
+end
+
 ---A font at a size: "" for the default font, "pixel" for the built-in pixel
 ---font, or a .ttf/.otf file. scale renders it that many times bigger for
 ---crisp text on a scaled display; returns the font and the scale it was made
@@ -212,8 +232,14 @@ function assets.font(path, size, scale)
 		return pixel.getFont(), pixel.lineHeight / size
 	end
 	local px = math.max(1, math.floor(size * scale + 0.5))
-	local key = (path or "") .. "#" .. px
+	-- Fonts render at the screen's pixel density when they are made, so one
+	-- made before the density changed (zoom, another screen) is made again.
+	local dpi = love.graphics.getDPIScale and love.graphics.getDPIScale() or 1
+	local key = (path or "") .. "#" .. px .. "@" .. dpi
+	fontTick = fontTick + 1
+	fontUsed[key] = fontTick
 	return assets.cached("font", key, function()
+		forgetOldFonts()
 		if path == nil or path == "" then return love.graphics.newFont(px) end
 		local p = assets.normalize(path)
 		if not exists(p) then missing(p, "font", 5) end

@@ -9,7 +9,7 @@ const json = (v) => JSON.stringify(v, null, 2) + '\n';
 const scene = (root) => json({ format: 'smitten.scene', version: 2, root });
 const settings = (name, main, display = {}) => json({
   format: 'smitten.project', version: 2, name, main,
-  display: { width: 1280, height: 720, stretch: 'fit', filter: 'smooth', ...display },
+  display: { width: 1280, height: 720, stretch: 'expand', ...display },
 });
 
 /** The source of a ready-made script. */

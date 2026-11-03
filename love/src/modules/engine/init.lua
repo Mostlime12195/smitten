@@ -176,7 +176,28 @@ function engine.init(conf)
 			id = type(id) == "string" and id:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", "") or ""
 			if id ~= "" then conf.identity = "smitten-" .. id end
 		end
-		if love.graphics then require("love.display").setup(project.display) end
+		if love.graphics then
+			local display = require("love.display")
+			display.setup(project.display)
+			-- The window the display needs (boot.lua opens it after this):
+			-- resizable, so the player can make it fill the page; at the
+			-- screen's real resolution; multisampled for smooth edges.
+			local win = display._windowSettings()
+			if conf.window then
+				conf.window.width, conf.window.height = win.width, win.height
+				conf.window.resizable = win.resizable
+				conf.window.msaa = win.msaa
+				conf.window.usedpiscale = true
+			end
+			if love._setHighDPIAllowed then love._setHighDPIAllowed(win.highdpi) end
+			-- For the web page around the game (the player hands it on):
+			-- the sharing site gives the game its shape.
+			if love.system and love.system.getOS() == "Web" then
+				print("\1display " .. require("love.json").encode({
+					width = display.width, height = display.height, stretch = display.stretch,
+				}))
+			end
+		end
 		require("love.input")._configure(project.input)
 		-- boot.lua opens the window after this, with conf's title.
 		local untitled = (conf.window and conf.window.title or conf.title) == "Untitled"

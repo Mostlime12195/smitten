@@ -27,15 +27,22 @@ export function lightColor(hex) {
 }
 
 const STRETCH = [
-  ['fit', 'Fit: scale to fit, with bars if the shapes differ'],
-  ['expand', 'Expand: scale to fit and show more of the world instead of bars'],
-  ['stretch', 'Stretch: fill the window, even if it distorts'],
-  ['pixel', 'Pixel perfect: whole-number scaling only, for pixel art'],
+  ['expand', 'Expand: fill the window, show more of the world'],
+  ['fit', 'Fit: exactly the resolution, bars around it'],
+  ['stretch', 'Stretch: fill the window, squashing the game'],
+  ['pixel', 'Pixel perfect: crisp, whole-number scaling'],
 ];
+
+// What a project without the setting gets (love/src/modules/display).
+const DEFAULT_BACKGROUND = [0.11, 0.12, 0.15, 1];
+const autoAntialias = (stretch) => stretch !== 'pixel';
+const toHex = (c) => `#${c.slice(0, 3).map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
+const fromHex = (hex, alpha = 1) => [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) / 255 * 1000) / 1000).concat(alpha);
 
 export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const s = project.settings();
-  const display = { width: 1280, height: 720, stretch: 'fit', filter: 'smooth', ...(s.display || {}) };
+  const display = { width: 1280, height: 720, stretch: 'expand', ...(s.display || {}) };
+  display.filter ??= display.stretch === 'pixel' ? 'pixel' : 'smooth';
   const input = { ...DEFAULT_ACTIONS, ...(s.input || {}) };
   const modules = { ...(s.modules || {}) };
 
@@ -56,6 +63,19 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const height = text(display.height, { type: 'number', min: 16, max: 4320 });
   const stretch = select(display.stretch, STRETCH);
   const filter = select(display.filter, [['smooth', 'Smooth: for drawn and photographic art'], ['pixel', 'Pixel: sharp pixels, for pixel art']]);
+  // Antialiasing follows the stretch mode (on, off for pixel art) until it's
+  // set: a project that sets it keeps its choice.
+  let antialiasSet = typeof display.antialias === 'boolean';
+  const antialias = h('input', { type: 'checkbox', 'aria-label': 'Antialiasing' });
+  antialias.checked = antialiasSet ? display.antialias : autoAntialias(display.stretch);
+  antialias.addEventListener('change', () => { antialiasSet = true; });
+  stretch.addEventListener('change', () => {
+    if (!antialiasSet) antialias.checked = autoAntialias(stretch.value);
+    if (stretch.value === 'pixel') filter.value = 'pixel';
+  });
+  const background = h('input', { type: 'color', class: 'input', 'aria-label': 'Background color', style: 'width: 64px; padding: 2px' });
+  const bgColor = Array.isArray(display.background) ? display.background : DEFAULT_BACKGROUND;
+  background.value = toHex(bgColor);
   const presets = h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap' },
     ...[['1280×720', 1280, 720], ['1920×1080', 1920, 1080], ['960×540', 960, 540], ['640×360', 640, 360], ['320×180 pixel art', 320, 180, true], ['Phone 720×1280', 720, 1280]].map(([label, w, hh, pixel]) => {
       const b = h('button', { type: 'button', class: 'btn small' }, label);
@@ -65,15 +85,20 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
         if (pixel) {
           stretch.value = 'pixel';
           filter.value = 'pixel';
+          stretch.dispatchEvent(new Event('change'));
         }
       });
       return b;
     }));
   const displayTab = h('div', { class: 'settings-grid' },
     ...field('Presets', presets),
-    ...field('Resolution', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, width, '×', height), 'The size your game is designed for, in pixels. It scales to any window.'),
-    ...field('Fit to window', stretch),
-    ...field('Texture filter', filter));
+    ...field('Resolution', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, width, '×', height),
+      'The size your game is designed for: scenes, cameras and the UI are laid out in it. The game scales to any window and is drawn at the screen\'s full sharpness.'),
+    ...field('Fit to window', stretch, 'How the game fills a window of another shape. Expand suits most games: wider or taller screens see more of the world (place UI with anchors so it sticks to the edges). Fit shows exactly the resolution, with bars of the background color. Pixel perfect is for pixel art.'),
+    ...field('Texture filter', filter),
+    ...field('Antialiasing', h('label', { style: 'display: flex; gap: 6px; align-items: center' }, antialias, 'Smooth edges on shapes and lines'),
+      'On by default; off by default for pixel perfect.'),
+    ...field('Background', background, 'The color behind everything, also the bars Fit leaves.'));
 
   // Splash: what the player shows while the game loads (web/player/player.js).
   const splash = { image: '', background: '', duration: 1, madeWith: true, ...(s.splash || {}) };
@@ -222,6 +247,8 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     name: name.value.trim() || s.name,
     main: main.value,
     display: {
+      // Keeps settings this dialog doesn't show.
+      ...(s.display || {}),
       width: Math.max(16, Number(width.value) || 1280),
       height: Math.max(16, Number(height.value) || 720),
       stretch: stretch.value,
@@ -229,6 +256,11 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     },
     modules,
   };
+  // Antialiasing and the background are only written once they're chosen,
+  // so the defaults can follow the stretch mode (and improve later).
+  const hadAntialias = typeof s.display?.antialias === 'boolean';
+  if (hadAntialias || antialias.checked !== autoAntialias(stretch.value)) next.display.antialias = antialias.checked;
+  if (background.value !== toHex(bgColor)) next.display.background = fromHex(background.value, bgColor[3] ?? 1);
   const changedInput = Object.keys(input).some((k) => JSON.stringify(input[k]) !== JSON.stringify(DEFAULT_ACTIONS[k])) || Object.keys(DEFAULT_ACTIONS).some((k) => !input[k]);
   next.input = changedInput ? input : undefined;
   const gx = Number(gravityX.value) || 0;
