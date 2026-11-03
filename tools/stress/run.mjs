@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE || 'http://localhost:8770';
-const MODULES = { rigid: 'physics2d', 'test-rigid': 'physics2d' };
+const MODULES = { rigid: 'physics2d', 'rigid-mix': 'physics2d', 'test-rigid': 'physics2d' };
 
 function findChrome() {
   if (process.env.CHROME) return process.env.CHROME;

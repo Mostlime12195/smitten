@@ -120,6 +120,20 @@ def color(rng):
 STATS = """-- Prints how the game is doing every two seconds (tools/stress/gen.py).
 local Stats = {}
 
+-- Time spent in the scene's update and draw, and in each system (collisions,
+-- physics), in ms per frame.
+local timing = {}
+
+local function timed(name, t, key)
+  local f = t[key]
+  t[key] = function(...)
+    local t0 = love.timer.getTime()
+    local a, b = f(...)
+    timing[name] = (timing[name] or 0) + love.timer.getTime() - t0
+    return a, b
+  end
+end
+
 local function count(n)
   local c = 1
   for _, ch in ipairs(n.children) do c = c + count(ch) end
@@ -128,6 +142,9 @@ end
 
 function Stats:ready()
   self._t, self._frames, self._worst, self._sum, self._clock = 0, 0, 0, 0, 0
+  timed("update", smitten.scene, "_update")
+  timed("draw", smitten.scene, "_draw")
+  for name, sys in pairs(smitten.scene._tree.systems) do timed(name, sys, "step") end
   -- smitten.draw runs after the world is drawn: count its draw calls there.
   local stats, prev = self, love.draw
   love.draw = function()
@@ -147,6 +164,11 @@ function Stats:update(dt)
     print(("stress %s t=%ds fps=%.1f dt=%.1fms worst=%.1fms lua=%.0fKB pieces=%d draws=%d"):format(
       self.name, math.floor(self._clock), self._frames / self._t, self._sum / self._frames * 1000,
       self._worst * 1000, collectgarbage("count"), count(self), self._draws or -1))
+    local parts = {}
+    for name, t in pairs(timing) do parts[#parts + 1] = ("%s=%.2fms"):format(name, t / self._frames * 1000) end
+    table.sort(parts)
+    print("stress   " .. table.concat(parts, " "))
+    timing = {}
     self._t, self._frames, self._worst, self._sum = 0, 0, 0, 0
   end
   if self.tick then self:tick(dt) end
@@ -285,15 +307,15 @@ def case_bodies(rng, n=300):
             {"display": {"width": w, "height": h, "stretch": "fit"}})
 
 
-def case_rigid(rng, n=400):
+def case_rigid(rng, n=400, movers=10):
     """Hundreds of physics Bodies falling into a box with pegs and moving platforms."""
     w, h = 1280, 720
     kids = arena(w, h)
     for i in range(40):
         kids.append(piece(f"Peg{i}", "Body", {"x": 80 + (i % 10) * 125 + (i // 10 % 2) * 60, "y": 300 + (i // 10) * 80, "motion": "still"},
                           [shape(shape="circle", radius=8, color=[0.5, 0.5, 0.6, 1])]))
-    for i in range(10):
-        kids.append(piece(f"Mover{i}", "Body", {"x": 100 + i * 120, "y": 640}, [shape(width=80, height=10, color=[0.4, 0.7, 0.9, 1])],
+    for i in range(movers):
+        kids.append(piece(f"Mover{i}", "Body", {"x": 100 + (i % 10) * 120, "y": 640 - (i // 10) * 40}, [shape(width=80, height=10, color=[0.4, 0.7, 0.9, 1])],
                           script="scripts/mover.lua"))
     for i in range(n):
         look = shape(width=14, height=14, color=color(rng)) if i % 2 else shape(shape="circle", radius=7, color=color(rng))
@@ -591,6 +613,7 @@ CASES = {
     "tiles-dig": lambda rng: case_tiles(rng, dig=True),
     "bodies": case_bodies,
     "rigid": case_rigid,
+    "rigid-mix": lambda rng: case_rigid(rng, n=300, movers=200),
     "zones": case_zones,
     "nesting": case_nesting,
     "ui": case_ui,

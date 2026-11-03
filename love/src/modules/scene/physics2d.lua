@@ -344,6 +344,18 @@ local EPS = 1e-4
 -- nest, and keeping it here saves making two closures per sweep.
 local axis, delta, hit, bx0, by0, bx1, by1
 
+-- Counts move() and moveBy() calls. Only the moving body changes during one,
+-- so the others are measured once per call however many sweeps it takes.
+local moveStamp = 0
+
+local function boundsDuringMove(b)
+	if b._moveStamp ~= moveStamp then
+		b._moveStamp = moveStamp
+		b._mx0, b._my0, b._mx1, b._my1 = boundsOf(b)
+	end
+	return b._mx0, b._my0, b._mx1, b._my1
+end
+
 -- Shortens the sweep if it runs into the box (ox0, oy0, ox1, oy1).
 local function block(ox0, oy0, ox1, oy1, what, oneWay)
 	local x0, y0, x1, y1 = bx0, by0, bx1, by1
@@ -405,7 +417,7 @@ local function sweep(self, x0, y0, x1, y1, sweepAxis, sweepDelta)
 	for i = 1, #list do
 		local b = list[i]
 		if b ~= self and not b._dead and collides(self, b) then
-			local ox0, oy0, ox1, oy1 = boundsOf(b)
+			local ox0, oy0, ox1, oy1 = boundsDuringMove(b)
 			if ox0 and ox1 > sx0 and ox0 < sx1 and oy1 > sy0 and oy0 < sy1 then
 				block(ox0, oy0, ox1, oy1, b, false)
 			end
@@ -465,6 +477,7 @@ function Body:move()
 	end
 	local dt = scene.getDelta()
 	refreshGrid()
+	moveStamp = moveStamp + 1
 	-- Ride along with a moving platform.
 	local ground = self._groundBody
 	if ground and (ground._dx ~= 0 or ground._dy ~= 0) and not ground._dead then
@@ -493,6 +506,7 @@ end
 
 function Body:moveBy(dx, dy)
 	refreshGrid()
+	moveStamp = moveStamp + 1
 	local _, _, hx, hy = moveBy(self, dx, dy)
 	return hx or hy
 end
