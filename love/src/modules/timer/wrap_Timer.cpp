@@ -23,10 +23,6 @@
 // LOVE
 #include "wrap_Timer.h"
 
-#ifdef LOVE_EMSCRIPTEN
-#include "thread/web/GreenThreads.h"
-#endif
-
 namespace love
 {
 namespace timer
@@ -61,7 +57,9 @@ int w_getAverageDelta(lua_State *L)
 int w_sleep(lua_State *L)
 {
 #ifdef LOVE_EMSCRIPTEN
-	return love::thread::web::sleep(L, luaL_checknumber(L, 1));
+	// The browser's main thread can't block (Smitten).
+	luaL_checknumber(L, 1);
+	return 0;
 #endif
 	instance()->sleep(luaL_checknumber(L, 1));
 	return 0;

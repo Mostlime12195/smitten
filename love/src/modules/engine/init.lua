@@ -1,12 +1,15 @@
--- What makes LÖVE into Smitten at run time (DESIGN.md, section 2):
+-- The engine at run time (DESIGN.md, section 2):
 --
 -- * Smitten's own modules (smitten.scene, smitten.input, ...) and the
 --   optional ones (smitten.physics, smitten.video, ...) load the first
 --   time a game uses them.
--- * Helpers join the LÖVE module they belong to: smitten.math.chance,
+-- * Helpers join the module they belong to: smitten.math.chance,
 --   smitten.timer.after, smitten.mouse.pressed, smitten.keyboard.pressed.
 -- * A project's smitten.json sets up the display, input actions and the
---   main scene, and love.run drives the scene tree through this module.
+--   main scene, and love.run (callbacks.lua) drives the scene tree through
+--   this module.
+-- * Game code (scripts and the Lua files they require) runs with
+--   smitten.* and Lua's globals, without the engine's internal name, love.
 
 local engine = {}
 
@@ -16,7 +19,7 @@ local LAZY = {
 	synth = true, physics = true, video = true,
 }
 
-engine.project = nil   -- smitten.json, decoded, or nil for a plain LÖVE game
+engine.project = nil   -- smitten.json, decoded (nil if the game has none: boot.lua says why)
 
 local function installLazyModules()
 	local mt = getmetatable(love) or {}
@@ -160,17 +163,51 @@ local function readProject()
 	return type(data) == "table" and data or nil
 end
 
----Called by boot.lua once the modules are loaded and conf.lua has run.
+-- What game code sees as globals: Lua's, the game's own and smitten, but
+-- not love (the engine's internal name for the same table). Globals a game
+-- sets are shared by all its code; one named love stays the game's own.
+local HIDDEN = { love = true }
+local globals
+globals = setmetatable({}, {
+	__index = function(_, k)
+		if k == "_G" then return globals end
+		if HIDDEN[k] then return nil end
+		return _G[k]
+	end,
+	__newindex = function(t, k, v)
+		if HIDDEN[k] then rawset(t, k, v) else _G[k] = v end
+	end,
+})
+engine.globals = globals
+
+-- Lua files a game requires get the same globals as its scripts. The first
+-- searcher is package.preload, the engine's own modules.
+local function wrapSearchers()
+	local searchers = package.loaders
+	for i = 2, #searchers do
+		local search = searchers[i]
+		searchers[i] = function(name)
+			local found = search(name)
+			if type(found) == "function" and debug.getinfo(found, "S").what ~= "C" then
+				setfenv(found, globals)
+			end
+			return found
+		end
+	end
+end
+
+---Called by boot.lua once the modules are loaded.
 function engine.init(conf)
 	love.version = "0.2.0"
 	installLazyModules()
 	extendModules()
 	hookHandlers()
+	wrapSearchers()
 	local project = readProject()
 	engine.project = project
 	if project then
 		-- Saves (smitten.storage) belong to the game: its folder is named
-		-- after the project, unless conf.lua or smitten.json names one.
+		-- after the project, unless smitten.json names one.
 		if not conf.identity then
 			local id = type(project.identity) == "string" and project.identity or project.name
 			id = type(id) == "string" and id:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", "") or ""
@@ -178,7 +215,7 @@ function engine.init(conf)
 		end
 		if love.graphics then require("love.display").setup(project.display) end
 		require("love.input")._configure(project.input)
-		-- boot.lua opens the window after this, with conf's title.
+		-- boot.lua opens the window after this, with this title.
 		local untitled = (conf.window and conf.window.title or conf.title) == "Untitled"
 		if type(project.name) == "string" and conf.window and untitled then
 			conf.window.title = project.name
@@ -197,10 +234,14 @@ local function startScene()
 	return nil
 end
 
----Before love.load: starts the main scene.
+---Starts the main scene (love.run calls it before the first frame).
 function engine.start()
+	if not engine.project then return end
 	local path = startScene()
-	if path and not (scene() and scene().current) then
+	if not path then
+		error("smitten.json names no main scene: choose one in Project settings (\"main\" in smitten.json).", 0)
+	end
+	if not (scene() and scene().current) then
 		love.scene.go(path)
 	end
 end
@@ -218,15 +259,11 @@ function engine.update(dt)
 	if s then s._update(scaled, dt) end
 end
 
-function engine.draw(userDraw)
+function engine.draw()
 	local display = require("love.display")
 	display.begin()
 	local s = scene()
-	if s and s.current then
-		s._draw(userDraw)
-	elseif userDraw then
-		userDraw()
-	end
+	if s and s.current then s._draw() end
 	display.finish()
 end
 

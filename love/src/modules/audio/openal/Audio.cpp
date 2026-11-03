@@ -21,7 +21,7 @@
 #include "Audio.h"
 
 #ifdef LOVE_EMSCRIPTEN
-#include "thread/web/GreenThreads.h"
+#include "thread/web/FrameTasks.h"
 #endif
 #include "common/delay.h"
 #include "RecordingDevice.h"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build LÖVE 12 for the web with Emscripten.
+Build Smitten's engine (a fork of LÖVE 12) for the web with Emscripten.
 
 Source lists come straight from love/CMakeLists.txt so upstream updates are
 picked up automatically. Objects are cached in build/obj and rebuilt only when
@@ -50,20 +50,18 @@ LOVE_TARGETS = [
     "love_keyboard_root", "love_keyboard_sdl",
     "love_math",
     "love_mouse_root", "love_mouse_sdl",
-    "love_physics_root", "love_physics_box2d",
     "love_sensor_root", "love_sensor_sdl",
     "love_sound_root", "love_sound_lullaby",
     "love_system_root", "love_system_sdl",
-    "love_thread_root", "love_thread_sdl",
+    "love_thread_root", "love_thread_sdl",  # the engine's own threads; there's no love.thread
     "love_timer",
     "love_touch_root", "love_touch_sdl",
     "love_video_root", "love_video_theora",
     "love_window_root", "love_window_sdl",
     "liblove",
-    "love_3p_box2d", "love_3p_ddsparse", "love_3p_glad", "love_3p_glslang",
+    "love_3p_ddsparse", "love_3p_glad", "love_3p_glslang",
     "love_3p_lodepng", "love_3p_lua53", "love_3p_lz4", "love_3p_noise1234",
     "love_3p_physfs", "love_3p_wuff", "love_3p_xxhash",
-    "love_3p_luahttps",
 ]
 
 # Files listed by CMake that must not be built for the web.
@@ -93,7 +91,6 @@ COMMON_FLAGS = [
     "-I" + str(LOVE / "src" / "modules"),
     "-I" + str(LOVE / "src" / "libraries"),
     "-I" + str(LOVE / "src" / "libraries" / "physfs"),
-    "-I" + str(LOVE / "src" / "libraries" / "box2d" / "include"),
     "-I" + str(LOVE / "src" / "libraries" / "glslang"),
     "-I" + str(LUA),
     "-I" + str(THEORA / "include"),
@@ -131,8 +128,7 @@ def cmake_sources():
 
 # Individual files needed from targets that are otherwise left out.
 EXTRA_SOURCES = [
-    "src/modules/thread/web/GreenThreads.cpp",
-    "src/libraries/luahttps/src/emscripten/EmscriptenClient.cpp",
+    "src/modules/thread/web/FrameTasks.cpp",
 ]
 
 
@@ -246,9 +242,6 @@ def module_sources():
     mods = {}
     # Scene physics: our fork of Box2D 3 (deps/box2d3) and its Lua binding.
     mods["physics2d"] = sorted((BOX2D3 / "src").glob("*.c")) + sorted((MODULES / "physics2d").glob("*.c"))
-    # love.physics for plain LÖVE games: LÖVE's own module on Box2D 2.4.
-    mods["lovephysics"] = [p for p in cmake_sources()
-                           if p.relative_to(LOVE).as_posix().startswith(("src/modules/physics/", "src/libraries/box2d/"))]
     mods["video"] = ([MODULES / "video" / "wrap_Video.cpp"] + sorted((MODULES / "video" / "theora").glob("*.cpp"))
                      + theora_sources())
     mods["synth"] = sorted(SYNTH.glob("*.cpp"))
@@ -257,7 +250,6 @@ def module_sources():
 
 MODULE_SYMBOLS = {
     "physics2d": "luaopen_love_box2d",
-    "lovephysics": "luaopen_love_physics",
     "video": "luaopen_love_video",
     "synth": "luaopen_love_synth",
 }
@@ -330,8 +322,6 @@ def compile_one(src: Path, opt: list):
     if is_cpp:
         flags.append("-std=c++20")
     if BOX2D3 in src.parents or src.parent == MODULES / "physics2d":
-        # Box2D 3 goes before the include path that holds LÖVE's Box2D 2.4
-        # (box2d/Box2D.h matches box2d/box2d.h on case-insensitive disks).
         flags = ["-I" + str(BOX2D3 / "include"), "-std=gnu17", *BOX2D3_FLAGS] + flags
 
     cmd = [cc, *flags, "-MMD", "-MF", str(obj.with_suffix(".d")), "-c", str(src), "-o", str(obj)]
