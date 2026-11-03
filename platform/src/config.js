@@ -46,8 +46,11 @@ export function loadConfig(env = null) {
     editorOrigins: list(env.EDITOR_ORIGINS ?? 'http://localhost:8766,http://127.0.0.1:8766,http://localhost:8796,http://127.0.0.1:8796'),
 
     // Behind a reverse proxy (Nest's, or Caddy), the client's address is the
-    // last one in X-Forwarded-For. Only turn this on behind a proxy that sets it.
-    trustProxy: flag(env.TRUST_PROXY),
+    // last one in X-Forwarded-For, believed only from the proxy: "1" trusts
+    // connections from loopback and private addresses; or list the proxy's
+    // addresses (a trailing * matches a prefix, e.g. "10.0.*,fd00:*").
+    trustProxy: /^(0|false|no|off)?$/i.test(String(env.TRUST_PROXY || '')) ? false
+      : flag(env.TRUST_PROXY) ? true : list(env.TRUST_PROXY),
 
     adminToken: env.ADMIN_TOKEN || '',
     secret: env.SECRET || readOrCreateSecret(dataDir),

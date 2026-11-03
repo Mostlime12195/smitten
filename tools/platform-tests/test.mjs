@@ -1210,6 +1210,12 @@ async function main() {
       assert.equal((await call('GET', `/api/games/${kept.data.id}`, { token: ADMIN })).status, 404);
       assert.equal((await call('GET', `/api/admin/users/${villain.username}`, { token: ADMIN })).status, 404);
     });
+    await test('admins can see which client address the server uses', async () => {
+      const r = await call('GET', '/api/admin/request', { token: ADMIN, ip: '203.0.113.7' });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.clientIp, '203.0.113.7');
+      assert.equal((await call('GET', '/api/admin/request')).status, 401);
+    });
     await test('what moderators do is logged', async () => {
       const r = await call('GET', '/api/admin/log', { token: ADMIN });
       const actions = r.data.log.map((l) => `${l.action} ${l.target}`);

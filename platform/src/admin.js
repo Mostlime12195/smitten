@@ -156,3 +156,22 @@ export function adminLog(ctx) {
   requireAdmin(ctx);
   return json({ log: db.all('SELECT at, action, target, detail FROM admin_log ORDER BY id DESC LIMIT 200') });
 }
+
+/**
+ * What the server sees of this request: the client address it uses for rate
+ * limits, and the forwarding headers. For checking a reverse proxy setup
+ * (TRUST_PROXY) after deploying.
+ */
+export function adminRequestInfo(ctx) {
+  requireAdmin(ctx);
+  const h = ctx.request.headers;
+  return json({
+    clientIp: ctx.ip,
+    peer: ctx.peer,
+    trustProxy: ctx.config.trustProxy,
+    xForwardedFor: h.get('X-Forwarded-For'),
+    xForwardedProto: h.get('X-Forwarded-Proto'),
+    host: h.get('Host'),
+    publicOrigin: ctx.config.publicOrigin,
+  });
+}

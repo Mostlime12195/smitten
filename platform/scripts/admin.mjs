@@ -11,6 +11,7 @@
 //   node scripts/admin.mjs reset-link <username>    a one-time link to set a new password
 //   node scripts/admin.mjs delete-user <username>   the account and all its games
 //   node scripts/admin.mjs log                      what moderators did
+//   node scripts/admin.mjs request                  the client address the server sees (checks TRUST_PROXY)
 
 import { loadConfig } from '../src/config.js';
 
@@ -21,6 +22,7 @@ const base = process.env.ADMIN_URL || `http://127.0.0.1:${config.port}`;
 const COMMANDS = {
   reports: ['GET', () => '/api/admin/reports'],
   log: ['GET', () => '/api/admin/log'],
+  request: ['GET', () => '/api/admin/request'],
   hide: ['POST', (id) => `/api/admin/games/${id}/hide`],
   restore: ['POST', (id) => `/api/admin/games/${id}/restore`],
   delete: ['DELETE', (id) => `/api/admin/games/${id}`],

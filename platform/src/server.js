@@ -36,7 +36,7 @@ import {
 import * as hackclub from './hackclub.js';
 import {
   adminReports, adminHide, adminRestore, adminDelete,
-  adminUser, adminBan, adminUnban, adminResetLink, adminDeleteUser, adminLog,
+  adminUser, adminBan, adminUnban, adminResetLink, adminDeleteUser, adminLog, adminRequestInfo,
 } from './admin.js';
 import { MODULES } from './validate.js';
 
@@ -79,6 +79,8 @@ const API = [
 
   ['GET', /^\/api\/admin\/reports$/, adminReports],
   ['GET', /^\/api\/admin\/log$/, adminLog],
+  ['GET', /^\/api\/admin\/request$/, adminRequestInfo],
+  ['GET', /^\/api\/admin\/request$/, adminRequestInfo],
   ['POST', new RegExp(`^/api/admin/games/${ID}/hide$`), adminHide],
   ['POST', new RegExp(`^/api/admin/games/${ID}/restore$`), adminRestore],
   ['DELETE', new RegExp(`^/api/admin/games/${ID}$`), adminDelete],
@@ -255,14 +257,26 @@ async function route(ctx) {
 // ---------------------------------------------------------------------------
 // Node's http <-> Request and Response
 
+const PRIVATE = /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|f[cd][0-9a-f]{2}:|fe[89ab][0-9a-f]:)/i;
+
+/** Whether a connection comes from the reverse proxy (TRUST_PROXY). */
+function fromProxy(peer, config) {
+  if (!config.trustProxy) return false;
+  if (config.trustProxy === true) return PRIVATE.test(peer);
+  return config.trustProxy.some((p) => (p.endsWith('*') ? peer.startsWith(p.slice(0, -1)) : peer === p));
+}
+
+/**
+ * The client's address. Behind the proxy, it's the last address in
+ * X-Forwarded-For (the one the proxy saw; earlier ones the client can make
+ * up). A direct connection (Nest containers have a public IPv6 address)
+ * can't pretend to be someone else.
+ */
 function clientIp(req, config) {
-  let ip = req.socket.remoteAddress || '0.0.0.0';
-  if (config.trustProxy) {
-    // The last address is the one the proxy saw; earlier ones the client can make up.
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
-    if (forwarded.length) ip = forwarded.at(-1);
-  }
-  return ip.replace(/^::ffff:/, '');
+  const peer = (req.socket.remoteAddress || '0.0.0.0').replace(/^::ffff:/, '');
+  if (!fromProxy(peer, config)) return { ip: peer, peer };
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return { ip: (forwarded.at(-1) || peer).replace(/^::ffff:/, ''), peer };
 }
 
 /** Cuts a request body off past max bytes, setting ctx.bodyTooBig. */
@@ -284,7 +298,7 @@ function limitedBody(req, ctx, max) {
 export function createApp(config) {
   return async function handle(req, res) {
     const url = new URL(req.url || '/', config.publicOrigin);
-    const ctx = { config, url, origin: config.publicOrigin, ip: clientIp(req, config), bodyTooBig: false };
+    const ctx = { config, url, origin: config.publicOrigin, ...clientIp(req, config), bodyTooBig: false };
     const headers = new Headers();
     for (let i = 0; i < req.rawHeaders.length; i += 2) headers.append(req.rawHeaders[i], req.rawHeaders[i + 1]);
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS';
