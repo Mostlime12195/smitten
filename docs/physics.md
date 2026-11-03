@@ -270,7 +270,10 @@ which only tunes its tolerances; it steps 60 times a second with 4
 substeps. Still bodies are static (kinematic once moved), scripted ones
 kinematic and moved with Box2D's character mover, physics ones dynamic;
 Zones are sensors; solid tiles are chain segments, rebuilt 16 x 16 cells
-at a time when they change. The same project runs the same way every time.
+at a time when they change. The same project runs the same way every time:
+the stress case `physics-check` (tools/stress) prints
+`check digest=622696633 hits=1444347 bodies=160 physics=41` after 600
+steps; a different digest means physics behaves differently.
 
 ## Reference
 
