@@ -1,7 +1,6 @@
-// Checks that an upload is a .love the player can run: a plain zip (no
-// encryption, no ZIP64, stored or deflated entries) with main.lua or
-// smitten.json at its root. Reads only the central directory; nothing is
-// decompressed.
+// Checks that an upload is a game the player can run: a plain zip (no
+// encryption, no ZIP64, stored or deflated entries) with smitten.json at
+// its root. Reads only the central directory; nothing is decompressed.
 
 import { HttpError } from './http.js';
 
@@ -22,9 +21,9 @@ function decodeName(bytes, utf8) {
   return String.fromCharCode(...bytes);
 }
 
-/** Returns {files, uncompressed, hasMain, hasManifest} or throws a 422. */
+/** Returns {files, uncompressed} or throws a 422. */
 export function inspectZip(bytes) {
-  const notZip = "This isn't a zip file. A game upload is a .love: a zip of the game's files.";
+  const notZip = "This isn't a zip file. A game upload is a zip of the game's files.";
   if (bytes.length < 22) throw bad(notZip);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (dv.getUint32(0, true) !== LOCAL && dv.getUint32(0, true) !== END) throw bad(notZip);
@@ -74,10 +73,8 @@ export function inspectZip(bytes) {
   }
   if (p > cdOffset + cdSize) throw bad('The zip is damaged (its directory is cut short).');
 
-  const hasMain = files.includes('main.lua');
-  const hasManifest = files.includes('smitten.json');
-  if (!hasMain && !hasManifest) {
-    throw bad('The game needs a main.lua or a smitten.json at the top of the zip (not inside a folder).');
+  if (!files.includes('smitten.json')) {
+    throw bad('The game needs a smitten.json at the top of the zip (not inside a folder).');
   }
-  return { files, uncompressed, hasMain, hasManifest };
+  return { files, uncompressed };
 }

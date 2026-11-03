@@ -125,7 +125,7 @@ export class ConsolePanel {
 
   /** One line of game output. level: 'out' | 'err' */
   log(level, text) {
-    // LÖVE's error handler prints the error and traceback; the player sends
+    // The engine's error handler prints the error and traceback; the player sends
     // the same text as one 'error' message, which we show as a block instead.
     if (text.startsWith('Error: ')) { this.inError = true; return; }
     if (this.inError && (text.startsWith('\t') || text.startsWith('stack traceback'))) return;

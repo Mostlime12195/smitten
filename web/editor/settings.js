@@ -24,7 +24,6 @@ export const DEFAULTS = {
   autorun: false,
   focusGameOnRun: true,
   clearConsoleOnRun: true,
-  compatCheck: true,
   scaleMode: 'fit',         // 'fit' | 'integer' | 'none'
   jit: true,
   // Console

@@ -40,7 +40,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   // General
   const name = text(s.name);
   const scenes = project.paths().filter((p) => p.endsWith('.scene'));
-  const main = select(s.main || '', [['', scenes.length ? '(none: main.lua runs the game)' : '(no scenes yet)'], ...scenes.map((p) => [p, p])]);
+  const main = select(s.main || '', [['', scenes.length ? '(none yet: choose one)' : '(no scenes yet)'], ...scenes.map((p) => [p, p])]);
   const general = h('div', { class: 'settings-grid' },
     ...field('Name', name),
     ...field('Main scene', main, 'The scene the game starts with. Play (F5) runs it; Play scene (F6) runs the one you have open.'));

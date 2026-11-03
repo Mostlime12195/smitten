@@ -30,7 +30,7 @@ import { ConsolePanel } from './console.js';
 import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
-import { createLoveCompletions } from './completions.js';
+import { createCompletions } from './completions.js';
 import { docsUrl } from './smitten-docs.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
@@ -118,7 +118,7 @@ function showHome() {
     openProject: (id) => { location.hash = `project=${id}`; },
     importZip: async (file) => {
       const files = await unzipToProjectFiles(new Uint8Array(await file.arrayBuffer()));
-      const name = file.name.replace(/\.(zip|love)$/i, '');
+      const name = file.name.replace(/\.zip$/i, '');
       const p = await store.createProject(name, files);
       location.hash = `project=${p.id}`;
     },
@@ -239,11 +239,11 @@ async function openProject(id) {
     openFile: (path) => openFile(path),
     addNodeDialog: (parent) => addNodeTo(parent),
     setCursor: (text) => { ed.status.right.textContent = text; },
-    // Completions need LÖVE's API list, loaded once.
+    // Completions need the engine's API list, loaded once.
     completions: (editor) => {
       if (!editor.cm) return null;
       let source = null;
-      loveApi().then((api) => { source = createLoveCompletions(api, editor.cm, () => project.paths()); });
+      engineApi().then((api) => { source = createCompletions(api, editor.cm, () => project.paths()); });
       return (context) => source?.(context) ?? null;
     },
   };
@@ -326,13 +326,10 @@ async function openProject(id) {
   }
   for (const p of scenes) await ed.workspaces.scene.open(p);
   for (const p of (saved.scripts || []).filter((x) => project.has(x))) await ed.workspaces.script.open(p);
-  if (!scenes.length && project.has('main.lua')) {
-    await ed.workspaces.script.open('main.lua');
-    if (!saved.workspace) switchWorkspace('script');
-  }
   if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
   window.addEventListener('beforeunload', saveAll);
   hydrateIcons(app);
+  explainMainLua(project);
 
   // Undo and redo follow the open scene's history.
   let watched = null;
@@ -368,9 +365,37 @@ async function openProject(id) {
 }
 
 let apiPromise = null;
-function loveApi() {
-  apiPromise ??= fetch('love-api.json').then((r) => r.json()).catch(() => ({}));
+function engineApi() {
+  apiPromise ??= fetch('engine-api.json').then((r) => r.json()).catch(() => ({}));
   return apiPromise;
+}
+
+/**
+ * Projects made before Smitten only ran scenes can have a main.lua (and a
+ * conf.lua) with LÖVE-style code and no main scene. Smitten doesn't run
+ * those files any more: say so when the project opens, and offer a main
+ * scene.
+ */
+async function explainMainLua(project) {
+  if (!project.has('main.lua') && !project.has('conf.lua')) return;
+  const main = project.settings().main;
+  if (main && project.has(main)) return;
+  const scenes = project.paths().filter((p) => p.endsWith('.scene'));
+  const files = ['main.lua', 'conf.lua'].filter((p) => project.has(p));
+  const choice = await openDialog({
+    title: 'This project needs a main scene',
+    body: h('div', {},
+      h('p', { class: 'insp-desc' }, `It was made with an older Smitten that ran ${files.join(' and ')} on its own, without scenes. Smitten doesn't run ${files.length > 1 ? 'those files' : 'that file'} any more: every game starts from its main scene, and behavior goes in scripts attached to pieces.`),
+      h('p', { class: 'insp-desc' }, `Your files are all still here. Make a main scene${scenes.length ? ', or choose one in Project settings,' : ''} and move the code you want to keep into scripts.`)),
+    actions: [
+      { label: 'Not now', value: null, ghost: true },
+      ...(scenes.length ? [{ label: 'Project settings', value: 'settings' }] : []),
+      { label: 'Make a main scene', value: 'scene', primary: true },
+    ],
+  });
+  if (!ed || ed.project !== project) return;
+  if (choice === 'scene') newScene('level');
+  else if (choice === 'settings') openProjectSettings();
 }
 
 /** Scenes saved with the first rebuild's piece names are converted once. */
@@ -712,7 +737,7 @@ async function newScript(node = null, dir = 'scripts') {
 
 async function attachScript(node) {
   const doc = sceneWs().doc;
-  const scripts = ed.project.paths().filter((p) => p.endsWith('.lua') && p !== 'main.lua' && p !== 'conf.lua');
+  const scripts = ed.project.paths().filter((p) => p.endsWith('.lua'));
   const ready = SCRIPT_LIBRARY.filter((sc) => sc.suits.includes(node.type)).concat(SCRIPT_LIBRARY.filter((sc) => !sc.suits.includes(node.type)));
   const sel = h('select', { class: 'input', size: 12, style: 'height: auto' },
     h('option', { value: 'new', selected: true }, 'A new, empty script'),
@@ -857,14 +882,14 @@ async function play(scenePath = null) {
   const project = ed.project;
   const files = project.snapshot();
   const main = project.settings().main;
-  if (!scenePath && !main && !project.has('main.lua')) {
+  if (!scenePath && !(main && project.has(main))) {
     const open = sceneWs().doc?.path;
     if (open) {
       if (await confirmDialog({ title: 'No main scene yet', message: `Make ${open} the main scene, the one the game starts with?`, okLabel: 'Make it the main scene' })) {
         project.updateSettings({ main: open });
       } else return;
     } else {
-      toast('Make a scene first, or a main.lua.');
+      toast('Make a scene first: the game starts from its main scene.');
       return;
     }
   }
@@ -872,13 +897,6 @@ async function play(scenePath = null) {
   ed.lastRun = scenePath;
   if (settings.get('clearConsoleOnRun')) ed.console.clear();
   ed.console.separator?.(scenePath ? `Playing ${scenePath}` : 'Playing');
-  // Code that can't work in a browser, explained before it fails (compat.js).
-  if (settings.get('compatCheck')) {
-    const { checkProject } = await import('./compat.js');
-    for (const issue of await checkProject(files)) {
-      if (issue.severity !== 'info') ed.console.info(`${issue.path}:${issue.line}: ${issue.message}`, issue.severity === 'error' ? 'danger' : 'warning');
-    }
-  }
   ed.gameView.hidden = false;
   ed.gameTitle.textContent = project.name;
   ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query: { jit: settings.get('jit') ? '1' : '0' } });

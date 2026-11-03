@@ -60,7 +60,7 @@ const API = [
   ['GET', new RegExp(`^/api/games/${ID}$`), getGame],
   ['PUT', new RegExp(`^/api/games/${ID}$`), updateGame],
   ['DELETE', new RegExp(`^/api/games/${ID}$`), deleteGame],
-  ['GET', new RegExp(`^/api/games/${ID}/[^/]+\\.love$`), getGameFile],
+  ['GET', new RegExp(`^/api/games/${ID}/[^/]+\\.(?:zip|love)$`), getGameFile],
   ['GET', new RegExp(`^/api/games/${ID}/thumbnail\\.png$`), getThumbnail],
   ['POST', new RegExp(`^/api/games/${ID}/play$`), countPlay],
   ['POST', new RegExp(`^/api/games/${ID}/report$`), reportGame],
@@ -210,10 +210,10 @@ function playMeta(ctx, id) {
 }
 
 // The player only runs games from this site: ?game= must be one of our
-// /api/games/<id>/<name>.love URLs, and ?modules= known engine modules.
+// /api/games/<id>/<name>.zip URLs, and ?modules= known engine modules.
 function checkPlayerParams(url) {
   const game = url.searchParams.get('game');
-  if (game !== null && !new RegExp(`^/api/games/${ID_PATTERN}/[^/?#]+\\.love$`).test(game)) {
+  if (game !== null && !new RegExp(`^/api/games/${ID_PATTERN}/[^/?#]+\\.(?:zip|love)$`).test(game)) {
     return 'The player only runs games published on this site.';
   }
   const modules = url.searchParams.get('modules');

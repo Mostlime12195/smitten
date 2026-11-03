@@ -1,48 +1,13 @@
-// Hand-written documentation that complements love-api.json (which is
-// generated from the real engine and only knows names). Signatures and
-// summaries for the most used functions, the callbacks, and the types that
-// constructors return (used to complete methods after ':').
+// Hand-written documentation that complements engine-api.json (which is
+// generated from the real engine by tools/introspect.html and only knows
+// names): signatures and summaries for the most used smitten.* functions
+// and object methods, and the types that constructors return (used to
+// complete methods after ':').
 
-export const CALLBACKS = [
-  ['load', 'arg, unfilteredArg', 'Called once at the beginning of the game.'],
-  ['update', 'dt', 'Called every frame with the time since the last update, in seconds.'],
-  ['draw', '', 'Called every frame to draw on the screen.'],
-  ['keypressed', 'key, scancode, isrepeat', 'A key was pressed.'],
-  ['keyreleased', 'key, scancode', 'A key was released.'],
-  ['textinput', 'text', 'Text was entered (UTF-8). Use this for typing, not keypressed.'],
-  ['textedited', 'text, start, length', 'IME candidate text was edited.'],
-  ['mousepressed', 'x, y, button, istouch, presses', 'A mouse button was pressed.'],
-  ['mousereleased', 'x, y, button, istouch, presses', 'A mouse button was released.'],
-  ['mousemoved', 'x, y, dx, dy, istouch', 'The mouse moved.'],
-  ['wheelmoved', 'x, y', 'The mouse wheel moved.'],
-  ['mousefocus', 'focus', 'The window gained or lost mouse focus.'],
-  ['touchpressed', 'id, x, y, dx, dy, pressure', 'The touch screen was touched.'],
-  ['touchreleased', 'id, x, y, dx, dy, pressure', 'A touch was released.'],
-  ['touchmoved', 'id, x, y, dx, dy, pressure', 'A touch moved.'],
-  ['joystickadded', 'joystick', 'A joystick was connected.'],
-  ['joystickremoved', 'joystick', 'A joystick was disconnected.'],
-  ['joystickpressed', 'joystick, button', 'A joystick button was pressed.'],
-  ['joystickreleased', 'joystick, button', 'A joystick button was released.'],
-  ['joystickaxis', 'joystick, axis, value', 'A joystick axis moved.'],
-  ['joystickhat', 'joystick, hat, direction', 'A joystick hat changed direction.'],
-  ['gamepadpressed', 'joystick, button', 'A virtual gamepad button was pressed.'],
-  ['gamepadreleased', 'joystick, button', 'A virtual gamepad button was released.'],
-  ['gamepadaxis', 'joystick, axis, value', 'A virtual gamepad axis moved.'],
-  ['focus', 'focus', 'The window gained or lost keyboard focus.'],
-  ['visible', 'visible', 'The window was shown or hidden.'],
-  ['resize', 'w, h', 'The window was resized.'],
-  ['filedropped', 'file', 'A file was dropped onto the window.'],
-  ['directorydropped', 'path', 'A folder was dropped onto the window.'],
-  ['quit', '', 'The game is about to quit. Return true to abort.'],
-  ['lowmemory', '', 'The system is running out of memory.'],
-  ['threaderror', 'thread, errorstr', 'A Thread raised an error.'],
-  ['errorhandler', 'msg', 'Replaces the default error screen.'],
-  ['conf', 't', 'Configuration (in conf.lua): window size, title, modules...'],
-];
 
 /** module.function -> [signature, summary] */
 export const DOCS = {
-  // love.graphics
+  // smitten.graphics
   'graphics.arc': ['drawmode, arctype?, x, y, radius, angle1, angle2, segments?', 'Draws a filled or unfilled arc.'],
   'graphics.circle': ['mode, x, y, radius, segments?', 'Draws a circle. mode is "fill" or "line".'],
   'graphics.clear': ['r?, g?, b?, a?', 'Clears the screen or active canvas.'],
@@ -62,7 +27,7 @@ export const DOCS = {
   'graphics.newQuad': ['x, y, width, height, sw, sh', 'Creates a Quad: a part of a texture.'],
   'graphics.newShader': ['code', 'Creates a Shader from GLSL code or a file.'],
   'graphics.newSpriteBatch': ['texture, maxsprites?, usage?', 'Creates a SpriteBatch to draw many sprites at once.'],
-  'graphics.newText': ['font, text?', 'Creates a TextBatch (renamed in LÖVE 12).'],
+  'graphics.newText': ['font, text?', 'Creates a TextBatch (newTextBatch\'s old name).'],
   'graphics.newTextBatch': ['font, text?', 'Creates a TextBatch of pre-laid-out text.'],
   'graphics.origin': ['', 'Resets the coordinate transform.'],
   'graphics.points': ['x, y, ...', 'Draws points.'],
@@ -88,7 +53,7 @@ export const DOCS = {
   'graphics.translate': ['dx, dy', 'Moves the coordinate system.'],
   'graphics.captureScreenshot': ['callback_or_filename', 'Captures the screen at the end of the frame.'],
   'graphics.getDPIScale': ['', 'Returns the pixel density of the window.'],
-  // love.keyboard / mouse
+  // smitten.keyboard / mouse
   'keyboard.isDown': ['key, ...', 'True if any of the keys is held down.'],
   'keyboard.isScancodeDown': ['scancode, ...', 'True if any of the physical keys is held down.'],
   'keyboard.setKeyRepeat': ['enable', 'Whether held keys repeat keypressed events.'],
@@ -99,40 +64,25 @@ export const DOCS = {
   'mouse.isDown': ['button, ...', 'True if a mouse button (1 = left, 2 = right, 3 = middle) is down.'],
   'mouse.setVisible': ['visible', 'Shows or hides the cursor.'],
   'mouse.setRelativeMode': ['enable', 'Locks the cursor and reports relative motion.'],
-  // love.audio / sound
+  // smitten.audio / sound
   'audio.newSource': ['filename_or_data, type?', 'Creates a Source. type is "static" (load fully) or "stream".'],
   'audio.play': ['source, ...', 'Plays sources.'],
   'audio.stop': ['source?', 'Stops sources (or all).'],
   'audio.setVolume': ['volume', 'Sets the master volume (0-1).'],
   'sound.newSoundData': ['samples, rate?, bits?, channels?', 'Creates raw audio you can fill with setSample.'],
-  // love.timer
+  // smitten.timer
   'timer.getDelta': ['', 'Time between the last two frames.'],
   'timer.getFPS': ['', 'Frames per second.'],
   'timer.getTime': ['', 'Time in seconds since an unspecified start.'],
-  'timer.sleep': ['seconds', 'Pauses the current thread.'],
-  // love.math
-  'math.random': ['min?, max?', 'Random number from LÖVE\'s generator (seeded automatically).'],
+  // smitten.math
+  'math.random': ['min?, max?', 'Random number from the engine\'s generator (seeded automatically).'],
   'math.randomNormal': ['stddev?, mean?', 'Normally distributed random number.'],
   'math.noise': ['x, y?, z?, w?', 'Simplex/Perlin noise in the range 0-1.'],
   'math.newTransform': ['x?, y?, angle?, sx?, sy?, ox?, oy?', 'Creates a Transform object.'],
   'math.triangulate': ['polygon', 'Splits a polygon into triangles.'],
   'math.newBezierCurve': ['vertices', 'Creates a Bézier curve.'],
   'math.newRandomGenerator': ['seed?', 'Creates an independent random generator.'],
-  // love.physics
-  'physics.newWorld': ['xg?, yg?, sleep?', 'Creates a physics world with gravity (in pixels/s²).'],
-  'physics.newBody': ['world, x?, y?, type?', 'Creates a body: "static", "dynamic" or "kinematic".'],
-  'physics.newRectangleBody': ['world, type, x, y, width, height, angle?', 'Creates a body with a rectangle shape attached.'],
-  'physics.newCircleBody': ['world, type, x, y, radius', 'Creates a body with a circle shape attached.'],
-  'physics.newPolygonBody': ['world, type, x1, y1, x2, y2, ...', 'Creates a body with a polygon shape attached.'],
-  'physics.newRectangleShape': ['body, [x, y,] width, height, angle?', 'Attaches a rectangle shape to a body.'],
-  'physics.newCircleShape': ['body, [x, y,] radius', 'Attaches a circle shape to a body.'],
-  'physics.newPolygonShape': ['body, x1, y1, x2, y2, ...', 'Attaches a convex polygon shape to a body.'],
-  'physics.newEdgeShape': ['body, x1, y1, x2, y2', 'Attaches a line segment shape to a body.'],
-  'physics.newChainShape': ['body, loop, x1, y1, x2, y2, ...', 'Attaches a chain of segments to a body.'],
-  'physics.newMouseJoint': ['body, x, y', 'Pulls a body towards a target point.'],
-  'physics.newRevoluteJoint': ['body1, body2, x, y, collideConnected?', 'Lets two bodies rotate around a shared point.'],
-  'physics.setMeter': ['scale', 'Pixels per meter (default 30).'],
-  // love.filesystem
+  // smitten.filesystem
   'filesystem.read': ['name, size?', 'Reads a file from the game or save directory.'],
   'filesystem.write': ['name, data, size?', 'Writes a file to the save directory (persists in the browser).'],
   'filesystem.append': ['name, data, size?', 'Appends to a file in the save directory.'],
@@ -143,23 +93,19 @@ export const DOCS = {
   'filesystem.remove': ['name', 'Removes a file or empty folder from the save directory.'],
   'filesystem.createDirectory': ['name', 'Creates a folder in the save directory.'],
   'filesystem.setIdentity': ['name', 'Sets the save directory name.'],
-  // love.window / event / system
+  // smitten.window / system
   'window.setTitle': ['title', 'Sets the window title (shown in the editor).'],
   'window.setMode': ['width, height, flags?', 'Changes the window size and settings.'],
   'window.getMode': ['', 'Returns width, height and flags.'],
   'window.setFullscreen': ['fullscreen, fstype?', 'Enters or leaves fullscreen.'],
-  'event.quit': ['exitstatus?', 'Quits the game (or "restart" to restart it).'],
-  'event.push': ['name, ...', 'Pushes an event onto the queue.'],
   'system.getOS': ['', 'Returns the operating system name ("Web" in the browser).'],
   'system.getClipboardText': ['', 'Returns the clipboard text.'],
   'system.setClipboardText': ['text', 'Puts text on the clipboard.'],
   'system.openURL': ['url', 'Opens a URL in the browser.'],
-  // love.image / data / thread
+  // smitten.image / data
   'image.newImageData': ['width_or_filename, height?, format?', 'Creates editable pixel data.'],
   'data.compress': ['container, format, data, level?', 'Compresses data ("zlib", "gzip", "deflate", "lz4").'],
   'data.encode': ['container, format, data', 'Encodes to "base64" or "hex".'],
-  'thread.newThread': ['code_or_filename', 'Creates a Thread running Lua code.'],
-  'thread.getChannel': ['name', 'Gets a named Channel to talk to threads.'],
 };
 
 /** Constructor -> type name of the object it returns (for ':' completions). */
@@ -174,28 +120,18 @@ export const RETURNS = {
   'audio.newSource': 'Source', 'audio.newQueueableSource': 'Source',
   'sound.newSoundData': 'SoundData', 'sound.newDecoder': 'Decoder',
   'image.newImageData': 'ImageData', 'image.newCompressedData': 'CompressedImageData',
-  'physics.newWorld': 'World', 'physics.newBody': 'Body', 'physics.newRectangleBody': 'Body', 'physics.newCircleBody': 'Body',
-  'physics.newPolygonBody': 'Body', 'physics.newEdgeBody': 'Body', 'physics.newChainBody': 'Body',
-  'physics.newRectangleShape': 'PolygonShape', 'physics.newPolygonShape': 'PolygonShape', 'physics.newCircleShape': 'CircleShape',
-  'physics.newEdgeShape': 'EdgeShape', 'physics.newChainShape': 'ChainShape', 'physics.newMouseJoint': 'MouseJoint',
-  'physics.newRevoluteJoint': 'RevoluteJoint', 'physics.newDistanceJoint': 'DistanceJoint', 'physics.newWeldJoint': 'WeldJoint',
-  'physics.newPrismaticJoint': 'PrismaticJoint', 'physics.newWheelJoint': 'WheelJoint', 'physics.newRopeJoint': 'RopeJoint',
-  'physics.newPulleyJoint': 'PulleyJoint', 'physics.newFrictionJoint': 'FrictionJoint', 'physics.newGearJoint': 'GearJoint',
-  'physics.newMotorJoint': 'MotorJoint',
   'math.newTransform': 'Transform', 'math.newRandomGenerator': 'RandomGenerator', 'math.newBezierCurve': 'BezierCurve',
   'filesystem.newFile': 'File', 'filesystem.openFile': 'File', 'filesystem.newFileData': 'FileData',
-  'thread.newThread': 'Thread', 'thread.newChannel': 'Channel', 'thread.getChannel': 'Channel',
   'data.newByteData': 'ByteData', 'mouse.newCursor': 'Cursor', 'mouse.getSystemCursor': 'Cursor',
   'font.newRasterizer': 'Rasterizer', 'font.newTrueTypeRasterizer': 'Rasterizer',
 };
 
 /** Variable-name hints when no assignment is found: name pattern -> type. */
 export const NAME_HINTS = [
-  [/^world$/i, 'World'], [/body$/i, 'Body'], [/(shape|fixture)$/i, 'Shape'], [/joint$/i, 'Joint'],
   [/font$/i, 'Font'], [/(image|img|sprite|texture|tex|canvas|atlas|sheet)s?$/i, 'Texture'],
   [/(source|sound|sfx|music|song|bgm)$/i, 'Source'], [/shader$/i, 'Shader'], [/(particles?|psystem|ps|emitter)$/i, 'ParticleSystem'],
   [/batch$/i, 'SpriteBatch'], [/mesh$/i, 'Mesh'], [/quad$/i, 'Quad'], [/(imagedata|pixels)$/i, 'ImageData'],
-  [/(transform|tf)$/i, 'Transform'], [/(rng|random)$/i, 'RandomGenerator'], [/(channel|chan)$/i, 'Channel'], [/thread$/i, 'Thread'],
+  [/(transform|tf)$/i, 'Transform'], [/(rng|random)$/i, 'RandomGenerator'],
   [/(joystick|gamepad|pad)$/i, 'Joystick'], [/(sounddata|samples)$/i, 'SoundData'], [/text$/i, 'TextBatch'],
 ];
 
@@ -230,22 +166,6 @@ export const METHOD_DOCS = {
   'ParticleSystem:setSpeed': ['min, max?', 'Initial speed range.'],
   'ParticleSystem:setSpread': ['spread', 'Emission cone in radians.'],
   'ParticleSystem:setSizes': ['size1, size2, ...', 'Sizes over a particle\'s lifetime.'],
-  'Body:getPosition': ['', 'World position x, y.'],
-  'Body:getAngle': ['', 'Rotation in radians.'],
-  'Body:setLinearVelocity': ['x, y', 'Sets the velocity.'],
-  'Body:getLinearVelocity': ['', 'Returns the velocity.'],
-  'Body:applyForce': ['fx, fy, x?, y?', 'Applies a force (continuous push).'],
-  'Body:applyLinearImpulse': ['ix, iy, x?, y?', 'Applies an instant push.'],
-  'Body:getShape': ['', 'The first shape attached to this body.'],
-  'Body:getWorldPoints': ['x1, y1, ...', 'Converts local points to world points.'],
-  'Body:destroy': ['', 'Removes the body from the world.'],
-  'World:update': ['dt, velocityiterations?, positioniterations?', 'Steps the simulation.'],
-  'World:setCallbacks': ['beginContact, endContact, preSolve, postSolve', 'Collision callbacks.'],
-  'World:setGravity': ['x, y', 'Sets gravity.'],
-  'Shape:testPoint': ['x, y', 'True if the world point is inside the shape.'],
-  'Shape:setRestitution': ['restitution', 'Bounciness (0-1).'],
-  'Shape:setFriction': ['friction', 'Friction coefficient.'],
-  'Shape:setDensity': ['density', 'Density (affects mass).'],
   'SpriteBatch:add': ['quad?, x, y, r?, sx?, sy?, ox?, oy?', 'Adds a sprite and returns its id.'],
   'SpriteBatch:clear': ['', 'Removes all sprites.'],
   'ImageData:setPixel': ['x, y, r, g, b, a', 'Sets a pixel.'],
