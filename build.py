@@ -28,6 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 LOVE = ROOT / "love"
 LUA = ROOT / "deps" / "lua-5.1.5"
+BOX2D3 = ROOT / "deps" / "box2d3"
 THEORA = ROOT / "deps" / "theora"
 MODULES = LOVE / "src" / "modules"
 SYNTH = MODULES / "synth"
@@ -69,6 +70,10 @@ LOVE_TARGETS = [
 EXCLUDE = {
     "src/libraries/glslang/glslang/OSDependent/Windows/ossource.cpp",
 }
+
+# Box2D 3's wide solver: its SSE2 code, which Emscripten turns into
+# WebAssembly SIMD. ["-DBOX2D_DISABLE_SIMD"] builds the scalar version.
+BOX2D3_FLAGS = ["-msse2"]
 
 # Third-party code is optimised for size; engine code for speed.
 SIZE_OPT_PREFIXES = ("src/libraries/glslang/",)
@@ -145,7 +150,7 @@ def theora_sources():
 # Engine modules written in Lua, embedded in the core: love/src/modules/<dir>.
 # <dir>/init.lua is require("love.<dir>"), <dir>/<file>.lua is
 # require("love.<dir>.<file>").
-CORE_LUA_DIRS = ["engine", "json", "input", "tween", "assets", "storage", "display", "scene"]
+CORE_LUA_DIRS = ["engine", "json", "input", "tween", "assets", "storage", "display", "scene", "physics"]
 
 
 def lua_entries(directory: Path, prefix: str):
@@ -239,8 +244,11 @@ def generate_engine_lua():
 def module_sources():
     """Sources of each optional side module (DESIGN.md, section 3)."""
     mods = {}
-    mods["physics2d"] = [p for p in cmake_sources()
-                         if p.relative_to(LOVE).as_posix().startswith(("src/modules/physics/", "src/libraries/box2d/"))]
+    # Scene physics: our fork of Box2D 3 (deps/box2d3) and its Lua binding.
+    mods["physics2d"] = sorted((BOX2D3 / "src").glob("*.c")) + sorted((MODULES / "physics2d").glob("*.c"))
+    # love.physics for plain LÖVE games: LÖVE's own module on Box2D 2.4.
+    mods["lovephysics"] = [p for p in cmake_sources()
+                           if p.relative_to(LOVE).as_posix().startswith(("src/modules/physics/", "src/libraries/box2d/"))]
     mods["video"] = ([MODULES / "video" / "wrap_Video.cpp"] + sorted((MODULES / "video" / "theora").glob("*.cpp"))
                      + theora_sources())
     mods["synth"] = sorted(SYNTH.glob("*.cpp"))
@@ -248,7 +256,8 @@ def module_sources():
 
 
 MODULE_SYMBOLS = {
-    "physics2d": "luaopen_love_physics",
+    "physics2d": "luaopen_love_box2d",
+    "lovephysics": "luaopen_love_physics",
     "video": "luaopen_love_video",
     "synth": "luaopen_love_synth",
 }
@@ -320,6 +329,10 @@ def compile_one(src: Path, opt: list):
         flags = [f for f in flags if not f.startswith("-O")] + ["-Oz"]
     if is_cpp:
         flags.append("-std=c++20")
+    if BOX2D3 in src.parents or src.parent == MODULES / "physics2d":
+        # Box2D 3 goes before the include path that holds LÖVE's Box2D 2.4
+        # (box2d/Box2D.h matches box2d/box2d.h on case-insensitive disks).
+        flags = ["-I" + str(BOX2D3 / "include"), "-std=gnu17", *BOX2D3_FLAGS] + flags
 
     cmd = [cc, *flags, "-MMD", "-MF", str(obj.with_suffix(".d")), "-c", str(src), "-o", str(obj)]
     r = subprocess.run(cmd, capture_output=True, text=True)
