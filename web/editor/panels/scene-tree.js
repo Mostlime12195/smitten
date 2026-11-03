@@ -84,7 +84,8 @@ export class SceneTreePanel {
       const kids = doc.effectiveChildren(n);
       if (kids.length && (this.filter || this.isOpen(n))) for (const c of kids) visit(c, depth + 1);
     };
-    visit(doc.root, 0);
+    // A live game's tree arrives a moment after it starts.
+    if (doc.root) visit(doc.root, 0);
     this.list.append(...rows);
   }
 

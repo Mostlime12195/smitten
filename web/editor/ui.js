@@ -221,7 +221,11 @@ window.addEventListener('resize', closeMenu);
 // Toasts
 
 export function toast(message, { type = 'info', timeout = 3200 } = {}) {
-  const host = document.getElementById('toasts');
+  let host = document.getElementById('toasts');
+  if (!host) {
+    host = h('div', { id: 'toasts', 'aria-live': 'polite' });
+    document.body.append(host);
+  }
   const iconName = { error: 'alert', success: 'check', info: 'info' }[type] || 'info';
   const el = h('div', { class: `toast ${type}`, role: type === 'error' ? 'alert' : 'status' }, icon(iconName), h('span', {}, message));
   host.append(el);

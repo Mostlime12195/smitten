@@ -285,7 +285,8 @@ smitten/
 
 ## 12. Next
 
-- Triangle and rotated collision shapes, slopes in tiles.
+- Triangle shapes, turned shapes for scripted Bodies and Zones (physics
+  already turns them), slopes in tiles.
 - An animation timeline for any property.
 - Hack Club sign-in, moderation tools and hosting for the sharing site.
 - The WebGPU experiment (README) if it pays off.

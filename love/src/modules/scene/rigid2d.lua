@@ -30,14 +30,29 @@ local function shapeKey(shapes)
 	return table.concat(parts, ";")
 end
 
--- Adds a piece's shapes to a Box2D body, measured from (cx, cy).
-local function addShapes(body, n, cx, cy, props)
+-- Where a shape sits on a body at (cx, cy) turned by angle.
+local function offset(s, cx, cy, angle)
+	local dx, dy = s.x - cx, s.y - cy
+	local c, si = math.cos(angle), math.sin(angle)
+	return dx * c + dy * si, dy * c - dx * si
+end
+
+-- The angle a piece is turned to in the scene.
+local function angleOf(n)
+	local a, b = nodes2d.globalMatrix(n)
+	return math.atan2(b, a)
+end
+
+-- Adds a piece's shapes to a Box2D body at (cx, cy) turned by angle. The
+-- shapes (physics2d.shapesOf) are measured unturned, so they turn with it.
+local function addShapes(body, n, cx, cy, angle, props)
 	for _, s in ipairs(physics2d.shapesOf(n)) do
 		local shape
+		local ox, oy = offset(s, cx, cy, angle)
 		if s.kind == "circle" then
-			shape = physics.newCircleShape(body, s.x - cx, s.y - cy, s.r)
+			shape = physics.newCircleShape(body, ox, oy, s.r)
 		else
-			shape = physics.newRectangleShape(body, s.x - cx, s.y - cy, s.hw * 2, s.hh * 2, 0)
+			shape = physics.newRectangleShape(body, ox, oy, s.hw * 2, s.hh * 2, 0)
 		end
 		shape:setUserData(n)
 		shape:setFriction(props.friction or 0.3)
@@ -91,10 +106,14 @@ end
 local function syncMirror(n, h)
 	local m = mirrors[n]
 	local x, y = n:worldPosition()
+	local angle = angleOf(n)
 	local shapes = physics2d.shapesOf(n)
-	-- Shapes measured from the piece, so moving it doesn't change the key.
+	-- Shapes measured from the piece, so moving or turning it doesn't change the key.
 	local local_ = {}
-	for i, s in ipairs(shapes) do local_[i] = { kind = s.kind, hw = s.hw, hh = s.hh, x = s.x - x, y = s.y - y } end
+	for i, s in ipairs(shapes) do
+		local ox, oy = offset(s, x, y, angle)
+		local_[i] = { kind = s.kind, hw = s.hw, hh = s.hh, x = ox, y = oy }
+	end
 	local key = shapeKey(local_)
 	if m and m.key ~= key then
 		m.body:destroy()
@@ -103,18 +122,23 @@ local function syncMirror(n, h)
 	if not m then
 		if #shapes == 0 then return end
 		local body = physics.newBody(world, x, y, "kinematic")
-		addShapes(body, n, x, y, { friction = n.friction, bounce = n.bounce })
+		body:setAngle(angle)
+		addShapes(body, n, x, y, angle, { friction = n.friction, bounce = n.bounce })
 		body:setUserData(n)
 		mirrors[n] = { body = body, key = key }
 		return
 	end
 	local bx, by = m.body:getPosition()
 	local dx, dy = x - bx, y - by
-	if dx * dx + dy * dy > 64 * 64 then
+	local da = (angle - m.body:getAngle() + math.pi) % (2 * math.pi) - math.pi
+	if dx * dx + dy * dy > 64 * 64 or math.abs(da) > 1 then
 		m.body:setPosition(x, y)
+		m.body:setAngle(angle)
 		m.body:setLinearVelocity(0, 0)
+		m.body:setAngularVelocity(0)
 	else
 		m.body:setLinearVelocity(dx / h, dy / h)
+		m.body:setAngularVelocity(da / h)
 	end
 end
 
@@ -155,11 +179,11 @@ end
 
 local function create(n)
 	local x, y = n:worldPosition()
-	local a, b = nodes2d.globalMatrix(n)
+	local angle = angleOf(n)
 	local body = physics.newBody(world, x, y, "dynamic")
-	body:setAngle(math.atan2(b, a))
+	body:setAngle(angle)
 	local size = area(n)
-	addShapes(body, n, x, y, {
+	addShapes(body, n, x, y, angle, {
 		friction = n.friction, bounce = n.bounce,
 		density = size > 0 and n.mass / (size / (64 * 64)) or 1,
 	})

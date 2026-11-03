@@ -69,6 +69,8 @@ function flushError() {
 // those lines so the embedding page gets the whole error at once.
 function output(level, text) {
   post({ type: 'log', level, text });
+  // Live tweaking's answers (engine/live.lua) are for the editor only.
+  if (text.startsWith('\x01live ')) return;
   (level === 'err' ? console.error : console.log)(text);
 
   if (text.startsWith('Error: ')) {

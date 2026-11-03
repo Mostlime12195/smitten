@@ -195,7 +195,7 @@
       "description": "Something solid: it bumps into other bodies and solid tiles. Pick how it moves: still (walls and floors), scripted (players and enemies you move in code) or physics (crates that fall and tumble). Put a Sprite or Shape inside it and its shape fits itself.",
       "properties": {
         "motion": { "type": "enum", "options": ["still", "scripted", "physics"], "default": "scripted", "group": "Body", "description": "Still never moves on its own; scripted moves when its script calls move(); physics falls, bounces and gets pushed." },
-        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Body", "description": "Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes." },
+        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Body", "description": "Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes. Physics turns shapes with the Body; scripted Bodies and Zones collide as if unturned." },
         "width": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
         "height": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Body", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
@@ -253,7 +253,7 @@
       "description": "An extra collision shape for the Body or Zone it's inside, for shapes auto can't make: an L shape, a sword's reach.",
       "parent": ["Body", "Zone"],
       "properties": {
-        "shape": { "type": "enum", "options": ["rectangle", "circle"], "default": "rectangle", "group": "Hitbox", "description": "Shapes move and scale with their piece but don't rotate." },
+        "shape": { "type": "enum", "options": ["rectangle", "circle"], "default": "rectangle", "group": "Hitbox", "description": "Shapes move and scale with their piece. They turn with it only for physics (Bodies moved by physics, and what they land on)." },
         "width": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
         "height": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Hitbox", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },

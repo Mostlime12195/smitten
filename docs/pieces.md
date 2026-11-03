@@ -238,7 +238,7 @@ Extends Group.
 | Property | Type | Default | |
 | --- | --- | --- | --- |
 | `motion` | enum | "scripted" | Still never moves on its own; scripted moves when its script calls move(); physics falls, bounces and gets pushed. |
-| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes. |
+| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes. Physics turns shapes with the Body; scripted Bodies and Zones collide as if unturned. |
 | `width` | number (px) | 32 | Rectangle width. |
 | `height` | number (px) | 32 | Rectangle height. |
 | `radius` | number (px) | 16 | Circle radius. |
@@ -305,7 +305,7 @@ Extends Group. Goes inside a Body or Zone.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "rectangle" | Shapes move and scale with their piece but don't rotate. |
+| `shape` | enum | "rectangle" | Shapes move and scale with their piece. They turn with it only for physics (Bodies moved by physics, and what they land on). |
 | `width` | number (px) | 32 | Rectangle width. |
 | `height` | number (px) | 32 | Rectangle height. |
 | `radius` | number (px) | 16 | Circle radius. |
