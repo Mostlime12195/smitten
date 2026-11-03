@@ -1,4 +1,4 @@
-// smitten.json: the project manifest (see docs/reference.md).
+// smitten.json: the project manifest (see docs/settings.md).
 
 // "Sweetie 16" by GrafxKid (lospec.com/palette-list/sweetie-16).
 export const DEFAULT_PALETTE = [

@@ -18,7 +18,7 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
 | Engine | A full fork of LÖVE with one table: `smitten` and `love` are the same, so LÖVE games and tutorials still work | 2, 9 |
 | Dimensions | 2D only | 4 |
 | Identity | Smitten's own model and words, not Godot's: pieces, Bodies with built-in shapes, Zones, tags | 4 |
-| Behavior | Scripts. Ready-made ones (platformer, patrol, pickup...) are copied into the project as ordinary Lua files to read and change; nothing is a hidden engine behavior | 5 |
+| Behavior | Scripts that are the piece's own code (no boilerplate, a short API like Pico-8's). Ready-made ones (platformer, patrol, pickup...) are copied into the project as ordinary Lua files to read and change; nothing is a hidden engine behavior | 5 |
 | Packaging | A game ships only the engine modules it uses (physics, video, sound generator) | 3 |
 | Editor | Flexible, modular and understandable; every tool opens ready to use; live tweaking while the game runs | 6 |
 | Sharing | A site to publish, play and remix games in the browser (prototype: Cloudflare Workers, R2, D1) | 7 |
@@ -136,41 +136,59 @@ second design's names are converted when a project opens
 
 ### Scripts
 
+A script is the piece's own code, as simple as Pico-8 and Godot make it:
+no table to make and return, no `self.` and no `smitten.` for everyday
+things.
+
 ```lua
 -- scripts/player.lua, attached to a Body whose motion is "scripted"
-local Player = {}
+speed = 220          -- script variables: shown in the inspector,
+jumpHeight = 96      -- changeable per piece
+gravity = 1800
 
-Player.speed = 220        -- script variables: shown in the inspector,
-Player.jumpHeight = 96    -- changeable per piece
-
-function Player:physicsUpdate(dt)
-  self.vx = smitten.input.axis("left", "right") * self.speed
-  self.vy += 1800 * dt
-  if self:onGround() and smitten.input.pressed("jump") then
-    self.vy = -math.sqrt(2 * 1800 * self.jumpHeight)
-  end
-  self:move()
+function physicsUpdate(dt)
+  vx = axis("left", "right") * speed
+  vy += gravity * dt
+  if onGround() and pressed("jump") then vy = -jumpSpeed(jumpHeight) end
+  move()
 end
 
-function Player:hit(other)            -- bumped into another body
-  if other:hasTag("enemy") then smitten.scene.reload() end
+function hit(other)            -- bumped into another body
+  if other:is("enemy") then reload() end
 end
-
-return Player
 ```
 
-- `self` is the piece; fields read through to its properties and methods.
+- **Names are the piece's.** Each piece runs its script file once in an
+  environment of its own (one compiled chunk, so pieces share the code and
+  the JIT's work). Reading a name looks at the script's functions, then the
+  piece (properties, variables, methods bound to it: `move()` is
+  `self:move()`), then children for capitalized names (`Look.color`,
+  `Camera.zoom`), then the short API, then Lua's globals. Assigning a name
+  that isn't `local` sets it on the piece. `self` is there too.
+- **The short API** (`love/src/modules/scene/script.lua`): `pressed`,
+  `down`, `released`, `axis`, `vector`; `go`, `reload`, `spawn`, `make`,
+  `tagged`, `first`, `root`; `sfx("coin")`, `music("theme")`, `stopMusic`;
+  `wait`, `task`, `after`, `every`, `tween`, `time`; `approach`, `lerp`,
+  `clamp`, `sign`, `round`, `rnd`, `choose`, `dist`, `jumpSpeed`;
+  `screenWidth`, `screenHeight`, `mouse`; and for `draw()`: `pen`, `rect`,
+  `circle`, `line`, `write`, `sprite`. Everything in `smitten.*` is still
+  there. Names that pieces already use as properties (`color`, `text`,
+  `image`) or methods (`find`, `start`) were left to them; `spawn()` adds to
+  the scene, `self:spawn()` inside the piece.
 - **Callbacks**: `ready()`, `update(dt)`, `physicsUpdate(dt)` (60 a
   second), `draw()`, `removed()`, and events named after what happened:
   `hit(other)`, `entered(other)` / `exited(other)`, `pressed()`,
   `finished()`, `tick()`. Any piece can `emit("name", ...)` its own;
-  `piece:on("pressed", fn)` listens from elsewhere.
-- **Script variables**: top-level `Name.field = value` lines (numbers,
-  strings, booleans, colors) appear in the inspector.
-- **Finding things**: `self:find("UI/Score")`, `smitten.scene.tagged("enemy")`,
-  `smitten.scene.first("player")`, `self:hasTag("coin")`.
-- **Making things**: `smitten.scene.spawn("scenes/bullet.scene", { x = 10 })`,
-  `self:spawn(...)`, `smitten.scene.make(...)`, `self:destroy()`.
+  `piece:on("pressed", fn)` listens from elsewhere. Another script calls a
+  script's function as a method: `other:hurt(5)`.
+- **Waiting**: `ready()` and events run as tasks (pooled coroutines), so
+  they can `wait(1)`; `task(function() ... end)` runs anything as one.
+  `update` and `draw` run straight through and say so if they `wait()`.
+- **Script variables**: top-level `name = value` lines (numbers, strings,
+  booleans, colors) appear in the inspector; `local` ones don't, and are the
+  piece's own private state.
+- **Old-style scripts** (a table they return, `function Player:update(dt)`)
+  still work, so older projects don't break.
 
 ## 5. Ready-made scripts
 
@@ -211,14 +229,14 @@ in place; standard conventions; neutral looks with icons from
 ## 7. Sharing site
 
 A Scratch/Roblox-style site where people publish games from the editor and
-anyone plays them in the browser, with remixing. The prototype is in
-`platform/` (a Cloudflare Worker with R2 for game files and D1 for
-metadata; it runs locally with `wrangler dev`): publish and update with an
-edit token, a gallery, a play page running Smitten's player, remix into the
-editor, reporting that hides a game after several reports, admin review,
-size and content checks, rate limits. Accounts (likely Hack Club sign-in),
-moderation tools and hosting costs are the next decisions;
-`platform/README.md` has them.
+anyone plays them in the browser, with remixing. It's in `platform/`: a
+plain Node server with SQLite and game files on disk, made to run on Hack
+Club Nest. Accounts (username and password with recovery codes, or Hack
+Club's sign-in; no email), games owned by accounts, the editor signing in
+through a popup for a revocable token, a gallery, profiles, a play page
+running Smitten's player, remix into the editor, reporting that hides a
+game after several reports, moderation with bans, size and content checks,
+rate limits. `platform/README.md` has the details and the next steps.
 
 ## 8. Language
 

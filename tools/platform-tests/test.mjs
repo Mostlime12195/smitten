@@ -1,34 +1,42 @@
-// Tests the game-sharing site's API (platform/) against a running local
-// Worker:
+// Tests the game-sharing site (platform/): its pages, the API, accounts,
+// sessions, the editor's sign-in, ownership, claiming old games, moderation,
+// banning, connecting Hackatime, and email (sending it, and on accounts).
 //
-//   cd platform && npx wrangler dev          (http://127.0.0.1:8787)
 //   node tools/platform-tests/test.mjs
 //
-// PLATFORM_URL changes the address, ADMIN_TOKEN the admin token (otherwise
-// it's read from platform/.dev.vars; without one the admin checks are
-// skipped). Locally, wrangler dev passes the CF-Connecting-IP header
-// through, so the tests act as many different people by setting it (on
-// Cloudflare the edge sets it, and clients can't).
+// It starts the server itself on port 8788 (PLATFORM_PORT changes it) with
+// an empty data folder, an admin token, and stand-ins for Hack Club Auth,
+// Hackatime and a mail server (SMTP on the first free port from 8791, or
+// SMTP_TEST_PORT; with STARTTLS when openssl can make a certificate), and
+// stops it at the end (plus, briefly, a server on the next port without
+// Hackatime or email, and one with EMAIL_TRANSPORT=log on a free port after
+// the mail server's). To test a server that's already running
+// instead, set PLATFORM_URL (and ADMIN_TOKEN for the admin checks); tests
+// that need the server's database or the stand-ins are skipped then. That
+// server must run with TRUST_PROXY=1 and PUBLIC_URL set to PLATFORM_URL:
+// the tests act as many different people by sending X-Forwarded-For.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash, randomBytes } from 'node:crypto';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import net from 'node:net';
+import tls from 'node:tls';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
-const BASE = (process.env.PLATFORM_URL || 'http://127.0.0.1:8787').replace(/\/+$/, '');
-const EDITOR_ORIGIN = 'http://localhost:8766';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-
-function adminToken() {
-  if (process.env.ADMIN_TOKEN) return process.env.ADMIN_TOKEN;
-  try {
-    const vars = readFileSync(`${ROOT}platform/.dev.vars`, 'utf8');
-    return /^ADMIN_TOKEN\s*=\s*"?([^"\n]+)"?/m.exec(vars)?.[1]?.trim() || null;
-  } catch {
-    return null;
-  }
-}
-const ADMIN = adminToken();
+const EDITOR_ORIGIN = 'http://localhost:8766';
+const external = Boolean(process.env.PLATFORM_URL);
+const PORT = Number(process.env.PLATFORM_PORT || 8788);
+const BASE = (process.env.PLATFORM_URL || `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
+const ADMIN = external ? process.env.ADMIN_TOKEN || null : randomBytes(24).toString('base64url');
+const HC = { clientId: 'smitten-test', clientSecret: randomBytes(16).toString('hex') };
+const HT = { clientId: 'smitten-hackatime-test', clientSecret: randomBytes(16).toString('hex') };
 
 // ---------------------------------------------------------------------------
 // A tiny test runner
@@ -45,7 +53,7 @@ async function test(name, fn) {
     console.log(`  ok  ${name}`);
   } catch (e) {
     failed++;
-    console.log(`  FAIL ${name}\n       ${String(e?.message || e).split('\n').join('\n       ')}`);
+    console.log(`  FAIL ${name}\n       ${String(e?.stack || e).split('\n').slice(0, 6).join('\n       ')}`);
   }
 }
 
@@ -58,15 +66,26 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
-// Every request comes from a made-up address unless a test picks one, so
-// rate limits from earlier runs or other tests don't get in the way.
+// ---------------------------------------------------------------------------
+// Requests. Every request comes from a made-up address unless a test picks
+// one, so rate limits don't get in the way.
+
 const run = Math.floor(Math.random() * 200) + 20;
 let ipCounter = 0;
 const freshIp = () => `10.${run}.${Math.floor(++ipCounter / 250)}.${(ipCounter % 250) + 1}`;
 
-async function call(method, path, { body, headers = {}, ip = freshIp(), token } = {}) {
-  const h = { 'CF-Connecting-IP': ip, ...headers };
+/**
+ * call(method, path, options): {status, headers, data, cookies}.
+ * token: Authorization: Bearer; session: the site's session cookie (and
+ * Origin: the site, as its pages send); cookies: more cookies.
+ */
+async function call(method, path, { body, headers = {}, ip = freshIp(), token, session, cookies = {}, site = Boolean(session) } = {}) {
+  const h = { 'X-Forwarded-For': ip, ...headers };
   if (token) h.Authorization = `Bearer ${token}`;
+  const jar = { ...cookies };
+  if (session) jar.smitten_session = session;
+  if (Object.keys(jar).length) h.Cookie = Object.entries(jar).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; ');
+  if (site && !('Origin' in h)) h.Origin = BASE;
   if (body && !(body instanceof FormData) && typeof body !== 'string' && !(body instanceof Uint8Array)) {
     h['Content-Type'] = 'application/json';
     body = JSON.stringify(body);
@@ -74,7 +93,47 @@ async function call(method, path, { body, headers = {}, ip = freshIp(), token } 
   const res = await fetch(`${BASE}${path}`, { method, headers: h, body, redirect: 'manual' });
   const type = res.headers.get('content-type') || '';
   const data = type.includes('json') ? await res.json() : new Uint8Array(await res.arrayBuffer());
-  return { status: res.status, headers: res.headers, data };
+  const set = {};
+  for (const c of res.headers.getSetCookie()) {
+    const [pair] = c.split(';');
+    const i = pair.indexOf('=');
+    set[pair.slice(0, i)] = decodeURIComponent(pair.slice(i + 1));
+  }
+  return { status: res.status, headers: res.headers, data, cookies: set, setCookie: res.headers.getSetCookie() };
+}
+
+// ---------------------------------------------------------------------------
+// Accounts
+
+const PASSWORD = 'correct horse battery';
+let userCounter = 0;
+const uniqueName = (prefix = 'tester') => `${prefix}${run}${(++userCounter).toString(36)}${Date.now().toString(36).slice(-4)}`.slice(0, 20);
+
+/** Signs up someone new: {username, session, recoveryCodes, user}. */
+async function signUp({ username = uniqueName(), password = PASSWORD, displayName } = {}) {
+  const r = await call('POST', '/api/auth/signup', { body: { username, password, displayName }, site: true });
+  assert.equal(r.status, 201, JSON.stringify(r.data));
+  return { username, password, session: r.cookies.smitten_session, recoveryCodes: r.data.recoveryCodes, user: r.data.user };
+}
+
+const b64url = (buf) => Buffer.from(buf).toString('base64url');
+
+/** The editor's sign-in, as web/editor/account.js does it: a code from the site, swapped for a token. */
+async function editorToken(session, { origin = EDITOR_ORIGIN } = {}) {
+  const verifier = b64url(randomBytes(32));
+  const challenge = b64url(createHash('sha256').update(verifier).digest());
+  const code = await call('POST', '/api/auth/editor/code', { body: { origin, challenge }, session });
+  assert.equal(code.status, 200, JSON.stringify(code.data));
+  const r = await call('POST', '/api/auth/editor/token', { body: { code: code.data.code, verifier }, headers: { Origin: origin } });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  return r.data.token;
+}
+
+/** Someone with an account and a signed-in editor. */
+async function person(opts) {
+  const p = await signUp(opts);
+  p.token = await editorToken(p.session);
+  return p;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,9 +237,23 @@ function form(meta, game, thumbnail) {
   return f;
 }
 
+// Publishing is limited per account and hour, so games without a chosen
+// publisher go out from a series of accounts.
+let publisher = null;
+let publisherCount = 0;
+async function defaultPublisher() {
+  if (!publisher || publisherCount >= 8) {
+    publisher = await person();
+    publisherCount = 0;
+  }
+  publisherCount++;
+  return publisher;
+}
+
 async function publish(meta, game = mainLuaGame(), thumbnail = null, opts = {}) {
-  const res = await call('POST', '/api/games', { body: form({ description: '', ...meta }, game, thumbnail), ...opts });
-  if (res.status === 201) cleanup.push({ id: res.data.id, token: res.data.token });
+  const token = opts.token ?? (await defaultPublisher()).token;
+  const res = await call('POST', '/api/games', { body: form({ description: '', ...meta }, game, thumbnail), ...opts, token });
+  if (res.status === 201) cleanup.push({ id: res.data.id, token });
   return res;
 }
 
@@ -188,18 +261,486 @@ const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 const ID = /^[0-9a-hjkmnp-tv-z]{10}$/;
 
 // ---------------------------------------------------------------------------
+// The server, a stand-in for Hack Club Auth, and the server's database
+
+let server = null;
+let dataDir = null;
+let db = null;
+
+/** Hack Club Auth's OIDC endpoints, as https://auth.hackclub.com/docs/oidc-guide describes them. */
+const fakeHackclub = {
+  nextSub: null,
+  codes: new Map(),
+  tokens: new Map(),
+  lastAuthorize: null,
+  server: null,
+  url: null,
+  async start() {
+    this.server = createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://x');
+      const send = (status, data, headers = {}) => {
+        res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
+        res.end(data ? JSON.stringify(data) : undefined);
+      };
+      if (url.pathname === '/oauth/authorize') {
+        const p = Object.fromEntries(url.searchParams);
+        this.lastAuthorize = p;
+        if (p.client_id !== HC.clientId || p.response_type !== 'code') return send(400, { error: 'invalid_request' });
+        const code = randomBytes(12).toString('hex');
+        this.codes.set(code, { sub: this.nextSub, challenge: p.code_challenge, redirect: p.redirect_uri });
+        return send(302, null, { Location: `${p.redirect_uri}?code=${code}&state=${encodeURIComponent(p.state)}` });
+      }
+      if (url.pathname === '/oauth/token' && req.method === 'POST') {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        const p = Object.fromEntries(new URLSearchParams(body));
+        const grant = this.codes.get(p.code);
+        this.codes.delete(p.code);
+        const challenge = b64url(createHash('sha256').update(p.code_verifier || '').digest());
+        if (!grant || p.client_secret !== HC.clientSecret || p.client_id !== HC.clientId || p.redirect_uri !== grant.redirect || challenge !== grant.challenge) {
+          return send(400, { error: 'invalid_grant' });
+        }
+        const access = randomBytes(12).toString('hex');
+        this.tokens.set(access, grant.sub);
+        return send(200, { access_token: access, token_type: 'Bearer', id_token: 'unused' });
+      }
+      if (url.pathname === '/oauth/userinfo') {
+        const sub = this.tokens.get(String(req.headers.authorization || '').replace(/^Bearer /, ''));
+        return sub ? send(200, { sub }) : send(401, { error: 'invalid_token' });
+      }
+      return send(404, { error: 'not found' });
+    });
+    await new Promise((resolve) => this.server.listen(0, '127.0.0.1', resolve));
+    this.url = `http://127.0.0.1:${this.server.address().port}`;
+  },
+};
+
+/**
+ * Hackatime's OAuth and the API endpoints the site uses, as its docs and
+ * OpenAPI describe them. users: access token → the Hackatime user
+ * {id, apiKey, projects: {name: seconds}}.
+ */
+const fakeHackatime = {
+  nextUser: null,
+  codes: new Map(),
+  tokens: new Map(),
+  issued: [],
+  revoked: [],
+  projectCalls: 0,
+  keyCalls: 0,
+  lastAuthorize: null,
+  server: null,
+  url: null,
+  async start() {
+    this.server = createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://x');
+      const send = (status, data, headers = {}) => {
+        res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
+        res.end(data ? JSON.stringify(data) : undefined);
+      };
+      const form = async () => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        return Object.fromEntries(new URLSearchParams(body));
+      };
+      const who = () => this.tokens.get(String(req.headers.authorization || '').replace(/^Bearer /, ''));
+      if (url.pathname === '/oauth/authorize') {
+        const p = Object.fromEntries(url.searchParams);
+        this.lastAuthorize = p;
+        if (p.client_id !== HT.clientId || p.response_type !== 'code' || p.code_challenge_method !== 'S256') return send(400, { error: 'invalid_request' });
+        const code = randomBytes(12).toString('hex');
+        this.codes.set(code, { user: this.nextUser, challenge: p.code_challenge, redirect: p.redirect_uri });
+        return send(302, null, { Location: `${p.redirect_uri}?code=${code}&state=${encodeURIComponent(p.state)}` });
+      }
+      if (url.pathname === '/oauth/token' && req.method === 'POST') {
+        const p = await form();
+        const grant = this.codes.get(p.code);
+        this.codes.delete(p.code);
+        const challenge = b64url(createHash('sha256').update(p.code_verifier || '').digest());
+        if (!grant || p.grant_type !== 'authorization_code' || p.client_secret !== HT.clientSecret || p.client_id !== HT.clientId
+          || p.redirect_uri !== grant.redirect || challenge !== grant.challenge) {
+          return send(400, { error: 'invalid_grant' });
+        }
+        const access = `htat_${randomBytes(16).toString('hex')}`;
+        this.tokens.set(access, grant.user);
+        this.issued.push(access);
+        return send(200, { access_token: access, token_type: 'Bearer', expires_in: 504921600, scope: 'profile read', created_at: Math.floor(Date.now() / 1000) });
+      }
+      if (url.pathname === '/oauth/revoke' && req.method === 'POST') {
+        const p = await form();
+        if (p.client_id !== HT.clientId || p.client_secret !== HT.clientSecret) return send(401, { error: 'invalid_client' });
+        this.revoked.push(p.token);
+        this.tokens.delete(p.token);
+        return send(200, {});
+      }
+      if (this.failing) return send(500, { error: 'Internal Server Error' });
+      const user = who();
+      if (url.pathname.startsWith('/api/v1/authenticated/') && !user) return send(401, { error: 'Unauthorized' });
+      if (url.pathname === '/api/v1/authenticated/me') {
+        return send(200, { id: user.id, emails: [`person${user.id}@example.com`], slack_id: 'U0SECRET', github_username: 'someone', trust_factor: { trust_level: 'blue' } });
+      }
+      if (url.pathname === '/api/v1/authenticated/api_keys') {
+        this.keyCalls++;
+        return send(200, { token: user.apiKey });
+      }
+      if (url.pathname === '/api/v1/authenticated/projects') {
+        this.projectCalls++;
+        const wanted = (url.searchParams.get('projects') || '').split(',').filter(Boolean);
+        const projects = Object.entries(user.projects)
+          .filter(([name]) => !wanted.length || wanted.includes(name))
+          .map(([name, seconds]) => ({ name, total_seconds: seconds, most_recent_heartbeat: new Date().toISOString(), languages: ['Lua'], archived: false }));
+        return send(200, { projects });
+      }
+      return send(404, { error: 'not found' });
+    });
+    await new Promise((resolve) => this.server.listen(0, '127.0.0.1', resolve));
+    this.url = `http://127.0.0.1:${this.server.address().port}`;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// A stand-in mail server (SMTP, RFC 5321): EHLO, STARTTLS, AUTH PLAIN and
+// LOGIN, MAIL, RCPT, DATA (undoing dot-stuffing), RSET, NOOP, QUIT. It
+// keeps every message, parsed (headers, and the text and HTML parts with
+// quoted-printable decoded).
+
+/** The first port from start that's free. */
+async function freePort(start) {
+  for (let port = start; port < start + 200; port++) {
+    const free = await new Promise((resolve) => {
+      const probe = net.createServer();
+      probe.once('error', () => resolve(false));
+      probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+    });
+    if (free) return port;
+  }
+  throw new Error(`No free port from ${start}`);
+}
+
+/** A self-signed certificate for localhost (and 127.0.0.1), or null without openssl. */
+function makeCertificate(dir) {
+  try {
+    const key = join(dir, 'smtp-key.pem');
+    const cert = join(dir, 'smtp-cert.pem');
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '2',
+      '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
+    return { key: readFileSync(key, 'utf8'), cert: readFileSync(cert, 'utf8'), certFile: cert };
+  } catch {
+    return null;
+  }
+}
+
+function decodeQuotedPrintable(text) {
+  const s = text.replace(/=\r?\n/g, '');
+  const bytes = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '=' && /^[0-9A-F]{2}$/.test(s.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(s.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else bytes.push(s.charCodeAt(i) & 0xff);
+  }
+  return Buffer.from(bytes).toString('utf8');
+}
+
+const decodeWords = (value) => value.replace(/\?=\s+=\?/g, '?==?').replace(/=\?UTF-8\?B\?([^?]*)\?=/gi, (_, b) => Buffer.from(b, 'base64').toString('utf8'));
+
+/** {headers: {name: value}, subject, text, html, lines} from a message as DATA carried it. */
+function parseMail(raw) {
+  const split = raw.indexOf('\r\n\r\n');
+  const head = raw.slice(0, split).replace(/\r\n[ \t]+/g, ' ');
+  const body = raw.slice(split + 4);
+  const headers = {};
+  for (const line of head.split('\r\n')) {
+    const i = line.indexOf(':');
+    headers[line.slice(0, i).toLowerCase()] = line.slice(i + 1).trim();
+  }
+  const out = { headers, subject: decodeWords(headers.subject || ''), text: '', html: '', lines: raw.split('\r\n') };
+  const boundary = /boundary="([^"]+)"/.exec(headers['content-type'] || '')?.[1];
+  for (const part of boundary ? body.split(`--${boundary}`).slice(1, -1) : []) {
+    const p = part.replace(/^\r\n/, '');
+    const j = p.indexOf('\r\n\r\n');
+    const partHead = p.slice(0, j).toLowerCase();
+    const content = decodeQuotedPrintable(p.slice(j + 4).replace(/\r\n$/, ''));
+    if (partHead.includes('text/plain')) out.text = content;
+    if (partHead.includes('text/html')) out.html = content;
+  }
+  return out;
+}
+
+/** A mail server. opts: {cert, implicitTls, user, pass, mechanisms, silent}. */
+function fakeSmtpServer(opts = {}) {
+  const server = {
+    messages: [],
+    failNext: 0, // answer MAIL with 451 (try again later)
+    rejectNext: 0, // answer RCPT with 550, naming the address
+    connections: 0,
+    port: null,
+  };
+  const session = (socket) => {
+    server.connections++;
+    let sock = socket;
+    let secure = Boolean(opts.implicitTls);
+    let buffer = '';
+    let state = 'command';
+    let authed = false;
+    let authMethod = null;
+    let loginUser = null;
+    let mail = null;
+    let lines = [];
+    const reply = (line) => sock.write(`${line}\r\n`);
+    const b64 = (s) => Buffer.from(s, 'base64').toString('utf8');
+    const checkAuth = (user, pass, method) => {
+      if (user === opts.user && pass === opts.pass) {
+        authed = true;
+        authMethod = method;
+        reply('235 2.7.0 Authentication successful');
+      } else reply('535 5.7.8 Authentication credentials invalid');
+    };
+    const handle = (line) => {
+      if (state === 'data') {
+        if (line === '.') {
+          state = 'command';
+          const raw = `${lines.join('\r\n')}\r\n`;
+          server.messages.push({ ...mail, raw, secure, authMethod, ...parseMail(raw) });
+          mail = null;
+          return reply('250 2.0.0 Ok: queued');
+        }
+        lines.push(line.startsWith('.') ? line.slice(1) : line);
+        return;
+      }
+      if (state === 'login-user') {
+        loginUser = b64(line);
+        state = 'login-pass';
+        return reply('334 UGFzc3dvcmQ6');
+      }
+      if (state === 'login-pass') {
+        state = 'command';
+        return checkAuth(loginUser, b64(line), 'LOGIN');
+      }
+      const [verb, ...rest] = line.split(' ');
+      const arg = rest.join(' ');
+      switch (verb.toUpperCase()) {
+        case 'EHLO': {
+          const ext = [];
+          if (opts.cert && !secure && !opts.noStarttls) ext.push('STARTTLS');
+          if (opts.user && (secure || !opts.cert || opts.noStarttls)) ext.push(`AUTH ${(opts.mechanisms || ['PLAIN', 'LOGIN']).join(' ')}`);
+          ext.push('8BITMIME');
+          reply(`250-smtp.test Hello ${arg}`);
+          ext.forEach((e, i) => reply(`250${i === ext.length - 1 ? ' ' : '-'}${e}`));
+          return;
+        }
+        case 'STARTTLS': {
+          if (!opts.cert || secure || opts.noStarttls) return reply('502 5.5.1 Not now');
+          reply('220 2.0.0 Ready to start TLS');
+          sock.removeAllListeners('data');
+          const upgraded = new tls.TLSSocket(sock, { isServer: true, key: opts.cert.key, cert: opts.cert.cert });
+          upgraded.on('data', onData);
+          upgraded.on('error', () => {});
+          sock = upgraded;
+          secure = true;
+          return;
+        }
+        case 'AUTH': {
+          const [mech, initial] = arg.split(' ');
+          if (mech.toUpperCase() === 'PLAIN') {
+            const [, user, pass] = b64(initial || '').split('\0');
+            return checkAuth(user, pass, 'PLAIN');
+          }
+          if (mech.toUpperCase() === 'LOGIN') {
+            state = 'login-user';
+            return reply('334 VXNlcm5hbWU6');
+          }
+          return reply('504 5.5.4 Unrecognized authentication type');
+        }
+        case 'MAIL':
+          if (opts.user && !authed) return reply('530 5.7.0 Authentication required');
+          if (server.failNext > 0) {
+            server.failNext--;
+            return reply('451 4.3.0 Try again later');
+          }
+          mail = { from: /<([^>]*)>/.exec(arg)?.[1], to: null };
+          return reply('250 2.1.0 Ok');
+        case 'RCPT': {
+          const to = /<([^>]*)>/.exec(arg)?.[1];
+          if (server.rejectNext > 0) {
+            server.rejectNext--;
+            return reply(`550 5.1.1 <${to}>: Recipient address rejected: User unknown`);
+          }
+          mail.to = to;
+          return reply('250 2.1.5 Ok');
+        }
+        case 'DATA':
+          if (!mail?.to) return reply('503 5.5.1 Need RCPT first');
+          state = 'data';
+          lines = [];
+          return reply('354 End data with <CR><LF>.<CR><LF>');
+        case 'RSET':
+          mail = null;
+          return reply('250 2.0.0 Ok');
+        case 'NOOP':
+          return reply('250 2.0.0 Ok');
+        case 'QUIT':
+          reply('221 2.0.0 Bye');
+          return sock.end();
+        default:
+          return reply('500 5.5.2 Unknown command');
+      }
+    };
+    function onData(chunk) {
+      buffer += chunk.toString('latin1');
+      let i;
+      while ((i = buffer.indexOf('\r\n')) >= 0) {
+        const line = buffer.slice(0, i);
+        buffer = buffer.slice(i + 2);
+        handle(line);
+      }
+    }
+    socket.on('data', onData);
+    socket.on('error', () => {});
+    if (!opts.silent) reply('220 smtp.test ESMTP ready');
+  };
+  server.net = opts.implicitTls ? tls.createServer({ key: opts.cert.key, cert: opts.cert.cert }, session) : net.createServer(session);
+  server.listen = async (start) => {
+    server.port = await freePort(start);
+    await new Promise((resolve) => server.net.listen(server.port, '127.0.0.1', resolve));
+    return server;
+  };
+  server.close = () => server.net.close();
+  return server;
+}
+
+const SMTP = { user: 'smitten-mailer', pass: randomBytes(12).toString('hex') };
+const SMTP_START = Number(process.env.SMTP_TEST_PORT || 8791);
+let certificate = null;
+let mailServer = null;
+
+/** Mail the stand-in got for an address (and subject) that no test has taken yet; waits for it. */
+async function takeMail(to, subject = null, ms = 5000) {
+  const found = await eventually(() => mailServer.messages.find((m) => !m.taken && m.to === to && (!subject || subject.test(m.subject))),
+    `mail to ${to}${subject ? ` (${subject})` : ''}`, ms);
+  found.taken = true;
+  return found;
+}
+
+/** Checks that nothing (more) arrives for an address. */
+async function noMail(to, ms = 600) {
+  await new Promise((r) => setTimeout(r, ms));
+  const left = mailServer.messages.filter((m) => !m.taken && m.to === to);
+  assert.equal(left.length, 0, `unexpected mail to ${to}: ${left.map((m) => m.subject).join(', ')}`);
+}
+
+let emailCounter = 0;
+const freshEmail = (prefix = 'kid') => `${prefix}.${run}.${++emailCounter}${Date.now().toString(36).slice(-3)}@example.test`;
+
+/** Starts the site with env on port; resolves with the child process once it answers. */
+async function spawnServer(port, dir, env) {
+  const child = spawn(process.execPath, [`${ROOT}platform/src/server.js`], {
+    env: {
+      PATH: process.env.PATH,
+      ENV_FILE: join(dir, 'no.env'),
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      PUBLIC_URL: `http://127.0.0.1:${port}`,
+      DATA_DIR: dir,
+      TRUST_PROXY: '1',
+      ...env,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  child.stdout.on('data', (d) => { output += d; });
+  child.stderr.on('data', (d) => { output += d; });
+  child.output = () => output;
+  for (let i = 0; i < 100; i++) {
+    try {
+      await fetch(`http://127.0.0.1:${port}/api/config`);
+      return child;
+    } catch {
+      if (child.exitCode != null) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  child.kill();
+  throw new Error(`The server didn't start:\n${output}`);
+}
+
+async function startServer() {
+  dataDir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-'));
+  await fakeHackclub.start();
+  await fakeHackatime.start();
+  certificate = makeCertificate(dataDir);
+  mailServer = await fakeSmtpServer({ cert: certificate, ...SMTP }).listen(SMTP_START);
+  server = await spawnServer(PORT, dataDir, {
+    EMAIL_TRANSPORT: 'smtp',
+    EMAIL_FROM: 'Smitten Test <no-reply@smitten.test>',
+    SMTP_HOST: 'localhost',
+    SMTP_PORT: String(mailServer.port),
+    SMTP_SECURE: certificate ? 'starttls' : 'none',
+    SMTP_USER: SMTP.user,
+    SMTP_PASS: SMTP.pass,
+    EMAIL_RETRY_BASE_MS: '200',
+    ...(certificate ? { NODE_EXTRA_CA_CERTS: certificate.certFile } : {}),
+    PUBLIC_URL: BASE,
+    ADMIN_TOKEN: ADMIN,
+    HACKCLUB_CLIENT_ID: HC.clientId,
+    HACKCLUB_CLIENT_SECRET: HC.clientSecret,
+    HACKCLUB_AUTH_URL: fakeHackclub.url,
+    HACKATIME_CLIENT_ID: HT.clientId,
+    HACKATIME_CLIENT_SECRET: HT.clientSecret,
+    HACKATIME_URL: fakeHackatime.url,
+  });
+  db = new DatabaseSync(join(dataDir, 'smitten.db'));
+  db.exec('PRAGMA busy_timeout = 5000');
+}
+
+function stopServer() {
+  db?.close();
+  server?.kill();
+  fakeHackclub.server?.close();
+  fakeHackatime.server?.close();
+  mailServer?.close();
+  if (dataDir) rmSync(dataDir, { recursive: true, force: true });
+}
+
+/** Waits until check() returns something truthy (polling every 50 ms), or fails after ms. */
+async function eventually(check, what, ms = 5000) {
+  const until = Date.now() + ms;
+  for (;;) {
+    const value = await check();
+    if (value) return value;
+    if (Date.now() > until) throw new Error(`Timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+/** A game published the old way (before accounts), with an edit token, written straight into the database. */
+function legacyGame(title) {
+  const id = Array.from(randomBytes(10), (b) => '0123456789abcdefghjkmnpqrstvwxyz'[b & 31]).join('');
+  const token = randomBytes(32).toString('base64url');
+  const love = mainLuaGame();
+  mkdirSync(join(dataDir, 'games', id), { recursive: true });
+  writeFileSync(join(dataDir, 'games', id, 'game.love'), love);
+  const now = Date.now();
+  db.prepare(`INSERT INTO games (id, token_hash, title, description, modules, game_size, created_at, updated_at)
+              VALUES (?, ?, ?, '', '[]', ?, ?, ?)`).run(id, createHash('sha256').update(token).digest('hex'), title, love.length, now, now);
+  return { id, token };
+}
+
+// ---------------------------------------------------------------------------
 
 async function main() {
+  if (!external) await startServer();
   try {
     await fetch(`${BASE}/api/config`);
   } catch {
-    console.error(`Nothing answers at ${BASE}. Start the site first: cd platform && npx wrangler dev`);
+    console.error(`Nothing answers at ${BASE}.`);
     process.exit(2);
   }
   console.log(`Testing ${BASE}${ADMIN ? '' : ' (no ADMIN_TOKEN: admin checks are skipped)'}`);
+  if (mailServer) console.log(`Mail goes to a stand-in SMTP server on port ${mailServer.port} (${certificate ? 'STARTTLS' : 'no TLS: openssl is missing'})`);
 
   section('Pages and headers');
-  await test('config lists report reasons, modules and limits', async () => {
+  await test('config lists report reasons, modules, limits and sign-in options', async () => {
     const r = await call('GET', '/api/config');
     assert.equal(r.status, 200);
     assert.ok(r.data.reportReasons.length >= 3);
@@ -207,6 +748,9 @@ async function main() {
     assert.equal(r.data.limits.gameBytes, 25 * 1024 * 1024);
     assert.equal(r.data.limits.thumbnailBytes, 1024 * 1024);
     assert.ok(r.data.editorUrl);
+    assert.ok(r.data.editorOrigins.includes(EDITOR_ORIGIN));
+    assert.equal(typeof r.data.accounts.hackclub, 'boolean');
+    assert.equal(typeof r.data.accounts.hackatime, 'boolean');
   });
   await test('the gallery is HTML with a CSP, nosniff and no framing', async () => {
     const r = await call('GET', '/');
@@ -216,7 +760,44 @@ async function main() {
     assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
     assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(r.headers.get('x-frame-options'), 'DENY');
+    assert.equal(r.headers.get('cross-origin-opener-policy'), 'same-origin');
     assert.match(new TextDecoder().decode(r.data), /<meta name="smitten-editor-url" content="http/);
+  });
+  await test('account pages are served, and the sign-in pages keep window.opener (no COOP)', async () => {
+    for (const path of ['/signin', '/signup', '/recover', '/editor-auth']) {
+      const r = await call('GET', path);
+      assert.equal(r.status, 200, path);
+      assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+      assert.equal(r.headers.get('cross-origin-opener-policy'), null, path);
+      assert.equal(r.headers.get('referrer-policy'), 'no-referrer');
+    }
+    assert.equal((await call('GET', '/account')).status, 200);
+    assert.equal((await call('GET', '/u/someone')).status, 200);
+    assert.equal((await call('GET', '/signin.html')).status, 404, 'pages are only served at their paths');
+  });
+  await test('the docs are served at /docs/ and /docs/<page>', async () => {
+    const bare = await call('GET', '/docs');
+    assert.equal(bare.status, 301);
+    assert.equal(bare.headers.get('location'), '/docs/');
+    for (const path of ['/docs/', '/docs/scripts', '/docs/pieces']) {
+      const r = await call('GET', path);
+      assert.equal(r.status, 200, path);
+      assert.match(r.headers.get('content-type'), /^text\/html/);
+      assert.match(r.headers.get('content-security-policy'), /script-src 'self'/);
+      assert.match(new TextDecoder().decode(r.data), /<link rel="stylesheet" href="docs.css">/);
+    }
+    assert.match((await call('GET', '/docs/search.json')).headers.get('content-type'), /^application\/json/);
+    assert.equal((await call('GET', '/docs/no-such-page')).status, 404);
+    assert.equal((await call('GET', '/docs/index.html')).status, 404, 'pages are only served at their paths');
+  });
+  await test('static files have content types and ETags', async () => {
+    const r = await call('GET', '/site.css');
+    assert.equal(r.status, 200);
+    assert.match(r.headers.get('content-type'), /^text\/css/);
+    const again = await call('GET', '/site.css', { headers: { 'If-None-Match': r.headers.get('etag') } });
+    assert.equal(again.status, 304);
+    assert.equal((await call('GET', '/../package.json')).status, 404);
+    assert.equal((await call('GET', '/%2e%2e/package.json')).status, 404);
   });
   await test('API responses are JSON with nosniff and a sandboxing CSP', async () => {
     const r = await call('GET', '/api/games');
@@ -268,6 +849,7 @@ async function main() {
     assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
     assert.match(r.headers.get('access-control-allow-methods'), /PUT/);
     assert.match(r.headers.get('access-control-allow-headers'), /Authorization/i);
+    assert.equal(r.headers.get('access-control-allow-credentials'), null, 'never with cookies');
   });
   await test('other origins get no CORS headers', async () => {
     const pre = await call('OPTIONS', '/api/games', { headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' } });
@@ -287,26 +869,285 @@ async function main() {
     assert.equal(r.headers.get('access-control-allow-origin'), null);
   });
 
+  // -------------------------------------------------------------------------
+  section('Signing up');
+  let alice;
+  await test('sign up: a session cookie, eight recovery codes, no email asked', async () => {
+    const username = uniqueName('alice');
+    const r = await call('POST', '/api/auth/signup', { body: { username: username.toUpperCase(), password: PASSWORD, displayName: '  Alice  W. ' }, site: true });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'hackatime', 'hackclub', 'hasPassword', 'username']);
+    assert.equal(r.data.user.username, username, 'usernames are lower case');
+    assert.equal(r.data.user.displayName, 'Alice W.');
+    assert.equal(r.data.recoveryCodes.length, 8);
+    assert.equal(new Set(r.data.recoveryCodes).size, 8);
+    const cookie = r.setCookie.find((c) => c.startsWith('smitten_session='));
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=Lax/);
+    assert.match(cookie, /Max-Age=\d+/);
+    alice = { username, password: PASSWORD, session: r.cookies.smitten_session, recoveryCodes: r.data.recoveryCodes };
+  });
+  if (!alice) throw new Error('Signing up failed; the remaining tests depend on it.');
+  await test('the session says who\'s signed in', async () => {
+    const r = await call('GET', '/api/account', { session: alice.session });
+    assert.equal(r.data.user.username, alice.username);
+    assert.equal(r.data.via, 'web');
+    assert.equal(r.data.recoveryCodesLeft, 8);
+    const nobody = await call('GET', '/api/account');
+    assert.equal(nobody.status, 200);
+    assert.equal(nobody.data.user, null);
+  });
+  await test('usernames: rules, reserved names, the word filter, and taken (any case)', async () => {
+    const bad = async (username, why) => {
+      const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD }, site: true });
+      assert.equal(r.status, why === 'taken' ? 409 : 422, `${username}: ${JSON.stringify(r.data)}`);
+      assert.equal(r.data.field, 'username');
+    };
+    await bad('ab');
+    await bad('has space');
+    await bad('_leading');
+    await bad('x'.repeat(21));
+    await bad('admin');
+    await bad('moderator');
+    await bad('sh1t_lord');
+    await bad('fuckface99');
+    await bad(alice.username.toUpperCase(), 'taken');
+  });
+  await test('passwords: long enough, not common, not the username', async () => {
+    const bad = async (password, username = uniqueName()) => {
+      const r = await call('POST', '/api/auth/signup', { body: { username, password }, site: true });
+      assert.equal(r.status, 422, JSON.stringify(r.data));
+      assert.equal(r.data.field, 'password');
+    };
+    await bad('short');
+    await bad('password123');
+    await bad('aaaaaaaaaaaa');
+    const name = uniqueName();
+    await bad(`${name}!!`, name);
+  });
+  await test('display names go through the word filter', async () => {
+    const r = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD, displayName: 'B1tch' }, site: true });
+    assert.equal(r.status, 422);
+    assert.equal(r.data.field, 'displayName');
+  });
+  await test('signing up only works from the site itself', async () => {
+    const body = { username: uniqueName(), password: PASSWORD };
+    assert.equal((await call('POST', '/api/auth/signup', { body })).status, 403);
+    assert.equal((await call('POST', '/api/auth/signup', { body, headers: { Origin: 'https://evil.example' } })).status, 403);
+    assert.equal((await call('POST', '/api/auth/signup', { body, headers: { Origin: EDITOR_ORIGIN } })).status, 403);
+  });
+  await test('sign-ups are limited per address', async () => {
+    const ip = freshIp();
+    let last;
+    for (let i = 0; i < 6; i++) last = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip });
+    assert.equal(last.status, 429);
+    assert.ok(Number(last.headers.get('retry-after')) > 0);
+  });
+
+  section('Signing in and out');
+  await test('the right password signs in; a wrong one or an unknown name gets the same answer', async () => {
+    const ok = await call('POST', '/api/auth/signin', { body: { username: alice.username, password: PASSWORD }, site: true });
+    assert.equal(ok.status, 200);
+    assert.ok(ok.cookies.smitten_session);
+    assert.notEqual(ok.cookies.smitten_session, alice.session, 'each sign-in is a new session');
+    const wrong = await call('POST', '/api/auth/signin', { body: { username: alice.username, password: 'not it at all' }, site: true });
+    const unknown = await call('POST', '/api/auth/signin', { body: { username: uniqueName(), password: 'not it at all' }, site: true });
+    assert.equal(wrong.status, 401);
+    assert.equal(unknown.status, 401);
+    assert.equal(wrong.data.error, unknown.data.error);
+  });
+  await test('signing out ends the session', async () => {
+    const s = await call('POST', '/api/auth/signin', { body: { username: alice.username, password: PASSWORD }, site: true });
+    const session = s.cookies.smitten_session;
+    const out = await call('POST', '/api/auth/signout', { session });
+    assert.equal(out.status, 200);
+    assert.match(out.setCookie.join(), /smitten_session=;.*Max-Age=0/);
+    assert.equal((await call('GET', '/api/account', { session })).data.user, null);
+  });
+  await test('ten failed sign-ins lock an account for the hour, from any address', async () => {
+    const bob = await signUp();
+    for (let i = 0; i < 10; i++) {
+      const r = await call('POST', '/api/auth/signin', { body: { username: bob.username, password: `wrong ${i}` }, site: true });
+      assert.equal(r.status, 401);
+    }
+    const r = await call('POST', '/api/auth/signin', { body: { username: bob.username, password: PASSWORD }, site: true });
+    assert.equal(r.status, 429);
+    assert.match(r.data.error, /try again/);
+  });
+  await test('sign-in attempts are limited per address', async () => {
+    const ip = freshIp();
+    let last;
+    for (let i = 0; i < 31; i++) last = await call('POST', '/api/auth/signin', { body: { username: uniqueName(), password: 'whatever it is' }, site: true, ip });
+    assert.equal(last.status, 429);
+  });
+
+  section('Account settings');
+  await test('change the display name', async () => {
+    const r = await call('PATCH', '/api/account', { body: { displayName: 'Alice the Great' }, session: alice.session });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.user.displayName, 'Alice the Great');
+    assert.equal((await call('PATCH', '/api/account', { body: { displayName: 'sh!t' }, session: alice.session })).status, 422);
+  });
+  await test('cookie requests that change things must come from the site (CSRF)', async () => {
+    const body = { displayName: 'Hacked' };
+    assert.equal((await call('PATCH', '/api/account', { body, session: alice.session, site: false })).status, 403);
+    assert.equal((await call('PATCH', '/api/account', { body, session: alice.session, headers: { Origin: 'https://evil.example' } })).status, 403);
+    assert.equal((await call('PATCH', '/api/account', { body, session: alice.session, headers: { Origin: EDITOR_ORIGIN } })).status, 403);
+    assert.equal((await call('PATCH', '/api/account', { body, session: alice.session, site: false, headers: { 'Sec-Fetch-Site': 'same-origin' } })).status, 200);
+    await call('PATCH', '/api/account', { body: { displayName: 'Alice the Great' }, session: alice.session });
+  });
+  await test('changing the password needs the current one and signs out everywhere else', async () => {
+    const carol = await person();
+    const other = (await call('POST', '/api/auth/signin', { body: { username: carol.username, password: PASSWORD }, site: true })).cookies.smitten_session;
+    const wrong = await call('POST', '/api/account/password', { body: { current: 'nope nope nope', password: 'a brand new secret' }, session: carol.session });
+    assert.equal(wrong.status, 403);
+    assert.equal(wrong.data.field, 'current');
+    const r = await call('POST', '/api/account/password', { body: { current: PASSWORD, password: 'a brand new secret' }, session: carol.session });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.equal((await call('GET', '/api/account', { session: carol.session })).data.user.username, carol.username, 'this session stays');
+    assert.equal((await call('GET', '/api/account', { session: other })).data.user, null, 'other sessions end');
+    const editor = await call('GET', '/api/account', { token: carol.token });
+    assert.equal(editor.status, 401, 'editors are signed out');
+    assert.equal(editor.data.code, 'signed-out');
+    assert.equal((await call('POST', '/api/auth/signin', { body: { username: carol.username, password: 'a brand new secret' }, site: true })).status, 200);
+  });
+  await test('new recovery codes need the password, and replace the old ones', async () => {
+    const dave = await signUp();
+    assert.equal((await call('POST', '/api/account/recovery-codes', { body: { password: 'wrong wrong' }, session: dave.session })).status, 403);
+    const r = await call('POST', '/api/account/recovery-codes', { body: { password: PASSWORD }, session: dave.session });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.recoveryCodes.length, 8);
+    const old = await call('POST', '/api/auth/recover', { body: { username: dave.username, code: dave.recoveryCodes[0], password: 'my new password is here' }, site: true });
+    assert.equal(old.status, 400);
+  });
+
+  section('Recovery');
+  await test('a recovery code resets the password once, and signs out everywhere', async () => {
+    const erin = await person();
+    const code = erin.recoveryCodes[3];
+    const wrong = await call('POST', '/api/auth/recover', { body: { username: erin.username, code: 'aaaa-bbbb-cccc', password: 'a fresh new password' }, site: true });
+    assert.equal(wrong.status, 400);
+    assert.equal(wrong.data.field, 'code');
+    const weak = await call('POST', '/api/auth/recover', { body: { username: erin.username, code, password: 'short' }, site: true });
+    assert.equal(weak.status, 422, 'a weak password doesn\'t use up the code');
+    const r = await call('POST', '/api/auth/recover', { body: { username: erin.username, code: code.toUpperCase().replace(/-/g, ' '), password: 'a fresh new password' }, site: true });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.equal(r.data.codesLeft, 7);
+    assert.ok(r.cookies.smitten_session, 'and signs in');
+    assert.equal((await call('GET', '/api/account', { session: erin.session })).data.user, null);
+    assert.equal((await call('GET', '/api/account', { token: erin.token })).status, 401);
+    const again = await call('POST', '/api/auth/recover', { body: { username: erin.username, code, password: 'another new password' }, site: true });
+    assert.equal(again.status, 400, 'each code works once');
+    assert.equal((await call('POST', '/api/auth/signin', { body: { username: erin.username, password: 'a fresh new password' }, site: true })).status, 200);
+  });
+
+  // -------------------------------------------------------------------------
+  section('The editor\'s sign-in');
+  const verifier = b64url(randomBytes(32));
+  const challenge = b64url(createHash('sha256').update(verifier).digest());
+  await test('a code needs a session on the site, and an allowed editor', async () => {
+    assert.equal((await call('POST', '/api/auth/editor/code', { body: { origin: EDITOR_ORIGIN, challenge }, site: true })).status, 401);
+    const evil = await call('POST', '/api/auth/editor/code', { body: { origin: 'https://evil.example', challenge }, session: alice.session });
+    assert.equal(evil.status, 422);
+    assert.equal(evil.data.field, 'origin');
+    assert.equal((await call('POST', '/api/auth/editor/code', { body: { origin: EDITOR_ORIGIN, challenge: 'short' }, session: alice.session })).status, 422);
+    assert.equal((await call('POST', '/api/auth/editor/code', { body: { origin: EDITOR_ORIGIN, challenge }, session: alice.session, headers: { Origin: EDITOR_ORIGIN } })).status, 403, 'only the site\'s own page asks');
+  });
+  await test('the token endpoint answers the editor\'s preflight', async () => {
+    const r = await call('OPTIONS', '/api/auth/editor/token', { headers: { Origin: EDITOR_ORIGIN, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' } });
+    assert.equal(r.status, 204);
+    assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
+  });
+  await test('a code works once, with the verifier, from the editor it was made for', async () => {
+    const newCode = async () => (await call('POST', '/api/auth/editor/code', { body: { origin: EDITOR_ORIGIN, challenge }, session: alice.session })).data.code;
+    const swap = (code, v, origin = EDITOR_ORIGIN) => call('POST', '/api/auth/editor/token', { body: { code, verifier: v }, headers: { Origin: origin } });
+    assert.equal((await swap(await newCode(), b64url(randomBytes(32)))).status, 400, 'wrong verifier');
+    assert.equal((await swap(await newCode(), verifier, 'http://localhost:9999')).status, 400, 'another origin');
+    const code = await newCode();
+    const r = await swap(code, verifier);
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    assert.ok(r.data.token.length >= 40);
+    assert.equal(r.data.user.username, alice.username);
+    assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
+    assert.equal((await swap(code, verifier)).status, 400, 'used up');
+    alice.token = r.data.token;
+  });
+  await test('an editor token says who\'s signed in, but can\'t change the account', async () => {
+    const r = await call('GET', '/api/account', { token: alice.token, headers: { Origin: EDITOR_ORIGIN } });
+    assert.equal(r.data.user.username, alice.username);
+    assert.equal(r.data.via, 'editor');
+    assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
+    assert.equal((await call('PATCH', '/api/account', { body: { displayName: 'x' }, token: alice.token })).status, 403);
+    assert.equal((await call('POST', '/api/account/password', { body: { current: PASSWORD, password: 'something else entirely' }, token: alice.token })).status, 403);
+    assert.equal((await call('DELETE', '/api/account', { body: { password: PASSWORD }, token: alice.token })).status, 403);
+    assert.equal((await call('POST', '/api/auth/editor/code', { body: { origin: EDITOR_ORIGIN, challenge }, token: alice.token })).status, 403);
+    assert.equal((await call('GET', '/api/account/sessions', { token: alice.token })).status, 403);
+  });
+  await test('signed-in editors are listed in settings, and can be revoked there', async () => {
+    const token = await editorToken(alice.session);
+    const list = await call('GET', '/api/account/sessions', { session: alice.session });
+    assert.equal(list.status, 200);
+    const editors = list.data.sessions.filter((s) => s.kind === 'editor');
+    assert.ok(editors.length >= 2);
+    assert.ok(editors.every((s) => s.origin === EDITOR_ORIGIN));
+    assert.equal(list.data.sessions.filter((s) => s.current).length, 1);
+    assert.ok(!JSON.stringify(list.data).includes(token), 'tokens are never shown');
+    const newest = editors.sort((a, b) => b.createdAt - a.createdAt)[0];
+    assert.equal((await call('DELETE', `/api/account/sessions/${newest.id}`, { session: alice.session })).status, 200);
+    const r = await call('GET', '/api/account', { token });
+    assert.equal(r.status, 401);
+    assert.equal(r.data.code, 'signed-out');
+    assert.equal((await call('DELETE', `/api/account/sessions/${newest.id}`, { session: alice.session })).status, 404);
+  });
+  await test('the editor can sign itself out', async () => {
+    const token = await editorToken(alice.session);
+    assert.equal((await call('DELETE', '/api/auth/editor/token', { token, headers: { Origin: EDITOR_ORIGIN } })).status, 200);
+    assert.equal((await call('GET', '/api/account', { token })).status, 401);
+  });
+  await test('sign out everywhere else', async () => {
+    const frank = await person();
+    const other = (await call('POST', '/api/auth/signin', { body: { username: frank.username, password: PASSWORD }, site: true })).cookies.smitten_session;
+    const r = await call('POST', '/api/account/sessions/revoke-others', { session: frank.session });
+    assert.equal(r.data.revoked, 2);
+    assert.equal((await call('GET', '/api/account', { session: other })).data.user, null);
+    assert.equal((await call('GET', '/api/account', { token: frank.token })).status, 401);
+    assert.equal((await call('GET', '/api/account', { session: frank.session })).data.user.username, frank.username);
+  });
+
+  // -------------------------------------------------------------------------
   section('Publishing');
+  await test('publishing needs an account', async () => {
+    const r = await call('POST', '/api/games', { body: form({ title: 'Anonymous' }, mainLuaGame()) });
+    assert.equal(r.status, 401);
+    assert.equal(r.data.code, 'sign-in');
+    const bad = await call('POST', '/api/games', { body: form({ title: 'Bad token' }, mainLuaGame()), token: 'not-a-real-token' });
+    assert.equal(bad.status, 401);
+    assert.equal(bad.data.code, 'signed-out');
+  });
   const files = smokeFiles();
   const love = zip(files);
   const thumb = png(16, 9);
   let game;
-  await test('publish a game with a thumbnail', async () => {
-    const r = await publish({ title: `Smoke ${tag}`, description: 'Walks right\r\nand picks up a coin.', modules: ['physics2d'], engineVersion: '0.2.0' }, love, thumb, { headers: { Origin: EDITOR_ORIGIN } });
+  await test('publish a game with a thumbnail, from the editor', async () => {
+    const r = await publish({ title: `Smoke ${tag}`, description: 'Walks right\r\nand picks up a coin.', modules: ['physics2d'], engineVersion: '0.2.0' }, love, thumb, { token: alice.token, headers: { Origin: EDITOR_ORIGIN } });
     assert.equal(r.status, 201, JSON.stringify(r.data));
     assert.match(r.data.id, ID);
-    assert.ok(r.data.token.length >= 40);
+    assert.equal(r.data.token, undefined, 'no edit tokens anymore');
     assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
-    game = { id: r.data.id, token: r.data.token };
+    game = { id: r.data.id };
     assert.equal(r.data.game.title, `Smoke ${tag}`);
     assert.equal(r.data.game.description, 'Walks right\nand picks up a coin.');
     assert.deepEqual(r.data.game.modules, ['physics2d']);
     assert.equal(r.data.game.version, 1);
+    assert.deepEqual(r.data.game.owner, { username: alice.username, displayName: 'Alice the Great' });
     assert.equal(r.data.game.playUrl, `${BASE}/play/${game.id}`);
   });
   if (!game) throw new Error('Publishing failed; the remaining tests depend on it.');
 
+  await test('a web session can publish too', async () => {
+    const r = await publish({ title: `From the site ${tag}` }, mainLuaGame(), null, { token: '', session: alice.session });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+  });
   await test('get its metadata', async () => {
     const r = await call('GET', `/api/games/${game.id}`);
     assert.equal(r.status, 200);
@@ -316,7 +1157,9 @@ async function main() {
     assert.match(r.data.game.thumbnail, /\/thumbnail\.png\?v=1$/);
     assert.equal(r.data.game.remixOf, null);
     assert.equal(r.data.game.remixes, 0);
-    assert.equal(r.data.game.token, undefined);
+    assert.equal(r.data.game.owner.username, alice.username);
+    assert.equal(r.data.game.yours, undefined);
+    assert.equal((await call('GET', `/api/games/${game.id}`, { token: alice.token })).data.game.yours, true);
   });
   let etag;
   await test('download game.love: a zip, as an attachment, byte for byte', async () => {
@@ -353,15 +1196,22 @@ async function main() {
     assert.match(html, new RegExp(`<title>Smoke ${tag} · Smitten</title>`));
     assert.match(html, /og:image/);
   });
+  await test('titles are escaped in the play page', async () => {
+    const r = await publish({ title: `<script>x</script> "${tag}"` });
+    assert.equal(r.status, 201);
+    const html = new TextDecoder().decode((await call('GET', `/play/${r.data.id}`)).data);
+    assert.ok(!html.includes('<script>x'));
+    assert.match(html, /&lt;script&gt;x&lt;\/script&gt; &quot;/);
+  });
 
-  section('Listing and search');
+  section('Listing, search and profiles');
   await test('the newest list starts with it', async () => {
     const r = await call('GET', '/api/games?sort=new&limit=5');
     assert.equal(r.status, 200);
-    assert.equal(r.data.games[0].id, game.id);
+    assert.ok(r.data.games.some((g) => g.id === game.id));
   });
   await test('search finds it by title, and nothing for nonsense', async () => {
-    const r = await call('GET', `/api/games?q=${encodeURIComponent(tag.toUpperCase())}`);
+    const r = await call('GET', `/api/games?q=${encodeURIComponent(`smoke ${tag}`.toUpperCase())}`);
     assert.deepEqual(r.data.games.map((g) => g.id), [game.id]);
     const none = await call('GET', `/api/games?q=${encodeURIComponent(`zz${tag}%_`)}`);
     assert.equal(none.data.games.length, 0);
@@ -374,6 +1224,22 @@ async function main() {
     const second = await call('GET', `/api/games?q=${tag}&limit=1&cursor=${first.data.next}`);
     assert.equal(second.data.games.length, 1);
     assert.notEqual(second.data.games[0].id, first.data.games[0].id);
+  });
+  await test('a profile: the name and the games, nothing private', async () => {
+    const r = await call('GET', `/api/users/${alice.username.toUpperCase()}`);
+    assert.equal(r.status, 200);
+    assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'games', 'username']);
+    assert.equal(r.data.user.games, 2);
+    const games = await call('GET', `/api/games?user=${alice.username}`);
+    assert.deepEqual(new Set(games.data.games.map((g) => g.owner.username)), new Set([alice.username]));
+    assert.equal(games.data.games.length, 2);
+    assert.equal((await call('GET', '/api/users/nobody-here-at-all')).status, 404);
+  });
+  await test('your own games, from the editor', async () => {
+    const r = await call('GET', '/api/account/games', { token: alice.token });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.games.length, 2);
+    assert.ok(r.data.games.every((g) => g.status === 'public'));
   });
 
   section('Plays');
@@ -389,31 +1255,38 @@ async function main() {
     const c = await call('POST', `/api/games/${game.id}/play`);
     assert.equal(c.data.plays, 2);
   });
+  await test('signed in, a play counts once per account (from any address)', async () => {
+    const a = await call('POST', `/api/games/${game.id}/play`, { session: alice.session });
+    assert.equal(a.data.counted, true);
+    const b = await call('POST', `/api/games/${game.id}/play`, { session: alice.session });
+    assert.equal(b.data.counted, false);
+  });
   await test('most played sorts by plays', async () => {
     const r = await call('GET', `/api/games?sort=popular&q=${tag}`);
     assert.equal(r.data.games[0].id, game.id);
     assert.ok(r.data.games[0].plays >= r.data.games.at(-1).plays);
   });
 
-  section('Updating');
+  section('Updating and ownership');
   const love2 = zip({ ...files, 'scenes/main.lua': files['scenes/main.lua'].replace('60 * dt', '90 * dt') });
-  await test('updating without a token is refused (401)', async () => {
+  const mallory = await person();
+  await test('updating without signing in is refused (401)', async () => {
     const r = await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'Nope' }, love2) });
     assert.equal(r.status, 401);
   });
-  await test('updating with another game\'s token is refused (403)', async () => {
-    const other = cleanup.find((g) => g.id !== game.id);
-    const r = await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'Nope' }, love2), token: other.token });
-    assert.equal(r.status, 403);
+  await test('someone else can\'t update or delete it (403)', async () => {
+    assert.equal((await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'Nope' }, love2), token: mallory.token })).status, 403);
+    assert.equal((await call('DELETE', `/api/games/${game.id}`, { token: mallory.token })).status, 403);
+    assert.equal((await call('DELETE', `/api/games/${game.id}`, { session: mallory.session })).status, 403);
   });
-  await test('updating with the token: same id, new version and files', async () => {
-    const r = await call('PUT', `/api/games/${game.id}`, { body: form({ title: `Smoke ${tag} v2`, description: 'Faster.', modules: [] }, love2), token: game.token, headers: { Origin: EDITOR_ORIGIN } });
+  await test('the owner updates it: same id, new version and files', async () => {
+    const r = await call('PUT', `/api/games/${game.id}`, { body: form({ title: `Smoke ${tag} v2`, description: 'Faster.', modules: [] }, love2), token: alice.token, headers: { Origin: EDITOR_ORIGIN } });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.equal(r.data.id, game.id);
     assert.equal(r.data.game.version, 2);
     assert.equal(r.data.game.title, `Smoke ${tag} v2`);
     assert.equal(r.data.game.thumbnail, null, 'an update without a thumbnail removes it');
-    assert.equal(r.data.game.plays, 2, 'plays are kept');
+    assert.equal(r.data.game.plays, 3, 'plays are kept');
     const file = await call('GET', `/api/games/${game.id}/game.love`);
     assert.ok(same(file.data, love2));
     assert.equal((await call('GET', `/api/games/${game.id}/thumbnail.png`)).status, 404);
@@ -445,7 +1318,7 @@ async function main() {
     assert.equal(r.status, 201, JSON.stringify(r.data));
   });
   await test('control and invisible characters are removed from titles', async () => {
-    const r = await publish({ title: `Zero​Width\u0007 ${tag}` });
+    const r = await publish({ title: `Zero\u200bWidth\u0007 ${tag}` });
     assert.equal(r.status, 201, JSON.stringify(r.data));
     assert.equal(r.data.game.title, `ZeroWidth ${tag}`);
   });
@@ -467,6 +1340,24 @@ async function main() {
     assert.equal(r.status, 413);
     assert.equal(r.data.field, 'game');
   });
+  await test('an upload body past the limit is cut off, even without Content-Length', async () => {
+    const big = new Uint8Array(27 * 1024 * 1024);
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('--x\r\nContent-Disposition: form-data; name="game"; filename="g.love"\r\n\r\n'));
+        c.enqueue(big);
+        c.close();
+      },
+    });
+    const { token } = await defaultPublisher();
+    const res = await fetch(`${BASE}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=x', Authorization: `Bearer ${token}`, 'X-Forwarded-For': freshIp() },
+      body: stream,
+      duplex: 'half',
+    }).catch((e) => ({ status: 'closed', e }));
+    assert.ok(res.status === 413 || res.status === 'closed', `got ${res.status}`);
+  });
   await test('thumbnails must be PNGs of at most 1 MB', async () => {
     await expect422({}, love, 'thumbnail', new TextEncoder().encode('GIF89a not a png at all, really'));
     const huge = new Uint8Array(1024 * 1024 + 1);
@@ -479,9 +1370,10 @@ async function main() {
     await expect422({ modules: ['physics2d', 'bitcoin-miner'] }, love, 'modules');
   });
   await test('uploads must be multipart with JSON meta and a game', async () => {
-    assert.equal((await call('POST', '/api/games', { body: { title: 'json' } })).status, 415);
-    assert.equal((await call('POST', '/api/games', { body: form('{not json', love) })).status, 400);
-    const r = await call('POST', '/api/games', { body: form({ title: 'No game' }) });
+    const { token } = await defaultPublisher();
+    assert.equal((await call('POST', '/api/games', { body: { title: 'json' }, token })).status, 415);
+    assert.equal((await call('POST', '/api/games', { body: form('{not json', love), token })).status, 400);
+    const r = await call('POST', '/api/games', { body: form({ title: 'No game' }), token });
     assert.equal(r.status, 422);
     assert.equal(r.data.field, 'game');
   });
@@ -489,7 +1381,7 @@ async function main() {
   section('Remixes');
   let remix;
   await test('publishing with remixOf records the original', async () => {
-    const r = await publish({ title: `Remix ${tag}`, remixOf: game.id }, love2);
+    const r = await publish({ title: `Remix ${tag}`, remixOf: game.id }, love2, null, { token: mallory.token });
     assert.equal(r.status, 201);
     remix = r.data;
     assert.equal(r.data.game.remixOf, game.id);
@@ -507,6 +1399,49 @@ async function main() {
     assert.equal(r.data.game.remixOf, null);
   });
 
+  // -------------------------------------------------------------------------
+  section('Claiming games published before accounts');
+  if (external) {
+    skip('claiming', 'needs the server\'s database (PLATFORM_URL is set)');
+  } else {
+    const old = legacyGame(`Old game ${tag}`);
+    const old2 = legacyGame(`Old game two ${tag}`);
+    await test('an old game has no owner, and can\'t be updated or deleted with its edit token', async () => {
+      const r = await call('GET', `/api/games/${old.id}`);
+      assert.equal(r.status, 200);
+      assert.equal(r.data.game.owner, null);
+      assert.equal((await call('PUT', `/api/games/${old.id}`, { body: form({ title: 'x' }, love), token: old.token })).status, 401);
+      const signedIn = await call('PUT', `/api/games/${old.id}`, { body: form({ title: 'x' }, love), token: alice.token });
+      assert.equal(signedIn.status, 403);
+      assert.match(signedIn.data.error, /before accounts/);
+    });
+    await test('claiming needs the right edit token', async () => {
+      const r = await call('POST', '/api/account/claim', { body: { games: [{ id: old.id, token: old2.token }, { id: 'zzzzzzzzzz', token: 'x' }] }, token: mallory.token });
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.data.claimed, []);
+      assert.deepEqual(r.data.failed.map((f) => f.reason).sort(), ['missing', 'token']);
+    });
+    await test('the editor claims its old games for the signed-in account', async () => {
+      const r = await call('POST', '/api/account/claim', { body: { games: [old, old2, { id: game.id, token: 'whatever' }] }, token: alice.token, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.deepEqual(r.data.claimed.sort(), [old.id, old2.id].sort());
+      assert.deepEqual(r.data.owned, [game.id]);
+      assert.equal((await call('GET', `/api/games/${old.id}`)).data.game.owner.username, alice.username);
+      const upd = await call('PUT', `/api/games/${old.id}`, { body: form({ title: `Old game ${tag} v2` }, love), token: alice.token });
+      assert.equal(upd.status, 200);
+    });
+    await test('a claimed game can\'t be claimed again, and its edit token stops working', async () => {
+      const r = await call('POST', '/api/account/claim', { body: { games: [old] }, token: mallory.token });
+      assert.deepEqual(r.data.failed, [{ id: old.id, reason: 'owned' }]);
+    });
+    await test('claims are lists of at most 100', async () => {
+      const r = await call('POST', '/api/account/claim', { body: { games: Array.from({ length: 101 }, () => old) }, token: alice.token });
+      assert.equal(r.status, 422);
+    });
+    cleanup.push({ id: old.id, token: alice.token }, { id: old2.id, token: alice.token });
+  }
+
+  // -------------------------------------------------------------------------
   section('Reports and moderation');
   await test('reports need JSON and a known reason', async () => {
     assert.equal((await call('POST', `/api/games/${game.id}/report`, { body: 'reason=spam', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })).status, 415);
@@ -525,9 +1460,13 @@ async function main() {
     assert.equal(again.data.alreadyReported, true);
     assert.equal((await call('GET', `/api/games/${game.id}`)).status, 200);
   });
-  await test('three people reporting hides the game everywhere', async () => {
-    const b = await call('POST', `/api/games/${game.id}/report`, { body: { reason: 'hate' } });
-    assert.equal(b.data.hidden, false);
+  await test('a signed-in reporter counts once, from any address', async () => {
+    const a = await call('POST', `/api/games/${game.id}/report`, { body: { reason: 'hate' }, session: mallory.session });
+    assert.equal(a.data.hidden, false);
+    const again = await call('POST', `/api/games/${game.id}/report`, { body: { reason: 'hate' }, session: mallory.session });
+    assert.equal(again.data.alreadyReported, true);
+  });
+  await test('three reporters hide the game everywhere', async () => {
     const c = await call('POST', `/api/games/${game.id}/report`, { body: { reason: 'other', note: 'third' } });
     assert.equal(c.data.hidden, true);
     const meta = await call('GET', `/api/games/${game.id}`);
@@ -537,11 +1476,17 @@ async function main() {
     assert.equal((await call('POST', `/api/games/${game.id}/play`)).status, 404);
     const list = await call('GET', `/api/games?q=${tag}&limit=48`);
     assert.ok(!list.data.games.some((g) => g.id === game.id));
+    assert.equal((await call('GET', `/api/users/${alice.username}`)).data.user.games, external ? 1 : 3);
   });
-  await test('the owner can still see a hidden game', async () => {
-    const r = await call('GET', `/api/games/${game.id}`, { token: game.token });
+  await test('the owner can still see a hidden game, and update it (it stays hidden)', async () => {
+    const r = await call('GET', `/api/games/${game.id}`, { token: alice.token });
     assert.equal(r.status, 200);
     assert.equal(r.data.game.status, 'hidden');
+    const upd = await call('PUT', `/api/games/${game.id}`, { body: form({ title: `Smoke ${tag} v3` }, love2), token: alice.token });
+    assert.equal(upd.status, 200);
+    assert.equal(upd.data.game.status, 'hidden');
+    const mine = await call('GET', '/api/account/games', { session: alice.session });
+    assert.equal(mine.data.games.find((g) => g.id === game.id).status, 'hidden');
   });
 
   if (!ADMIN) {
@@ -550,9 +1495,10 @@ async function main() {
     await test('admin endpoints need the admin token', async () => {
       assert.equal((await call('GET', '/api/admin/reports')).status, 401);
       assert.equal((await call('GET', '/api/admin/reports', { token: 'wrong' })).status, 401);
-      assert.equal((await call('GET', '/api/admin/reports', { token: game.token })).status, 401);
+      assert.equal((await call('GET', '/api/admin/reports', { token: alice.token })).status, 401);
+      assert.equal((await call('GET', '/api/admin/reports', { session: alice.session })).status, 401);
     });
-    await test('admins list reported games with their reports', async () => {
+    await test('admins list reported games with their reports and owners', async () => {
       const r = await call('GET', '/api/admin/reports', { token: ADMIN });
       assert.equal(r.status, 200);
       const g = r.data.games.find((x) => x.id === game.id);
@@ -560,8 +1506,9 @@ async function main() {
       assert.equal(g.status, 'hidden');
       assert.equal(g.hiddenBy, 'reports');
       assert.equal(g.openReports, 3);
+      assert.equal(g.owner.username, alice.username);
       assert.ok(g.reports.some((x) => x.note === 'third'));
-      assert.ok(g.reports.every((x) => x.reporter.length === 8), 'reporters are hashes, not addresses');
+      assert.ok(g.reports.every((x) => /^(u:\d+|ip:[0-9a-f]{8})$/.test(x.reporter)), 'reporters are accounts or hashes, not addresses');
     });
     await test('admins can download a hidden game to review it', async () => {
       const r = await call('GET', `/api/games/${game.id}/game.love`, { token: ADMIN });
@@ -588,52 +1535,1024 @@ async function main() {
       assert.equal((await call('GET', `/api/games/${remix.id}`, { token: ADMIN })).status, 404);
       assert.equal((await call('POST', `/api/admin/games/${remix.id}/restore`, { token: ADMIN })).status, 404);
     });
+
+    section('Banning');
+    const villain = await person();
+    const kept = await publish({ title: `Villain one ${tag}` }, mainLuaGame(), null, { token: villain.token });
+    const hiddenFirst = await publish({ title: `Villain two ${tag}` }, mainLuaGame(), null, { token: villain.token });
+    await call('POST', `/api/admin/games/${hiddenFirst.data.id}/hide`, { token: ADMIN });
+    await test('admins look up an account', async () => {
+      const r = await call('GET', `/api/admin/users/${villain.username}`, { token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.user.status, 'active');
+      assert.equal(r.data.games.length, 2);
+      assert.equal((await call('GET', '/api/admin/users/nobody-at-all-here', { token: ADMIN })).status, 404);
+      assert.equal((await call('GET', `/api/admin/users/${villain.username}`, { token: villain.token })).status, 401);
+    });
+    await test('a ban signs the account out everywhere, hides its games and profile', async () => {
+      const r = await call('POST', `/api/admin/users/${villain.username}/ban`, { body: { reason: 'test ban' }, token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal((await call('GET', '/api/account', { session: villain.session })).data.user, null);
+      assert.equal((await call('GET', '/api/account', { token: villain.token })).status, 401);
+      assert.equal((await call('GET', `/api/games/${kept.data.id}`)).status, 404);
+      assert.equal((await call('GET', `/api/users/${villain.username}`)).status, 404);
+      assert.equal((await call('GET', `/api/games?user=${villain.username}`)).data.games.length, 0);
+    });
+    await test('a banned account can\'t sign in, publish or recover', async () => {
+      const r = await call('POST', '/api/auth/signin', { body: { username: villain.username, password: PASSWORD }, site: true });
+      assert.equal(r.status, 403);
+      assert.equal(r.data.code, 'banned');
+      const rec = await call('POST', '/api/auth/recover', { body: { username: villain.username, code: villain.recoveryCodes[0], password: 'some new password' }, site: true });
+      assert.equal(rec.status, 403);
+      assert.equal((await call('POST', '/api/games', { body: form({ title: 'x' }, love), token: villain.token })).status, 401);
+    });
+    await test('lifting the ban brings back the games the ban hid, not the others', async () => {
+      const r = await call('POST', `/api/admin/users/${villain.username}/unban`, { token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal((await call('GET', `/api/games/${kept.data.id}`)).status, 200);
+      assert.equal((await call('GET', `/api/games/${hiddenFirst.data.id}`)).status, 404);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username: villain.username, password: PASSWORD }, site: true })).status, 200);
+    });
+    await test('a moderator\'s reset link sets a new password once', async () => {
+      const r = await call('POST', `/api/admin/users/${villain.username}/reset-password`, { token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.match(r.data.url, new RegExp(`^${BASE}/recover#reset=`));
+      const resetToken = r.data.url.split('#reset=')[1];
+      const ok = await call('POST', '/api/auth/recover', { body: { resetToken, password: 'reset by a moderator' }, site: true });
+      assert.equal(ok.status, 200, JSON.stringify(ok.data));
+      assert.equal((await call('POST', '/api/auth/recover', { body: { resetToken, password: 'and once more please' }, site: true })).status, 400);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username: villain.username, password: 'reset by a moderator' }, site: true })).status, 200);
+    });
+    await test('admins can delete an account with its games', async () => {
+      const r = await call('DELETE', `/api/admin/users/${villain.username}`, { token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal((await call('GET', `/api/games/${kept.data.id}`, { token: ADMIN })).status, 404);
+      assert.equal((await call('GET', `/api/admin/users/${villain.username}`, { token: ADMIN })).status, 404);
+    });
+    await test('admins can see which client address the server uses', async () => {
+      const r = await call('GET', '/api/admin/request', { token: ADMIN, ip: '203.0.113.7' });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.clientIp, '203.0.113.7');
+      assert.equal((await call('GET', '/api/admin/request')).status, 401);
+    });
+    section('Address bans');
+    const network = '198.51.100.20';
+    const someone = await person();
+    const theirGame = await publish({ title: `On a banned network ${tag}` }, mainLuaGame(), null, { token: someone.token });
+    await test('a banned address can\'t make accounts, publish or report, but can still play', async () => {
+      const r = await call('POST', '/api/admin/addresses/ban', { body: { ip: network, reason: 'test' }, token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.banned, 1);
+      assert.equal(r.data.days, 30);
+      const signup = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: network });
+      assert.equal(signup.status, 403);
+      assert.equal(signup.data.code, 'address-banned');
+      assert.match(signup.data.error, /still play/);
+      const pub = await call('POST', '/api/games', { body: form({ title: 'nope' }, love), token: someone.token, ip: network });
+      assert.equal(pub.status, 403);
+      const rep = await call('POST', `/api/games/${theirGame.data.id}/report`, { body: { reason: 'scam' }, ip: network });
+      assert.equal(rep.status, 403);
+      assert.equal((await call('GET', `/api/games/${theirGame.data.id}`, { ip: network })).status, 200);
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true })).status, 201);
+    });
+    await test('address bans are listed as hashes and can be lifted', async () => {
+      const list = await call('GET', '/api/admin/addresses', { token: ADMIN });
+      assert.ok(list.data.bans.length >= 1);
+      assert.ok(!JSON.stringify(list.data).includes(network), 'no raw addresses');
+      assert.ok(list.data.bans.every((b) => b.expiresAt > Date.now()));
+      const r = await call('POST', '/api/admin/addresses/unban', { body: { ip: network }, token: ADMIN });
+      assert.equal(r.data.unbanned, 1);
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: network })).status, 201);
+    });
+    await test('banning an account can ban the addresses it used', async () => {
+      const home = '198.51.100.33';
+      const signin = await call('POST', '/api/auth/signin', { body: { username: someone.username, password: PASSWORD }, site: true, ip: home });
+      assert.equal(signin.status, 200);
+      const r = await call('POST', `/api/admin/users/${someone.username}/ban`, { body: { reason: 'keeps coming back', addresses: true, days: 7 }, token: ADMIN });
+      assert.equal(r.status, 200);
+      assert.ok(r.data.addressesBanned >= 1);
+      const again = await call('POST', '/api/auth/signup', { body: { username: uniqueName(), password: PASSWORD }, site: true, ip: home });
+      assert.equal(again.status, 403);
+      assert.equal((await call('POST', '/api/admin/addresses/unban', { body: { username: someone.username }, token: ADMIN })).status, 200);
+      assert.equal((await call('POST', '/api/admin/addresses/ban', { body: { ip: home, days: -1 }, token: ADMIN })).status, 422);
+    });
+    await test('what moderators do is logged', async () => {
+      const r = await call('GET', '/api/admin/log', { token: ADMIN });
+      const actions = r.data.log.map((l) => `${l.action} ${l.target}`);
+      for (const a of ['ban', 'unban', 'reset-link', 'delete-user']) assert.ok(actions.includes(`${a} user:${villain.username}`), a);
+      assert.ok(actions.includes(`restore game:${game.id}`));
+    });
   }
 
-  section('Rate limits');
-  await test('publishing is limited per address (429 with Retry-After)', async () => {
-    const ip = freshIp();
-    for (let i = 0; i < 10; i++) {
-      const r = await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' }, ip });
-      assert.equal(r.status, 415, `attempt ${i + 1}`);
-    }
-    const r = await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' }, ip });
-    assert.equal(r.status, 429);
-    assert.ok(Number(r.headers.get('retry-after')) > 0);
-    assert.match(r.data.error, /try again/);
-    // Someone else isn't affected.
-    assert.equal((await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' } })).status, 415);
-  });
-  await test('reporting is limited per address', async () => {
-    const ip = freshIp();
-    const target = cleanup.find((g) => g.id !== game.id && g.id !== remix?.id);
-    let last;
-    for (let i = 0; i < 21; i++) last = await call('POST', `/api/games/${target.id}/report`, { body: { reason: 'other' }, ip });
-    assert.equal(last.status, 429);
-  });
+  // -------------------------------------------------------------------------
+  section('Sign in with Hack Club');
+  if (external) {
+    skip('Hack Club sign-in', 'the stand-in for Hack Club Auth only runs with the test\'s own server');
+  } else {
+    /** Follows the flow: /auth/hackclub → (stand-in) → /auth/hackclub/callback. Returns the callback's response. */
+    const hackclubFlow = async (sub, { next = '/', link = false, session } = {}) => {
+      fakeHackclub.nextSub = sub;
+      const start = await call('GET', `/auth/hackclub?next=${encodeURIComponent(next)}${link ? '&link=1' : ''}`, { session, site: false });
+      assert.equal(start.status, 302);
+      const authorize = new URL(start.headers.get('location'));
+      assert.equal(authorize.origin + authorize.pathname, `${fakeHackclub.url}/oauth/authorize`);
+      assert.equal(authorize.searchParams.get('code_challenge_method'), 'S256');
+      assert.equal(authorize.searchParams.get('redirect_uri'), `${BASE}/auth/hackclub/callback`);
+      const back = await fetch(authorize, { redirect: 'manual' });
+      const callback = new URL(back.headers.get('location'));
+      return call('GET', callback.pathname + callback.search, { cookies: { smitten_hackclub_flow: start.cookies.smitten_hackclub_flow }, session, site: false });
+    };
+    const sub = `ident!${randomBytes(4).toString('hex')}`;
+    let hcSession;
+    await test('someone new picks a username, with no password', async () => {
+      const r = await hackclubFlow(sub, { next: '/editor-auth?x=1' });
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), `/signup?via=hackclub&next=${encodeURIComponent('/editor-auth?x=1')}`);
+      const pending = r.cookies.smitten_hackclub;
+      assert.ok(pending);
+      const username = uniqueName('hc');
+      const s = await call('POST', '/api/auth/signup', { body: { via: 'hackclub', username }, cookies: { smitten_hackclub: pending }, site: true });
+      assert.equal(s.status, 201, JSON.stringify(s.data));
+      assert.equal(s.data.user.hackclub, true);
+      assert.equal(s.data.user.hasPassword, false);
+      assert.equal(s.data.recoveryCodes, null);
+      hcSession = s.cookies.smitten_session;
+      const forged = await call('POST', '/api/auth/signup', { body: { via: 'hackclub', username: uniqueName('hc') }, cookies: { smitten_hackclub: pending.replace(/.$/, (c) => (c === 'a' ? 'b' : 'a')) }, site: true });
+      assert.equal(forged.status, 400, 'the pending cookie is signed');
+    });
+    await test('next time, Hack Club signs them straight in', async () => {
+      const r = await hackclubFlow(sub, { next: '/account' });
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), '/account');
+      assert.ok(r.cookies.smitten_session);
+      const me = await call('GET', '/api/account', { session: r.cookies.smitten_session });
+      assert.equal(me.data.user.hackclub, true);
+    });
+    await test('only local paths are followed after signing in', async () => {
+      const r = await hackclubFlow(sub, { next: '//evil.example/x' });
+      assert.equal(r.headers.get('location'), '/');
+    });
+    await test('a callback with the wrong state is refused', async () => {
+      fakeHackclub.nextSub = sub;
+      const start = await call('GET', '/auth/hackclub');
+      const r = await call('GET', '/auth/hackclub/callback?code=abc&state=wrong', { cookies: { smitten_hackclub_flow: start.cookies.smitten_hackclub_flow } });
+      assert.equal(r.status, 302);
+      assert.match(r.headers.get('location'), /^\/signin\?error=/);
+      assert.equal(r.cookies.smitten_session, undefined);
+    });
+    await test('a password account can connect Hack Club, then sign in with it', async () => {
+      const gina = await signUp();
+      const sub2 = `ident!${randomBytes(4).toString('hex')}`;
+      const r = await hackclubFlow(sub2, { link: true, session: gina.session });
+      assert.equal(r.headers.get('location'), '/account?connected=hackclub');
+      assert.equal((await call('GET', '/api/account', { session: gina.session })).data.user.hackclub, true);
+      const again = await hackclubFlow(sub2);
+      const me = await call('GET', '/api/account', { session: again.cookies.smitten_session });
+      assert.equal(me.data.user.username, gina.username);
+      const taken = await hackclubFlow(sub, { link: true, session: gina.session });
+      assert.match(taken.headers.get('location'), /^\/account\?error=/);
+    });
+    await test('a Hack Club account without a password signs in with Hack Club, and deletes itself by typing its name', async () => {
+      const me = (await call('GET', '/api/account', { session: hcSession })).data.user;
+      const pw = await call('POST', '/api/auth/signin', { body: { username: me.username, password: 'anything at all' }, site: true });
+      assert.equal(pw.status, 401);
+      assert.equal(pw.data.code, 'use-hackclub');
+      assert.equal((await call('DELETE', '/api/account', { body: { confirm: 'someone-else' }, session: hcSession })).status, 422);
+      assert.equal((await call('DELETE', '/api/account', { body: { confirm: me.username }, session: hcSession })).status, 200);
+    });
+    await test('a Hack Club account sets a password, then can disconnect Hack Club (and only then)', async () => {
+      const sub3 = `ident!${randomBytes(4).toString('hex')}`;
+      const r = await hackclubFlow(sub3);
+      const username = uniqueName('hc');
+      const s = await call('POST', '/api/auth/signup', { body: { via: 'hackclub', username }, cookies: { smitten_hackclub: r.cookies.smitten_hackclub }, site: true });
+      assert.equal(s.status, 201, JSON.stringify(s.data));
+      const session = s.cookies.smitten_session;
+      const early = await call('DELETE', '/api/account/hackclub', { body: {}, session });
+      assert.equal(early.status, 409, 'no password to fall back on');
+      assert.equal(early.data.code, 'needs-password');
+      const set = await call('POST', '/api/account/password', { body: { password: 'my very own password' }, session });
+      assert.equal(set.status, 200, JSON.stringify(set.data));
+      assert.equal(set.data.recoveryCodes.length, 8, 'setting a first password gives recovery codes');
+      const me = await call('GET', '/api/account', { session });
+      assert.equal(me.data.user.hasPassword, true);
+      assert.equal(me.data.user.hackclub, true);
+      assert.equal(me.data.recoveryCodesLeft, 8);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username, password: 'my very own password' }, site: true })).status, 200);
+      const editor = await editorToken(session);
+      assert.equal((await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, token: editor })).status, 403, 'not from the editor');
+      const wrong = await call('DELETE', '/api/account/hackclub', { body: { password: 'not my password' }, session });
+      assert.equal(wrong.status, 403);
+      assert.equal(wrong.data.field, 'current');
+      const ok = await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, session });
+      assert.equal(ok.status, 200, JSON.stringify(ok.data));
+      assert.equal(ok.data.user.hackclub, false);
+      assert.equal(ok.data.user.hasPassword, true);
+      const again = await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, session });
+      assert.equal(again.status, 404);
+      assert.equal(again.data.code, 'not-connected');
+      const back = await hackclubFlow(sub3);
+      assert.match(back.headers.get('location'), /^\/signup\?via=hackclub/, 'that Hack Club account no longer signs in to it');
+      assert.equal(back.cookies.smitten_session, undefined);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username, password: 'my very own password' }, site: true })).status, 200);
+    });
+    await test('the sign-up and sign-in pages offer Hack Club, and how to connect it to an account', async () => {
+      const signup = new TextDecoder().decode((await call('GET', '/signup')).data);
+      assert.match(signup, /Sign up with Hack Club/);
+      assert.match(signup, /Connect your Hack Club account/);
+      const signin = new TextDecoder().decode((await call('GET', '/signin')).data);
+      assert.match(signin, /Sign in with Hack Club/);
+    });
+  }
 
+  // -------------------------------------------------------------------------
+  section('Email');
+  if (external) {
+    skip('Email', 'the stand-in mail server only runs with the test\'s own server');
+  } else {
+    const VERIFY = /\/verify-email#token=([A-Za-z0-9_-]+)/;
+    const RESET = /\/recover#reset=([A-Za-z0-9_-]+)/;
+    const tokenIn = (mail, re) => {
+      const m = re.exec(mail.text);
+      assert.ok(m, `no link in:\n${mail.text}`);
+      assert.ok(mail.html.includes(m[0]), 'the HTML part has the link too');
+      return m[1];
+    };
+    const verify = (token) => call('POST', '/api/auth/verify-email', { body: { token }, site: true });
+    /** Signs up with an email (waiting to be confirmed). */
+    const signUpWithEmail = async (address = freshEmail()) => {
+      const username = uniqueName('em');
+      const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: address }, site: true });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      return { username, password: PASSWORD, session: r.cookies.smitten_session, address, signup: r };
+    };
+    const confirm = async (address) => {
+      const r = await verify(tokenIn(await takeMail(address, /^Confirm your email/), VERIFY));
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      return r;
+    };
+    /** Someone with a confirmed email. */
+    const personWithEmail = async () => {
+      const p = await signUpWithEmail();
+      await confirm(p.address);
+      return p;
+    };
+    const requestReset = (email, opts = {}) => call('POST', '/api/auth/recover/email', { body: { email }, site: true, ...opts });
+    const sentSince = (n) => mailServer.messages.length - n;
+
+    await test('the config says email is on; /verify-email is a page', async () => {
+      assert.equal((await call('GET', '/api/config')).data.accounts.email, true);
+      const page = await call('GET', '/verify-email');
+      assert.equal(page.status, 200);
+      assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
+    });
+    await test('an email that doesn\'t look like one is refused before the account is made', async () => {
+      const username = uniqueName('em');
+      for (const email of ['not an email', 'a@b', 'x@@y.test', 'line\r\nbreak@x.test', 'ünï@x.test', `${'a'.repeat(250)}@x.test`, 'two..dots@x.test']) {
+        const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email }, site: true });
+        assert.equal(r.status, 422, `${email}: ${JSON.stringify(r.data)}`);
+        assert.equal(r.data.field, 'email');
+      }
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: '' }, site: true })).status, 201, 'no email is fine');
+    });
+
+    let em;
+    await test('signing up with an email sends a link to confirm it (SMTP, STARTTLS, AUTH)', async () => {
+      const address = freshEmail();
+      const username = uniqueName('em');
+      const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: `  ${address.toUpperCase()} ` }, site: true });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      assert.equal(r.data.pendingEmail, address, 'trimmed, lower case');
+      assert.equal(r.data.recoveryCodes.length, 8, 'recovery codes too');
+      assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'hackatime', 'hackclub', 'hasPassword', 'username']);
+      const session = r.cookies.smitten_session;
+      const me = await call('GET', '/api/account', { session });
+      assert.equal(me.data.email, null, 'not until it\'s confirmed');
+      assert.equal(me.data.pendingEmail.address, address);
+      assert.ok(me.data.pendingEmail.expiresAt > Date.now() + 23 * 3600_000);
+
+      const mail = await takeMail(address, /^Confirm your email for Smitten$/);
+      assert.equal(mail.from, 'no-reply@smitten.test', 'the envelope sender');
+      assert.equal(mail.headers.from, 'Smitten Test <no-reply@smitten.test>');
+      assert.equal(mail.headers.to, `<${address}>`);
+      assert.match(mail.headers['message-id'], /^<[0-9a-f]{32}@smitten\.test>$/);
+      assert.ok(Math.abs(Date.parse(mail.headers.date) - Date.now()) < 60_000, mail.headers.date);
+      assert.match(mail.headers['content-type'], /^multipart\/alternative; boundary="[^"]+"$/);
+      assert.equal(mail.headers['mime-version'], '1.0');
+      assert.equal(mail.headers['auto-submitted'], 'auto-generated');
+      if (certificate) assert.equal(mail.secure, true, 'sent after STARTTLS');
+      assert.ok(['PLAIN', 'LOGIN'].includes(mail.authMethod), 'authenticated');
+      assert.ok(mail.lines.every((l) => l.length <= 78), 'short lines');
+      assert.match(mail.text, new RegExp(`@${username}`));
+      assert.match(mail.html, /^<!doctype html>/);
+      assert.doesNotMatch(mail.html, /<img|<script|<link/i, 'no images, scripts or tracking');
+      em = { username, session, address, token: tokenIn(mail, VERIFY) };
+    });
+    if (!em) throw new Error('Signing up with an email failed; the email tests depend on it.');
+    await test('the link confirms the address, once; it\'s never shown to anyone else', async () => {
+      assert.equal((await verify('not-a-real-token')).status, 400);
+      assert.equal((await call('POST', '/api/auth/verify-email', { body: { token: em.token } })).status, 403, 'only from the site\'s page');
+      const r = await verify(em.token);
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.username, em.username);
+      assert.equal((await verify(em.token)).status, 400, 'once');
+      const me = await call('GET', '/api/account', { session: em.session });
+      assert.equal(me.data.email, em.address);
+      assert.equal(me.data.pendingEmail, null);
+      const profile = await call('GET', `/api/users/${em.username}`);
+      assert.ok(!JSON.stringify(profile.data).includes(em.address));
+      const editor = await call('GET', '/api/account', { token: await editorToken(em.session) });
+      assert.equal(editor.status, 200);
+      assert.ok(!JSON.stringify(editor.data).includes(em.address), 'not to the editor either');
+      const admin = await call('GET', `/api/admin/users/${em.username}`, { token: ADMIN });
+      assert.ok(!JSON.stringify(admin.data).includes(em.address), 'moderators see it masked');
+      assert.equal(admin.data.user.email.masked, 'k***@e***.test');
+      assert.equal(admin.data.user.email.verified, true);
+    });
+    await test('changing it needs the password, is confirmed by a link, tells the old address, and ends old reset links', async () => {
+      assert.equal((await requestReset(em.address)).status, 200);
+      const oldReset = tokenIn(await takeMail(em.address, /^Reset your Smitten password$/), RESET);
+      const next = freshEmail('new');
+      const wrong = await call('POST', '/api/account/email', { body: { email: next, password: 'not my password' }, session: em.session });
+      assert.equal(wrong.status, 403);
+      assert.equal(wrong.data.field, 'current');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: em.address, password: PASSWORD }, session: em.session })).status, 422, 'already yours');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, token: await editorToken(em.session) })).status, 403, 'not from the editor');
+      const r = await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, session: em.session });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.email, em.address, 'the old one stays until the new one is confirmed');
+      assert.equal(r.data.pendingEmail.address, next);
+      await confirm(next);
+      assert.equal((await call('GET', '/api/account', { session: em.session })).data.email, next);
+      const note = await takeMail(em.address, /^Your Smitten email was changed$/);
+      assert.ok(!note.text.includes(next), 'the note doesn\'t say the new address');
+      const late = await call('POST', '/api/auth/recover', { body: { resetToken: oldReset, password: 'sneaky new password' }, site: true });
+      assert.equal(late.status, 400);
+      em.address = next;
+    });
+    await test('adding an address that\'s on another account: the same answer, and a note to it instead of a link', async () => {
+      const other = await signUp();
+      const r = await call('POST', '/api/account/email', { body: { email: em.address, password: PASSWORD }, session: other.session });
+      assert.equal(r.status, 200);
+      assert.deepEqual(Object.keys(r.data).sort(), ['email', 'pendingEmail']);
+      assert.equal(r.data.pendingEmail.address, em.address);
+      const note = await takeMail(em.address, /^This email is already on a Smitten account$/);
+      assert.doesNotMatch(note.text, VERIFY);
+      assert.match(note.text, new RegExp(`@${em.username}`));
+      assert.equal((await call('GET', '/api/account', { session: em.session })).data.email, em.address);
+    });
+    await test('when two accounts wait for one address, the first to confirm gets it', async () => {
+      const shared = freshEmail('shared');
+      const a = await signUp();
+      const b = await signUp();
+      for (const p of [a, b]) assert.equal((await call('POST', '/api/account/email', { body: { email: shared, password: PASSWORD }, session: p.session })).status, 200);
+      const forA = tokenIn(await takeMail(shared, /^Confirm/), VERIFY);
+      const forB = tokenIn(await takeMail(shared, /^Confirm/), VERIFY);
+      assert.equal((await verify(forB)).status, 200);
+      const late = await verify(forA);
+      assert.equal(late.status, 409);
+      assert.equal(late.data.code, 'email-taken');
+      assert.equal((await call('GET', '/api/account', { session: a.session })).data.email, null);
+    });
+    await test('sending the link again replaces it; cancelling forgets the address', async () => {
+      const p = await signUp();
+      const address = freshEmail();
+      assert.equal((await call('POST', '/api/account/email', { body: { email: address, password: PASSWORD }, session: p.session })).status, 200);
+      const first = tokenIn(await takeMail(address, /^Confirm/), VERIFY);
+      assert.equal((await call('POST', '/api/account/email/resend', { session: p.session })).status, 200);
+      const second = tokenIn(await takeMail(address, /^Confirm/), VERIFY);
+      assert.equal((await verify(first)).status, 400, 'the old link stops working');
+      const c = await call('POST', '/api/account/email/cancel', { session: p.session });
+      assert.equal(c.status, 200);
+      assert.equal(c.data.pendingEmail, null);
+      assert.equal((await verify(second)).status, 400);
+      assert.equal((await call('POST', '/api/account/email/resend', { session: p.session })).status, 404);
+    });
+    await test('confirmation mails are limited per address and per account', async () => {
+      const target = freshEmail('target');
+      for (let i = 0; i < 3; i++) {
+        const p = await signUp();
+        assert.equal((await call('POST', '/api/account/email', { body: { email: target, password: PASSWORD }, session: p.session })).status, 200);
+      }
+      const p = await signUp();
+      const r = await call('POST', '/api/account/email', { body: { email: target, password: PASSWORD }, session: p.session });
+      assert.equal(r.status, 429);
+      let last;
+      for (let i = 0; i < 5; i++) {
+        last = await call('POST', '/api/account/email', { body: { email: freshEmail(), password: PASSWORD }, session: p.session });
+        assert.equal(last.status, 200);
+      }
+      last = await call('POST', '/api/account/email', { body: { email: freshEmail(), password: PASSWORD }, session: p.session });
+      assert.equal(last.status, 429, 'five an hour per account');
+      for (let i = 0; i < 3; i++) await takeMail(target, /^Confirm/);
+    });
+    await test('removing it needs the password, tells the address, and stops resets to it', async () => {
+      const p = await personWithEmail();
+      assert.equal((await call('DELETE', '/api/account/email', { body: { password: 'not my password' }, session: p.session })).status, 403);
+      const r = await call('DELETE', '/api/account/email', { body: { password: PASSWORD }, session: p.session });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.email, null);
+      await takeMail(p.address, /^Your email was removed from Smitten$/);
+      assert.equal((await call('GET', '/api/account', { session: p.session })).data.email, null);
+      assert.equal((await requestReset(p.address)).status, 200);
+      await noMail(p.address);
+    });
+
+    section('Resetting a password by email');
+    await test('a reset link comes by email, works once, signs out everywhere, and a note says so', async () => {
+      const p = await personWithEmail();
+      const token = await editorToken(p.session);
+      const r = await requestReset(p.address.toUpperCase());
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.data, { ok: true });
+      const mail = await takeMail(p.address, /^Reset your Smitten password$/);
+      assert.match(mail.text, new RegExp(`Your username is @${p.username}`));
+      const resetToken = tokenIn(mail, RESET);
+      const rec = await call('POST', '/api/auth/recover', { body: { resetToken, password: 'reset by email today' }, site: true });
+      assert.equal(rec.status, 200, JSON.stringify(rec.data));
+      assert.ok(rec.cookies.smitten_session, 'and signs in');
+      assert.equal((await call('GET', '/api/account', { session: p.session })).data.user, null);
+      assert.equal((await call('GET', '/api/account', { token })).status, 401);
+      assert.equal((await call('POST', '/api/auth/recover', { body: { resetToken, password: 'and once more now' }, site: true })).status, 400, 'once');
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username: p.username, password: 'reset by email today' }, site: true })).status, 200);
+      await takeMail(p.address, /^Your Smitten password was changed$/);
+    });
+    await test('the answer is the same whether or not the address is on an account', async () => {
+      const known = await personWithEmail();
+      const waiting = await signUpWithEmail();
+      await takeMail(waiting.address, /^Confirm/);
+      const unknown = freshEmail('nobody');
+      const answers = [];
+      for (const address of [known.address, waiting.address, unknown]) {
+        const r = await requestReset(address);
+        answers.push([r.status, JSON.stringify(r.data)]);
+      }
+      assert.deepEqual(answers[0], answers[1]);
+      assert.deepEqual(answers[0], answers[2]);
+      await takeMail(known.address, /^Reset/);
+      await noMail(waiting.address);
+      await noMail(unknown, 0);
+      assert.equal((await requestReset('not an address')).status, 422);
+      assert.equal((await call('POST', '/api/auth/recover/email', { body: { email: unknown } })).status, 403, 'only from the site');
+    });
+    await test('reset links expire after an hour', async () => {
+      const p = await personWithEmail();
+      await requestReset(p.address);
+      const resetToken = tokenIn(await takeMail(p.address, /^Reset/), RESET);
+      db.prepare("UPDATE password_resets SET expires_at = ? WHERE kind = 'email' AND user_id = (SELECT id FROM users WHERE username = ?)").run(Date.now() - 1, p.username);
+      const r = await call('POST', '/api/auth/recover', { body: { resetToken, password: 'too late for this' }, site: true });
+      assert.equal(r.status, 400);
+      assert.equal(r.data.code, 'bad-link');
+    });
+    await test('reset mails are limited per address, per account (quietly) and per network', async () => {
+      const unknown = freshEmail('nobody');
+      for (let i = 0; i < 3; i++) assert.equal((await requestReset(unknown)).status, 200);
+      assert.equal((await requestReset(unknown)).status, 429, 'per address, whether or not it\'s on an account');
+      const p = await personWithEmail();
+      for (let i = 0; i < 3; i++) assert.equal((await requestReset(p.address)).status, 200);
+      assert.equal((await requestReset(p.address)).status, 429);
+      for (let i = 0; i < 3; i++) await takeMail(p.address, /^Reset/);
+      // A new address on the same account: the account's limit still holds, without saying so.
+      const next = freshEmail('new');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, session: p.session })).status, 200);
+      await confirm(next);
+      await takeMail(p.address, /changed/);
+      const r = await requestReset(next);
+      assert.equal(r.status, 200);
+      await noMail(next);
+      const ip = freshIp();
+      let last;
+      for (let i = 0; i < 11; i++) last = await requestReset(freshEmail('nobody'), { ip });
+      assert.equal(last.status, 429, 'per network');
+    });
+    await test('a banned network can\'t send reset mail; a banned account gets none', async () => {
+      const ip = '198.51.100.77';
+      assert.equal((await call('POST', '/api/admin/addresses/ban', { body: { ip, reason: 'test', days: 1 }, token: ADMIN })).status, 200);
+      const r = await requestReset(freshEmail('nobody'), { ip });
+      assert.equal(r.status, 403);
+      assert.equal(r.data.code, 'address-banned');
+      assert.equal((await call('POST', '/api/admin/addresses/unban', { body: { ip }, token: ADMIN })).status, 200);
+      const p = await personWithEmail();
+      assert.equal((await call('POST', `/api/admin/users/${p.username}/ban`, { body: { reason: 'test' }, token: ADMIN })).status, 200);
+      assert.equal((await requestReset(p.address)).status, 200);
+      await noMail(p.address);
+      assert.equal((await call('POST', `/api/admin/users/${p.username}/unban`, { token: ADMIN })).status, 200);
+    });
+    await test('a moderator\'s reset link still works for accounts with an email', async () => {
+      const p = await personWithEmail();
+      const link = await call('POST', `/api/admin/users/${p.username}/reset-password`, { token: ADMIN });
+      assert.equal(link.status, 200);
+      await requestReset(p.address);
+      await takeMail(p.address, /^Reset/);
+      const r = await call('POST', '/api/auth/recover', { body: { resetToken: link.data.url.split('#reset=')[1], password: 'a moderator helped' }, site: true });
+      assert.equal(r.status, 200, 'an email link doesn\'t cancel the moderator\'s');
+      await takeMail(p.address, /password was changed/);
+    });
+
+    section('Account mail');
+    await test('changing the password sends a note', async () => {
+      const p = await personWithEmail();
+      const r = await call('POST', '/api/account/password', { body: { current: PASSWORD, password: 'a different secret' }, session: p.session });
+      assert.equal(r.status, 200);
+      const mail = await takeMail(p.address, /^Your Smitten password was changed$/);
+      assert.match(mail.text, /\/recover/);
+    });
+    await test('a moderator hiding or restoring a game tells its owner (only if they have an email)', async () => {
+      const p = await personWithEmail();
+      const token = await editorToken(p.session);
+      const title = `Mail me <b>${tag}</b>`;
+      const g = await publish({ title }, mainLuaGame(), null, { token });
+      assert.equal(g.status, 201, JSON.stringify(g.data));
+      assert.equal((await call('POST', `/api/admin/games/${g.data.id}/hide`, { token: ADMIN })).status, 200);
+      const hid = await takeMail(p.address, /^A moderator hid one of your games$/);
+      assert.ok(hid.text.includes(title));
+      assert.ok(hid.html.includes(`Mail me &lt;b&gt;${tag}&lt;/b&gt;`), 'escaped in HTML');
+      await call('POST', `/api/admin/games/${g.data.id}/hide`, { token: ADMIN });
+      await noMail(p.address);
+      assert.equal((await call('POST', `/api/admin/games/${g.data.id}/restore`, { token: ADMIN })).status, 200);
+      const back = await takeMail(p.address, /^Your game is back on Smitten$/);
+      assert.ok(back.text.includes(`/play/${g.data.id}`));
+      const before = mailServer.messages.length;
+      const plain = await publish({ title: `No mail ${tag}` });
+      await call('POST', `/api/admin/games/${plain.data.id}/hide`, { token: ADMIN });
+      await call('POST', `/api/admin/games/${plain.data.id}/restore`, { token: ADMIN });
+      await new Promise((r) => setTimeout(r, 500));
+      assert.equal(sentSince(before), 0);
+    });
+    await test('mail that can\'t be sent right now is tried again', async () => {
+      mailServer.failNext = 1;
+      const p = await personWithEmail();
+      assert.ok(p);
+      assert.match(server.output(), /Mail #\d+: not sent \(attempt 1\), trying again/);
+    });
+    await test('mail refused for good is dropped, and the log names no address or link', async () => {
+      mailServer.rejectNext = 1;
+      const p = await signUpWithEmail();
+      await eventually(() => /giving up/.test(server.output()), 'the server to give up');
+      await noMail(p.address);
+      assert.match(server.output(), /Mail #\d+: not sent, giving up after 1 attempt: .*550/);
+      assert.doesNotMatch(server.output(), /@example\.test/);
+      assert.doesNotMatch(server.output(), /token=|reset=/);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM mail_queue').get().n, 0);
+    });
+
+    section('Sending mail');
+    const mailer = await import(`${ROOT}platform/src/mail.js`);
+    const smtpTo = (srv, extra = {}) => ({
+      host: 'localhost', port: srv.port, secure: certificate ? 'starttls' : 'none', user: SMTP.user, pass: SMTP.pass, helo: 'tests.local', timeoutMs: 3000, ...extra,
+    });
+    const tlsOptions = certificate ? { ca: certificate.cert } : {};
+    const sample = (to) => {
+      const text = ['.', '..two dots', '.starts with a dot', 'é'.repeat(120), `trailing space ${' '}`, 'tab\tin it', 'a=b and =3D', '', 'end'].join('\n');
+      const subject = `Héllo 💜 ${'a long subject '.repeat(6)}`;
+      return { text, subject, data: mailer.buildMessage({ from: 'Smitten <no-reply@smitten.test>', fromAddress: 'no-reply@smitten.test', to, subject, text, html: `<p>${text}</p>` }) };
+    };
+    await test('dot-stuffing, long lines and UTF-8 arrive intact', async () => {
+      const to = freshEmail('raw');
+      const { text, subject, data } = sample(to);
+      assert.ok(data.split('\r\n').every((l) => l.length <= 78), 'every line short');
+      assert.ok(!/(^|[^\r])\n/.test(data), 'CRLF only');
+      await mailer.sendSmtp(smtpTo(mailServer), { from: 'no-reply@smitten.test', to, data }, { tlsOptions });
+      const got = await takeMail(to);
+      assert.equal(got.text.replace(/\r\n/g, '\n'), text);
+      assert.equal(got.subject, subject);
+    });
+    await test('implicit TLS (port 465) with AUTH LOGIN', async () => {
+      if (!certificate) return;
+      const implicit = await fakeSmtpServer({ cert: certificate, implicitTls: true, ...SMTP, mechanisms: ['LOGIN'] }).listen(SMTP_START);
+      try {
+        const to = freshEmail('tls');
+        await mailer.sendSmtp(smtpTo(implicit, { secure: 'tls' }), { from: 'no-reply@smitten.test', to, data: sample(to).data }, { tlsOptions });
+        assert.equal(implicit.messages.length, 1);
+        assert.equal(implicit.messages[0].authMethod, 'LOGIN');
+        assert.equal(implicit.messages[0].secure, true);
+      } finally {
+        implicit.close();
+      }
+    });
+    await test('no password without TLS, wrong passwords fail for good, silent servers time out', async () => {
+      const to = freshEmail('fail');
+      const { data } = sample(to);
+      if (certificate) {
+        const plain = await fakeSmtpServer({ cert: certificate, noStarttls: true, ...SMTP }).listen(SMTP_START);
+        try {
+          await assert.rejects(mailer.sendSmtp(smtpTo(plain, { secure: 'starttls' }), { from: 'no-reply@smitten.test', to, data }, { tlsOptions }),
+            (e) => /STARTTLS/.test(e.message) && e.permanent === true);
+          assert.equal(plain.messages.length, 0);
+        } finally {
+          plain.close();
+        }
+      }
+      await assert.rejects(mailer.sendSmtp(smtpTo(mailServer, { pass: 'wrong' }), { from: 'no-reply@smitten.test', to, data }, { tlsOptions }),
+        (e) => /535/.test(e.message) && e.permanent === true);
+      const silent = await fakeSmtpServer({ silent: true }).listen(SMTP_START);
+      try {
+        const started = Date.now();
+        await assert.rejects(mailer.sendSmtp(smtpTo(silent, { secure: 'none', user: '', timeoutMs: 300 }), { from: 'no-reply@smitten.test', to, data }),
+          (e) => /timed out/.test(e.message) && !e.permanent);
+        assert.ok(Date.now() - started < 3000);
+      } finally {
+        silent.close();
+      }
+    });
+    await test('Resend: the API call, and which failures are tried again', async () => {
+      const seen = [];
+      const statuses = [];
+      const api = createServer(async (req, res) => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        seen.push({ method: req.method, url: req.url, headers: req.headers, body: JSON.parse(body) });
+        const status = statuses.shift() ?? 200;
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(status === 200 ? { id: 'abc' } : { name: 'validation_error', message: `Invalid \`to\` field: ${seen.at(-1).body.to[0]}` }));
+      });
+      const port = await freePort(SMTP_START);
+      await new Promise((r) => api.listen(port, '127.0.0.1', r));
+      try {
+        const config = { email: { transport: 'resend', from: 'Smitten <no-reply@smitten.test>', fromAddress: 'no-reply@smitten.test', timeoutMs: 2000, resend: { apiKey: 're_test_key', url: `http://127.0.0.1:${port}` } } };
+        const to = freshEmail('resend');
+        const message = { id: 7, createdAt: 1234, to, subject: 'Hi', text: 'Hello', html: '<p>Hello</p>' };
+        await mailer.send(config, message);
+        assert.equal(seen[0].method, 'POST');
+        assert.equal(seen[0].url, '/emails');
+        assert.equal(seen[0].headers.authorization, 'Bearer re_test_key');
+        assert.equal(seen[0].headers['idempotency-key'], 'smitten-7-1234');
+        assert.deepEqual(seen[0].body.to, [to]);
+        assert.equal(seen[0].body.from, 'Smitten <no-reply@smitten.test>');
+        assert.equal(seen[0].body.text, 'Hello');
+        assert.equal(seen[0].body.html, '<p>Hello</p>');
+        statuses.push(422);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === true);
+        statuses.push(500);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === false);
+        statuses.push(429);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === false);
+      } finally {
+        api.close();
+      }
+    });
+    await test('EMAIL_TRANSPORT=log writes each message to EMAIL_LOG_FILE', async () => {
+      const port = await freePort(mailServer.port + 1);
+      const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-log-'));
+      const file = join(dir, 'mail.log');
+      let child;
+      try {
+        child = await spawnServer(port, dir, { EMAIL_TRANSPORT: 'log', EMAIL_LOG_FILE: file });
+        const address = freshEmail('log');
+        const r = await fetch(`http://127.0.0.1:${port}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}`, 'X-Forwarded-For': freshIp() },
+          body: JSON.stringify({ username: uniqueName('log'), password: PASSWORD, email: address }),
+        });
+        assert.equal(r.status, 201);
+        const entry = await eventually(() => {
+          try {
+            return readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).find((e) => e.to === address);
+          } catch {
+            return null;
+          }
+        }, 'the log file');
+        assert.equal(entry.subject, 'Confirm your email for Smitten');
+        assert.match(entry.text, new RegExp(`http://127\\.0\\.0\\.1:${port}/verify-email#token=`));
+        assert.match(entry.from, /^Smitten <no-reply@localhost\.localdomain>$/);
+      } finally {
+        child?.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+
+  // -------------------------------------------------------------------------
+  section('Hackatime');
+  if (external) {
+    skip('Hackatime', 'the stand-in for Hackatime only runs with the test\'s own server');
+  } else {
+    /** Follows the flow: /auth/hackatime → (stand-in) → /auth/hackatime/callback. Returns the callback's response. */
+    const hackatimeFlow = async (session, htUser, { next } = {}) => {
+      fakeHackatime.nextUser = htUser;
+      const start = await call('GET', `/auth/hackatime${next ? `?next=${encodeURIComponent(next)}` : ''}`, { session, site: false });
+      assert.equal(start.status, 302, JSON.stringify(start.data));
+      const authorize = new URL(start.headers.get('location'));
+      assert.equal(authorize.origin + authorize.pathname, `${fakeHackatime.url}/oauth/authorize`);
+      assert.equal(authorize.searchParams.get('client_id'), HT.clientId);
+      assert.equal(authorize.searchParams.get('scope'), 'profile read');
+      assert.equal(authorize.searchParams.get('code_challenge_method'), 'S256');
+      assert.equal(authorize.searchParams.get('redirect_uri'), `${BASE}/auth/hackatime/callback`);
+      assert.ok(start.cookies.smitten_hackatime_flow);
+      const back = await fetch(authorize, { redirect: 'manual' });
+      const callback = new URL(back.headers.get('location'));
+      return call('GET', callback.pathname + callback.search, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session, site: false });
+    };
+    const htUser = (projects = {}) => ({ id: 70000 + Math.floor(Math.random() * 20000), apiKey: `waka_${randomBytes(16).toString('hex')}`, projects });
+    const userRow = (username) => db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    const gameHours = async (id) => (await call('GET', `/api/games/${id}`)).data.game.hackatime;
+
+    const ivy = await person();
+    const ivyHt = htUser({ 'Space Ivy': 45_000, Other: 120 });
+
+    await test('connecting needs a session on the site: otherwise it goes to sign-in and back', async () => {
+      const r = await call('GET', '/auth/hackatime?next=/hackatime-connected');
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), `/signin?next=${encodeURIComponent('/auth/hackatime?next=%2Fhackatime-connected')}`);
+      const editor = await call('GET', '/auth/hackatime', { token: ivy.token });
+      assert.match(editor.headers.get('location'), /^\/signin\?/, 'an editor token is not a session');
+    });
+    await test('before connecting: not-connected, and the account says hackatime: false', async () => {
+      const r = await call('GET', '/api/account/hackatime-key', { token: ivy.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal((await call('GET', '/api/account', { token: ivy.token })).data.user.hackatime, false);
+      assert.equal(fakeHackatime.keyCalls, 0, "Hackatime isn't asked for accounts that aren't connected");
+    });
+    await test('connect: state and PKCE, the code swapped with the secret, then back to the account', async () => {
+      const r = await hackatimeFlow(ivy.session, ivyHt);
+      assert.equal(r.status, 302);
+      assert.equal(r.headers.get('location'), '/account?connected=hackatime');
+      assert.ok(r.setCookie.some((c) => c.startsWith('smitten_hackatime_flow=;') && /Max-Age=0/.test(c)), 'the flow cookie is cleared');
+      assert.equal((await call('GET', '/api/account', { session: ivy.session })).data.user.hackatime, true);
+      assert.equal((await call('GET', '/api/account', { token: ivy.token })).data.user.hackatime, true);
+    });
+    await test('the editor gets the Hackatime API key (no-store), with its token or a session', async () => {
+      const r = await call('GET', '/api/account/hackatime-key', { token: ivy.token, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.deepEqual(r.data, { key: ivyHt.apiKey });
+      assert.equal(r.headers.get('cache-control'), 'no-store');
+      assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
+      const s = await call('GET', '/api/account/hackatime-key', { session: ivy.session });
+      assert.equal(s.data.key, ivyHt.apiKey);
+      const other = await call('GET', '/api/account/hackatime-key', { session: ivy.session, site: false, headers: { Origin: 'https://evil.example' } });
+      assert.equal(other.status, 403, "other sites can't use the session for it");
+      assert.equal((await call('GET', '/api/account/hackatime-key')).status, 401);
+    });
+    await test('only the Hackatime id and an encrypted token are stored, never the token or key in plain text', async () => {
+      const row = userRow(ivy.username);
+      assert.equal(row.hackatime_id, String(ivyHt.id));
+      assert.match(row.hackatime_token, /^v1\.[\w-]+\.[\w-]+\.[\w-]+$/);
+      const access = fakeHackatime.issued.at(-1);
+      assert.ok(!row.hackatime_token.includes(access));
+      db.exec('PRAGMA wal_checkpoint(PASSIVE)');
+      for (const file of ['smitten.db', 'smitten.db-wal']) {
+        let bytes = '';
+        try { bytes = readFileSync(join(dataDir, file), 'latin1'); } catch { continue; }
+        assert.ok(!bytes.includes(access), `the access token isn't in ${file}`);
+        assert.ok(!bytes.includes(ivyHt.apiKey), `the API key isn't in ${file}`);
+        assert.ok(!bytes.includes('U0SECRET') && !bytes.includes(`person${ivyHt.id}@example.com`), `nothing else from /me is in ${file}`);
+      }
+    });
+    await test('a token moved to another account row does not decrypt there', async () => {
+      const other = await person();
+      const stolen = userRow(ivy.username).hackatime_token;
+      db.prepare('UPDATE users SET hackatime_id = ?, hackatime_token = ? WHERE username = ?').run('copied-id', stolen, other.username);
+      const r = await call('GET', '/api/account/hackatime-key', { token: other.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal(userRow(other.username).hackatime_id, null, 'the broken link is cleared');
+    });
+
+    let ivyGame;
+    await test("a game published with hackatimeProject shows its owner's tracked time, refreshed in the background", async () => {
+      const calls = fakeHackatime.projectCalls;
+      const r = await call('POST', '/api/games', { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      ivyGame = r.data.id;
+      cleanup.push({ id: ivyGame, token: ivy.token });
+      const hours = await eventually(() => gameHours(ivyGame), 'the hours');
+      assert.equal(hours.seconds, 45_000);
+      assert.ok(hours.checkedAt > Date.now() - 60_000);
+      assert.equal(fakeHackatime.projectCalls, calls + 1);
+      assert.equal(db.prepare('SELECT hackatime_project FROM games WHERE id = ?').get(ivyGame).hackatime_project, 'Space Ivy');
+      const list = await call('GET', `/api/games?user=${ivy.username}`);
+      assert.equal(list.data.games[0].hackatime.seconds, 45_000);
+      assert.equal(list.data.games[0].hackatimeProject, undefined, "the project's name isn't shown");
+    });
+    await test('the hours are cached: at most one refresh an hour per game', async () => {
+      const calls = fakeHackatime.projectCalls;
+      ivyHt.projects['Space Ivy'] = 50_000;
+      for (let i = 0; i < 3; i++) assert.equal((await gameHours(ivyGame)).seconds, 45_000);
+      await new Promise((r) => setTimeout(r, 150));
+      assert.equal(fakeHackatime.projectCalls, calls, 'no new requests within the hour');
+      db.prepare('UPDATE games SET hackatime_checked_at = ? WHERE id = ?').run(Date.now() - 2 * 3600_000, ivyGame);
+      assert.equal((await gameHours(ivyGame)).seconds, 45_000, 'the page gets the cached value right away');
+      await eventually(async () => (await gameHours(ivyGame)).seconds === 50_000, 'the refreshed hours');
+      assert.equal(fakeHackatime.projectCalls, calls + 1);
+    });
+    await test('an update refreshes right away, and a new project starts over', async () => {
+      ivyHt.projects['Space Ivy'] = 51_000;
+      const r = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours after an update');
+      assert.equal(db.prepare('SELECT hackatime_project FROM games WHERE id = ?').get(ivyGame).hackatime_project, 'Space Ivy', 'an update without hackatimeProject keeps it');
+      const renamed = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Other' }, mainLuaGame()), token: ivy.token });
+      assert.equal(renamed.status, 200);
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 120, "the other project's hours");
+      const back = await call('PUT', `/api/games/${ivyGame}`, { body: form({ title: `Space Ivy ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      assert.equal(back.status, 200);
+      await eventually(async () => (await gameHours(ivyGame))?.seconds === 51_000, 'the hours again');
+    });
+    await test("games without a project, or whose project Hackatime doesn't know, show no hours", async () => {
+      const plain = await call('POST', '/api/games', { body: form({ title: `No project ${run}`, description: '' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: plain.data.id, token: ivy.token });
+      const unknown = await call('POST', '/api/games', { body: form({ title: `Unknown ${run}`, description: '', hackatimeProject: 'Never tracked' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: unknown.data.id, token: ivy.token });
+      await eventually(() => db.prepare('SELECT hackatime_checked_at FROM games WHERE id = ?').get(unknown.data.id).hackatime_checked_at, 'the check');
+      assert.equal(await gameHours(plain.data.id), undefined);
+      assert.equal(await gameHours(unknown.data.id), undefined);
+      const bad = await call('POST', '/api/games', { body: form({ title: `Bad ${run}`, description: '', hackatimeProject: 42 }, mainLuaGame()), token: ivy.token });
+      assert.equal(bad.status, 422);
+    });
+    await test('when Hackatime fails, the page still works', async () => {
+      fakeHackatime.failing = true;
+      const r = await call('POST', '/api/games', { body: form({ title: `Broken ${run}`, description: '', hackatimeProject: 'Space Ivy' }, mainLuaGame()), token: ivy.token });
+      cleanup.push({ id: r.data.id, token: ivy.token });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const g = await call('GET', `/api/games/${r.data.id}`);
+      assert.equal(g.status, 200);
+      assert.equal(g.data.game.hackatime, undefined);
+      fakeHackatime.failing = false;
+    });
+
+    await test('connecting from the editor ends on /hackatime-connected', async () => {
+      const jo = await signUp();
+      const r = await hackatimeFlow(jo.session, htUser(), { next: '/hackatime-connected' });
+      assert.equal(r.headers.get('location'), '/hackatime-connected?connected=hackatime');
+      const page = await call('GET', '/hackatime-connected?connected=hackatime');
+      assert.equal(page.status, 200);
+      assert.match(page.headers.get('content-type'), /^text\/html/);
+      assert.equal(page.headers.get('cross-origin-opener-policy'), null);
+    });
+    await test('a callback with the wrong state, or for another account, is refused', async () => {
+      const kim = await signUp();
+      fakeHackatime.nextUser = htUser();
+      const start = await call('GET', '/auth/hackatime', { session: kim.session, site: false });
+      const r = await call('GET', '/auth/hackatime/callback?code=abc&state=wrong', { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: kim.session, site: false });
+      assert.equal(r.status, 302);
+      assert.match(r.headers.get('location'), /^\/account\?error=/);
+      const lee = await signUp();
+      const authorize = new URL(start.headers.get('location'));
+      const back = new URL((await fetch(authorize, { redirect: 'manual' })).headers.get('location'));
+      const swapped = await call('GET', back.pathname + back.search, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: lee.session, site: false });
+      assert.match(swapped.headers.get('location'), /^\/account\?error=/);
+      assert.equal(userRow(kim.username).hackatime_id, null);
+      assert.equal(userRow(lee.username).hackatime_id, null);
+      const cancelled = await call('GET', `/auth/hackatime/callback?error=access_denied&state=x`, { cookies: { smitten_hackatime_flow: start.cookies.smitten_hackatime_flow }, session: kim.session, site: false });
+      assert.match(cancelled.headers.get('location'), /^\/account\?error=/);
+    });
+    await test('a Hackatime account connected again elsewhere moves there', async () => {
+      const mo = await signUp();
+      const moHt = htUser();
+      await hackatimeFlow(mo.session, moHt);
+      const nia = await signUp();
+      const before = fakeHackatime.revoked.length;
+      await hackatimeFlow(nia.session, moHt);
+      assert.equal(userRow(nia.username).hackatime_id, String(moHt.id));
+      assert.equal(userRow(mo.username).hackatime_id, null);
+      // Revoked in the background.
+      await eventually(() => fakeHackatime.revoked.length === before + 1, "the old account's token to be revoked");
+    });
+    await test('a token revoked at Hackatime clears the link', async () => {
+      const pat = await person();
+      const patHt = htUser({ Pat: 7200 });
+      await hackatimeFlow(pat.session, patHt);
+      const g = await call('POST', '/api/games', { body: form({ title: `Pat ${run}`, description: '', hackatimeProject: 'Pat' }, mainLuaGame()), token: pat.token });
+      cleanup.push({ id: g.data.id, token: pat.token });
+      await eventually(() => gameHours(g.data.id), "Pat's hours");
+      fakeHackatime.tokens.delete(fakeHackatime.issued.at(-1));
+      const r = await call('GET', '/api/account/hackatime-key', { token: pat.token });
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'not-connected');
+      assert.equal((await call('GET', '/api/account', { token: pat.token })).data.user.hackatime, false);
+      assert.equal(userRow(pat.username).hackatime_token, null);
+      assert.equal(await gameHours(g.data.id), undefined, 'no hours without a connection');
+    });
+    await test('disconnect (editor token or session): revoked at Hackatime and forgotten', async () => {
+      const access = (() => {
+        // Ivy's current token is the one the stand-in gave for ivyHt.
+        for (const [token, user] of fakeHackatime.tokens) if (user === ivyHt) return token;
+        return null;
+      })();
+      assert.ok(access);
+      const r = await call('DELETE', '/api/account/hackatime', { token: ivy.token, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.ok(fakeHackatime.revoked.includes(access));
+      const row = userRow(ivy.username);
+      assert.equal(row.hackatime_id, null);
+      assert.equal(row.hackatime_token, null);
+      assert.equal((await call('GET', '/api/account/hackatime-key', { token: ivy.token })).data.code, 'not-connected');
+      assert.equal(await gameHours(ivyGame), undefined);
+      // With a session, from the site's pages only.
+      const qu = await signUp();
+      await hackatimeFlow(qu.session, htUser());
+      assert.equal((await call('DELETE', '/api/account/hackatime', { session: qu.session, site: false, headers: { Origin: 'https://evil.example' } })).status, 403);
+      assert.equal((await call('DELETE', '/api/account/hackatime', { session: qu.session })).status, 200);
+      assert.equal((await call('GET', '/api/account', { session: qu.session })).data.user.hackatime, false);
+    });
+    await test('deleting an account revokes its Hackatime token', async () => {
+      const ro = await signUp();
+      await hackatimeFlow(ro.session, htUser());
+      const access = fakeHackatime.issued.at(-1);
+      assert.equal((await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: ro.session })).status, 200);
+      assert.ok(fakeHackatime.revoked.includes(access));
+    });
+    await test('without HACKATIME_CLIENT_ID and _SECRET (or EMAIL_TRANSPORT), Hackatime (and email) are off', async () => {
+      const port = PORT + 1;
+      const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-off-'));
+      let child;
+      try {
+        child = await spawnServer(port, dir, {});
+        const at = (path, init) => fetch(`http://127.0.0.1:${port}${path}`, { redirect: 'manual', ...init });
+        const config = await (await at('/api/config')).json();
+        assert.equal(config.accounts.hackatime, false);
+        assert.equal((await at('/auth/hackatime')).status, 404);
+        assert.equal((await at('/auth/hackatime/callback?code=x&state=y')).status, 404);
+        const key = await at('/api/account/hackatime-key');
+        assert.equal(key.status, 404);
+        assert.equal((await key.json()).code, 'hackatime-off');
+
+        assert.equal(config.accounts.email, false);
+        const site = { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}` };
+        const post = (path, body, headers = {}) => at(path, { method: 'POST', headers: { ...site, ...headers }, body: JSON.stringify(body) });
+        const reset = await post('/api/auth/recover/email', { email: 'someone@example.test' });
+        assert.equal(reset.status, 404);
+        assert.equal((await reset.json()).code, 'email-off');
+        assert.equal((await post('/api/auth/verify-email', { token: 'x' })).status, 404);
+        const signup = await post('/api/auth/signup', { username: uniqueName('off'), password: PASSWORD, email: 'someone@example.test' });
+        assert.equal(signup.status, 201, 'an email is ignored');
+        const session = /smitten_session=([^;]+)/.exec(signup.headers.get('set-cookie'))[1];
+        const me = await (await at('/api/account', { headers: { Cookie: `smitten_session=${session}` } })).json();
+        assert.equal(me.email, null);
+        assert.equal(me.pendingEmail, null);
+        const add = await post('/api/account/email', { email: 'someone@example.test', password: PASSWORD }, { Cookie: `smitten_session=${session}` });
+        assert.equal(add.status, 404);
+        assert.match(child.output(), /Email: off/);
+      } finally {
+        child?.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
   section('Deleting');
-  await test('deleting needs the game\'s token', async () => {
+  await test('deleting a game needs its owner', async () => {
     assert.equal((await call('DELETE', `/api/games/${game.id}`)).status, 401);
-    assert.equal((await call('DELETE', `/api/games/${game.id}`, { token: 'not-the-token' })).status, 403);
+    assert.equal((await call('DELETE', `/api/games/${game.id}`, { token: 'not-the-token' })).status, 401);
+    assert.equal((await call('DELETE', `/api/games/${game.id}`, { token: mallory.token })).status, 403);
   });
-  await test('deleting with the token removes the game and its files', async () => {
-    const r = await call('DELETE', `/api/games/${game.id}`, { token: game.token, headers: { Origin: EDITOR_ORIGIN } });
+  await test('the owner deletes it with its files', async () => {
+    const r = await call('DELETE', `/api/games/${game.id}`, { token: alice.token, headers: { Origin: EDITOR_ORIGIN } });
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('access-control-allow-origin'), EDITOR_ORIGIN);
     assert.equal((await call('GET', `/api/games/${game.id}`)).status, 404);
     assert.equal((await call('GET', `/api/games/${game.id}/game.love`)).status, 404);
-    assert.equal((await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'x' }, love), token: game.token })).status, 404);
+    assert.equal((await call('PUT', `/api/games/${game.id}`, { body: form({ title: 'x' }, love), token: alice.token })).status, 404);
+  });
+  await test('deleting an account needs the password, and takes its games with it', async () => {
+    const henry = await person();
+    const g = await publish({ title: `Henry ${tag}` }, mainLuaGame(), null, { token: henry.token });
+    assert.equal((await call('DELETE', '/api/account', { body: { password: 'wrong wrong' }, session: henry.session })).status, 403);
+    const r = await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: henry.session });
+    assert.equal(r.status, 200);
+    assert.equal((await call('GET', `/api/games/${g.data.id}`)).status, 404);
+    assert.equal((await call('GET', `/api/users/${henry.username}`)).status, 404);
+    assert.equal((await call('GET', '/api/account', { token: henry.token })).status, 401);
+    assert.equal((await call('POST', '/api/auth/signin', { body: { username: henry.username, password: PASSWORD }, site: true })).status, 401);
+  });
+
+  section('Rate limits');
+  await test('publishing is limited per account (429 with Retry-After)', async () => {
+    const p = await person();
+    for (let i = 0; i < 10; i++) {
+      const r = await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' }, token: p.token });
+      assert.equal(r.status, 415, `attempt ${i + 1}`);
+    }
+    const r = await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' }, token: p.token });
+    assert.equal(r.status, 429);
+    assert.ok(Number(r.headers.get('retry-after')) > 0);
+    assert.match(r.data.error, /try again/);
+    // Someone else isn't affected.
+    const other = await person();
+    assert.equal((await call('POST', '/api/games', { body: 'x', headers: { 'Content-Type': 'text/plain' }, token: other.token })).status, 415);
+  });
+  await test('reporting is limited per address', async () => {
+    const ip = freshIp();
+    const target = (await publish({ title: `Report target ${tag}` })).data;
+    let last;
+    for (let i = 0; i < 21; i++) last = await call('POST', `/api/games/${target.id}/report`, { body: { reason: 'other' }, ip });
+    assert.equal(last.status, 429);
   });
 
   // Remove everything this run published.
   for (const g of cleanup) await call('DELETE', `/api/games/${g.id}`, { token: g.token });
 
   console.log(`\n${passed} passed, ${failed} failed${skipped ? `, ${skipped} skipped` : ''}`);
-  process.exit(failed ? 1 : 0);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error(e);
+    failed++;
+  })
+  .finally(() => {
+    if (!external) stopServer();
+    process.exit(failed ? 1 : 0);
+  });

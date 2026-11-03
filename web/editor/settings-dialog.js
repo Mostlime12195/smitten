@@ -3,6 +3,8 @@
 
 import { h, icon, openDialog, confirmDialog } from './ui.js';
 import { settings } from './settings.js';
+import { checkKey } from './hackatime.js';
+import { account, accountRequest, refreshAccount, signIn } from './account.js';
 
 function switchControl(key) {
   const btn = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(settings.get(key)) });
@@ -38,6 +40,176 @@ function textControl(key, placeholder = '') {
   return { el: input, sync: () => { if (document.activeElement !== input) input.value = settings.get(key); } };
 }
 
+// The Hackatime API key: hidden while you're not typing it, checked with
+// Hackatime. "Connect with Hackatime" gets it from the sharing site instead
+// of pasting it: the site's account connects to Hackatime once
+// (platform/src/hackatime.js), and the editor asks the site for the key.
+function hackatimeKeyControl() {
+  const input = h('input', { type: 'password', class: 'input', spellcheck: 'false', autocomplete: 'off', placeholder: 'Paste your API key', style: 'width: 220px; max-width: 100%; flex: 1 1 160px' });
+  input.value = settings.get('hackatimeKey');
+  const status = h('div', { class: 'setting-desc', role: 'status', style: 'min-height: 1.4em' });
+  let checked = null;
+  const setStatus = (text, kind = '') => {
+    status.textContent = text;
+    status.style.color = kind === 'ok' ? 'var(--success)' : kind === 'error' ? 'var(--danger)' : '';
+  };
+  const check = async () => {
+    const key = input.value.trim();
+    checked = key;
+    if (!key) {
+      setStatus('');
+      return;
+    }
+    setStatus('Checking…');
+    const r = await checkKey(key);
+    if (checked === key) setStatus(r.ok ? `Connected · ${r.text} today` : r.error, r.ok ? 'ok' : 'error');
+  };
+  input.addEventListener('focus', () => { input.type = 'text'; });
+  input.addEventListener('blur', () => { input.type = 'password'; });
+  input.addEventListener('change', () => {
+    check();
+    settings.set('hackatimeKey', input.value.trim());
+  });
+  if (input.value) check();
+  const connect = h('button', { type: 'button', class: 'btn' }, 'Connect with Hackatime');
+  connect.addEventListener('click', () => connectHackatime(connect, setStatus));
+  const el = h('div', { style: 'display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%' },
+    h('div', { style: 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; max-width: 100%' }, input, connect), status);
+  return {
+    el,
+    sync: () => {
+      if (document.activeElement === input) return;
+      input.value = settings.get('hackatimeKey');
+      if (input.value.trim() !== checked) check();
+    },
+  };
+}
+
+const CONNECT_POLL = 2000;
+const CONNECT_FOR = 3 * 60_000;
+let connecting = null;
+
+const siteUrl = () => String(settings.get('platformUrl') || '').replace(/\/+$/, '');
+const siteHost = () => {
+  try {
+    return new URL(siteUrl()).host;
+  } catch {
+    return siteUrl();
+  }
+};
+
+function openHackatimeWindow() {
+  const url = `${siteUrl()}/auth/hackatime?next=${encodeURIComponent('/hackatime-connected')}`;
+  const w = 520;
+  const hgt = 720;
+  const left = Math.max(0, Math.round((screenX || 0) + ((outerWidth || w) - w) / 2));
+  const top = Math.max(0, Math.round((screenY || 0) + ((outerHeight || hgt) - hgt) / 3));
+  return window.open(url, 'smitten-hackatime', `popup=yes,width=${w},height=${hgt},left=${left},top=${top}`);
+}
+
+/** {key}, {missing: true} (not connected yet), or throws (with .status and .data). */
+async function fetchHackatimeKey() {
+  try {
+    return { key: (await accountRequest('/api/account/hackatime-key')).key };
+  } catch (e) {
+    if (e.status === 404 && e.data?.code === 'not-connected') return { missing: true };
+    throw e;
+  }
+}
+
+/**
+ * Connect with Hackatime: signs in to the sharing site if needed, asks it for
+ * the Hackatime key, and if the account isn't connected yet, opens the site's
+ * Hackatime window and asks again every 2 seconds (for 3 minutes, or until
+ * the settings close) until it is. Called from the click: windows are only
+ * opened while it still counts.
+ */
+function connectHackatime(button, setStatus) {
+  const dialog = button.closest('dialog');
+  if (connecting) {
+    // A second press while waiting: bring the window back (or open it again).
+    if (!connecting.popup || connecting.popup.closed) connecting.popup = openHackatimeWindow();
+    else connecting.popup.focus();
+    return;
+  }
+  const job = { popup: null };
+  connecting = job;
+  const user = account();
+  // Signed in, and the site said Hackatime isn't connected: open it right away.
+  if (user && !user.hackatime) job.popup = openHackatimeWindow();
+  const closePopup = () => {
+    try { if (job.popup && !job.popup.closed) job.popup.close(); } catch { /* another origin */ }
+  };
+  const fail = (text) => {
+    closePopup();
+    setStatus(text, 'error');
+  };
+
+  (async () => {
+    if (!user) {
+      setStatus(`Sign in to ${siteHost()} first, in the window that opened.`);
+      let signedIn = null;
+      try {
+        signedIn = await signIn();
+      } catch (e) {
+        fail(e.message);
+        return;
+      }
+      if (!signedIn) {
+        setStatus('');
+        return;
+      }
+    }
+    setStatus('Asking Hackatime…');
+    let got;
+    try {
+      got = await fetchHackatimeKey();
+    } catch (e) {
+      if (e.data?.code === 'hackatime-off') fail(`${siteHost()} doesn't have Hackatime turned on. Paste your key instead.`);
+      else fail(e.message);
+      return;
+    }
+    if (got.missing) {
+      refreshAccount();
+      if (!job.popup) job.popup = openHackatimeWindow();
+      if (!job.popup) {
+        setStatus('Your browser blocked the Hackatime window. Press Connect with Hackatime again.', 'error');
+        return;
+      }
+      setStatus('Finish connecting in the Hackatime window. This updates by itself.');
+      const until = Date.now() + CONNECT_FOR;
+      while (!got.key) {
+        await new Promise((r) => setTimeout(r, CONNECT_POLL));
+        if (!dialog?.isConnected) {
+          closePopup();
+          return;
+        }
+        if (Date.now() > until) {
+          fail("Hackatime wasn't connected in time. Press Connect with Hackatime to try again.");
+          return;
+        }
+        try {
+          got = await fetchHackatimeKey();
+        } catch (e) {
+          if (e.status === 401) {
+            fail(`You were signed out of ${siteHost()}. Press Connect with Hackatime to sign in again.`);
+            return;
+          }
+          // Anything else may pass (the site or Hackatime was busy): keep waiting.
+          got = {};
+        }
+      }
+    }
+    closePopup();
+    refreshAccount();
+    // The row's sync checks the new key and shows "Connected · N today".
+    if (settings.get('hackatimeKey') === got.key) setStatus('Connected', 'ok');
+    settings.set('hackatimeKey', got.key);
+  })().finally(() => {
+    if (connecting === job) connecting = null;
+  });
+}
+
 function stepperControl(key, { min, max, step = 1, unit = '' }) {
   const out = h('output', {});
   const show = () => { out.textContent = `${settings.get(key)}${unit}`; };
@@ -58,6 +230,8 @@ function buildSections(shortcutGroups) {
     {
       id: 'appearance', label: 'Appearance', icon: 'sun', rows: [
         { key: 'theme', label: 'Theme', desc: 'System follows your operating system.', control: () => segmentedControl('theme', [['system', 'System', 'monitor'], ['light', 'Light', 'sun'], ['dark', 'Dark', 'moon']]) },
+        { key: 'contrast', label: 'Contrast', desc: 'High draws outlines around panels and controls, with stronger text. System follows your operating system.', control: () => segmentedControl('contrast', [['system', 'System', 'monitor'], ['standard', 'Standard'], ['more', 'High', 'contrast']]) },
+        { key: 'uiScale', label: 'Interface size', desc: 'Makes everything in the editor bigger or smaller.', keywords: 'ui scale zoom', control: () => stepperControl('uiScale', { min: 75, max: 150, step: 5, unit: '%' }) },
         { key: 'editorFontSize', label: 'Editor font size', desc: `Also ${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} + and ${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} − in the editor.`, control: () => stepperControl('editorFontSize', { min: 9, max: 28, unit: ' px' }) },
       ],
     },
@@ -99,6 +273,13 @@ function buildSections(shortcutGroups) {
     {
       id: 'publish', label: 'Publishing', icon: 'publish', rows: [
         { key: 'platformUrl', label: 'Sharing site', desc: 'Where Project > Publish puts games for anyone to play in the browser, and where remix links come from.', control: () => textControl('platformUrl', 'http://localhost:8787') },
+      ],
+    },
+    {
+      id: 'hackatime', label: 'Hackatime', icon: 'timer', rows: [
+        { key: 'hackatimeKey', label: 'API key', desc: h('span', {}, 'Logs your time on ', h('a', { href: 'https://hackatime.hackclub.com', target: '_blank', rel: 'noopener' }, 'Hackatime'), ' while you work, like the editor plugins do. Connect with Hackatime gets your key through your account on the sharing site, or copy it from ', h('a', { href: 'https://hackatime.hackclub.com/my/settings', target: '_blank', rel: 'noopener' }, 'Hackatime settings'), '. It stays in this browser.'), keywords: 'wakatime time tracking hack club', control: () => hackatimeKeyControl() },
+        { key: 'hackatimeLevels', label: 'Count level design', desc: 'Editing scenes and tiles counts as coding, as with Godot and Unity.', control: () => switchControl('hackatimeLevels') },
+        { key: 'hackatimeArt', label: 'Count art and music', desc: 'Paint, Sound and Music count as designing. Hack Club programs usually log art and music with a journal or a Lapse timelapse instead, often capped at about 40% of a project\'s hours; check your program\'s rules.', control: () => switchControl('hackatimeArt') },
       ],
     },
     {
@@ -151,7 +332,8 @@ export function openSettings({ section = 'appearance', shortcutGroups = [] } = {
       let any = false;
       for (const s of sections) {
         if (s.searchable === false) continue;
-        const rows = s.rows.filter((r) => `${r.label} ${r.desc || ''} ${s.label}`.toLowerCase().includes(q));
+        const text = (r) => `${r.label} ${typeof r.desc === 'string' ? r.desc : r.desc?.textContent || ''} ${r.keywords || ''} ${s.label}`;
+        const rows = s.rows.filter((r) => text(r).toLowerCase().includes(q));
         if (!rows.length) continue;
         any = true;
         children.push(h('div', { class: 'settings-section' }, h('h3', {}, s.label), ...rows.map(row)));

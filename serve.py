@@ -10,6 +10,7 @@ browsers can compile it while it downloads.
     python3 serve.py 9000
 """
 import functools
+import socket
 import http.server
 import sys
 from pathlib import Path
@@ -40,11 +41,26 @@ class Server(http.server.ThreadingHTTPServer):
     request_queue_size = 128
 
 
+class DualStackServer(Server):
+    # Listens on IPv6 and IPv4 both (for hosting behind a proxy, e.g. on Nest).
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
-    handler = functools.partial(Handler, directory=str(DIST))
-    with Server(("", port), handler) as httpd:
-        print(f"Serving {DIST} at http://localhost:{port}/")
+    # serve.py [port] [--host ::] [--dir path]
+    args = sys.argv[1:]
+    opt = lambda name, default: args[args.index(name) + 1] if name in args else default
+    port = int(args[0]) if args and args[0].isdigit() else 8766
+    host = opt("--host", "")
+    root = Path(opt("--dir", DIST)).resolve()
+    handler = functools.partial(Handler, directory=str(root))
+    server = DualStackServer if ":" in host else Server
+    with server((host, port), handler) as httpd:
+        print(f"Serving {root} at http://localhost:{port}/")
         httpd.serve_forever()
 
 

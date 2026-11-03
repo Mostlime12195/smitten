@@ -2,7 +2,7 @@
  * Smitten: the sound synthesizer.
  *
  * Not part of upstream LÖVE. Renders sound effects (.sfx.json) and songs
- * (.song.json) to 44100 Hz mono float samples; see docs/reference.md,
+ * (.song.json) to 44100 Hz mono float samples; see docs/formats.md,
  * "Sound effects" and "Songs". Plain C++ with no LÖVE dependencies, so the
  * same code builds into the engine (wrap_Synth.cpp) and into the editor's
  * synth.mjs (web/synth_web.cpp): the same parameters render the same samples

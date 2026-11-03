@@ -1,17 +1,16 @@
 -- Bob: floats gently up and down. For pickups, signs, ghosts.
-local Bobber = {}
 
-Bobber.height = 6      -- how far it moves, in pixels
-Bobber.speed = 2       -- bobs per second
+distance = 6        -- how far it moves, in pixels
+bobsPerSecond = 1
 
-function Bobber:ready()
-  self.startY = self.y
-  self.time = math.random() * 10
+local startY, t = 0, 0
+
+function ready()
+  startY = y
+  t = rnd(10)
 end
 
-function Bobber:update(dt)
-  self.time += dt
-  self.y = self.startY + math.sin(self.time * self.speed * math.pi) * self.height
+function update(dt)
+  t += dt
+  y = startY + math.sin(t * bobsPerSecond * math.pi * 2) * distance
 end
-
-return Bobber

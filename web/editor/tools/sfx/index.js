@@ -1,4 +1,4 @@
-// Sound effect editor: opens .sfx files (docs/reference.md, "Sound
+// Sound effect editor: opens .sfx files (docs/formats.md, "Sound
 // effects"). Presets, mutate, a slider for every parameter, a waveform view
 // and previews rendered by the editor's synthesizer (host.synth()), so they
 // sound exactly like the game.

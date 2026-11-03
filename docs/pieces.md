@@ -1,10 +1,13 @@
 # Pieces
 
 Every piece type, generated from `love/src/modules/scene/pieces.json` by
-`tools/gen-piece-docs.mjs`. A piece has its own properties and everything its
-base type has ("extends"). Properties are fields: `self.x = 10`. Angles
-are radians in code and degrees in the inspector. A Body whose motion is
-"physics" uses the physics2d module (Box2D).
+`tools/gen-docs.mjs`. A piece has its own properties and everything its
+base type has. Properties are fields: `x = 10` in its own script,
+`Player.x = 10` or `other.x = 10` from another. Methods are called as
+`move()` in the piece's own script and `piece:move()` on another piece.
+Events are functions its script defines (`function pressed() ... end`),
+or listeners added with `piece:on("pressed", fn)`. Angles are radians in
+code and degrees in the inspector.
 
 ## Basic
 
@@ -14,36 +17,43 @@ Everything in a scene is a piece. Pieces nest: a piece's children belong to it.
 
 A base for other types; not added itself.
 
-Methods:
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `pausable` | bool | true | Stops while the game is paused (pauseGame()). Turn it off for pause menus: this piece and everything inside it keep running. |
 
-- `self:find(path)`: A child by name, or a deeper piece by path ("UI/Score"); nil if there isn't one.
-- `self:findDeep(name)`: The first piece with this name anywhere inside this one.
-- `self:findChildOfType(type)`: The first child of a type ("Sprite"), or nil.
-- `self:isA(type)`: True if the piece is of a type, or a type made from it.
-- `self:add(piece)`: Adds a piece as the last child; returns it.
-- `self:spawn(sceneOrType, properties?)`: Makes a piece from a scene file or a piece type and adds it as a child: self:spawn("scenes/bullet.scene", { x = 10 }).
-- `self:destroy()`: Removes the piece and everything inside it at the end of the frame.
-- `self:tag(name)`: Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it.
-- `self:untag(name)`: Takes a tag away.
-- `self:hasTag(name)`: True if the piece has the tag.
-- `self:on(event, fn)`: Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off().
-- `self:emit(event, ...)`: Fires an event: calls the script's function of that name and every listener.
-- `self:getPath()`: The piece's path from the scene's root, like "Level/Player".
-- `self:isAlive()`: True while the piece is in the running scene and not destroyed.
+| Method | |
+| --- | --- |
+| `find(path)` | A child by name, or a deeper piece by path ("UI/Score"); nil if there isn't one. |
+| `findDeep(name)` | The first piece with this name anywhere inside this one. |
+| `findChildOfType(type)` | The first child of a type ("Sprite"), or nil. |
+| `isA(type)` | True if the piece is of a type, or a type made from it. |
+| `add(piece)` | Adds a piece as the last child; returns it. |
+| `remove()` | Takes the piece out of its parent now, without destroying it, so it can be added somewhere else. |
+| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or a piece type and adds it as a child: self:spawn("scenes/bullet.scene", { x = 10 }). |
+| `destroy()` | Removes the piece and everything inside it at the end of the frame. |
+| `tag(name)` | Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it. |
+| `untag(name)` | Takes a tag away. |
+| `hasTag(name)` | True if the piece has the tag. |
+| `hasAnyTag(tags)` | True if the piece has any of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
+| `is(tagOrType)` | True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body"). |
+| `on(event, fn)` | Calls fn(...) whenever the piece's event happens ("pressed", "entered", ...). Returns a handle with :off(). |
+| `emit(event, ...)` | Fires an event: calls the script's function of that name and every listener. |
+| `getPath()` | The piece's path from the scene's root, like "Level/Player". |
+| `isAlive()` | True while the piece is in the running scene and not destroyed. |
 
-Script functions it calls:
-
-- `function Script:ready()`: The piece and everything inside it have joined the scene.
-- `function Script:update(dt)`: Every frame. dt is the time since the last frame, in seconds.
-- `function Script:physicsUpdate(dt)`: 60 times a second, before bodies move. Use it for movement.
-- `function Script:draw()`: Draw extra things on top of the piece, in its own coordinates.
-- `function Script:removed()`: The piece is leaving the scene.
+| Event (a function in its script) | |
+| --- | --- |
+| `function ready(...)` | The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values. |
+| `function update(dt)` | Every frame. dt is the time since the last frame, in seconds. |
+| `function physicsUpdate(dt)` | 60 times a second, before bodies move. Use it for movement. |
+| `function draw()` | Draw extra things on top of the piece, in its own coordinates. |
+| `function removed()` | The piece is leaving the scene. |
 
 ### Group
 
 A piece with a position. Use it to hold other pieces (they move with it) or to run a script.
 
-Extends Piece.
+Extends [Piece](#piece).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -56,23 +66,23 @@ Extends Piece.
 | `tint` | color | {1, 1, 1, 1} | Multiplies the colors of this piece and everything inside it. |
 | `layer` | int | 0 | Higher layers are drawn on top. Pieces on the same layer draw in scene order. |
 
-Methods:
-
-- `self:worldPosition()`: Where the piece is in the scene (not measured from its parent): x, y.
-- `self:setWorldPosition(x, y)`: Moves the piece to a place in the scene.
-- `self:toWorld(x, y)`: A point measured from this piece, as a point in the scene.
-- `self:fromWorld(x, y)`: A point in the scene, measured from this piece.
-- `self:lookAt(x, y)`: Turns the piece to face a point in the scene.
-- `self:distanceTo(pieceOrX, y?)`: Distance in pixels to another piece or a point.
-- `self:angleTo(pieceOrX, y?)`: Angle in radians towards another piece or a point.
-- `self:moveToward(x, y, distance)`: Moves at most distance pixels towards a point; true once it's there.
-- `self:translate(dx, dy)`: Moves the piece by an offset.
+| Method | |
+| --- | --- |
+| `worldPosition()` | Where the piece is in the scene (not measured from its parent): x, y. |
+| `setWorldPosition(x, y)` | Moves the piece to a place in the scene. |
+| `toWorld(x, y)` | A point measured from this piece, as a point in the scene. |
+| `fromWorld(x, y)` | A point in the scene, measured from this piece. |
+| `lookAt(x, y)` | Turns the piece to face a point in the scene. |
+| `distanceTo(pieceOrX, y?)` | Distance in pixels to another piece or a point. |
+| `angleTo(pieceOrX, y?)` | Angle in radians towards another piece or a point. |
+| `moveToward(x, y, distance)` | Moves at most distance pixels towards a point; true once it's there. |
+| `translate(dx, dy)` | Moves the piece by an offset. |
 
 ### Timer
 
 Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.
 
-Extends Piece.
+Extends [Piece](#piece).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -80,14 +90,16 @@ Extends Piece.
 | `running` | bool | false | Counting. On in the scene file means it starts with the scene. |
 | `loop` | bool | true | Keep ticking; off ticks once and stops. |
 
-Methods:
+`timeLeft`: Seconds until the next tick.
 
-- `self:start(seconds?)`: Starts (or restarts) the countdown.
-- `self:stop()`: Stops the countdown.
+| Method | |
+| --- | --- |
+| `start(seconds?)` | Starts (or restarts) the countdown. |
+| `stop()` | Stops the countdown. |
 
-Script functions it calls:
-
-- `function Script:tick()`: The countdown reached zero.
+| Event (a function in its script) | |
+| --- | --- |
+| `function tick()` | The countdown reached zero. |
 
 ## Things you see
 
@@ -95,7 +107,7 @@ Script functions it calls:
 
 Draws a picture, or an animation from a .sprite file or a sprite sheet.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -110,22 +122,25 @@ Extends Group.
 | `flipX` | bool | false | Mirror left to right. |
 | `flipY` | bool | false | Mirror top to bottom. |
 
-Methods:
+| Method | |
+| --- | --- |
+| `play(name?, restart?)` | Plays an animation (or resumes the current one). restart starts it again from its first frame even if it's playing. |
+| `pause()` | Stops the animation where it is; play() continues it. |
+| `stop()` | Stops the animation and goes back to its first frame. |
+| `hasAnimation(name)` | True if the .sprite file has an animation with this name. |
+| `animations()` | The names of the .sprite file's animations, sorted. |
+| `getSize()` | Width and height of one frame, in pixels. |
+| `getRect()` | The rectangle the picture covers, in the piece's own coordinates: x, y, width, height. |
 
-- `self:play(name?)`: Plays an animation (or resumes the current one).
-- `self:hasAnimation(name)`: True if the .sprite file has an animation with this name.
-- `self:stop()`: Stops the animation on the current frame.
-- `self:getSize()`: Width and height of one frame, in pixels.
-
-Script functions it calls:
-
-- `function Script:finished(animation)`: A non-looping animation reached its last frame.
+| Event (a function in its script) | |
+| --- | --- |
+| `function finished(animation)` | A non-looping animation reached its last frame. |
 
 ### Shape
 
 Draws a rectangle, circle, polygon or line. Good for prototypes, effects and games without art.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -140,11 +155,15 @@ Extends Group.
 | `lineWidth` | number (px) | 2 | Outline and line thickness. |
 | `centered` | bool | true | Center the rectangle on the piece's position. |
 
+| Method | |
+| --- | --- |
+| `getRect()` | The rectangle the shape covers, in the piece's own coordinates: x, y, width, height. |
+
 ### Text
 
 Words in the game world, like a sign or a damage number. For scores and menus, use Label.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -159,49 +178,66 @@ Extends Group.
 
 A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
 | `tileset` | resource | "" | The .tileset file: a picture cut into tiles, with settings such as solid. |
 | `solid` | bool | true | Tiles marked solid block bodies. Off makes every tile just decoration. |
 
-Methods:
-
-- `self:getTile(column, row)`: The tile number in a cell, or -1 if it's empty.
-- `self:setTile(column, row, tile)`: Changes a cell (-1 empties it).
-- `self:tileInfo(tile)`: The settings of a tile in the tileset (solid, name, ...).
-- `self:cellAt(x, y)`: The cell under a point in the scene: column, row.
-- `self:cellPosition(column, row)`: The scene position of a cell's top-left corner.
-- `self:cellsWith(tile?)`: A list of {column, row, tile} for every painted cell (or every cell with that tile).
+| Method | |
+| --- | --- |
+| `getTile(column, row)` | The tile number in a cell, or -1 if it's empty. |
+| `setTile(column, row, tile)` | Changes a cell (-1 empties it). |
+| `tileInfo(tile)` | The settings of a tile in the tileset (solid, name, ...). |
+| `cellAt(x, y)` | The cell under a point in the scene: column, row. |
+| `cellPosition(column, row)` | The scene position of a cell's top-left corner. |
+| `cellsWith(tile?)` | A list of {column, row, tile} for every painted cell (or every cell with that tile). |
+| `fill(column, row, columns, rows, tile)` | Sets a rectangle of cells to one tile (-1 empties them). |
+| `clear()` | Empties every cell. |
+| `tileAt(x, y)` | The tile number under a point in the scene, or -1. |
+| `isSolid(column, row)` | True if the cell's tile is marked solid (and solid is on). |
+| `neighbors(column, row, diagonal?)` | The cells around one, as {column, row, tile} (tile -1 when empty): up, right, down, left, or all eight with diagonal. |
+| `cellCenter(column, row)` | The scene position of a cell's center. |
+| `getTileSize()` | The size of one cell in the scene: width, height. |
+| `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
 
 ### Camera
 
 Decides which part of the scene is on screen. Put it inside the player to follow them.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
 | `active` | bool | true | Use this camera. When several are active, the first in the scene wins. |
 | `zoom` | number | 1 | 2 shows everything twice as big. |
 | `smoothing` | number | 0 | How gently it catches up: 0 sticks exactly, 5 glides. |
+| `target` | piecepath | "" | A piece to follow, wherever the camera is in the scene (empty: the camera's own position). |
+| `offsetX` | number (px) | 0 | Looks this far right of what it follows. |
+| `offsetY` | number (px) | 0 | Looks this far below what it follows. |
 | `left` | number (px) | none | Don't show anything left of this (empty for no edge). |
 | `top` | number (px) | none | Don't show anything above this. |
 | `right` | number (px) | none | Don't show anything right of this. |
 | `bottom` | number (px) | none | Don't show anything below this. |
 
-Methods:
-
-- `self:shake(strength?, seconds?)`: Shakes the view: shake(6, 0.3).
-- `self:screenToWorld(sx, sy)`: A point on the screen, as a point in the scene.
-- `self:worldToScreen(x, y)`: A point in the scene, as a point on the screen.
+| Method | |
+| --- | --- |
+| `shake(strength?, seconds?)` | Shakes the view: shake(6, 0.3). |
+| `follow(piece)` | Follows a piece (nil: back to target, or the camera's own position). |
+| `snap()` | Jumps straight to what it follows, without smoothing (after a teleport). |
+| `setLimits(left, top, right, bottom)` | Sets the edges it doesn't show past (nil for no edge). |
+| `limitTo(piece)` | Keeps the view inside the painted part of a Tiles piece. |
+| `makeCurrent()` | Makes this the camera in use, turning the others off. |
+| `getView()` | The part of the scene on screen: x, y, width, height. |
+| `screenToWorld(sx, sy)` | A point on the screen, as a point in the scene. |
+| `worldToScreen(x, y)` | A point in the scene, as a point on the screen. |
 
 ### Particles
 
 Sprays particles: smoke, sparks, dust, rain, explosions.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -222,10 +258,18 @@ Extends Group.
 | `colorEnd` | color | {1, 0.3, 0.1, 0} | Color when it fades. |
 | `followPiece` | bool | false | Particles move with the piece instead of staying where they were born. |
 
-Methods:
+| Method | |
+| --- | --- |
+| `emit(count)` | Makes count particles right now. emit("event", ...) still fires an event. |
+| `start()` | Starts making particles (a burst makes its particles again). |
+| `stop()` | Stops making particles; the ones already out live on. |
+| `clear()` | Removes every particle now. |
+| `restart()` | Clears every particle and starts again. |
+| `getCount()` | How many particles are out now. |
 
-- `self:emit(count)`: Makes count particles right now.
-- `self:restart()`: Clears every particle and starts again.
+| Event (a function in its script) | |
+| --- | --- |
+| `function finished()` | The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). |
 
 ## Bodies and zones
 
@@ -233,7 +277,7 @@ Methods:
 
 Something solid: it bumps into other bodies and solid tiles. Pick how it moves: still (walls and floors), scripted (players and enemies you move in code) or physics (crates that fall and tumble). Put a Sprite or Shape inside it and its shape fits itself.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -253,30 +297,30 @@ Extends Group.
 | `fixedRotation` | bool | false | Never tip over or spin. |
 | `passThrough` | tags | "" | Tags of things it doesn't bump into, like "ghost, pickup". |
 
-Methods:
+| Method | |
+| --- | --- |
+| `move()` | Moves by vx, vy for this step, sliding along walls and floors (scripted bodies). |
+| `moveBy(dx, dy)` | Moves by an offset and stops at the first thing in the way; returns what it hit, or nil. |
+| `onGround()` | True if the last move ended standing on something. |
+| `onWall()` | True if the last move hit a wall. |
+| `onCeiling()` | True if the last move hit a ceiling. |
+| `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) touching this one, or nil. |
+| `touchingTile(setting)` | The settings of a touching tile that has this setting (like "damage"), or nil. |
+| `push(ix, iy)` | A sudden kick, like a jump or a hit (physics bodies). |
+| `applyForce(fx, fy)` | Pushes steadily this frame (physics bodies). |
+| `getSize()` | The size of its shape: width, height. |
 
-- `self:move()`: Moves by vx, vy for this step, sliding along walls and floors (scripted bodies).
-- `self:moveBy(dx, dy)`: Moves by an offset and stops at the first thing in the way; returns what it hit, or nil.
-- `self:onGround()`: True if the last move ended standing on something.
-- `self:onWall()`: True if the last move hit a wall.
-- `self:onCeiling()`: True if the last move hit a ceiling.
-- `self:touching(tagOrPiece)`: The first body or zone with a tag (or that piece) touching this one, or nil.
-- `self:touchingTile(setting)`: The settings of a touching tile that has this setting (like "damage"), or nil.
-- `self:push(ix, iy)`: A sudden kick, like a jump or a hit (physics bodies).
-- `self:applyForce(fx, fy)`: Pushes steadily this frame (physics bodies).
-- `self:getSize()`: The size of its shape: width, height.
-
-Script functions it calls:
-
-- `function Script:hit(other)`: It bumped into another body or solid tiles.
-- `function Script:entered(zone)`: It went into a zone.
-- `function Script:exited(zone)`: It left a zone.
+| Event (a function in its script) | |
+| --- | --- |
+| `function hit(other)` | It bumped into another body or solid tiles. |
+| `function entered(zone)` | It went into a zone. |
+| `function exited(zone)` | It left a zone. |
 
 ### Zone
 
 An area that notices bodies and zones going in and out: pickups, checkpoints, danger. Nothing bumps into it.
 
-Extends Group.
+Extends [Group](#group).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -287,21 +331,21 @@ Extends Group.
 | `detects` | tags | "" | Only notices things with one of these tags (empty: everything). |
 | `active` | bool | true | Notice things going in and out. |
 
-Methods:
+| Method | |
+| --- | --- |
+| `inside()` | A list of the bodies and zones inside it now. |
+| `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) inside it, or nil. |
 
-- `self:inside()`: A list of the bodies and zones inside it now.
-- `self:touching(tagOrPiece)`: The first body or zone with a tag (or that piece) inside it, or nil.
-
-Script functions it calls:
-
-- `function Script:entered(other)`: A body or zone came in.
-- `function Script:exited(other)`: A body or zone left.
+| Event (a function in its script) | |
+| --- | --- |
+| `function entered(other)` | A body or zone came in. |
+| `function exited(other)` | A body or zone left. |
 
 ### Hitbox
 
 An extra collision shape for the Body or Zone it's inside, for shapes auto can't make: an L shape, a sword's reach.
 
-Extends Group. Goes inside a Body or Zone.
+Extends [Group](#group). Goes inside a Body or Zone.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -315,7 +359,7 @@ Extends Group. Goes inside a Body or Zone.
 
 Connects two physics bodies: a pin, a rope, a spring or a weld.
 
-Extends Group. Uses the physics2d (Box2D) module.
+Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -332,7 +376,7 @@ Extends Group. Uses the physics2d (Box2D) module.
 
 The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.
 
-Extends Piece. A base for other types; not added itself.
+Extends [Piece](#piece). A base for other types; not added itself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -344,20 +388,25 @@ Extends Piece. A base for other types; not added itself.
 | `visible` | bool | true | Show this piece and everything inside it. |
 | `opacity` | number | 1 | 0 is invisible, 1 is solid. |
 
-Methods:
+| Method | |
+| --- | --- |
+| `getRect()` | Where it is on the screen now: x, y, width, height. |
+| `isHovered()` | True while the mouse is over it. |
 
-- `self:getRect()`: Where it is on the screen now: x, y, width, height.
-- `self:isHovered()`: True while the mouse is over it.
+| Event (a function in its script) | |
+| --- | --- |
+| `function hovered()` | The pointer came over it (not Labels). |
+| `function unhovered()` | The pointer left it. |
 
 ### Label
 
 Words on the screen: scores, timers, titles, dialog.
 
-Extends UI.
+Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `text` | text | "Label" | What it says. Change it from a script: self.text = `Score: {score}`. |
+| `text` | text | "Label" | What it says. Change it from a script: text = `Score: {score}`. |
 | `font` | resource | "" | A .ttf/.otf font, "pixel", or empty for the default font. |
 | `size` | int (px) | 20 | Font size. |
 | `color` | color | {1, 1, 1, 1} | Text color. |
@@ -369,7 +418,7 @@ Extends UI.
 
 A button to click or tap. Its script gets pressed().
 
-Extends UI.
+Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -380,16 +429,23 @@ Extends UI.
 | `textColor` | color | {1, 1, 1, 1} | Text color. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | Can't be pressed; drawn faded. |
+| `autofocus` | bool | false | Has the keyboard focus when the scene starts: arrow keys and the d-pad move between buttons, accept presses. For menus. |
 
-Script functions it calls:
+| Method | |
+| --- | --- |
+| `focus()` | Gives it the keyboard focus (arrow keys and the d-pad then move it between buttons; accept presses). |
+| `isFocused()` | True while it has the keyboard focus. |
+| `isDown()` | True while it's held down. |
 
-- `function Script:pressed()`: The button was clicked or tapped.
+| Event (a function in its script) | |
+| --- | --- |
+| `function pressed()` | The button was clicked, tapped, or pressed with accept while focused. |
 
 ### Panel
 
 A colored box behind other UI: a dialog, a HUD background.
 
-Extends UI.
+Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -398,11 +454,15 @@ Extends UI.
 | `borderColor` | color | {1, 1, 1, 0.15} | Outline color. |
 | `borderWidth` | number (px) | 1 | Outline thickness; 0 for none. |
 
+| Event (a function in its script) | |
+| --- | --- |
+| `function pressed()` | The panel was clicked or tapped (not on a button inside it). |
+
 ### Picture
 
 A picture on the screen: an icon, a portrait, a logo.
 
-Extends UI.
+Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -410,11 +470,15 @@ Extends UI.
 | `fit` | enum | "contain" | How the picture fills the rectangle. |
 | `color` | color | {1, 1, 1, 1} | Tint. |
 
+| Event (a function in its script) | |
+| --- | --- |
+| `function pressed()` | The picture was clicked or tapped. |
+
 ### Bar
 
 A bar that fills up: health, loading, a countdown.
 
-Extends UI.
+Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -432,7 +496,7 @@ Extends UI.
 
 Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song made in Smitten.
 
-Extends Piece.
+Extends [Piece](#piece).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -442,14 +506,19 @@ Extends Piece.
 | `volume` | number | 1 | Loudness, 0 to 1. |
 | `pitch` | number | 1 | 1 is normal; 2 is an octave up. |
 
-Methods:
+| Method | |
+| --- | --- |
+| `play()` | Plays the sound and returns the LÖVE Source playing it. Calling it again while it plays starts another copy (good for effects); a .song has one. |
+| `stop()` | Stops every copy. |
+| `pause()` | Pauses. |
+| `resume()` | Continues after pause(). |
+| `isPlaying()` | True while it's playing. |
+| `fadeIn(seconds, volume?)` | Plays from silence up to its volume (or volume) over some seconds. |
+| `fadeOut(seconds)` | Fades to silence, then stops; volume goes back to what it was. |
+| `seek(seconds)` | Jumps to a time in the sound. |
+| `tell()` | Where it's playing, in seconds. |
+| `getDuration()` | How long the sound is, in seconds. |
 
-- `self:play()`: Plays the sound. Calling it again while it plays starts another copy (good for effects).
-- `self:stop()`: Stops every copy.
-- `self:pause()`: Pauses.
-- `self:resume()`: Continues after pause().
-- `self:isPlaying()`: True while it's playing.
-
-Script functions it calls:
-
-- `function Script:finished()`: The sound reached its end (not when looping).
+| Event (a function in its script) | |
+| --- | --- |
+| `function finished()` | The sound reached its end (not when looping). |

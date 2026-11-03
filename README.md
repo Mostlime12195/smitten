@@ -35,24 +35,23 @@ that code, and neither is affiliated with the LÖVE team.
 - **Sharing**: a site to publish, play and remix games (a prototype in
   `platform/`), share links, and a web build ready for itch.io.
 
-[docs/reference.md](docs/reference.md) documents the engine's API and file
-formats. [DESIGN.md](DESIGN.md) explains the decisions behind Smitten,
-including what it changes from LÖVE.
+The docs start at [docs/reference.md](docs/reference.md): getting started,
+scripts, scenes, input, sound, camera, tiles, UI, saving, drawing, project
+settings, sharing, the script API, every piece and the file formats. The
+sharing site serves them at `/docs`. [DESIGN.md](DESIGN.md) explains the
+decisions behind Smitten, including what it changes from LÖVE.
 
 ```lua
--- scripts/coin.lua, attached to a Zone
-local Coin = {}
+-- scripts/coin.lua, attached to a Zone: a script is the piece's own code
+points = 10               -- shown in the inspector
 
-Coin.points = 10          -- shown in the inspector
-
-function Coin:entered(other)
-  if other:hasTag("player") then
-    smitten.scene.current:emit("scored", self.points)
-    self:destroy()
+function entered(other)
+  if other:is("player") then
+    sfx("coin")
+    root():emit("scored", points)
+    destroy()
   end
 end
-
-return Coin
 ```
 
 ## What's here
@@ -73,7 +72,7 @@ return Coin
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a game folder or `.love` |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `smitten-audio`, the JIT's suite, Cupid's test games) and generators (`gen-icons.mjs`, `gen-piece-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `smitten-audio`, the JIT's suite, Cupid's test games) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -299,15 +298,25 @@ http://localhost:8766/player.html?game=path/to/game.love for the player.
 
 Tests:
 
-- `node tools/editor-tests/test.mjs`: the piece schema, scene documents
-  (reading, writing, undo, placed scenes), module detection, the templates,
-  the ready-made scripts and script variables.
+- `node tools/editor-tests/test.mjs`: the piece schema (and that every
+  method in it is defined in the engine, every event emitted, and the short
+  script API matches `script.lua`), scene documents (reading, writing,
+  undo, placed scenes), module detection, the templates, the ready-made
+  scripts and script variables.
 - `node web/editor/workspaces/scene/cells.test.mjs`: the tile format.
 - `tools/scene-tests/`: scenes run in the engine (`smoke` for pieces,
-  bodies and zones, scripts, UI and timers; `rigid` for physics Bodies and
-  tag filtering). Zip one and open it in the player.
+  bodies and zones, scripts and the whole script API: input, tiles,
+  camera, sprites, particles, sound, saving, pausing, time scale, scene
+  changes with values and transitions, UI focus; `rigid` for physics
+  Bodies and tag filtering). Zip one and open it in the player
+  (`player.html?game=tools/scene-tests/smoke.love` with the test server);
+  every line it prints says what it checked.
 - `tools/smitten-audio` (whose `check.mjs` confirms the engine and
   `synth.mjs` render identical samples).
+- `node tools/gen-docs.mjs` regenerates `docs/pieces.md`, `docs/api.md`,
+  `docs/engine.md`, the tables marked in the other pages, and the HTML docs
+  in `platform/public/docs/`; run it after changing `pieces.json`,
+  `web/editor/core/script-api.js` or `web/editor/smitten-docs.js`.
 The test games in `tools/` run with `python3 tools/test_server.py 8772`,
 which zips them on request and adds the routes the `https` test needs:
 http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
@@ -354,7 +363,7 @@ uploaded anywhere unless you share or publish.
   light and dark themes, icons from [Lucide](https://lucide.dev).
 - The code editor is CodeMirror 6 with Lua and Smitten syntax, and
   completion for LÖVE 12, Smitten's modules, piece methods after `self:`,
-  script functions after `function Name:` and file paths.
+  script functions, the short script API and file paths.
 
 The editor loads CodeMirror from a CDN, so the first load needs an internet
 connection; the code editor falls back to a plain text area if that fails.

@@ -1,7 +1,11 @@
 node_modules/
-# Local R2 and D1 data from `wrangler dev`
-.wrangler/
-# Local secrets (copy .dev.vars.example)
-.dev.vars
+# The database, game files, backups and the generated secret (DATA_DIR)
+data/
+# Local settings (copy deploy/env.example)
+.env
 # Copied from the engine build by scripts/copy-player.sh
 public/player/
+
+# Local settings (copy deploy/env.example to .env)
+.env
+.dev.vars

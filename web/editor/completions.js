@@ -6,6 +6,7 @@
 
 import { CALLBACKS, DOCS, RETURNS, NAME_HINTS, METHOD_DOCS } from './love-docs.js';
 import { SMITTEN_MODULES, LOVE_ADDITIONS, PATH_ARGS } from './smitten-docs.js';
+import { SCRIPT_API, SCRIPT_CALLBACKS } from './core/script-api.js';
 import { getSchema } from './core/schema.js';
 
 const LUA_KEYWORDS = ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while'];
@@ -137,6 +138,7 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
   const unionMethods = [...allMethods].map(([m, ts]) => ({
     label: m, type: 'method', detail: ts.length > 3 ? `${ts.slice(0, 3).join(', ')}, …` : ts.join(', '),
   }));
+  const pieceAndLoveMethods = [...nodeMethods, ...unionMethods.filter((o) => !nodeMethodMap.has(o.label))];
 
   const libMembers = {};
   for (const [lib, names] of Object.entries(LUA_LIBS)) {
@@ -153,6 +155,18 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     snippetCompletion('if ${condition} then\n\t${}\nend', { label: 'if', detail: 'snippet', type: 'keyword' }),
     snippetCompletion('while ${condition} do\n\t${}\nend', { label: 'while', detail: 'snippet', type: 'keyword' }),
   ];
+  // A script is the piece: its methods (move(), onGround()...), the short API
+  // (pressed, spawn, sfx, wait...) and the callbacks it can define.
+  const scriptApiOptions = SCRIPT_API.map(([name, sig, doc]) => ({
+    label: name, type: sig.includes('(') ? 'function' : 'variable', detail: sig.slice(name.length) || undefined, info: doc, boost: 2,
+  }));
+  const callbackOptions = SCRIPT_CALLBACKS.map((name) => {
+    const e = scriptEvents.get(name);
+    const args = e ? e.args : (name === 'update' || name === 'physicsUpdate' ? 'dt' : '');
+    return snippetCompletion(`function ${name}(${args})\n\t\${}\nend`, {
+      label: `function ${name}`, type: 'keyword', detail: `(${args})`, info: e ? `${e.type}: ${e.doc}` : 'Called by Smitten.', boost: 1,
+    });
+  });
   const globalOptions = Object.entries(LUA_GLOBALS).map(([name, d]) => ({
     label: name, type: d ? 'function' : (LUA_LIBS[name] || name === 'love' || name === 'smitten' ? 'namespace' : 'variable'),
     detail: d ? `(${d[0]})` : undefined, info: d?.[1], boost: name === 'love' || name === 'smitten' ? 3 : 0,
@@ -243,10 +257,11 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
       const type = m[1] === ')' ? null : inferType(state.doc.toString(), m[1]);
       let options = type && typeMethods[type];
       if (type === 'Joint') options = typeMethods.Joint;
-      return { from: pos - m[2].length, options: options || unionMethods, validFor: /^\w*$/ };
+      // Pieces (Camera:follow, other:is...) come first when the type isn't known.
+      return { from: pos - m[2].length, options: options || pieceAndLoveMethods, validFor: /^\w*$/ };
     }
     if ((m = /(?:^|[^\w.:])([A-Za-z_]\w*)$/.exec(before))) {
-      return { from: pos - m[1].length, options: [...keywordOptions, ...globalOptions, ...documentWords(state, m[1])], validFor: /^\w*$/ };
+      return { from: pos - m[1].length, options: [...keywordOptions, ...callbackOptions, ...scriptApiOptions, ...nodeMethods, ...globalOptions, ...documentWords(state, m[1])], validFor: /^\w*$/ };
     }
     if (context.explicit) return { from: pos, options: [...globalOptions, ...keywordOptions] };
     return null;

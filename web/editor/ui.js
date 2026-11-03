@@ -56,10 +56,21 @@ export function openDialog({ title, body, actions = [], className = '', onOpen, 
     const content = h('div', { class: 'dialog-body' }, body);
     form.append(header, content);
     let result = null;
+    let closing = false;
+    // Plays the closing animation, then closes.
     const finish = (value) => {
+      if (closing) return;
+      closing = true;
       result = value;
-      dlg.close();
+      dlg.classList.add('closing');
+      const done = () => { if (dlg.open) dlg.close(); };
+      dlg.addEventListener('animationend', done, { once: true });
+      setTimeout(done, 200);
     };
+    dlg.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      finish(null);
+    });
     if (actions.length) {
       const footer = h('div', { class: 'dialog-footer' });
       for (const a of actions) {
@@ -152,18 +163,23 @@ let openMenu = null;
 
 export function closeMenu() {
   if (openMenu) {
-    openMenu.remove();
+    const menu = openMenu;
     openMenu = null;
+    menu.onClose?.();
+    menu.classList.add('closing');
+    setTimeout(() => menu.remove(), 120);
   }
 }
 
 /**
- * items: [{label, icon, shortcut, action, danger, disabled} | '-']
+ * items: [{label, icon, shortcut, action, danger, disabled, checked} | '-' | {heading}]
  * anchor: {x, y} or an element (menu opens below it).
+ * onClose: called when the menu closes, however it closes.
  */
-export function showMenu(anchor, items) {
+export function showMenu(anchor, items, { onClose } = {}) {
   closeMenu();
   const menu = h('div', { class: 'menu', role: 'menu' });
+  menu.onClose = onClose;
   const buttons = [];
   for (const item of items) {
     if (item === '-') {
@@ -180,7 +196,9 @@ export function showMenu(anchor, items) {
       role: 'menuitem',
       disabled: item.disabled,
     }, item.icon ? icon(item.icon) : h('span', { class: 'icon' }), h('span', { class: 'menu-label' }, item.label),
-    item.shortcut ? h('kbd', {}, item.shortcut) : null);
+    item.shortcut ? h('kbd', {}, item.shortcut) : null,
+    item.checked ? h('span', { class: 'check' }, icon('check', 14)) : null);
+    if (item.checked !== undefined) btn.setAttribute('role', 'menuitemcheckbox'), btn.setAttribute('aria-checked', String(!!item.checked));
     btn.addEventListener('click', () => {
       closeMenu();
       item.action?.();
@@ -201,6 +219,10 @@ export function showMenu(anchor, items) {
   y = Math.max(8, Math.min(y, innerHeight - menu.offsetHeight - 8));
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
+  // The menu grows out of whatever opened it.
+  const ax = anchor instanceof Element ? anchor.getBoundingClientRect().left + 12 : anchor.x;
+  const ay = anchor instanceof Element ? anchor.getBoundingClientRect().bottom : anchor.y;
+  menu.style.setProperty('--menu-origin', `${Math.max(0, Math.min(ax - x, menu.offsetWidth))}px ${ay > y ? '100%' : '0'}`);
   buttons.find((b) => !b.disabled)?.focus();
   menu.addEventListener('keydown', (e) => {
     const i = buttons.indexOf(document.activeElement);

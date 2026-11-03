@@ -89,14 +89,36 @@ function Button:_drawUI(x, y, w, h, alpha)
 	local g = love.graphics
 	local c = self.color
 	local k = 1
+	local focused = M.focused == self
 	if self.disabled then alpha = alpha * 0.5
 	elseif self._down and M.hovered == self then k = 0.8
-	elseif M.hovered == self then k = 1.12 end
+	elseif M.hovered == self or focused then k = 1.12 end
 	g.setColor(math.min(1, c[1] * k), math.min(1, c[2] * k), math.min(1, c[3] * k), (c[4] or 1) * alpha)
 	g.rectangle("fill", x, y, w, h, self.cornerRadius, self.cornerRadius)
+	if focused then
+		-- The focus ring: a line in the text's color just outside the button.
+		setColor(self.textColor, alpha)
+		g.setLineWidth(2)
+		g.rectangle("line", x - 3, y - 3, w + 6, h + 6, self.cornerRadius + 3, self.cornerRadius + 3)
+	end
 	local font, s = scaledFont(self.font, self.size)
 	setColor(self.textColor, alpha)
 	printIn(tostring(self.text), font, s, x + 4, y, w - 8, h, "center", "middle")
+end
+
+---True while the button is held down.
+function Button:isDown()
+	return self._down == true
+end
+
+---Gives the button the keyboard focus: arrow keys, the d-pad and the
+---up/down/left/right actions then move between buttons, and accept presses.
+function Button:focus()
+	M.focused = self
+end
+
+function Button:isFocused()
+	return M.focused == self
 end
 
 local Panel = nodeLib.classes.Panel
@@ -249,15 +271,92 @@ function M.input(root, kind, x, y, button)
 	end
 	if kind == "pressed" then
 		M.pressedOn = target
-		if target and target.type == "Button" and not target.disabled then target._down = true end
+		if target and target.type == "Button" and not target.disabled then
+			target._down = true
+			-- Clicking moves the keyboard focus, once there is one.
+			if M.focused then M.focused = target end
+		end
 	elseif kind == "released" then
 		local down = M.pressedOn
 		M.pressedOn = nil
-		if down and down.type == "Button" then
+		if down then
 			down._down = false
+			-- Buttons, Pictures and Panels: pressed() when let go over the same one.
 			if down == target and not down.disabled and not down._dead then down:emit("pressed") end
 		end
 	end
+end
+
+-- Keyboard and gamepad focus: the nearest enabled Button in a direction.
+local NAV = { { "up", 0, -1 }, { "down", 0, 1 }, { "left", -1, 0 }, { "right", 1, 0 } }
+
+local function usable(c)
+	return c.type == "Button" and not c.disabled and not c._dead and c._inside and c._rect ~= nil
+end
+
+local function nearest(from, dx, dy)
+	local r = from._rect
+	local fx, fy = r[1] + r[3] / 2, r[2] + r[4] / 2
+	local best, bestScore = nil, math.huge
+	for i = 1, drawnCount do
+		local c = drawn[i]
+		if c ~= from and usable(c) then
+			local cr = c._rect
+			local ox, oy = cr[1] + cr[3] / 2 - fx, cr[2] + cr[4] / 2 - fy
+			local along = ox * dx + oy * dy
+			if along > 1 then
+				local score = along + 2 * math.abs(ox * dy + oy * dx)
+				if score < bestScore then best, bestScore = c, score end
+			end
+		end
+	end
+	return best
+end
+
+local function actionPressed(input, name)
+	local ok, v = pcall(input.pressed, name)
+	return ok and v
+end
+
+---Every frame, even while paused (called by love.scene): hover events,
+---and moving the focus with the keyboard or a gamepad.
+function M.update(root)
+	local h = M.hovered
+	if h ~= M._hoverWas then
+		local was = M._hoverWas
+		M._hoverWas = h
+		if was and not was._dead then was:emit("unhovered") end
+		if h and not h._dead then h:emit("hovered") end
+	end
+	local f = M.focused
+	if f and not usable(f) and (f._dead or not f._inside) then
+		f = nil
+		M.focused = nil
+	end
+	if not f then
+		for i = 1, drawnCount do
+			local c = drawn[i]
+			if c.autofocus and not c._autofocused and usable(c) then
+				c._autofocused = true
+				f = c
+				M.focused = c
+				break
+			end
+		end
+	end
+	if not f then return end
+	local input = require("love.input")
+	for _, d in ipairs(NAV) do
+		if actionPressed(input, d[1]) then
+			local n = f._rect and nearest(f, d[2], d[3])
+			if n then
+				M.focused = n
+				f = n
+			end
+			break
+		end
+	end
+	if actionPressed(input, "accept") and usable(f) then f:emit("pressed") end
 end
 
 return M

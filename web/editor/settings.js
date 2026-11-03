@@ -5,6 +5,8 @@ const KEY = 'smitten-editor.settings';
 export const DEFAULTS = {
   // Appearance
   theme: 'system',          // 'system' | 'light' | 'dark'
+  contrast: 'system',       // 'system' | 'standard' | 'more'
+  uiScale: 100,             // interface size, percent
   editorFontSize: 13,       // px
   // Editor
   tabSize: 2,
@@ -29,7 +31,13 @@ export const DEFAULTS = {
   consoleTimestamps: false,
   consoleWrap: true,
   // Publishing
-  platformUrl: 'http://localhost:8787', // the game-sharing site (platform/)
+  // The game-sharing site (platform/); a hosted editor's config.js names its own.
+  platformUrl: globalThis.SMITTEN_CONFIG?.platformUrl || 'http://localhost:8787',
+  // Hackatime (hackatime.js)
+  hackatimeKey: '',
+  hackatimeLevels: true,     // scenes and tiles count as coding
+  hackatimeArt: false,       // paint, sound and music count as designing
+  hackatimeUrl: 'https://hackatime.hackclub.com/api/hackatime/v1',
 };
 
 let values = load();
@@ -81,9 +89,29 @@ export function resolvedTheme() {
   return t === 'system' ? (darkQuery.matches ? 'dark' : 'light') : t;
 }
 
+const contrastQuery = matchMedia('(prefers-contrast: more)');
+
+export function resolvedContrast() {
+  const c = values.contrast;
+  return c === 'system' ? (contrastQuery.matches ? 'more' : 'standard') : c;
+}
+
 export function applyTheme() {
   document.documentElement.dataset.theme = resolvedTheme();
+  document.documentElement.dataset.contrast = resolvedContrast();
+  applyScale();
+}
+
+/** The interface size: everything in the editor grows or shrinks together. */
+export function applyScale() {
+  const scale = Math.min(150, Math.max(75, Number(values.uiScale) || 100)) / 100;
+  document.documentElement.style.zoom = scale === 1 ? '' : String(scale);
+  window.dispatchEvent(new Event('resize'));
 }
 
 darkQuery.addEventListener('change', () => { if (values.theme === 'system') applyTheme(); });
-settings.onChange((key) => { if (key === 'theme') applyTheme(); });
+contrastQuery.addEventListener('change', () => { if (values.contrast === 'system') applyTheme(); });
+settings.onChange((key) => {
+  if (key === 'theme' || key === 'contrast') applyTheme();
+  if (key === 'uiScale') applyScale();
+});

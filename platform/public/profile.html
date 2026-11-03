@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smitten games</title>
+<meta name="description" content="Games made with Smitten. Play them in your browser.">
+<meta name="smitten-editor-url" content="">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<script type="module" src="/profile.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="Smitten games">
+      <svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>Smitten</span>
+    </a>
+    <form class="search" role="search" action="/">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" name="q" placeholder="Search games" aria-label="Search games" autocomplete="off" maxlength="100">
+    </form>
+    <a class="btn ghost docs-link" href="/docs/">Docs</a>
+    <a class="btn primary make" data-editor-link href="http://localhost:8766/">Make a game</a>
+  </div>
+</header>
+
+<main class="page">
+  <section class="intro" id="intro">
+    <h1 id="name"></h1>
+    <p id="meta"></p>
+  </section>
+  <div class="notice" id="notice" hidden></div>
+  <div class="grid profile-grid" id="grid" aria-live="polite" aria-busy="true"></div>
+  <div class="empty" id="empty" hidden></div>
+  <div class="more"><button type="button" class="btn" id="more" hidden>Show more</button></div>
+</main>
+
+<footer class="footer">
+  <p>Every game here was made by someone using Smitten. If you see something that shouldn't be here, open the game and choose Report.</p>
+</footer>
+</body>
+</html>

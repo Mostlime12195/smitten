@@ -264,18 +264,13 @@ function assets.scene(path)
 	end)
 end
 
----Runs a script file and returns the table it returns.
+---Loads a script file (love.scene.script): a script that is the piece, or
+---the table an old-style script returns.
 function assets.script(path)
 	path = assets.normalize(path)
 	return assets.cached("script", path, function(p)
 		if not exists(p) then missing(p, "script", 5) end
-		local chunk, err = love.filesystem.load(p)
-		if not chunk then error(err, 0) end
-		local value = chunk()
-		if type(value) ~= "table" then
-			error(("%s must return a table of functions (end it with `return` and the table's name)"):format(p), 0)
-		end
-		return value
+		return require("love.scene.script").load(p)
 	end)
 end
 

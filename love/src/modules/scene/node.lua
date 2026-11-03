@@ -14,9 +14,11 @@
 --   _physics(dt)      every physics step, before physicsUpdate(dt)
 --   _draw()           draws the piece in its own coordinates
 --
--- A script is a table of functions and variables. A piece with a script gets
--- a class made of the script's fields over the type's class, so `self:foo()`
--- finds the script's function first, then the type's method.
+-- A script is the piece's own code (script.lua): it runs once per piece in
+-- an environment of its own. Old-style scripts are a table of functions and
+-- variables: a piece with one gets a class made of the script's fields over
+-- the type's class, so `self:foo()` finds the script's function first, then
+-- the type's method.
 
 local schema = require("love.scene.schema")
 
@@ -138,9 +140,12 @@ function node.new(typeName, script, props)
 	if cls._def.abstract then
 		error(("%s is the base of other piece types and can't be made itself"):format(typeName), 3)
 	end
-	local c = script and scriptClass(script, cls) or cls
+	local newStyle = script ~= nil and rawget(script, "__smitten") ~= nil
+	local c = (script and not newStyle) and scriptClass(script, cls) or cls
 	local n = setmetatable({ name = typeName, type = typeName, children = {}, parent = nil, script = nil }, c.__mt)
 	for k, v in pairs(tableDefaults[c]) do n[k] = deepCopyValue(v) end
+	-- The script's top level sets its defaults; then the given properties.
+	if newStyle then require("love.scene.script").instantiate(n, script) end
 	if props then
 		for k, v in pairs(props) do n[k] = v end
 	end
@@ -166,7 +171,13 @@ local function enterTree(n)
 	if not n._ready then
 		n._ready = true
 		local f = n.ready
-		if f then f(n) end
+		local args = n._readyArgs
+		if args then
+			n._readyArgs = nil
+			if f then f(n, unpack(args, 1, table.maxn(args))) end
+		elseif f then
+			f(n)
+		end
 	end
 end
 node.enterTree = enterTree
@@ -321,11 +332,27 @@ function Node:hasTag(name)
 	return self._tags ~= nil and self._tags[name] == true
 end
 
+-- Comma-separated tag lists, split once (collisions check them constantly).
+local tagLists, tagListCount = {}, 0
+
+local function splitTags(list)
+	local t = tagLists[list]
+	if t then return t end
+	t = {}
+	for g in list:gmatch("[^,%s]+") do t[#t + 1] = g end
+	if tagListCount >= 512 then tagLists, tagListCount = {}, 0 end
+	tagLists[list] = t
+	tagListCount = tagListCount + 1
+	return t
+end
+
 ---True if the piece has any of the tags in a comma-separated list.
 function Node:hasAnyTag(list)
-	if not self._tags or list == nil or list == "" then return false end
-	for t in list:gmatch("[^,%s]+") do
-		if self._tags[t] then return true end
+	local tags = self._tags
+	if not tags or list == nil or list == "" then return false end
+	local t = splitTags(list)
+	for i = 1, #t do
+		if tags[t[i]] then return true end
 	end
 	return false
 end

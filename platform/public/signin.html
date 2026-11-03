@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Smitten</title>
+<meta name="smitten-editor-url" content="">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<script type="module" src="/signin.js"></script>
+</head>
+<body data-no-account-link>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="Smitten games">
+      <svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>Smitten</span>
+    </a>
+  </div>
+</header>
+
+<main class="page narrow">
+  <section class="panel">
+    <h1>Sign in</h1>
+    <p class="lead">To publish games and keep them in one place.</p>
+    <p class="banner error" id="banner" role="alert" hidden></p>
+
+    <div id="hackclub" hidden>
+      <a class="btn wide" id="hackclub-link" href="/auth/hackclub">Sign in with Hack Club</a>
+      <p class="fine hint-below">New here? It makes your Smitten account too.</p>
+      <p class="or"><span>or with your username</span></p>
+    </div>
+
+    <form class="form" id="form" novalidate>
+      <label class="field">
+        <span>Username</span>
+        <input class="input" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input class="input" name="password" type="password" autocomplete="current-password" maxlength="200" required>
+        <span class="field-error" data-error-for="password"></span>
+      </label>
+      <p class="field-error" data-error-for="form" role="alert"></p>
+      <button type="submit" class="btn primary wide">Sign in</button>
+    </form>
+
+    <p class="alt"><a id="signup-link" href="/signup">Make an account</a><span class="dot" aria-hidden="true">·</span><a href="/recover">Forgot your password?</a></p>
+  </section>
+</main>
+</body>
+</html>

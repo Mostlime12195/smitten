@@ -1,7 +1,7 @@
 // Project settings (smitten.json): name and main scene, display, input
 // actions and engine modules.
 
-import { h, openDialog, formatBytes } from '../ui.js';
+import { h, icon, openDialog, formatBytes } from '../ui.js';
 import { detectModules, moduleSize, MODULES } from '../core/modules.js';
 
 const DEFAULT_ACTIONS = {
@@ -93,7 +93,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   };
   renderInput();
   const inputTab = h('div', {},
-    h('p', { class: 'insp-desc', style: 'margin: 0 0 10px' }, 'Actions name what the player does; scripts and behaviors ask for them with smitten.input.pressed("jump"). List keys (space, a, left), mouse buttons (mouse:1), gamepad buttons (pad:a) and stick directions (axis:leftx-).'),
+    h('p', { class: 'settings-intro' }, 'Actions name what the player does; scripts ask for them with smitten.input.pressed("jump"). List keys (space, a, left), mouse buttons (mouse:1), gamepad buttons (pad:a) and stick directions (axis:leftx-).'),
     inputRows);
 
   // Modules
@@ -121,27 +121,33 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   };
   renderModules();
   const modulesTab = h('div', {},
-    h('p', { class: 'insp-desc', style: 'margin: 0 0 10px' }, 'Your game only downloads the parts of the engine it uses. Smitten works out which from your scenes and scripts; change that here if you load things in unusual ways.'),
+    h('p', { class: 'settings-intro' }, 'Your game only downloads the parts of the engine it uses. Smitten works out which from your scenes and scripts; change that here if you load things in unusual ways.'),
     moduleList);
 
-  const tabs = { general: ['General', general], display: ['Display', displayTab], input: ['Input', inputTab], modules: ['Modules', modulesTab] };
-  const tabRow = h('div', { class: 'tabs-row', role: 'tablist' });
-  const holder = h('div', {});
-  const showTab = (id) => {
-    for (const b of tabRow.children) b.setAttribute('aria-selected', String(b.dataset.tab === id));
-    holder.replaceChildren(tabs[id][1]);
+  // The same layout as the editor's settings: sections on the left, a dialog
+  // that keeps its size whichever section is open.
+  const sections = {
+    general: ['General', 'sliders', general],
+    display: ['Display', 'monitor', displayTab],
+    input: ['Input', 'gamepad', inputTab],
+    modules: ['Modules', 'package', modulesTab],
   };
-  for (const [id, [label]] of Object.entries(tabs)) {
-    const b = h('button', { type: 'button', role: 'tab', 'data-tab': id }, label);
-    b.addEventListener('click', () => showTab(id));
-    tabRow.append(b);
+  const nav = h('nav', { class: 'settings-nav', 'aria-label': 'Project settings sections' });
+  const content = h('div', { class: 'settings-content' });
+  const showSection = (id) => {
+    for (const b of nav.children) b.setAttribute('aria-current', String(b.dataset.id === id));
+    content.replaceChildren(h('div', { class: 'settings-section' }, h('h3', {}, sections[id][0]), sections[id][2]));
+    content.scrollTop = 0;
+  };
+  for (const [id, [label, iconName]] of Object.entries(sections)) {
+    nav.append(h('button', { type: 'button', 'data-id': id, onclick: () => showSection(id) }, icon(iconName, 15), label));
   }
-  showTab(tab);
+  showSection(sections[tab] ? tab : 'general');
 
   const ok = await openDialog({
     title: 'Project settings',
-    wide: true,
-    body: h('div', {}, tabRow, holder),
+    className: 'settings-dialog',
+    body: h('div', { class: 'settings-layout' }, nav, content),
     actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Save', value: true, primary: true }],
   });
   if (!ok) return false;

@@ -7,7 +7,7 @@
 import { setSchema, isA } from '../../core/schema.js';
 import { SceneDoc } from '../../core/scene-doc.js';
 import { Viewport2D } from './viewport2d.js';
-import { TileMapPanel } from './tilemap-panel.js';
+import { TilesPanel } from './tilemap-panel.js';
 import { decodeCells, encodeCells } from './cells.js';
 
 const encoder = new TextEncoder();
@@ -259,7 +259,7 @@ function describe(doc, n) {
 }
 
 async function main() {
-  const schema = await (await fetch('/love/src/modules/scene/nodes.json')).json();
+  const schema = await (await fetch('/love/src/modules/scene/pieces.json')).json();
   setSchema(schema);
   const project = new FakeProject(await makeFiles());
   const readScene = (path) => {
@@ -271,7 +271,7 @@ async function main() {
   const viewEl = document.getElementById('view');
   const tilesEl = document.getElementById('tiles');
   const viewport = new Viewport2D(viewEl, { doc, project, settings });
-  const panel = new TileMapPanel(tilesEl, { doc, project, viewport });
+  const panel = new TilesPanel(tilesEl, { doc, project, viewport });
 
   // Toolbar
   const toolButtons = [...document.querySelectorAll('[data-tool]')];

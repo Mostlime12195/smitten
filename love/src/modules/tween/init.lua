@@ -98,26 +98,38 @@ end
 
 setmetatable(tween, { __call = function(_, ...) return tween.to(...) end })
 
----Calls fn once, after some seconds.
-function tween.after(seconds, fn)
+---Calls fn once, after some seconds (not if owner, a piece, is gone by then).
+function tween.after(seconds, fn, owner)
 	if type(fn) ~= "function" then error("after() needs a number of seconds and a function", 2) end
-	return add({ kind = "after", time = 0, duration = seconds or 0, done = fn })
+	return add({ kind = "after", time = 0, duration = seconds or 0, done = fn, target = owner })
 end
 
----Calls fn every so many seconds, until it returns false or is cancelled.
-function tween.every(seconds, fn)
+---Calls fn every so many seconds, until it returns false, is cancelled or
+---owner (a piece) is gone.
+function tween.every(seconds, fn, owner)
 	if type(fn) ~= "function" then error("every() needs a number of seconds and a function", 2) end
-	return add({ kind = "every", time = 0, duration = math.max(seconds or 0, 1e-3), done = fn })
+	return add({ kind = "every", time = 0, duration = math.max(seconds or 0, 1e-3), done = fn, target = owner })
+end
+
+-- While the game is paused, tweens and timers of pieces wait too (unless
+-- the piece runs while paused).
+local function frozen(h, scene)
+	local t = h.target
+	return t ~= nil and t.children ~= nil and not scene.runsWhilePaused(t)
 end
 
 function tween._update(dt)
 	local list = active
 	local n = #list
+	local scene = package.loaded["love.scene"]
+	local paused = scene ~= nil and scene.paused
 	for i = 1, n do
 		local h = list[i]
 		if h.active then
 			if h.target and h.target._dead then
 				h.active = false
+			elseif paused and frozen(h, scene) then
+				-- waits
 			else
 				h.time = h.time + dt
 				if h.kind == "tween" then

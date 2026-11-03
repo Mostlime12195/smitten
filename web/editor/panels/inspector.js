@@ -35,6 +35,9 @@ export class InspectorPanel {
       // Re-render unless the change came from this panel's own input, or (for
       // the live game's values, which refresh often) while you're typing.
       if (this.editing) return;
+      // A change to another piece's properties doesn't show here.
+      const d = e.detail;
+      if (d?.kind === 'props' && d.node && !this.doc?.selection.has(d.node.id)) return;
       if (this.doc?.live && this.body.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       this.render();
     };
@@ -135,7 +138,8 @@ export class InspectorPanel {
       if (!groups.has(g)) groups.set(g, []);
       groups.get(g).push(p);
     }
-    for (const [g, props] of groups) {
+    // Behavior (pausable, which every piece has) comes after the piece's own sections.
+    for (const [g, props] of [...groups].sort(([a], [b]) => (a === 'Behavior') - (b === 'Behavior'))) {
       out.push(this.section(`${node.type}:${g}`, g, props.flatMap((p) => this.row(node, p.name, p.def))));
     }
 
@@ -163,7 +167,7 @@ export class InspectorPanel {
       const vars = scriptVariables(this.ctx.project.readText(script));
       if (vars.length) {
         out.push(this.section(`script:${script}`, 'Script variables', vars.flatMap((v) => {
-          const def = { type: v.type, default: v.value, description: v.description || `Set in ${script}; change it here for this node only.` };
+          const def = { type: v.type, default: v.value, description: v.description || `Set in ${script}; change it here for this piece only.` };
           return this.row(node, v.name, def, v.value);
         })));
       } else {

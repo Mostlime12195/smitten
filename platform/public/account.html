@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your account · Smitten</title>
+<meta name="smitten-editor-url" content="">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<script type="module" src="/account-page.js"></script>
+</head>
+<body data-no-account-link>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="Smitten games">
+      <svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>Smitten</span>
+    </a>
+    <a class="btn primary make" data-editor-link href="http://localhost:8766/">Make a game</a>
+  </div>
+</header>
+
+<main class="page settings" id="main" aria-busy="true">
+  <div class="settings-head">
+    <div>
+      <h1 id="name"></h1>
+      <p class="meta" id="meta"></p>
+    </div>
+    <button type="button" class="btn" id="signout">Sign out</button>
+  </div>
+  <p class="banner" id="banner" role="status" hidden></p>
+
+  <section class="panel">
+    <h2>Display name</h2>
+    <form class="inline-form" id="name-form" novalidate>
+      <input class="input" name="displayName" maxlength="40" aria-label="Display name">
+      <button type="submit" class="btn">Save</button>
+      <p class="field-error" data-error-for="displayName"></p>
+      <p class="field-error" data-error-for="form"></p>
+    </form>
+    <p class="fine">Shown on your games and your page. Use a nickname, not your full name.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Your games</h2>
+    <div class="list" id="games"></div>
+  </section>
+
+  <section class="panel">
+    <h2 id="password-title">Password</h2>
+    <form class="form" id="password-form" novalidate>
+      <label class="field" id="current-field">
+        <span>Current password</span>
+        <input class="input" name="current" type="password" autocomplete="current-password" maxlength="200">
+        <span class="field-error" data-error-for="current"></span>
+      </label>
+      <label class="field">
+        <span>New password</span>
+        <input class="input" name="password" type="password" autocomplete="new-password" maxlength="200">
+        <span class="field-error" data-error-for="password"></span>
+      </label>
+      <p class="field-error" data-error-for="form"></p>
+      <div><button type="submit" class="btn">Change password</button></div>
+    </form>
+    <p class="fine">Changing it signs you out everywhere else, the editor included.</p>
+  </section>
+
+  <section class="panel" id="email-section" hidden>
+    <h2>Email</h2>
+    <div class="status-row" id="email-current" hidden>
+      <strong id="email-address"></strong>
+      <span class="badge ok">Confirmed</span>
+    </div>
+    <div class="banner" id="email-pending" role="status" hidden>
+      <p id="email-pending-text"></p>
+      <div class="row-actions">
+        <button type="button" class="btn small" id="email-resend">Send the link again</button>
+        <button type="button" class="btn ghost small" id="email-cancel">Cancel</button>
+      </div>
+    </div>
+    <form class="form" id="email-form" novalidate>
+      <label class="field">
+        <span id="email-label">Email</span>
+        <input class="input" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+        <span class="field-error" data-error-for="email"></span>
+      </label>
+      <label class="field" id="email-password-field">
+        <span>Your password</span>
+        <input class="input" name="password" type="password" autocomplete="current-password" maxlength="200">
+        <span class="field-error" data-error-for="current"></span>
+      </label>
+      <p class="field-error" data-error-for="form"></p>
+      <div class="row-actions">
+        <button type="submit" class="btn" id="email-submit">Add email</button>
+        <button type="button" class="btn ghost danger" id="email-remove" hidden>Remove email</button>
+      </div>
+    </form>
+    <p class="fine">Only for resetting your password and notes about your account, like a moderator hiding one of your games. No newsletters. It's never shown to anyone, and you can remove it any time. A new address works once you open the link we send to it.</p>
+  </section>
+
+  <section class="panel" id="codes-section" hidden>
+    <h2>Recovery codes</h2>
+    <p id="codes-left"></p>
+    <form class="inline-form" id="codes-form" novalidate>
+      <input class="input" name="password" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">
+      <button type="submit" class="btn">Make new codes</button>
+      <p class="field-error" data-error-for="password"></p>
+      <p class="field-error" data-error-for="current"></p>
+      <p class="field-error" data-error-for="form"></p>
+    </form>
+    <div id="new-codes"></div>
+  </section>
+
+  <section class="panel" id="hackclub-section" hidden>
+    <h2>Hack Club</h2>
+    <div class="status-row">
+      <span id="hackclub-status"></span>
+      <span class="badge ok" id="hackclub-badge" hidden>Connected</span>
+    </div>
+    <a class="btn" id="hackclub-connect" href="/auth/hackclub?link=1" hidden>Connect your Hack Club account</a>
+    <form class="inline-form" id="hackclub-disconnect-form" novalidate hidden>
+      <input class="input" name="password" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">
+      <button type="submit" class="btn">Disconnect Hack Club</button>
+      <p class="field-error" data-error-for="current"></p>
+      <p class="field-error" data-error-for="password"></p>
+      <p class="field-error" data-error-for="form"></p>
+    </form>
+    <p class="fine" id="hackclub-fine"></p>
+  </section>
+
+  <section class="panel" id="hackatime-section" hidden>
+    <h2>Hackatime</h2>
+    <p id="hackatime-status"></p>
+    <a class="btn" id="hackatime-connect" href="/auth/hackatime" hidden>Connect Hackatime</a>
+    <button type="button" class="btn" id="hackatime-disconnect" hidden>Disconnect</button>
+    <p class="fine">With Hackatime connected, the editor sets up time tracking with one click, and your games' pages show how long Hackatime tracked for them. This site keeps your Hackatime user id and a sign-in token for it, encrypted; disconnecting removes both.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Where you're signed in</h2>
+    <div class="list" id="sessions"></div>
+    <div><button type="button" class="btn" id="signout-others">Sign out everywhere else</button></div>
+  </section>
+
+  <section class="panel danger-zone">
+    <h2>Delete your account</h2>
+    <p>This deletes your account and every game you've published, right away. It can't be undone.</p>
+    <form class="inline-form" id="delete-form" novalidate>
+      <input class="input" name="password" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">
+      <input class="input" name="confirm" autocomplete="off" autocapitalize="none" placeholder="Type your username" aria-label="Type your username" hidden>
+      <button type="submit" class="btn danger">Delete my account</button>
+      <p class="field-error" data-error-for="password"></p>
+      <p class="field-error" data-error-for="current"></p>
+      <p class="field-error" data-error-for="confirm"></p>
+      <p class="field-error" data-error-for="form"></p>
+    </form>
+  </section>
+</main>
+</body>
+</html>

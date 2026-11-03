@@ -31,8 +31,11 @@ import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
 import { createLoveCompletions } from './completions.js';
+import { docsUrl } from './smitten-docs.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
+import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
+import { startHackatime, hackatimeKey } from './hackatime.js';
 
 const app = document.getElementById('app');
 
@@ -125,6 +128,11 @@ function showHome() {
 function closeEditor() {
   saveAll();
   ed.runner?.destroy();
+  ed.dock?.dispose();
+  ed.offAccount?.();
+  ed.hackatime?.stop();
+  ed.offHackatimeKey?.();
+  window.removeEventListener('resize', moveWorkspaceIndicator);
   ed = null;
 }
 
@@ -144,13 +152,18 @@ async function openProject(id) {
   migrateProject(project);
   ed = { project, workspaces: {}, ws: null, layouts: loadLayouts(), clipboard: [] };
 
-  // Top bar
+  // Top bar: home, the project (its menu holds what you can do with it),
+  // undo and redo; the workspaces; publishing, your account and Play.
+  ed.titleEl = h('span', { class: 'project-name' }, project.name);
+  const projectBtn = menuButton(h('span', {}, ed.titleEl, icon('chevronDown', 14)), mainMenu, { class: 'project-btn', title: 'Project, panels, settings and help' });
+  ed.undoBtn = h('button', { type: 'button', class: 'icon-btn', title: `Undo (${modKey}+Z)`, 'aria-label': 'Undo' }, icon('undo', 16));
+  ed.redoBtn = h('button', { type: 'button', class: 'icon-btn', title: `Redo (${modKey}+Shift+Z)`, 'aria-label': 'Redo' }, icon('redo', 16));
+  ed.undoBtn.addEventListener('click', () => sceneWs().doc?.undo());
+  ed.redoBtn.addEventListener('click', () => sceneWs().doc?.redo());
   const menus = h('div', { class: 'tb-left' },
-    h('a', { class: 'brand', href: '#', title: 'Home: all your games' }, h('span', { class: 'brand-mark' }, icon('heart', 16)), h('span', {}, 'Smitten')),
-    menuButton('Project', projectMenu), menuButton('Edit', editMenu), menuButton('View', viewMenu), menuButton('Help', helpMenu),
-    ed.titleEl = h('span', { class: 'project-title', title: 'Project settings' }, project.name));
-  ed.titleEl.addEventListener('click', () => openProjectSettings());
-  const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' });
+    h('a', { class: 'brand', href: '#', title: 'All your games', 'aria-label': 'Home: all your games' }, h('span', { class: 'brand-mark' }, icon('heart', 18))),
+    projectBtn, h('span', { class: 'tb-sep' }), ed.undoBtn, ed.redoBtn);
+  const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' }, ed.wsIndicator = h('span', { class: 'ws-indicator' }));
   WORKSPACES.forEach((w, i) => {
     const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
     b.addEventListener('click', () => switchWorkspace(w.id));
@@ -158,9 +171,15 @@ async function openProject(id) {
   });
   ed.playBtn = h('button', { type: 'button', class: 'play-btn primary', title: 'Play the game from its main scene (F5)' }, icon('play', 14), 'Play');
   ed.playBtn.addEventListener('click', () => play());
-  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop');
+  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
   ed.stopBtn.addEventListener('click', () => stop());
-  const titlebar = h('header', { class: 'titlebar' }, menus, switcher, h('div', { class: 'tb-right' }, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
+  const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
+  publishBtn.addEventListener('click', () => publish());
+  ed.accountSlot = h('div', { class: 'account-slot' });
+  renderAccount();
+  ed.offAccount = onAccountChange(() => renderAccount());
+  const titlebar = h('header', { class: 'titlebar' }, menus, switcher,
+    h('div', { class: 'tb-right' }, publishBtn, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
 
   // Center: workspaces and the game view
   const area = h('div', { class: 'workspace-area' });
@@ -168,7 +187,9 @@ async function openProject(id) {
   const shell = h('main', { class: 'shell' });
   ed.status = { left: h('span', {}, 'Saved'), modules: h('button', { type: 'button', title: 'Engine modules this game uses (Project settings › Modules)' }), right: h('span', {}) };
   ed.status.modules.addEventListener('click', () => openProjectSettings('modules'));
-  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.modules);
+  ed.status.hackatime = h('button', { type: 'button', title: 'Time logged on Hackatime today (Settings › Hackatime)', hidden: true });
+  ed.status.hackatime.addEventListener('click', () => openSettings({ section: 'hackatime' }));
+  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.hackatime, ed.status.modules);
   app.replaceChildren(h('div', { id: 'editor' }, titlebar, shell, statusbar));
 
   // Panels
@@ -312,6 +333,38 @@ async function openProject(id) {
   if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
   window.addEventListener('beforeunload', saveAll);
   hydrateIcons(app);
+
+  // Undo and redo follow the open scene's history.
+  let watched = null;
+  const watchDoc = () => {
+    watched?.removeEventListener('change', updateUndoButtons);
+    watched = sceneWs().doc;
+    watched?.addEventListener('change', updateUndoButtons);
+    updateUndoButtons();
+  };
+  ed.workspaces.scene.addEventListener('activate', watchDoc);
+  watchDoc();
+  window.addEventListener('resize', moveWorkspaceIndicator);
+  requestAnimationFrame(moveWorkspaceIndicator);
+
+  // Hackatime: time spent working on the open file (hackatime.js).
+  const showToday = (text) => {
+    ed.status.hackatime.replaceChildren(icon('timer', 13), ` ${text} today`);
+    ed.status.hackatime.hidden = false;
+  };
+  ed.hackatime = startHackatime({
+    project,
+    root: app,
+    current: () => {
+      if (!ed || !ed.ws) return null;
+      const ws = ed.workspaces[ed.ws];
+      return ed.ws === 'scene' ? ws.active?.path || null : ws.active || null;
+    },
+    onToday: showToday,
+  });
+  ed.offHackatimeKey = settings.onChange((key) => {
+    if (key === 'hackatimeKey' && !hackatimeKey()) ed.status.hackatime.hidden = true;
+  });
 }
 
 let apiPromise = null;
@@ -352,10 +405,29 @@ function sceneWs() {
   return ed.workspaces.scene;
 }
 
-function menuButton(label, items) {
-  const b = h('button', { type: 'button', class: 'menubar-btn', 'aria-haspopup': 'menu' }, label);
-  b.addEventListener('click', () => showMenu(b, items()));
+function menuButton(label, items, attrs = {}) {
+  const b = h('button', { type: 'button', class: 'menubar-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', ...attrs }, label);
+  b.addEventListener('click', () => {
+    b.setAttribute('aria-expanded', 'true');
+    showMenu(b, items(), { onClose: () => b.setAttribute('aria-expanded', 'false') });
+  });
   return b;
+}
+
+/** Slides the workspace highlight under the active workspace's button. */
+function moveWorkspaceIndicator() {
+  const b = app.querySelector('.workspace-switch button[aria-pressed="true"]');
+  if (!b || !ed?.wsIndicator) return;
+  ed.wsIndicator.style.width = `${b.offsetWidth}px`;
+  ed.wsIndicator.style.transform = `translateX(${b.offsetLeft}px)`;
+}
+
+/** Undo and redo in the top bar follow the open scene's history. */
+function updateUndoButtons() {
+  if (!ed?.undoBtn) return;
+  const doc = ed.ws === 'scene' ? sceneWs().doc : null;
+  ed.undoBtn.disabled = !doc?.undoStack?.length;
+  ed.redoBtn.disabled = !doc?.redoStack?.length;
 }
 
 function switchWorkspace(id, { focus = true } = {}) {
@@ -364,6 +436,8 @@ function switchWorkspace(id, { focus = true } = {}) {
   ed.ws = id;
   for (const el of app.querySelectorAll('.workspace')) el.hidden = el.dataset.ws !== id;
   for (const b of app.querySelectorAll('.workspace-switch button')) b.setAttribute('aria-pressed', String(b.dataset.ws === id));
+  moveWorkspaceIndicator();
+  updateUndoButtons();
   ed.dock.setLayout(ed.layouts[id] || DEFAULT_LAYOUTS[id]);
   const ws = ed.workspaces[id];
   ws.show?.();
@@ -593,39 +667,38 @@ async function newScene(kind, dir = 'scenes') {
   await openFile(path);
 }
 
+// A new script: the piece's own code. Names in it are the piece's (x, vx,
+// move()...), top-level variables show in the Inspector, and the short API
+// (pressed, spawn, sfx, wait...) is there without smitten. in front.
 const SCRIPT_TEMPLATE = (name, type) => {
-  const cls = name.replace(/[^\w]/g, '').replace(/^\d+/, '').replace(/^\w/, (c) => c.toUpperCase()) || 'Script';
   const extra = type === 'Body' ? `
--- For a scripted Body: set self.vx and self.vy, then call self:move() in
--- physicsUpdate. It stops at walls; self:onGround() says if it landed.
--- Called when it bumps into another body or solid tiles.
-function ${cls}:hit(other)
+-- For a scripted Body: set vx and vy, then move() in physicsUpdate. It stops
+-- at walls; onGround() says if it landed. hit() is called when it bumps into
+-- another body or solid tiles.
+function hit(other)
 end
 ` : type === 'Button' ? `
 -- Called when the button is clicked.
-function ${cls}:pressed()
+function pressed()
 end
 ` : type === 'Zone' ? `
 -- Called when a body or zone comes in.
-function ${cls}:entered(other)
+function entered(other)
 end
 ` : '';
-  return `-- ${cls}${type ? `: a script for a ${type}` : ''}.
-local ${cls} = {}
+  return `-- ${name}${type ? `: a script for a ${type}` : ''}.
 
 -- Variables like this one appear in the Inspector, so each piece can have its own value.
-${cls}.speed = 200
+speed = 200
 
--- Called once, when the piece joins the scene.
-function ${cls}:ready()
+-- Called once, when the piece joins the scene. It can wait(seconds).
+function ready()
 end
 
 -- Called every frame. dt is the time since the last frame, in seconds.
-function ${cls}:update(dt)
+function update(dt)
 end
-${extra}
-return ${cls}
-`;
+${extra}`;
 };
 
 async function newScript(node = null, dir = 'scripts') {
@@ -700,7 +773,7 @@ async function instanceScene(parent) {
   const doc = sceneWs().doc;
   const scenes = ed.project.paths().filter((p) => p.endsWith('.scene') && p !== doc.path && !doc.wouldLoop(p));
   if (!scenes.length) {
-    toast('There are no other scenes to place. Make one with Files › New › Scene, or right-click a node › Save as a scene.');
+    toast('There are no other scenes to place. Make one with Files › New › Scene, or right-click a piece › Save as a scene.');
     return;
   }
   const sel = h('select', { class: 'input', size: Math.min(8, scenes.length) }, ...scenes.map((p, i) => h('option', { value: p, selected: i === 0 }, p)));
@@ -844,6 +917,7 @@ function runState(s) {
   if (s !== 'running' && s !== 'paused' && s !== 'loading') stopLive();
   const running = s === 'loading' || s === 'running' || s === 'paused';
   ed.stopBtn.disabled = !running;
+  ed.stopBtn.classList.toggle('running', running);
   ed.playBtn.classList.toggle('primary', !running);
   ed.playBtn.lastChild.textContent = running ? 'Restart' : 'Play';
   if (!running && s !== 'crashed') ed.gameView.hidden = true;
@@ -860,57 +934,58 @@ function missingModule(name) {
 // ---------------------------------------------------------------------------
 // Menus
 
-function projectMenu() {
+/** The project menu in the top bar: the project, panels, settings and help. */
+function mainMenu() {
+  const panel = (id, label) => ({ label, checked: ed.dock.isVisible(id), action: () => ed.dock.toggle(id) });
   return [
     { label: 'New scene…', icon: 'box', action: () => newScene() },
     { label: 'New script…', icon: 'code', action: () => newScript() },
     '-',
-    { label: 'Project settings…', icon: 'settings', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
+    { label: 'Project settings…', icon: 'sliders', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
     { label: 'Publish…', icon: 'publish', action: () => publish() },
     { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
+    '-',
+    { heading: 'Panels' },
+    panel('scene', 'Scene'), panel('files', 'Files'), panel('inspector', 'Inspector'), panel('output', 'Output'),
+    { label: 'Reset layout', icon: 'layout', action: () => resetLayout() },
+    '-',
+    { label: 'Editor settings…', icon: 'settings', action: () => openSettings({}) },
+    { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
+    { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
+    { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
+    { label: 'Documentation', icon: 'help', action: () => openDocs() },
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
 }
 
-function editMenu() {
-  const doc = ed.ws === 'scene' ? sceneWs().doc : null;
-  return [
-    { label: 'Undo', icon: 'undo', shortcut: `${modKey}+Z`, disabled: !doc?.undoStack.length, action: () => doc.undo() },
-    { label: 'Redo', icon: 'redo', shortcut: `${modKey}+Shift+Z`, disabled: !doc?.redoStack.length, action: () => doc.redo() },
-    '-',
-    { label: 'Add a piece…', icon: 'plus', shortcut: `${modKey}+A`, disabled: !doc, action: () => addNodeTo(ed.panels.tree.targetParent()) },
-    { label: 'Duplicate', icon: 'copy', shortcut: `${modKey}+D`, disabled: !doc?.selection.size, action: () => doc.select(doc.duplicate(doc.selected())) },
-    { label: 'Delete', icon: 'trash', shortcut: 'Delete', disabled: !doc?.selection.size, action: () => doc.remove(doc.selected()) },
-    '-',
-    { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
-    { label: 'Editor settings…', icon: 'sliders', action: () => openSettings({}) },
-  ];
-}
-
-function viewMenu() {
-  const panelItem = (id, label) => ({ label: `${ed.dock.isVisible(id) ? '✓ ' : '   '}${label}`, action: () => ed.dock.toggle(id) });
-  return [
-    { heading: 'Panels' },
-    panelItem('scene', 'Scene'), panelItem('files', 'Files'), panelItem('inspector', 'Inspector'), panelItem('output', 'Output'),
-    '-',
-    { label: 'Reset layout', icon: 'restart', action: () => resetLayout() },
-    '-',
-    { heading: 'Theme' },
-    ...['system', 'light', 'dark'].map((t) => ({ label: `${settings.get('theme') === t ? '✓ ' : '   '}${t[0].toUpperCase()}${t.slice(1)}`, action: () => settings.set('theme', t) })),
-  ];
-}
-
-function helpMenu() {
-  return [
-    { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
-    { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
-  ];
-}
-
 async function openProjectSettings(tab) {
   await projectSettingsDialog(ed.project, { tab });
+}
+
+// The account button: "Sign in" for the sharing site, or who you are there.
+function renderAccount() {
+  if (!ed?.accountSlot) return;
+  const user = account();
+  const site = String(settings.get('platformUrl')).replace(/\/+$/, '');
+  if (!user) {
+    const b = h('button', { type: 'button', class: 'btn ghost', title: `Sign in to ${site.replace(/^https?:\/\//, '')} to publish games` }, icon('user', 16), h('span', { class: 'label' }, 'Sign in'));
+    b.addEventListener('click', () => signIn().catch((e) => toast(e.message, { type: 'error' })));
+    ed.accountSlot.replaceChildren(b);
+    return;
+  }
+  const name = user.displayName || user.username;
+  const avatar = h('button', { type: 'button', class: 'avatar-btn', title: `${name} (@${user.username})`, 'aria-label': `Account: ${name}`, 'aria-haspopup': 'menu' },
+    h('span', { class: 'avatar' }, name.trim()[0]?.toUpperCase() || '?'));
+  avatar.addEventListener('click', () => showMenu(avatar, [
+    { heading: `${name} · @${user.username}` },
+    { label: 'Your games', icon: 'gamepad', action: () => window.open(`${site}/u/${encodeURIComponent(user.username)}`, '_blank', 'noopener') },
+    { label: 'Account settings', icon: 'settings', action: () => window.open(`${site}/account`, '_blank', 'noopener') },
+    '-',
+    { label: 'Sign out', icon: 'logOut', action: () => signOut().then(() => toast('Signed out.')) },
+  ]));
+  ed.accountSlot.replaceChildren(avatar);
 }
 
 // Puts the game on the sharing site, with only the engine modules it uses.
@@ -950,9 +1025,10 @@ function nodeDocs(type) {
       h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Properties'),
       h('ul', {}, ...properties(t).filter((p) => !p.def.hidden).map((p) => h('li', {}, h('code', {}, p.name), ` — ${p.def.description}`))),
       Object.keys(ownMethods).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Methods') : null,
-      h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `self:${m}(${d.args})`), ` — ${d.doc}`))),
+      h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `${m}(${d.args})`), ` — ${d.doc}`))),
       Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
-      h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function Name:${m}(${d.args})`), ` — ${d.doc}`))),
+      h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function ${m}(${d.args})`), ` — ${d.doc}`))),
+      h('p', {}, h('a', { href: docsUrl(settings.get('platformUrl'), 'pieces', t), target: '_blank', rel: 'noopener' }, `${t} in the docs`)),
     ].filter(Boolean));
   };
   import('./core/schema.js').then(({ typesByGroup }) => {
@@ -968,6 +1044,11 @@ function nodeDocs(type) {
   });
   body.append(list, page);
   openDialog({ title: 'Piece reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
+}
+
+/** The docs on the sharing site, in a new tab. */
+function openDocs(page = '', anchor = '') {
+  window.open(docsUrl(settings.get('platformUrl'), page, anchor), '_blank', 'noopener');
 }
 
 const SHORTCUTS = [
@@ -1005,6 +1086,8 @@ function commands() {
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
     { label: 'Piece reference', run: () => nodeDocs(null) },
+    { label: 'Documentation', run: () => openDocs() },
+    { label: 'Script API (docs)', run: () => openDocs('api') },
     { label: 'Editor settings', run: () => openSettings({}) },
     { label: 'All games', run: () => { location.hash = ''; } },
   ];

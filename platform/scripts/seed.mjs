@@ -1,14 +1,36 @@
 // Publishes the editor's new-game templates (web/editor/core/templates.js) to
 // a local site, so the gallery has something in it:
 //
-//   node scripts/seed.mjs [http://127.0.0.1:8787]
+//   node scripts/seed.mjs [http://localhost:8787] [username] [password]
 //
-// Prints each game's link and edit token.
+// They're published by an account (default "templates"), which is made if
+// it doesn't exist yet; its password is printed then. Prints each game's link.
 
 import { deflateRawSync } from 'node:zlib';
 import { TEMPLATES } from '../../web/editor/core/templates.js';
 
-const base = (process.argv[2] || 'http://127.0.0.1:8787').replace(/\/+$/, '');
+const base = (process.argv[2] || 'http://localhost:8787').replace(/\/+$/, '');
+const username = process.argv[3] || 'templates';
+let password = process.argv[4] || null;
+
+// Sign in (or up) as the site's own pages do: a session cookie, and the
+// site's origin on requests.
+async function session() {
+  const post = (path, body) => fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: base },
+    body: JSON.stringify(body),
+  });
+  let res = password ? await post('/api/auth/signin', { username, password }) : null;
+  if (!res || res.status === 401) {
+    password ||= `seed ${Math.random().toString(36).slice(2)} ${Math.random().toString(36).slice(2)}`;
+    res = await post('/api/auth/signup', { username, password, displayName: 'Smitten templates' });
+    if (res.ok) console.log(`Made the account "${username}" with the password: ${password}`);
+  }
+  if (!res.ok) throw new Error(`Couldn't sign in as ${username}: ${(await res.json()).error} (pass its password: node scripts/seed.mjs ${base} ${username} <password>)`);
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+}
+const cookie = await session();
 
 const CRC = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -78,12 +100,12 @@ for (const ex of TEMPLATES.filter((t) => t.id !== 'empty')) {
   const form = new FormData();
   form.append('meta', JSON.stringify({ title: ex.name, description: ex.description, modules, engineVersion: '0.2.0' }));
   form.append('game', new Blob([zip(files)], { type: 'application/zip' }), 'game.love');
-  const res = await fetch(`${base}/api/games`, { method: 'POST', body: form });
+  const res = await fetch(`${base}/api/games`, { method: 'POST', body: form, headers: { Cookie: cookie, Origin: base } });
   const data = await res.json();
   if (!res.ok) {
     console.error(`${ex.name}: ${res.status} ${data.error}`);
     if (res.status === 429) break;
     continue;
   }
-  console.log(`${ex.name.padEnd(22)} ${data.game.playUrl}  token ${data.token}`);
+  console.log(`${ex.name.padEnd(22)} ${data.game.playUrl}`);
 }

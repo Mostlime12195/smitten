@@ -1,4 +1,4 @@
-// Sound effect parameters (docs/reference.md, "Sound effects"): defaults,
+// Sound effect parameters (docs/formats.md, "Sound effects"): defaults,
 // slider metadata, presets, mutation and the .sfx text. Shared with the
 // music editor, whose instruments can play sound effects.
 

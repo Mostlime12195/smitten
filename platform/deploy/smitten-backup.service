@@ -1,0 +1,24 @@
+# A consistent copy of the database in /var/lib/smitten/backups, run daily
+# by smitten-backup.timer (before Nest's own daily backup at 21:00 UTC, so
+# that backup has a fresh copy too).
+#
+#   cp deploy/smitten-backup.service deploy/smitten-backup.timer /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now smitten-backup.timer
+
+[Unit]
+Description=Back up Smitten's database
+
+[Service]
+Type=oneshot
+User=smitten
+Group=smitten
+WorkingDirectory=/opt/smitten/platform
+# Settings (deploy/env.example), readable by the smitten user:
+#   chown root:smitten /etc/smitten/env && chmod 640 /etc/smitten/env
+Environment=ENV_FILE=/etc/smitten/env
+ExecStart=/usr/bin/node scripts/backup.mjs
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/smitten

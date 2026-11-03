@@ -24,12 +24,6 @@ local contacts = {}
 
 local GRAVITY = 980
 
-local function shapeKey(shapes)
-	local parts = {}
-	for i, s in ipairs(shapes) do parts[i] = ("%s:%.2f:%.2f:%.2f:%.2f"):format(s.kind, s.hw, s.hh, s.x, s.y) end
-	return table.concat(parts, ";")
-end
-
 -- Where a shape sits on a body at (cx, cy) turned by angle.
 local function offset(s, cx, cy, angle)
 	local dx, dy = s.x - cx, s.y - cy
@@ -103,19 +97,30 @@ end
 ---------------------------------------------------------------------------
 -- Mirrors of everything that isn't moved by physics
 
+-- A shape's size and place on its body, rounded to hundredths: a mirror is
+-- rebuilt when one of these changes.
+local function round2(v) return math.floor(v * 100 + 0.5) end
+
 local function syncMirror(n, h)
 	local m = mirrors[n]
-	local x, y = n:worldPosition()
-	local angle = angleOf(n)
+	local a, b, _, _, x, y = nodes2d.globalMatrix(n)
+	local angle = math.atan2(b, a)
 	local shapes = physics2d.shapesOf(n)
-	-- Shapes measured from the piece, so moving or turning it doesn't change the key.
-	local local_ = {}
-	for i, s in ipairs(shapes) do
-		local ox, oy = offset(s, x, y, angle)
-		local_[i] = { kind = s.kind, hw = s.hw, hh = s.hh, x = ox, y = oy }
+	-- Shapes measured from the piece, so moving or turning it doesn't change them.
+	local key = m and m.key
+	local same = key ~= nil and #key == #shapes * 5
+	if same then
+		for i, s in ipairs(shapes) do
+			local ox, oy = offset(s, x, y, angle)
+			local j = (i - 1) * 5
+			if key[j + 1] ~= s.kind or key[j + 2] ~= round2(s.hw) or key[j + 3] ~= round2(s.hh)
+				or key[j + 4] ~= round2(ox) or key[j + 5] ~= round2(oy) then
+				same = false
+				break
+			end
+		end
 	end
-	local key = shapeKey(local_)
-	if m and m.key ~= key then
+	if m and not same then
 		m.body:destroy()
 		m = nil
 	end
@@ -125,6 +130,12 @@ local function syncMirror(n, h)
 		body:setAngle(angle)
 		addShapes(body, n, x, y, angle, { friction = n.friction, bounce = n.bounce })
 		body:setUserData(n)
+		key = {}
+		for i, s in ipairs(shapes) do
+			local ox, oy = offset(s, x, y, angle)
+			local j = (i - 1) * 5
+			key[j + 1], key[j + 2], key[j + 3], key[j + 4], key[j + 5] = s.kind, round2(s.hw), round2(s.hh), round2(ox), round2(oy)
+		end
 		mirrors[n] = { body = body, key = key }
 		return
 	end
@@ -144,8 +155,8 @@ end
 
 local function syncTiles(map)
 	local t = tileBodies[map]
-	local version = tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid)
-	if t and t.version == version and not map._dirty then return end
+	local version = tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid) .. "#" .. tostring(map._changes)
+	if t and t.version == version then return end
 	if t then t.body:destroy() end
 	if not map._ts or not map.solid then
 		tileBodies[map] = nil

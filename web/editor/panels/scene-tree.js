@@ -16,6 +16,9 @@ export class SceneTreePanel {
     this.collapsed = new Set();
     this.openInstances = new Set(); // placed scenes start closed
     this.filter = '';
+    // Rows by node id, {el, sig}, kept between renders: a row is only made
+    // again when what it shows (its signature) changes.
+    this.rows = new Map();
 
     const add = h('button', { type: 'button', class: 'icon-btn', title: `Add a piece (${modKey}+A)`, 'aria-label': 'Add a piece' }, icon('plus', 16));
     add.addEventListener('click', () => this.doc && actions.addNode(this.targetParent()));
@@ -44,7 +47,7 @@ export class SceneTreePanel {
       if (this.doc) this.menu(null, { x: e.clientX, y: e.clientY });
     });
     this.onChange = () => this.render();
-    this.onSelect = () => this.render();
+    this.onSelect = () => this.updateSelection();
   }
 
   setDoc(doc) {
@@ -57,6 +60,7 @@ export class SceneTreePanel {
       doc.addEventListener('change', this.onChange);
       doc.addEventListener('select', this.onSelect);
     }
+    this.rows.clear();
     this.render();
   }
 
@@ -73,20 +77,51 @@ export class SceneTreePanel {
     this.liveBanner.hidden = !doc?.live;
     this.empty.hidden = !!doc;
     this.list.hidden = !doc;
-    this.list.replaceChildren();
-    if (!doc) return;
+    if (!doc) {
+      this.list.replaceChildren();
+      this.rows.clear();
+      return;
+    }
     const matches = (n) => !this.filter || n.name.toLowerCase().includes(this.filter) || n.type.toLowerCase().includes(this.filter);
     const anyMatch = (n) => matches(n) || doc.effectiveChildren(n).some(anyMatch);
     const rows = [];
+    const kept = new Map();
     const visit = (n, depth) => {
       if (this.filter && !anyMatch(n)) return;
-      rows.push(this.row(n, depth));
       const kids = doc.effectiveChildren(n);
+      const sig = this.signature(n, depth, kids);
+      let r = this.rows.get(n.id);
+      if (r && r.sig === sig) r.el.node = n;
+      else r = { el: this.row(n, depth), sig };
+      kept.set(n.id, r);
+      rows.push(r.el);
       if (kids.length && (this.filter || this.isOpen(n))) for (const c of kids) visit(c, depth + 1);
     };
     // A live game's tree arrives a moment after it starts.
     if (doc.root) visit(doc.root, 0);
-    this.list.append(...rows);
+    this.rows = kept;
+    // Touch the DOM only if the rows changed.
+    const now = this.list.children;
+    if (now.length !== rows.length || rows.some((el, i) => now[i] !== el)) this.list.replaceChildren(...rows);
+    this.updateSelection();
+  }
+
+  /** Everything a row shows but its selection, as a string. */
+  signature(n, depth, kids) {
+    const doc = this.doc;
+    const visible = !n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI')) ? doc.get(n, 'visible') !== false : null;
+    return JSON.stringify([depth, n.name, n.type, n.type === 'Body' ? doc.get(n, 'motion') : null, kids.length > 0, this.isOpen(n),
+      doc.scriptOf(n), n.instance, this.warning(n), visible, !!n.readonly, n === doc.root,
+      n.readonly ? this.instanceOwner(n)?.instance : null]);
+  }
+
+  /** Marks the selected rows (selecting doesn't change anything else). */
+  updateSelection() {
+    const sel = this.doc?.selection;
+    for (const [id, r] of this.rows) {
+      const on = !!sel?.has(id);
+      if (r.el.classList.contains('selected') !== on) r.el.classList.toggle('selected', on);
+    }
   }
 
   isOpen(n) {
@@ -99,25 +134,28 @@ export class SceneTreePanel {
     this.render();
   }
 
-  row(n, depth) {
+  row(node, depth) {
     const doc = this.doc;
-    const kids = doc.effectiveChildren(n);
-    const open = this.isOpen(n);
+    const kids = doc.effectiveChildren(node);
+    const open = this.isOpen(node);
+    let row = null;
+    const n = node;
+    const cur = () => row.node; // the node this row shows now (rows are reused)
     const twisty = h('span', { class: `twisty ${kids.length ? '' : 'leaf'}` }, icon(open ? 'chevronDown' : 'chevronRight', 14));
     twisty.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.setOpen(n, !open);
+      this.setOpen(cur(), !open);
     });
     const badges = h('span', { class: 'node-badges' });
     const script = doc.scriptOf(n);
     if (script) {
       const b = h('button', { type: 'button', class: 'node-badge', title: `Script: ${script} (click to open)` }, icon('code', 14));
-      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScript(n); });
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScript(cur()); });
       badges.append(b);
     }
     if (n.instance) {
       const b = h('button', { type: 'button', class: 'node-badge', title: `Uses ${n.instance} (click to open it)` }, icon('link', 13));
-      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScene(n.instance); });
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScene(cur().instance); });
       badges.append(b);
     }
     const warn = this.warning(n);
@@ -125,22 +163,23 @@ export class SceneTreePanel {
     if (!n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI'))) {
       const visible = doc.get(n, 'visible') !== false;
       const b = h('button', { type: 'button', class: `node-badge ${visible ? '' : 'off'}`, title: visible ? 'Hide' : 'Show' }, icon(visible ? 'eye' : 'eyeOff', 14));
-      b.addEventListener('click', (e) => { e.stopPropagation(); doc.setProp(n, 'visible', !visible, { label: visible ? 'Hide' : 'Show' }); });
+      b.addEventListener('click', (e) => { e.stopPropagation(); doc.setProp(cur(), 'visible', !visible, { label: visible ? 'Hide' : 'Show' }); });
       badges.append(b);
     }
-    const row = h('div', {
+    row = h('div', {
       class: `node-row ${doc.selection.has(n.id) ? 'selected' : ''} ${n.readonly ? 'readonly' : ''}`,
       role: 'treeitem', 'data-id': n.id, draggable: n.readonly || n === doc.root ? 'false' : 'true',
       style: `padding-left: ${4 + depth * 16}px`, title: n.readonly ? `Part of ${this.instanceOwner(n)?.instance || 'an instance'}` : typeDef(n.type)?.description || '',
     }, twisty, nodeIcon(n.type, 16, n.type === 'Body' ? doc.get(n, 'motion') : null), h('span', { class: 'node-name' }, n.name), badges);
-    row.addEventListener('click', (e) => this.click(n, e));
-    row.addEventListener('dblclick', () => !n.readonly && this.rename(n));
+    row.node = node;
+    row.addEventListener('click', (e) => this.click(cur(), e));
+    row.addEventListener('dblclick', () => !n.readonly && this.rename(cur()));
     row.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      if (!doc.selection.has(n.id)) doc.select([n]);
-      this.menu(n, { x: e.clientX, y: e.clientY });
+      if (!doc.selection.has(n.id)) doc.select([cur()]);
+      this.menu(cur(), { x: e.clientX, y: e.clientY });
     });
-    this.dragAndDrop(row, n);
+    this.dragAndDrop(row);
     return row;
   }
 
@@ -191,6 +230,7 @@ export class SceneTreePanel {
   rename(n) {
     const row = this.list.querySelector(`.node-row[data-id="${n.id}"]`);
     if (!row) return;
+    this.rows.delete(n.id); // the row gets an input: make it again next time
     const label = row.querySelector('.node-name');
     const input = h('input', { class: 'rename', value: n.name, spellcheck: 'false', 'aria-label': 'Name' });
     label.replaceWith(input);
@@ -250,7 +290,7 @@ export class SceneTreePanel {
     const a = this.actions;
     const items = [];
     const parent = n && !n.readonly ? n : doc.root;
-    items.push({ label: 'Add node…', icon: 'plus', shortcut: `${modKey}+A`, action: () => a.addNode(parent) });
+    items.push({ label: 'Add a piece…', icon: 'plus', shortcut: `${modKey}+A`, action: () => a.addNode(parent) });
     items.push({ label: 'Place a scene…', icon: 'link', action: () => a.instanceScene(parent) });
     if (n && !n.readonly) {
       items.push('-');
@@ -275,20 +315,23 @@ export class SceneTreePanel {
     showMenu(at, items);
   }
 
-  dragAndDrop(row, n) {
+  dragAndDrop(row) {
     const doc = this.doc;
     row.addEventListener('dragstart', (e) => {
+      const n = row.node;
       if (!doc.selection.has(n.id)) doc.select([n]);
       e.dataTransfer.setData('application/x-smitten-node', n.id);
       e.dataTransfer.effectAllowed = 'move';
     });
     const zone = (e) => {
+      const n = row.node;
       const r = row.getBoundingClientRect();
       const y = (e.clientY - r.top) / r.height;
       if (n === doc.root) return 'inside';
       return y < 0.28 ? 'before' : y > 0.72 ? 'after' : 'inside';
     };
     row.addEventListener('dragover', (e) => {
+      const n = row.node;
       const types = e.dataTransfer.types;
       if (!types.includes('application/x-smitten-node') && !types.includes('application/x-smitten-path')) return;
       if (n.readonly) return;
@@ -298,6 +341,7 @@ export class SceneTreePanel {
     });
     row.addEventListener('dragleave', () => row.classList.remove('drop-before', 'drop-after', 'drop-inside'));
     row.addEventListener('drop', (e) => {
+      const n = row.node;
       row.classList.remove('drop-before', 'drop-after', 'drop-inside');
       if (n.readonly) return;
       const path = e.dataTransfer.getData('application/x-smitten-path');

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File formats · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: File formats.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats" aria-current="page">File formats</a><ul class="nav-sub"><li><a href="#scenes">Scenes</a></li><li><a href="#sprites">Sprites</a></li><li><a href="#tilesets">Tilesets</a></li><li><a href="#sound-effects">Sound effects</a></li><li><a href="#songs">Songs</a></li></ul></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>File formats</h1>
+<p>The files a Smitten project is made of. They're JSON (except scripts and pictures), so they diff and merge well and can be written by hand or by tools. Paths inside them are relative to the project folder, except where a format says relative to the file. <code>smitten.json</code> is in <a href="settings">Project settings and modules</a>.</p>
+<h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
+<p>A scene is a tree of pieces in a <code>.scene</code> file (JSON):</p>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.scene&quot;,
+  &quot;version&quot;: 2,
+  &quot;root&quot;: {
+    &quot;name&quot;: &quot;Level&quot;, &quot;type&quot;: &quot;Group&quot;, &quot;script&quot;: &quot;scripts/level.lua&quot;,
+    &quot;children&quot;: [
+      { &quot;name&quot;: &quot;Player&quot;, &quot;scene&quot;: &quot;scenes/player.scene&quot;, &quot;properties&quot;: { &quot;x&quot;: 120, &quot;y&quot;: 540 } },
+      { &quot;name&quot;: &quot;Ground&quot;, &quot;type&quot;: &quot;Tiles&quot;, &quot;properties&quot;: { &quot;tileset&quot;: &quot;art/tiles.tileset&quot;,
+        &quot;cells&quot;: { &quot;x&quot;: 0, &quot;y&quot;: 10, &quot;w&quot;: 4, &quot;h&quot;: 1, &quot;data&quot;: &quot;3*4&quot; } } },
+      { &quot;name&quot;: &quot;Coin&quot;, &quot;type&quot;: &quot;Zone&quot;, &quot;script&quot;: &quot;scripts/pickup.lua&quot;, &quot;tags&quot;: [&quot;coin&quot;] }
+    ]
+  }
+}</code></pre>
+<ul><li>An entry has <code>name</code>, then <code>type</code> (a piece type) or <code>scene</code> (another scene placed here), and optionally <code>script</code>, <code>properties</code> (only values that differ from the defaults, plus script variables), <code>tags</code> and <code>children</code>.</li><li>A placed scene's <code>properties</code> override its scene's root; its <code>children</code> are added to the ones its scene has.</li><li>Paths are relative to the project's folder.</li><li>Tiles <code>cells</code> are one rectangle of tile numbers, row by row; <code>-1</code> is empty and <code>n*k</code> repeats <code>n</code> <code>k</code> times.</li></ul>
+<h2 id="sprites"><a class="anchor" href="#sprites" aria-hidden="true">#</a>Sprites</h2>
+<p>A <code>.sprite</code> file describes an image's frames and animations:</p>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.sprite&quot;,
+  &quot;version&quot;: 1,
+  &quot;image&quot;: &quot;hero.png&quot;,
+  &quot;frameWidth&quot;: 32,
+  &quot;frameHeight&quot;: 32,
+  &quot;origin&quot;: [16, 32],
+  &quot;animations&quot;: {
+    &quot;idle&quot;: { &quot;frames&quot;: [0, 1], &quot;fps&quot;: 4, &quot;loop&quot;: true },
+    &quot;run&quot;: { &quot;frames&quot;: [2, 3, 4, 5], &quot;fps&quot;: 12, &quot;loop&quot;: true }
+  }
+}</code></pre>
+<p>Frames are numbered from 0, left to right and top to bottom. <code>image</code> is relative to the <code>.sprite</code> file. A <code>Sprite</code> whose <code>image</code> is a <code>.sprite</code> plays its animations; the ready-made player scripts play <code>idle</code>, <code>run</code> or <code>walk</code>, <code>jump</code> and <code>fall</code> when they exist (<code>sprite:hasAnimation(name)</code>).</p>
+<h2 id="tilesets"><a class="anchor" href="#tilesets" aria-hidden="true">#</a>Tilesets</h2>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.tileset&quot;,
+  &quot;version&quot;: 1,
+  &quot;image&quot;: &quot;terrain.png&quot;,
+  &quot;tileWidth&quot;: 16,
+  &quot;tileHeight&quot;: 16,
+  &quot;tiles&quot;: { &quot;0&quot;: { &quot;solid&quot;: true }, &quot;4&quot;: { &quot;name&quot;: &quot;spikes&quot;, &quot;damage&quot;: 1 }, &quot;7&quot;: { &quot;solid&quot;: true, &quot;oneWay&quot;: true } }
+}</code></pre>
+<p><code>solid</code> tiles block Bodies, <code>oneWay</code> ones only from above (a Body with <code>tiles</code> in its <code>passThrough</code> ignores them). Other settings are for scripts: <code>body:touchingTile(&quot;damage&quot;)</code> returns the settings of a touching tile that has one, and <code>tiles:tileInfo(tile)</code> returns any tile's.</p>
+<h2 id="sound-effects"><a class="anchor" href="#sound-effects" aria-hidden="true">#</a>Sound effects</h2>
+<p><code>sfx/jump.sfx</code>. Synth parameters in physical units; the synthesizer renders 44100 Hz mono.</p>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.sfx&quot;,
+  &quot;version&quot;: 1,
+  &quot;wave&quot;: &quot;square&quot;,
+  &quot;volume&quot;: 0.5,
+  &quot;attack&quot;: 0.0,
+  &quot;sustain&quot;: 0.08,
+  &quot;punch&quot;: 0.3,
+  &quot;decay&quot;: 0.25,
+  &quot;frequency&quot;: 440,
+  &quot;minFrequency&quot;: 30,
+  &quot;slide&quot;: 1.5,
+  &quot;deltaSlide&quot;: 0,
+  &quot;vibratoDepth&quot;: 0,
+  &quot;vibratoSpeed&quot;: 0,
+  &quot;arpeggio&quot;: 0,
+  &quot;arpeggioTime&quot;: 0,
+  &quot;duty&quot;: 0.5,
+  &quot;dutySweep&quot;: 0,
+  &quot;repeat&quot;: 0,
+  &quot;lowpass&quot;: 1,
+  &quot;highpass&quot;: 0,
+  &quot;bitcrush&quot;: 0
+}</code></pre>
+<div class="table"><table>
+<thead><tr><th>Field</th><th>Range</th><th>Meaning</th></tr></thead>
+<tbody><tr><td><code>wave</code></td><td><code>square</code>, <code>sawtooth</code>, <code>triangle</code>, <code>sine</code>, <code>noise</code></td><td>Oscillator</td></tr>
+<tr><td><code>volume</code></td><td>0–1</td><td>Output level</td></tr>
+<tr><td><code>attack</code>, <code>sustain</code>, <code>decay</code></td><td>seconds, ≥ 0</td><td>Envelope: rise, hold, fall. Length = their sum</td></tr>
+<tr><td><code>punch</code></td><td>0–1</td><td>Extra level at the start of the sustain, fading out over it</td></tr>
+<tr><td><code>frequency</code></td><td>Hz, 20–8000</td><td>Start pitch</td></tr>
+<tr><td><code>minFrequency</code></td><td>Hz</td><td>The sound stops early when a downward slide reaches it</td></tr>
+<tr><td><code>slide</code></td><td>octaves/second</td><td>Pitch change; negative falls</td></tr>
+<tr><td><code>deltaSlide</code></td><td>octaves/second²</td><td>Change of <code>slide</code></td></tr>
+<tr><td><code>vibratoDepth</code></td><td>semitones</td><td>Vibrato amount</td></tr>
+<tr><td><code>vibratoSpeed</code></td><td>Hz</td><td>Vibrato rate</td></tr>
+<tr><td><code>arpeggio</code></td><td>semitones</td><td>Pitch jump at <code>arpeggioTime</code></td></tr>
+<tr><td><code>arpeggioTime</code></td><td>seconds; 0 = off</td><td>When the jump happens</td></tr>
+<tr><td><code>duty</code></td><td>0–1</td><td>Square-wave pulse width</td></tr>
+<tr><td><code>dutySweep</code></td><td>per second</td><td>Change of <code>duty</code></td></tr>
+<tr><td><code>repeat</code></td><td>seconds; 0 = off</td><td>Restart the pitch effects every so often</td></tr>
+<tr><td><code>lowpass</code></td><td>0–1; 1 = off</td><td>Low-pass cutoff (0 = darkest)</td></tr>
+<tr><td><code>highpass</code></td><td>0–1; 0 = off</td><td>High-pass cutoff</td></tr>
+<tr><td><code>bitcrush</code></td><td>0–1; 0 = off</td><td>Sample-rate and bit-depth reduction</td></tr></tbody>
+</table></div>
+<p>Missing fields take the values in the example above. The same parameters always produce the same samples (<code>noise</code> uses a fixed seed).</p>
+<h3 id="sound-effects-in-code"><a class="anchor" href="#sound-effects-in-code" aria-hidden="true">#</a>Sound effects in code</h3>
+<pre><code class="lang-lua">local jump = smitten.synth.sfx(&quot;sfx/jump&quot;)     -- cached; rendered once
+jump:play()                              -- returns the love Source playing it (several can overlap)
+jump:play({ volume = 0.5, pitch = 1.2 })
+jump:stop()                              -- stops every copy
+jump.soundData                           -- the rendered love SoundData
+jump.duration                            -- seconds</code></pre>
+<h2 id="songs"><a class="anchor" href="#songs" aria-hidden="true">#</a>Songs</h2>
+<p><code>music/theme.song</code>.</p>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.song&quot;,
+  &quot;version&quot;: 1,
+  &quot;bpm&quot;: 120,
+  &quot;stepsPerBeat&quot;: 4,
+  &quot;patternLength&quot;: 32,
+  &quot;loop&quot;: true,
+  &quot;loopStart&quot;: 0,
+  &quot;channels&quot;: [
+    { &quot;name&quot;: &quot;Lead&quot;, &quot;instrument&quot;: 0, &quot;volume&quot;: 0.8 },
+    { &quot;name&quot;: &quot;Bass&quot;, &quot;instrument&quot;: 1, &quot;volume&quot;: 0.8 },
+    { &quot;name&quot;: &quot;Drums&quot;, &quot;instrument&quot;: 2, &quot;volume&quot;: 0.8 },
+    { &quot;name&quot;: &quot;Pad&quot;, &quot;instrument&quot;: 3, &quot;volume&quot;: 0.6 }
+  ],
+  &quot;instruments&quot;: [
+    {
+      &quot;name&quot;: &quot;Square lead&quot;, &quot;type&quot;: &quot;synth&quot;, &quot;wave&quot;: &quot;square&quot;, &quot;volume&quot;: 0.5,
+      &quot;attack&quot;: 0.01, &quot;decay&quot;: 0.1, &quot;sustain&quot;: 0.6, &quot;release&quot;: 0.1,
+      &quot;duty&quot;: 0.5, &quot;vibratoDepth&quot;: 0, &quot;vibratoSpeed&quot;: 5, &quot;lowpass&quot;: 1
+    },
+    { &quot;name&quot;: &quot;Kick&quot;, &quot;type&quot;: &quot;sfx&quot;, &quot;sfx&quot;: &quot;../sfx/kick.sfx&quot;, &quot;pitched&quot;: false }
+  ],
+  &quot;patterns&quot;: [
+    {
+      &quot;name&quot;: &quot;Intro&quot;,
+      &quot;notes&quot;: [
+        { &quot;channel&quot;: 0, &quot;step&quot;: 0, &quot;length&quot;: 2, &quot;note&quot;: 60, &quot;volume&quot;: 1 }
+      ]
+    }
+  ],
+  &quot;order&quot;: [0, 0, 1]
+}</code></pre>
+<ul><li>Steps are <code>1 / stepsPerBeat</code> of a beat at <code>bpm</code>. A pattern is <code>patternLength</code> steps long. <code>order</code> lists patterns to play in sequence.</li><li>A note plays on its channel with the channel's instrument. Notes on the same channel may overlap (chords). <code>note</code> is a MIDI number (60 = middle C, 261.63 Hz). <code>volume</code> 0–1, default 1.</li><li>Synth instruments: <code>wave</code> as in sound effects, an ADSR envelope (<code>attack</code>, <code>decay</code>, <code>release</code> in seconds, <code>sustain</code> level 0–1), <code>duty</code>, vibrato, <code>lowpass</code>. The note sounds for <code>length</code> steps, then releases.</li><li>Sound-effect instruments play an <code>.sfx</code> per note, whole (a note's <code>length</code> doesn't cut it); with <code>pitched: true</code> its <code>frequency</code> (and <code>minFrequency</code>) is shifted by the note's distance from 60. An optional <code>volume</code> (default 1) scales them.</li><li><code>loop</code>: whether playback loops; <code>loopStart</code> is the index in <code>order</code> it loops back to. When looping, notes still ringing at the end of the song ring on over the start of the next loop.</li><li>Missing fields take these defaults: <code>bpm</code> 120, <code>stepsPerBeat</code> 4, <code>patternLength</code> 32, <code>loop</code> true, <code>loopStart</code> 0; a channel's <code>instrument</code> is its own index and <code>volume</code> 1; synth instruments' fields as in &quot;Square lead&quot; above; a note's <code>channel</code> 0, <code>step</code> 0, <code>length</code> 1, <code>note</code> 60, <code>volume</code> 1. Steps and lengths may be fractional.</li></ul>
+<h3 id="songs-in-code"><a class="anchor" href="#songs-in-code" aria-hidden="true">#</a>Songs in code</h3>
+<pre><code class="lang-lua">local theme = smitten.synth.song(&quot;music/theme&quot;)   -- cached; rendered once, on first use
+theme:play()                                -- loops as the file says
+theme:stop(); theme:pause(); theme:resume()
+theme:setVolume(0.5)
+theme:isPlaying()
+theme.duration                              -- seconds, one pass through `order`</code></pre>
+<p>Songs are rendered to a buffer by the C++ synthesizer and played as an ordinary LÖVE Source, so they keep playing in background tabs.</p>
+<h3 id="the-synthesizer-in-code"><a class="anchor" href="#the-synthesizer-in-code" aria-hidden="true">#</a>The synthesizer in code</h3>
+<pre><code class="lang-lua">smitten.synth.renderSfx(params)            -- params: a decoded .sfx table -&gt; SoundData
+smitten.synth.renderSong(song, basePath)   -- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -&gt; SoundData</code></pre>
+<p>SoundData is 44100 Hz, 16-bit, mono. <code>renderSong</code> renders one pass through <code>order</code>, followed by whatever still rings.</p>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="engine"><span>Previous</span>The engine table</a><a class="next" href="editor-tools"><span>Next</span>Editor tools</a></nav>
+  </main>
+</div>
+</body>
+</html>

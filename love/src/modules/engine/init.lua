@@ -74,6 +74,22 @@ local function extendModules()
 		function love.timer.every(seconds, fn) return require("love.tween").every(seconds, fn) end
 	end
 
+	if love.audio then
+		-- The short API's sound calls (scene/audio.lua), for any code.
+		local a = love.audio
+		local function sound() return require("love.scene.audio") end
+		local function find(name) return require("love.scene.script").soundPath(name, 3) end
+		---Plays a sound once: smitten.audio.sfx("coin", { volume = 0.5 }).
+		function a.sfx(name, volume, pitch) return sound().sfx(find(name), volume, pitch) end
+		---Plays music on a loop instead of the music playing.
+		function a.music(name, options) return sound().music(find(name), options) end
+		function a.stopMusic(fade) return sound().stopMusic(fade) end
+		function a.pauseMusic() return sound().pauseMusic() end
+		function a.resumeMusic() return sound().resumeMusic() end
+		---The Source playing the music, or nil.
+		function a.getMusic() return sound().currentMusic() end
+	end
+
 	if love.keyboard then
 		---True on the frame a key went down.
 		function love.keyboard.pressed(key) return input._rawPressed(key) end
@@ -111,8 +127,8 @@ local function extendModules()
 end
 
 local INPUT_EVENTS = {
-	"keypressed", "keyreleased", "mousepressed", "mousereleased", "mousemoved", "gamepadpressed",
-	"gamepadreleased", "gamepadaxis", "focus",
+	"keypressed", "keyreleased", "mousepressed", "mousereleased", "mousemoved", "wheelmoved", "textinput",
+	"gamepadpressed", "gamepadreleased", "gamepadaxis", "focus",
 }
 
 local function hookHandlers()
@@ -153,6 +169,13 @@ function engine.init(conf)
 	local project = readProject()
 	engine.project = project
 	if project then
+		-- Saves (smitten.storage) belong to the game: its folder is named
+		-- after the project, unless conf.lua or smitten.json names one.
+		if not conf.identity then
+			local id = type(project.identity) == "string" and project.identity or project.name
+			id = type(id) == "string" and id:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", "") or ""
+			if id ~= "" then conf.identity = "smitten-" .. id end
+		end
 		if love.graphics then require("love.display").setup(project.display) end
 		require("love.input")._configure(project.input)
 		-- boot.lua opens the window after this, with conf's title.
@@ -184,10 +207,15 @@ end
 
 function engine.update(dt)
 	if love._livePoll then require("love.engine.live").poll() end
-	local tween = package.loaded["love.tween"]
-	if tween then tween._update(dt) end
 	local s = scene()
-	if s then s._update(dt) end
+	-- smitten.scene.timeScale slows the game down or speeds it up; music
+	-- fades and scene transitions go at the real speed.
+	local scaled = dt * (s and s.timeScale or 1)
+	local tween = package.loaded["love.tween"]
+	if tween then tween._update(scaled) end
+	local sound = package.loaded["love.scene.audio"]
+	if sound then sound._update(dt) end
+	if s then s._update(scaled, dt) end
 end
 
 function engine.draw(userDraw)
