@@ -3,6 +3,9 @@
 
 .mus-toolbar { gap: 4px; }
 .mus-toolbar .segmented button { height: 22px; padding: 0 8px; }
+.mus-play { gap: 6px; }
+.mus-play-song { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; padding: 0 12px; }
+.mus-play-song:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
 .mus-play.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
 .mus-play svg { fill: currentColor; }
 .mus-play .icon:has(polygon) svg { stroke-width: 1.5; }
@@ -30,6 +33,9 @@
 .mus-count { color: var(--fg-subtle); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: right; }
 .mus-more { width: 22px; height: 22px; opacity: 0; }
 .mus-ch:hover .mus-more, .mus-pat:hover .mus-more, .mus-more:focus-visible { opacity: 1; }
+/* Mute and solo appear on hover, on the selected channel, or while on. */
+.mus-ch .mus-ms { visibility: hidden; }
+.mus-ch:hover .mus-ms, .mus-ch.selected .mus-ms, .mus-ch.ms-on .mus-ms, .mus-ms:focus-visible { visibility: visible; }
 
 .mus-ch {
   padding: 5px 6px 6px;
@@ -56,9 +62,10 @@
   flex: none;
 }
 .mus-ms:hover { color: var(--fg); border-color: var(--border-strong); }
-.mus-ms[aria-pressed="true"] { background: var(--danger-solid); border-color: var(--danger-solid); color: #fff; }
-.mus-ms.solo[aria-pressed="true"] { background: var(--warning); border-color: var(--warning); color: #111; }
-.mus-ch-bottom { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; align-items: center; margin-top: 4px; padding-left: 16px; }
+.mus-ms[aria-pressed="true"] { background: var(--danger-solid); border-color: var(--danger-solid); color: var(--accent-fg); }
+.mus-ms.solo[aria-pressed="true"] { background: var(--warning); border-color: var(--warning); color: var(--bg); }
+.mus-ch-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; margin-top: 4px; padding-left: 16px; }
+.mus-ch-vol { width: 72px; }
 .mus-ch-ins { width: 100%; min-width: 0; height: 24px; font-size: 12px; }
 
 .mus-pat {
@@ -85,8 +92,12 @@
 .mus-pat.selected .mus-pat-num { background: var(--accent); color: var(--accent-fg); }
 .mus-pat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Instrument panel */
-.mus-instrument { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+/* Instrument panel (collapsed by default) */
+.mus-ins-section .mus-section-head { gap: 4px; }
+.mus-ins-section .snd-disclosure { flex: 1; padding-left: 2px; min-width: 0; overflow: hidden; }
+.mus-ins-section .snd-disclosure-label { flex: none; }
+.mus-ins-section .snd-disclosure-note { color: var(--fg-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mus-instrument { display: flex; flex-direction: column; gap: 8px; padding: 4px 4px 0; }
 .mus-ins-name { width: 100%; font-weight: 500; }
 .mus-ins-meta { display: flex; }
 .mus-ins-type { width: 100%; }
@@ -119,6 +130,33 @@
   scrollbar-color: var(--border-strong) transparent;
 }
 .mus-scroll.select-mode { cursor: default; }
+.mus-empty-hint {
+  position: absolute;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  text-align: center;
+  pointer-events: none;
+}
+.mus-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+.mus-empty-hint strong { color: var(--fg); font-size: 14px; font-weight: 600; }
 .mus-sizer { pointer-events: none; }
 
 .mus-status {
@@ -183,10 +221,10 @@
   background: var(--panel-elev);
   color: var(--fg);
   cursor: pointer;
-  border-bottom: 3px solid hsl(var(--slot-hue) 65% 55%);
+  border-bottom: 3px solid var(--slot-color);
 }
 .mus-slot:hover { background: var(--panel-2); }
-.mus-slot.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); border-bottom-color: hsl(var(--slot-hue) 65% 55%); }
+.mus-slot.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); border-bottom-color: var(--slot-color); }
 .mus-slot.playing { background: var(--accent-soft); }
 .mus-slot.drop-before::before, .mus-slot.drop-after::after {
   content: "";
@@ -215,6 +253,11 @@
   cursor: pointer;
 }
 .mus-slot-add:hover { color: var(--fg); background: var(--hover); }
+
+.mus-form { display: flex; flex-direction: column; gap: 14px; }
+.mus-form .field { display: flex; flex-direction: column; gap: 4px; }
+.mus-form-label { font-size: 12px; font-weight: 500; color: var(--fg-muted); }
+.mus-form-hint { font-size: 11.5px; color: var(--fg-subtle); }
 
 @media (max-width: 760px) {
   .mus-sidebar { width: 210px; }

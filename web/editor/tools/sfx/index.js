@@ -4,18 +4,79 @@
 // sound exactly like the game.
 
 import {
-  PARAMS, PARAM, GROUPS, WAVES, PRESETS, SFX_DEFAULTS,
+  PARAM, WAVES, PRESETS, SFX_DEFAULTS,
   roundParam, normalizeSfx, parseSfx, sfxText, sfxDuration, mutate, newSfxParams,
 } from './params.js';
 import {
   loadStyle, SynthState, synthBanner, Player, encodeWav, cssVar, onThemeChange, fitCanvas, History,
-  modHeld, typingTarget, baseName, waveIcon, isMac, createSlider, SHARED_STYLE,
+  modHeld, typingTarget, baseName, waveIcon, isMac, createSlider, disclosure, SHARED_STYLE,
 } from './audio.js';
 
 loadStyle(SHARED_STYLE);
 
 const RENDER_DELAY = 180; // ms after the last change before the preview renders
 const AUTOPLAY_KEY = 'smitten.sfx.autoplay';
+
+/** The controls under "More sound controls", in groups. */
+const MORE_GROUPS = [
+  { id: 'envelope', label: 'Envelope', keys: ['attack', 'sustain', 'punch', 'decay'] },
+  { id: 'pitch', label: 'Pitch effects', keys: ['deltaSlide', 'minFrequency', 'repeat'] },
+  { id: 'vibrato', label: 'Vibrato and arpeggio', keys: ['vibratoDepth', 'vibratoSpeed', 'arpeggio', 'arpeggioTime'] },
+  { id: 'duty', label: 'Duty', keys: ['duty', 'dutySweep'] },
+  { id: 'filters', label: 'Filters and bitcrush', keys: ['lowpass', 'highpass', 'bitcrush'] },
+];
+
+const WAVE_HELP = {
+  square: 'Square: the classic chiptune beep',
+  sawtooth: 'Sawtooth: bright and buzzy',
+  triangle: 'Triangle: soft and round',
+  sine: 'Sine: pure and smooth',
+  noise: 'Noise: hiss, for explosions and hits',
+};
+
+const secondsText = (v) => (v === 0 ? '0 s' : v < 1 ? `${Math.round(v * 1000)} ms` : `${Number(v.toFixed(2))} s`);
+
+/** The "Length" slider: attack + sustain + decay, scaled together. */
+const LENGTH_PARAM = {
+  key: 'length', label: 'Length', min: 0.01, max: 7, curve: 'sq+', unit: 's', digits: 3,
+  format: secondsText, help: 'How long the sound lasts (stretches the envelope)',
+};
+
+const ENVELOPE = ['attack', 'sustain', 'decay'];
+
+/** params with attack, sustain and decay scaled so they add up to `length`. */
+function withLength(params, length) {
+  const total = sfxDuration(params);
+  const out = { ...params };
+  if (total <= 0) {
+    out.sustain = roundParam(PARAM.sustain, length);
+    return out;
+  }
+  // Scale, then give any rounding or clamping difference to the decay.
+  const k = length / total;
+  for (const key of ENVELOPE) out[key] = roundParam(PARAM[key], params[key] * k);
+  const rest = length - out.attack - out.sustain;
+  out.decay = roundParam(PARAM.decay, Math.max(0, Math.min(rest, PARAM.decay.max)));
+  if (out.attack + out.sustain + out.decay < length - 0.0005) {
+    out.sustain = roundParam(PARAM.sustain, length - out.attack - out.decay);
+  }
+  return out;
+}
+
+/** How many effects under "More sound controls" are switched on. */
+function effectsOn(p) {
+  let n = 0;
+  if (p.deltaSlide !== 0) n++;
+  if (p.minFrequency > 20) n++;
+  if (p.repeat > 0) n++;
+  if (p.vibratoDepth > 0) n++;
+  if (p.arpeggio !== 0 && p.arpeggioTime > 0) n++;
+  if (p.wave === 'square' && p.dutySweep !== 0) n++;
+  if (p.lowpass < 1) n++;
+  if (p.highpass > 0) n++;
+  if (p.bitcrush > 0) n++;
+  return n;
+}
 
 function readAutoplay() {
   try { return localStorage.getItem(AUTOPLAY_KEY) !== '0'; } catch { return true; }
@@ -64,61 +125,69 @@ class SfxEditor {
 
     this.btnUndo = h('button', { type: 'button', class: 'icon-btn small', title: `Undo (${mod}Z)`, 'aria-label': 'Undo', onclick: () => this.undo() }, undoIcon());
     this.btnRedo = h('button', { type: 'button', class: 'icon-btn small', title: `Redo (${mod}Shift+Z)`, 'aria-label': 'Redo', onclick: () => this.redo() }, undoIcon(true));
-    this.btnExport = h('button', { type: 'button', class: 'btn small ghost', title: 'Download the rendered sound as a 16-bit WAV file', onclick: () => this.exportWav() }, icon('download', 14), 'Export WAV');
     this.autoSwitch = h('button', {
       type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(this.autoplay), 'aria-label': 'Play on change',
+      title: 'Play the sound every time you change it',
       onclick: () => {
         this.autoplay = !this.autoplay;
         writeAutoplay(this.autoplay);
         this.autoSwitch.setAttribute('aria-checked', String(this.autoplay));
       },
     });
+    const moreBtn = h('button', {
+      type: 'button', class: 'icon-btn small', title: 'More: copy, paste, export WAV', 'aria-label': 'More actions',
+      onclick: () => this.showMoreMenu(moreBtn),
+    }, icon('more', 16));
 
     const toolbar = h('div', { class: 'snd-toolbar' },
       this.btnUndo, this.btnRedo,
-      h('span', { class: 'snd-sep' }),
-      h('button', { type: 'button', class: 'btn small ghost', title: 'Copy the parameters as JSON', onclick: () => this.copyParams() }, icon('copy', 14), 'Copy'),
-      h('button', { type: 'button', class: 'btn small ghost', title: 'Paste parameters copied as JSON', onclick: () => this.pasteParams() }, pasteIcon(), 'Paste'),
-      h('span', { class: 'snd-sep' }),
-      this.btnExport,
       h('span', { class: 'snd-spacer' }),
-      h('label', { class: 'snd-switch-label', onclick: (e) => { if (e.target !== this.autoSwitch) this.autoSwitch.click(); } }, 'Play on change'),
+      h('label', { class: 'snd-switch-label', title: 'Play the sound every time you change it', onclick: (e) => { if (e.target !== this.autoSwitch) this.autoSwitch.click(); } }, 'Play on change'),
       this.autoSwitch,
+      h('span', { class: 'snd-sep' }),
+      moreBtn,
     );
 
     this.banner = synthBanner(this.ui, this.synth);
 
-    // Presets
+    // Presets: the quickest way to a sound, as in sfxr.
     const presetList = h('div', { class: 'sfx-presets' },
-      h('div', { class: 'snd-heading' }, 'Presets'),
+      h('div', { class: 'snd-heading' }, 'Start from'),
       ...PRESETS.map((p) => h('button', {
-        type: 'button', class: 'sfx-preset', title: `A new random ${p.label.toLowerCase()} sound`, onclick: () => this.applyPreset(p),
+        type: 'button', class: 'sfx-preset', title: `Make a new random ${p.label.toLowerCase()} sound`, onclick: () => this.applyPreset(p),
       }, presetIcon(p.id), h('span', {}, p.label))),
       h('div', { class: 'snd-divider' }),
-      h('button', { type: 'button', class: 'sfx-preset', title: 'Change the parameters slightly', onclick: () => this.mutate() }, mutateIcon(), h('span', {}, 'Mutate')),
+      h('button', { type: 'button', class: 'sfx-preset', title: 'Change the sound a little, keeping the wave', onclick: () => this.mutate() }, mutateIcon(), h('span', {}, 'Mutate')),
     );
 
     // Waveform and the big play button
-    this.btnPlay = h('button', { type: 'button', class: 'sfx-play', title: 'Play (Space)', 'aria-label': 'Play', onclick: () => this.play() }, icon('play', 26));
+    this.btnPlay = h('button', { type: 'button', class: 'sfx-play', title: 'Play (Space)', 'aria-label': 'Play' }, icon('play', 26), h('span', { class: 'sfx-play-label' }, 'Play'));
+    this.btnPlay.addEventListener('click', () => this.play());
     this.canvas = h('canvas', { class: 'sfx-wave-canvas', 'aria-label': 'Waveform of the rendered sound' });
     this.waveInfo = h('div', { class: 'sfx-wave-info' });
-    this.waveBox = h('div', { class: 'sfx-wave' }, this.canvas, this.waveInfo);
+    this.waveBox = h('div', { class: 'sfx-wave', title: 'Click to play (Space)', onclick: () => this.play() }, this.canvas, this.waveInfo);
     const waveRow = h('div', { class: 'sfx-wave-row' }, this.btnPlay, this.waveBox);
 
-    // Parameter groups
+    // The basics: wave, pitch, length, slide and volume.
     this.rows = new Map();
     this.waveButtons = new Map();
-    const cards = GROUPS.map((g) => {
+    const seg = h('div', { class: 'sfx-waves', role: 'group', 'aria-label': 'Wave' });
+    for (const w of WAVES) {
+      const b = h('button', { type: 'button', title: WAVE_HELP[w], 'aria-pressed': 'false', onclick: () => this.setWave(w) }, waveIcon(w), h('span', {}, w));
+      this.waveButtons.set(w, b);
+      seg.append(b);
+    }
+    const basics = h('section', { class: 'snd-card sfx-basics' },
+      seg,
+      this.paramRow({ ...PARAM.frequency, label: 'Pitch', help: 'How high the sound starts' }),
+      this.lengthRow(),
+      this.paramRow({ ...PARAM.slide, help: 'Pitch change over time: right rises, left falls' }),
+      this.paramRow(PARAM.volume));
+
+    // Everything else, folded away until asked for.
+    this.cards = new Map();
+    const cards = MORE_GROUPS.map((g) => {
       const card = h('section', { class: `snd-card sfx-group-${g.id}` }, h('h3', { class: 'snd-card-title' }, g.label));
-      if (g.id === 'oscillator') {
-        const seg = h('div', { class: 'sfx-waves', role: 'group', 'aria-label': 'Wave' });
-        for (const w of WAVES) {
-          const b = h('button', { type: 'button', title: w[0].toUpperCase() + w.slice(1), 'aria-pressed': 'false', onclick: () => this.setWave(w) }, waveIcon(w), h('span', {}, w));
-          this.waveButtons.set(w, b);
-          seg.append(b);
-        }
-        card.append(seg);
-      }
       if (g.id === 'envelope') {
         this.lengthInfo = h('span', { class: 'snd-card-note' });
         card.firstChild.append(this.lengthInfo);
@@ -128,12 +197,18 @@ class SfxEditor {
         card.firstChild.append(this.dutyNote);
         this.dutyCard = card;
       }
-      for (const p of PARAMS.filter((q) => q.group === g.id)) card.append(this.paramRow(p));
+      for (const key of g.keys) card.append(this.paramRow(PARAM[key]));
       return card;
     });
-    this.groups = h('div', { class: 'sfx-groups' }, ...cards);
+    this.more = disclosure(this.ui, {
+      key: 'smitten.sfx.more',
+      label: 'More sound controls',
+      body: h('div', { class: 'sfx-groups' }, ...cards),
+      onToggle: () => requestAnimationFrame(() => this.drawWave()),
+    });
+    this.more.button.title = 'Envelope, vibrato, arpeggio, duty, filters and bitcrush';
 
-    const main = h('div', { class: 'sfx-main' }, waveRow, this.groups);
+    const main = h('div', { class: 'sfx-main' }, waveRow, basics, this.more.element);
     const body = h('div', { class: 'sfx-body' }, presetList, main);
 
     this.element = h('div', { class: 'snd-tool sfx-tool', tabindex: '-1' }, toolbar, this.banner.element, body);
@@ -146,6 +221,16 @@ class SfxEditor {
 
     this.syncControls();
     this.onSynthStatus();
+  }
+
+  showMoreMenu(anchor) {
+    const mod = isMac ? '⌘' : 'Ctrl+';
+    this.ui.showMenu(anchor, [
+      { label: 'Copy sound settings', icon: 'copy', shortcut: `${mod}C`, action: () => this.copyParams() },
+      { label: 'Paste sound settings', shortcut: `${mod}V`, action: () => this.pasteParams() },
+      '-',
+      { label: 'Export WAV…', icon: 'download', disabled: !this.synth.ready, action: () => this.exportWav() },
+    ]);
   }
 
   paramRow(p) {
@@ -163,16 +248,37 @@ class SfxEditor {
     return slider.element;
   }
 
+  /** One slider for the whole length: scales attack, sustain and decay together. */
+  lengthRow() {
+    const p = LENGTH_PARAM;
+    const slider = createSlider(this.ui, p, {
+      get: () => roundParam(p, sfxDuration(this.params)),
+      set: (v, gesture) => {
+        if (gesture) this.history.record('slider:length');
+        else this.history.record();
+        this.params = withLength(this.params, v);
+        this.changed();
+      },
+      end: () => this.history.settle(),
+      reset: roundParam(p, sfxDuration(SFX_DEFAULTS)),
+      escape: () => this.element.focus(),
+    });
+    this.rows.set('length', slider);
+    return slider.element;
+  }
+
   syncRow(key) {
     this.rows.get(key)?.sync();
   }
 
   syncControls() {
-    for (const p of PARAMS) this.syncRow(p.key);
+    for (const key of this.rows.keys()) this.syncRow(key);
     for (const [w, b] of this.waveButtons) b.setAttribute('aria-pressed', String(this.params.wave === w));
     this.dutyCard.classList.toggle('inactive', this.params.wave !== 'square');
     this.dutyNote.hidden = this.params.wave === 'square';
     this.lengthInfo.textContent = `length ${PARAM.sustain.format(roundParam({ digits: 3, min: 0, max: 99 }, sfxDuration(this.params)))}`;
+    const on = effectsOn(this.params);
+    this.more.note.textContent = on ? `${on} effect${on === 1 ? '' : 's'} on` : '';
     this.btnUndo.disabled = !this.history.canUndo;
     this.btnRedo.disabled = !this.history.canRedo;
   }
@@ -182,7 +288,6 @@ class SfxEditor {
     this.banner.update();
     const ready = this.synth.ready;
     this.btnPlay.disabled = !ready;
-    this.btnExport.disabled = !ready;
     this.element.classList.toggle('no-synth', !ready);
     if (ready) this.render({ play: false });
     else this.drawWave();

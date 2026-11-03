@@ -21,8 +21,13 @@ const TOOLS = [
   { id: 'ellipse', label: 'Ellipse', key: 'Shift+U' },
   { id: 'select', label: 'Select', key: 'M' },
   { id: 'picker', label: 'Color picker', key: 'I' },
-  { id: 'origin', label: 'Origin', key: 'O' },
+  { id: 'origin', label: 'Origin', key: 'O', hidden: true }, // in "Sprite settings"
 ];
+
+// Fixed colors from the project's default palette (Sweetie 16), for marks
+// that must show on any pixel: selection ants, brush outline, origin marker.
+const INK = '#1a1c2c';
+const PAPER = '#f4f4f4';
 
 const ANCHORS = [
   ['top-left', 'Top left'], ['top', 'Top'], ['top-right', 'Top right'],
@@ -161,6 +166,7 @@ export class SpriteEditor {
     }
     this.seen = { png: host.read(this.pngPath), json: host.read(this.metaPath) };
     this.loaded = true;
+    this.updateEmptyHint();
   }
 
   setDoc(doc, keepView) {
@@ -235,6 +241,7 @@ export class SpriteEditor {
     this.toolButtons = new Map();
     const toolGroup = h('div', { class: 'spr-group', role: 'toolbar', 'aria-label': 'Tools' });
     for (const t of TOOLS) {
+      if (t.hidden) continue;
       const b = btn(t.id, `${t.label} (${t.key})`, () => this.setTool(t.id), { 'aria-pressed': 'false' });
       this.toolButtons.set(t.id, b);
       toolGroup.append(b);
@@ -248,16 +255,15 @@ export class SpriteEditor {
       h('button', { type: 'button', class: 'icon-btn small spr-step', title: 'Bigger brush (])', onclick: () => this.setBrush(this.brush + 1) }, '+'));
     this.btnFilled = btn('filled', 'Filled shape', () => { this.filled = !this.filled; this.renderToolbar(); }, { 'aria-pressed': 'false' });
     this.btnGlobal = h('button', { type: 'button', class: 'btn small ghost spr-toggle', title: 'Fill every pixel of that color, not just the touching ones (or Shift+click)', 'aria-pressed': 'false', onclick: () => { this.contiguous = !this.contiguous; this.renderToolbar(); } }, 'Global');
-    this.btnMirrorX = btn('mirrorX', 'Mirror left and right', () => { this.mirrorX = !this.mirrorX; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
-    this.btnMirrorY = btn('mirrorY', 'Mirror top and bottom', () => { this.mirrorY = !this.mirrorY; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
+    this.btnMirrorX = btn('mirrorX', 'Mirror: draw on both the left and right sides', () => { this.mirrorX = !this.mirrorX; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
+    this.btnMirrorY = btn('mirrorY', 'Mirror: draw on both the top and bottom', () => { this.mirrorY = !this.mirrorY; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
 
-    this.btnPixelGrid = btn('pixelGrid', 'Pixel grid', () => { this.pixelGrid = !this.pixelGrid; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
-    this.btnGrid = btn('grid', 'Grid (size in the menu)', () => { this.grid = !this.grid; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
-    this.btnOnion = btn('onion', 'Onion skin: show the frames before and after', () => { this.onion = !this.onion; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
+    this.btnPixelGrid = btn('pixelGrid', 'Pixel grid (shows when zoomed in)', () => { this.pixelGrid = !this.pixelGrid; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
+    this.btnOnion = btn('onion', 'Onion skin: see the frames before and after this one', () => { this.onion = !this.onion; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
     this.zoomLabel = h('button', { type: 'button', class: 'btn small ghost spr-zoom-label', title: 'Fit to the view (0)', onclick: () => this.fit() }, '100%');
     this.btnUndo = btn('undo', `Undo (${this.ui.modKey}+Z)`, () => this.undo());
     this.btnRedo = btn('redo', `Redo (${this.ui.modKey}+Shift+Z)`, () => this.redo());
-    const moreBtn = btn('more', 'More', () => this.showMoreMenu(moreBtn));
+    const moreBtn = btn('more', 'More: new sprite, resize, split into frames, grid, flip, copy and paste', () => this.showMoreMenu(moreBtn));
 
     this.toolbar = h('div', { class: 'spr-toolbar' },
       toolGroup,
@@ -265,7 +271,7 @@ export class SpriteEditor {
       this.optionsGroup = h('div', { class: 'spr-group spr-options' }, this.brushGroup, this.btnFilled, this.btnGlobal),
       h('div', { class: 'spr-group' }, this.btnMirrorX, this.btnMirrorY),
       h('div', { class: 'spr-spacer' }),
-      h('div', { class: 'spr-group' }, this.btnPixelGrid, this.btnGrid, this.btnOnion),
+      h('div', { class: 'spr-group' }, this.btnPixelGrid, this.btnOnion),
       h('div', { class: 'spr-sep' }),
       h('div', { class: 'spr-group' },
         btn('zoomOut', 'Zoom out (-)', () => this.zoomStep(-1)),
@@ -275,8 +281,8 @@ export class SpriteEditor {
       h('div', { class: 'spr-group' }, this.btnUndo, this.btnRedo, moreBtn));
 
     // Colors panel
-    this.primarySwatch = h('button', { type: 'button', class: 'spr-swatch spr-primary', title: 'Primary color (left click)', onclick: () => { try { this.colorInput.showPicker(); } catch { this.colorInput.click(); } } });
-    this.secondarySwatch = h('button', { type: 'button', class: 'spr-swatch spr-secondary', title: 'Secondary color (right click). Click to swap (X)', onclick: () => this.swapColors() });
+    this.primarySwatch = h('button', { type: 'button', class: 'spr-swatch spr-primary', title: 'Left-click color. Click to pick any color', onclick: () => { try { this.colorInput.showPicker(); } catch { this.colorInput.click(); } } });
+    this.secondarySwatch = h('button', { type: 'button', class: 'spr-swatch spr-secondary', title: 'Right-click color. Click to swap (X)', onclick: () => this.swapColors() });
     this.colorInput = h('input', { type: 'color', class: 'spr-color-input', 'aria-label': 'Pick a color', tabindex: '-1' });
     this.colorInput.addEventListener('input', () => {
       const c = draw.hexToRgba(this.colorInput.value);
@@ -292,17 +298,20 @@ export class SpriteEditor {
     this.alphaInput.addEventListener('input', () => this.setPrimary([this.primary[0], this.primary[1], this.primary[2], Number(this.alphaInput.value)]));
     this.paletteGrid = h('div', { class: 'spr-palette-grid', role: 'listbox', 'aria-label': 'Project palette' });
     this.recentGrid = h('div', { class: 'spr-palette-grid', 'aria-label': 'Recent colors' });
+    this.colorMore = this.disclosure('colorMore', 'Custom color',
+      h('div', { class: 'spr-color-more' },
+        h('div', { class: 'spr-hex-row' }, this.hexInput),
+        h('div', { class: 'spr-alpha-row' }, h('span', { class: 'spr-label' }, 'Opacity'), this.alphaInput)));
+    this.colorMore.button.title = 'Type a hex color or change the opacity';
     this.colorsPanel = h('div', { class: 'spr-panel spr-colors' },
       h('div', { class: 'spr-current' },
         h('div', { class: 'spr-swatch-pair' }, this.secondarySwatch, this.primarySwatch),
         h('button', { type: 'button', class: 'icon-btn small', title: 'Swap colors (X)', 'aria-label': 'Swap colors', onclick: () => this.swapColors() }, sicon('swap')),
         this.colorInput),
-      h('div', { class: 'spr-hex-row' }, this.hexInput),
-      h('div', { class: 'spr-alpha-row' }, h('span', { class: 'spr-label' }, 'Opacity'), this.alphaInput),
-      h('div', { class: 'spr-heading' }, 'Palette'),
       this.paletteGrid,
-      this.recentHeading = h('div', { class: 'spr-heading' }, 'Recent'),
-      this.recentGrid);
+      this.recentHeading = h('div', { class: 'spr-subheading', title: 'Colors you picked that are not in the palette' }, 'Your colors'),
+      this.recentGrid,
+      this.colorMore.element);
 
     // Canvas viewport
     this.canvas = h('canvas', { class: 'spr-canvas' });
@@ -310,7 +319,10 @@ export class SpriteEditor {
     this.statusPos = h('span', {}, '');
     this.statusInfo = h('span', {}, '');
     this.errorEl = h('div', { class: 'spr-error', hidden: true });
-    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas,
+    this.emptyHint = h('div', { class: 'spr-empty-hint', hidden: true },
+      h('strong', {}, 'Pick a color, then click and drag to draw'),
+      h('span', {}, 'Right-click draws with the second color · Space+drag moves the view'));
+    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas, this.emptyHint,
       h('div', { class: 'spr-status' }, this.statusInfo, this.statusPos), this.errorEl);
     this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
@@ -322,31 +334,39 @@ export class SpriteEditor {
 
     // Side panel: preview, animations, origin
     this.previewCanvas = h('canvas', { class: 'spr-preview-canvas' });
-    this.previewSelect = h('select', { class: 'select small spr-preview-select', 'aria-label': 'Animation to preview' });
-    this.previewSelect.addEventListener('change', () => this.selectAnimation(this.previewSelect.value || null));
-    this.btnPreviewPlay = h('button', { type: 'button', class: 'icon-btn small', title: 'Play or pause the preview', onclick: () => { this.previewPlaying = !this.previewPlaying; this.renderPreviewControls(); this.startPreview(); } });
+    this.previewCaption = h('div', { class: 'spr-preview-caption' });
+    this.btnPreviewPlay = h('button', { type: 'button', class: 'icon-btn small', title: 'Play or pause the preview (pick an animation below to preview it)', onclick: () => { this.previewPlaying = !this.previewPlaying; this.renderPreviewControls(); this.startPreview(); } });
     this.animList = h('div', { class: 'spr-anim-list', role: 'listbox', 'aria-label': 'Animations' });
     this.animDetail = h('div', { class: 'spr-anim-detail' });
     this.originBody = h('div', { class: 'spr-origin' });
+    this.btnOriginTool = h('button', {
+      type: 'button', class: 'btn small spr-origin-tool', title: 'Click the sprite to place its origin, the point it is drawn and rotated around (O)',
+      'aria-pressed': 'false', onclick: () => this.setTool(this.tool === 'origin' ? 'pencil' : 'origin'),
+    }, sicon('origin', 14), 'Place');
+    this.toolButtons.set('origin', this.btnOriginTool);
     this.infoEl = h('div', { class: 'spr-info' });
+    this.settings = this.disclosure('settingsOpen', 'Sprite settings',
+      h('div', { class: 'spr-settings' },
+        h('div', { class: 'spr-subheading', title: 'The point the sprite is drawn and rotated around' }, 'Origin'),
+        this.originBody,
+        this.infoEl));
+    this.settings.button.title = 'Origin and sheet size';
     this.sidePanel = h('div', { class: 'spr-panel spr-side' },
       h('div', { class: 'spr-heading spr-heading-row' }, 'Preview', h('span', { class: 'spr-spacer' }), this.btnPreviewPlay),
       h('div', { class: 'spr-preview' }, this.previewCanvas),
-      this.previewSelect,
+      this.previewCaption,
       h('div', { class: 'spr-heading spr-heading-row' }, 'Animations', h('span', { class: 'spr-spacer' }),
         h('button', { type: 'button', class: 'icon-btn small', title: 'New animation', 'aria-label': 'New animation', onclick: () => this.addAnimation() }, sicon('plus'))),
       this.animList,
       this.animDetail,
-      h('div', { class: 'spr-heading' }, 'Origin'),
-      this.originBody,
-      this.infoEl);
+      this.settings.element);
 
     // Frames strip
     this.frameList = h('div', { class: 'spr-frame-list', role: 'listbox', 'aria-label': 'Frames' });
     this.framesBar = h('div', { class: 'spr-frames' },
       h('div', { class: 'spr-frame-actions' },
         h('span', { class: 'spr-label' }, 'Frames'),
-        btn('plus', 'New empty frame after this one', () => this.addFrame(false)),
+        btn('plus', 'New empty frame after this one (, and . move between frames)', () => this.addFrame(false)),
         btn('copy', 'Duplicate this frame', () => this.addFrame(true)),
         this.btnDeleteFrame = btn('trash', 'Delete this frame', () => this.deleteFrame(this.current))),
       this.frameList);
@@ -377,18 +397,42 @@ export class SpriteEditor {
     savePrefs(this.prefs);
   }
 
+  /** A section folded away by default; open or closed is remembered in prefs[key]. */
+  disclosure(key, label, body) {
+    const { h } = this.ui;
+    const note = h('span', { class: 'spr-disclosure-note' });
+    const button = h('button', { type: 'button', class: 'spr-disclosure', 'aria-expanded': 'false' },
+      h('span', { class: 'spr-disclosure-chevron', 'aria-hidden': 'true' }, this.ui.icon('chevronRight', 14)),
+      h('span', {}, label), note);
+    const d = {
+      button, body, note,
+      element: h('div', { class: 'spr-disclosure-wrap' }, button, body),
+      setOpen: (on) => {
+        button.setAttribute('aria-expanded', String(!!on));
+        body.hidden = !on;
+      },
+    };
+    button.addEventListener('click', () => {
+      const open = body.hidden;
+      d.setOpen(open);
+      this.prefs[key] = open;
+      savePrefs(this.prefs);
+    });
+    d.setOpen(!!this.prefs[key]);
+    return d;
+  }
+
   readTheme() {
     const cs = getComputedStyle(document.documentElement);
     const v = (n) => cs.getPropertyValue(n).trim();
-    const light = document.documentElement.dataset.theme === 'light';
+    // Everything follows the editor theme; the checkerboard is two of its surface colors.
     this.theme = {
-      bg: v('--editor-bg') || (light ? '#ffffff' : '#141416'),
-      border: v('--border-strong') || '#3a3a40',
-      accent: v('--accent') || '#4d8eff',
-      checkA: light ? '#ffffff' : '#2e2e33',
-      checkB: light ? '#e4e4e9' : '#252529',
-      pixelGrid: light ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.11)',
-      grid: light ? 'rgba(0, 0, 0, 0.32)' : 'rgba(255, 255, 255, 0.28)',
+      bg: v('--editor-bg') || INK,
+      border: v('--border-strong') || INK,
+      accent: v('--accent') || INK,
+      checkA: v('--panel-elev') || PAPER,
+      checkB: v('--border') || INK,
+      line: v('--fg') || PAPER, // grid lines, drawn faint
     };
     const p = document.createElement('canvas');
     p.width = p.height = 2;
@@ -436,8 +480,8 @@ export class SpriteEditor {
     this.btnMirrorX.setAttribute('aria-pressed', String(this.mirrorX));
     this.btnMirrorY.setAttribute('aria-pressed', String(this.mirrorY));
     this.btnPixelGrid.setAttribute('aria-pressed', String(this.pixelGrid));
-    this.btnGrid.setAttribute('aria-pressed', String(this.grid));
     this.btnOnion.setAttribute('aria-pressed', String(this.onion));
+    this.btnOnion.hidden = this.doc.count < 2;
     this.zoomLabel.textContent = `${this.zoom * 100}%`;
   }
 
@@ -456,7 +500,8 @@ export class SpriteEditor {
       '-',
       { label: 'Resize canvas…', icon: 'maximize', action: () => this.resizeDialog() },
       { label: 'Split into frames…', icon: 'hash', action: () => this.splitDialog() },
-      { label: 'Grid size…', icon: 'hash', action: () => this.gridDialog() },
+      { label: this.grid ? 'Hide grid' : 'Show grid', icon: 'grid', action: () => { this.grid = !this.grid; this.persist(); this.render(); } },
+      { label: `Grid size (${this.gridW}×${this.gridH})…`, action: () => this.gridDialog() },
       '-',
       { label: sel ? 'Flip selection horizontally' : 'Flip frame horizontally', shortcut: 'Shift+H', action: () => this.flip(true) },
       { label: sel ? 'Flip selection vertically' : 'Flip frame vertically', shortcut: 'Shift+V', action: () => this.flip(false) },
@@ -531,9 +576,13 @@ export class SpriteEditor {
     for (const el of this.paletteGrid.children) el.classList.toggle('selected', el.dataset.hex === cur || (el.dataset.hex === '#00000000' && this.primary[3] === 0));
   }
 
+  /** Picked colors that aren't already in the palette, under it. */
   renderRecent() {
-    this.recentHeading.hidden = !this.recent.length;
-    this.recentGrid.replaceChildren(...this.recent.map((c) => this.swatch(c, c)));
+    const inPalette = new Set(this.host.palette().map((c) => (draw.hexToRgba(c) ? draw.rgbaToHex(draw.hexToRgba(c)) : c)));
+    const own = this.recent.filter((c) => !inPalette.has(c)).slice(0, 8);
+    this.recentHeading.hidden = !own.length;
+    this.recentGrid.hidden = !own.length;
+    this.recentGrid.replaceChildren(...own.map((c) => this.swatch(c, c)));
   }
 
   pickColor(x, y, secondary) {
@@ -587,6 +636,18 @@ export class SpriteEditor {
     if (!c) return;
     c.getContext('2d').putImageData(new ImageData(this.doc.frames[i], this.doc.fw, this.doc.fh), 0, 0);
     this.previewDirty = true;
+    this.updateEmptyHint();
+  }
+
+  /** The "how to draw" hint, for a sprite with one empty frame. */
+  updateEmptyHint() {
+    const { doc } = this;
+    let empty = this.loaded && !this.failed && doc.count === 1;
+    if (empty) {
+      const f = doc.frames[0];
+      for (let i = 3; i < f.length; i += 4) if (f[i]) { empty = false; break; }
+    }
+    this.emptyHint.hidden = !empty;
   }
 
   renderFrames() {
@@ -600,6 +661,7 @@ export class SpriteEditor {
       item.lastChild.title = pos.length ? `Step ${pos.join(', ')} of "${anim.name}"` : '';
     });
     this.btnDeleteFrame.disabled = this.doc.count <= 1;
+    this.btnOnion.hidden = this.doc.count < 2;
     this.frameItems?.[this.current]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
@@ -1454,7 +1516,7 @@ export class SpriteEditor {
     const vx0 = clamp(Math.floor(-ox / z), 0, fw), vx1 = clamp(Math.ceil((W - ox) / z), 0, fw);
     const vy0 = clamp(Math.floor(-oy / z), 0, fh), vy1 = clamp(Math.ceil((H - oy) / z), 0, fh);
     const snap = (v) => Math.round(v * dpr) / dpr + px / 2;
-    const gridLines = (stepX, stepY, color) => {
+    const gridLines = (stepX, stepY, alpha) => {
       ctx.beginPath();
       for (let x = Math.ceil(vx0 / stepX) * stepX; x <= vx1; x += stepX) {
         const sx = snap(ox + x * z);
@@ -1466,12 +1528,14 @@ export class SpriteEditor {
         ctx.moveTo(ox + vx0 * z, sy);
         ctx.lineTo(ox + vx1 * z, sy);
       }
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = theme.line;
+      ctx.globalAlpha = alpha;
       ctx.lineWidth = px;
       ctx.stroke();
+      ctx.globalAlpha = 1;
     };
-    if (this.pixelGrid && z >= 6) gridLines(1, 1, theme.pixelGrid);
-    if (this.grid && this.gridW * z >= 4 && this.gridH * z >= 4) gridLines(this.gridW, this.gridH, theme.grid);
+    if (this.pixelGrid && z >= 6) gridLines(1, 1, 0.12);
+    if (this.grid && this.gridW * z >= 4 && this.gridH * z >= 4) gridLines(this.gridW, this.gridH, 0.32);
 
     ctx.lineWidth = px;
     ctx.strokeStyle = theme.border;
@@ -1495,11 +1559,14 @@ export class SpriteEditor {
     if (h && !this.drag && !this.spaceDown && BRUSH_TOOLS.has(this.tool) && h.x >= 0 && h.y >= 0 && h.x < fw && h.y < fh) {
       const off = Math.floor((this.brush - 1) / 2);
       const bx = ox + (h.x - off) * z, by = oy + (h.y - off) * z, bs = this.brush * z;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.lineWidth = Math.max(1, px);
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = INK;
       ctx.strokeRect(snap(bx) - px, snap(by) - px, bs + px, bs + px);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = PAPER;
       ctx.strokeRect(snap(bx), snap(by), bs - px, bs - px);
+      ctx.globalAlpha = 1;
     }
 
     // Selection outline
@@ -1509,10 +1576,10 @@ export class SpriteEditor {
       ctx.save();
       ctx.lineWidth = Math.max(1, px);
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = INK;
       ctx.strokeRect(sx, sy, s.w * z, s.h * z);
       ctx.lineDashOffset = 4;
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = PAPER;
       ctx.strokeRect(sx, sy, s.w * z, s.h * z);
       ctx.restore();
     }
@@ -1528,7 +1595,8 @@ export class SpriteEditor {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.lineCap = 'round';
-    for (const [color, width] of [['rgba(0, 0, 0, 0.7)', 4], [this.theme.accent, 2]]) {
+    for (const [color, width, a] of [[INK, 4, 0.7], [this.theme.accent, 2, 1]]) {
+      ctx.globalAlpha = alpha * a;
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
       ctx.beginPath();
@@ -1583,7 +1651,9 @@ export class SpriteEditor {
     this.originBody.replaceChildren(
       h('label', { class: 'spr-field' }, h('span', {}, 'x'), num(0)),
       h('label', { class: 'spr-field' }, h('span', {}, 'y'), num(1)),
-      h('button', { type: 'button', class: 'icon-btn small', title: o ? 'Clear the origin' : 'Set it with the origin tool (O)', 'aria-label': 'Clear the origin', disabled: !o, onclick: () => this.setOrigin(null, true) }, sicon('x')));
+      h('button', { type: 'button', class: 'icon-btn small', title: o ? 'Clear the origin' : 'No origin set', 'aria-label': 'Clear the origin', disabled: !o, onclick: () => this.setOrigin(null, true) }, sicon('x')),
+      this.btnOriginTool);
+    this.settings.note.textContent = o ? `origin ${o[0]}, ${o[1]}` : '';
     this.renderInfo();
   }
 
@@ -1649,14 +1719,16 @@ export class SpriteEditor {
       item.addEventListener('dblclick', () => this.renameAnimation(a));
       return item;
     }));
-    if (!anims.length) this.animList.append(h('div', { class: 'spr-empty' }, 'No animations yet. Add one to name a list of frames for sprite:animation("name").'));
-
-    // Preview choices
-    this.previewSelect.replaceChildren(h('option', { value: '' }, 'All frames'),
-      ...anims.map((a) => h('option', { value: a.name }, a.name)));
-    this.previewSelect.value = this.selectedAnim || '';
+    if (!anims.length) {
+      this.animList.append(h('div', { class: 'spr-empty' }, this.doc.count > 1
+        ? 'Add an animation to play these frames in your game with sprite:animation("name").'
+        : 'Add frames below to animate this sprite, then name them here with +.'));
+    }
 
     const a = anims.find((x) => x.name === this.selectedAnim);
+    this.previewCaption.textContent = a
+      ? `“${a.name}” · ${a.fps} fps${a.loop ? '' : ' · once'}`
+      : this.doc.count > 1 ? `All ${this.doc.count} frames` : '';
     if (!a) { this.animDetail.replaceChildren(); this.animDetail.hidden = true; return; }
     this.animDetail.hidden = false;
     const framesInput = h('input', { type: 'text', class: 'input small', value: formatFrameList(a.frames), spellcheck: 'false', 'aria-label': 'Frames', title: 'Frame numbers in play order, e.g. 0-3, 5' });

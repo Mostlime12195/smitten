@@ -345,5 +345,50 @@ export function createSlider(ui, p, { get, set, end, reset, escape }) {
   return { element: row, sync, range, readout };
 }
 
+// ---------------------------------------------------------------------------
+// Disclosure
+
+/** Read and write a remembered on/off preference (localStorage may be blocked). */
+export function storedFlag(key, fallback = false) {
+  return {
+    get() {
+      try {
+        const v = localStorage.getItem(key);
+        return v === null ? fallback : v === '1';
+      } catch { return fallback; }
+    },
+    set(on) {
+      try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* storage blocked */ }
+    },
+  };
+}
+
+/**
+ * A button that shows or hides `body`, remembered under `key`.
+ * Returns {element, button, body, note, open, setOpen(on)}. note is a span
+ * after the label for a short summary ("2 effects on").
+ */
+export function disclosure(ui, { key, label, body, open: fallback = false, onToggle }) {
+  const { h } = ui;
+  const flag = storedFlag(key, fallback);
+  const note = h('span', { class: 'snd-disclosure-note' });
+  const chevron = h('span', { class: 'snd-disclosure-chevron', 'aria-hidden': 'true' }, ui.icon('chevronRight', 14));
+  const button = h('button', { type: 'button', class: 'snd-disclosure', 'aria-expanded': 'false' }, chevron, h('span', { class: 'snd-disclosure-label' }, label), note);
+  const d = {
+    button, body, note, open: false,
+    element: h('div', { class: 'snd-disclosure-wrap' }, button, body),
+    setOpen(on, remember = true) {
+      d.open = !!on;
+      button.setAttribute('aria-expanded', String(d.open));
+      body.hidden = !d.open;
+      if (remember) flag.set(d.open);
+      onToggle?.(d.open);
+    },
+  };
+  button.addEventListener('click', () => d.setOpen(!d.open));
+  d.setOpen(flag.get(), false);
+  return d;
+}
+
 /** Shared CSS for parameter sliders and the synthesizer banner lives in sfx.css. */
 export const SHARED_STYLE = new URL('./sfx.css', import.meta.url);

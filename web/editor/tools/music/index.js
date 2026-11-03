@@ -7,7 +7,7 @@
 import { WAVES, noteName, normalizeSfx } from '../sfx/params.js';
 import {
   loadStyle, SynthState, synthBanner, Player, cssVar, onThemeChange, fitCanvas, History,
-  modHeld, typingTarget, dirName, resolvePath, relativePath, waveIcon, isMac, createSlider, SHARED_STYLE,
+  modHeld, typingTarget, dirName, resolvePath, relativePath, waveIcon, isMac, createSlider, disclosure, SHARED_STYLE,
 } from '../sfx/audio.js';
 import {
   SYNTH_PARAMS, SYNTH_DEFAULTS, LIMITS, parseSong, songText, defaultSong, normalizeInstrument,
@@ -25,8 +25,19 @@ const EDGE = 6; // px at a note's right end that resize it
 const ZOOM_X = [8, 64];
 const ZOOM_Y = [7, 24];
 
-const CHANNEL_COLORS = ['#4d8eff', '#e74a99', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ef4444', '#84cc16'];
+// Data colors come from the project's default palette (Sweetie 16).
+const INK = '#1a1c2c'; // Sweetie 16 black: shading, outlines and note labels
+const CHANNEL_COLORS = ['#41a6f6', '#ef7d57', '#38b764', '#ffcd75', '#b13e53', '#73eff7', '#a7f070', '#3b5dc9'];
 const channelColor = (i) => CHANNEL_COLORS[i % CHANNEL_COLORS.length];
+
+/** True when the editor background is dark (for piano key shading). */
+function darkBackground(el) {
+  const m = cssVar(el, '--editor-bg', '#000').match(/^#([0-9a-f]{6})$/i);
+  let rgb;
+  if (m) rgb = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+  else rgb = (getComputedStyle(el).backgroundColor.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] < 128;
+}
 const isBlack = (midi) => [1, 3, 6, 8, 10].includes(((midi % 12) + 12) % 12);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -49,7 +60,6 @@ const ICON = {
   select: '<path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M21 19a2 2 0 0 1-2 2"/><path d="M5 21a2 2 0 0 1-2-2"/><path d="M9 3h1"/><path d="M9 21h1"/><path d="M14 3h1"/><path d="M14 21h1"/><path d="M3 9v1"/><path d="M21 9v1"/><path d="M3 14v1"/><path d="M21 14v1"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
   loop: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
-  song: '<path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/>',
 };
 const ico = (name, size) => svgIcon(ICON[name], size);
 
@@ -118,9 +128,8 @@ class MusicEditor {
     const { h, icon } = this.ui;
     const mod = isMac ? '⌘' : 'Ctrl+';
 
-    this.btnPlayPattern = h('button', { type: 'button', class: 'btn small mus-play', title: 'Play the pattern, looped (Space)', onclick: () => this.togglePlay('pattern') }, icon('play', 13), 'Pattern');
-    this.btnPlaySong = h('button', { type: 'button', class: 'btn small mus-play', title: 'Play the whole song (Shift+Space)', onclick: () => this.togglePlay('song') }, ico('song', 14), 'Song');
-    this.btnStop = h('button', { type: 'button', class: 'icon-btn small', title: 'Stop (Escape)', 'aria-label': 'Stop', onclick: () => this.stopPlayback() }, icon('stop', 14));
+    this.btnPlaySong = h('button', { type: 'button', class: 'btn small mus-play mus-play-song', onclick: () => this.togglePlay('song') });
+    this.btnPlayPattern = h('button', { type: 'button', class: 'btn small ghost mus-play', onclick: () => this.togglePlay('pattern') });
 
     const numField = (label, key, title) => {
       const [min, max] = LIMITS[key];
@@ -129,28 +138,32 @@ class MusicEditor {
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); this.element.focus(); } });
       return { input, el: h('label', { class: 'mus-field', title }, h('span', {}, label), input) };
     };
-    this.fBpm = numField('BPM', 'bpm', 'Tempo in beats per minute');
-    this.fSpb = numField('Steps/beat', 'stepsPerBeat', 'Steps per beat (the grid resolution)');
-    this.fLen = numField('Length', 'patternLength', 'Pattern length in steps');
+    this.fBpm = numField('Tempo', 'bpm', 'Tempo in beats per minute (BPM)');
 
     this.modeButtons = {
-      draw: h('button', { type: 'button', title: 'Draw notes: click to add, drag to set length. Shift+drag selects.', onclick: () => this.setMode('draw') }, icon('pencil', 13), 'Draw'),
-      select: h('button', { type: 'button', title: 'Select notes: drag a box around them', onclick: () => this.setMode('select') }, ico('select', 13), 'Select'),
+      draw: h('button', { type: 'button', title: 'Draw notes: click to add, drag to set the length, right-click to erase (B)', onclick: () => this.setMode('draw') }, icon('pencil', 13), 'Draw'),
+      select: h('button', { type: 'button', title: 'Select notes: drag a box around them, or Shift+drag in Draw (S)', onclick: () => this.setMode('select') }, ico('select', 13), 'Select'),
     };
     this.btnUndo = h('button', { type: 'button', class: 'icon-btn small', title: `Undo (${mod}Z)`, 'aria-label': 'Undo', onclick: () => this.history.undo() }, ico('undo'));
     this.btnRedo = h('button', { type: 'button', class: 'icon-btn small', title: `Redo (${mod}Shift+Z)`, 'aria-label': 'Redo', onclick: () => this.history.redo() }, ico('redo'));
 
+    const moreBtn = h('button', {
+      type: 'button', class: 'icon-btn small', title: 'More: pattern length, grid, zoom', 'aria-label': 'More song settings',
+      onclick: () => this.songMenu(moreBtn),
+    }, icon('more', 16));
+
     const toolbar = h('div', { class: 'snd-toolbar mus-toolbar' },
-      this.btnPlayPattern, this.btnPlaySong, this.btnStop,
+      this.btnPlaySong, this.btnPlayPattern,
       h('span', { class: 'snd-sep' }),
-      this.fBpm.el, this.fSpb.el, this.fLen.el,
+      this.fBpm.el,
       h('span', { class: 'snd-sep' }),
       h('div', { class: 'segmented', role: 'group', 'aria-label': 'Mouse mode' }, this.modeButtons.draw, this.modeButtons.select),
-      h('span', { class: 'snd-sep' }),
-      this.btnUndo, this.btnRedo,
       h('span', { class: 'snd-spacer' }),
+      this.btnUndo, this.btnRedo,
+      h('span', { class: 'snd-sep' }),
       h('button', { type: 'button', class: 'icon-btn small', title: 'Zoom out (Ctrl+wheel)', 'aria-label': 'Zoom out', onclick: () => this.zoom(1 / 1.25) }, ico('zoomOut')),
       h('button', { type: 'button', class: 'icon-btn small', title: 'Zoom in (Ctrl+wheel)', 'aria-label': 'Zoom in', onclick: () => this.zoom(1.25) }, ico('zoomIn')),
+      moreBtn,
     );
 
     this.banner = synthBanner(this.ui, this.synth);
@@ -163,13 +176,23 @@ class MusicEditor {
       h('div', { class: 'mus-section-head' }, h('span', { class: 'snd-heading' }, title), h('span', { class: 'snd-spacer' }), ...actions),
       body);
     const addBtn = (title, onclick) => h('button', { type: 'button', class: 'icon-btn small', title, 'aria-label': title, onclick }, icon('plus', 14));
+    this.instrumentMore = h('button', {
+      type: 'button', class: 'icon-btn small', title: 'New, duplicate or delete instruments', 'aria-label': 'Instrument actions',
+      onclick: (e) => this.instrumentMenu(e.currentTarget),
+    }, icon('more', 14));
+    this.insDisclosure = disclosure(this.ui, {
+      key: 'smitten.music.instrument',
+      label: 'Edit instrument',
+      body: this.instrumentPanel,
+      onToggle: (open) => { this.instrumentMore.hidden = !open; },
+    });
+    this.insDisclosure.button.title = 'Change how the selected channel’s instrument sounds';
     const sidebar = h('div', { class: 'mus-sidebar' },
       section('Channels', [addBtn('Add a channel', () => this.addChannel())], this.channelList),
       section('Patterns', [addBtn('Add a pattern', () => this.addPattern())], this.patternList),
-      section('Instrument', [h('button', {
-        type: 'button', class: 'icon-btn small', title: 'Instrument actions', 'aria-label': 'Instrument actions',
-        onclick: (e) => this.instrumentMenu(e.currentTarget),
-      }, icon('more', 14))], this.instrumentPanel),
+      h('section', { class: 'mus-section mus-ins-section' },
+        h('div', { class: 'mus-section-head' }, this.insDisclosure.button, this.instrumentMore),
+        this.instrumentPanel),
     );
 
     // Piano roll
@@ -179,7 +202,13 @@ class MusicEditor {
     this.scroller.style.left = `${KEY_W}px`;
     this.scroller.style.top = `${RULER_H}px`;
     this.scroller.style.bottom = `${VEL_H}px`;
-    this.roll = h('div', { class: 'mus-roll' }, this.canvas, this.scroller);
+    this.emptyHint = h('div', { class: 'mus-empty-hint' }, h('div', { class: 'mus-empty-card' },
+      h('strong', {}, 'Click the grid to add notes'),
+      h('span', {}, 'Drag to make a note longer · right-click to erase · Space to play')));
+    this.emptyHint.style.left = `${KEY_W}px`;
+    this.emptyHint.style.top = `${RULER_H}px`;
+    this.emptyHint.style.bottom = `${VEL_H}px`;
+    this.roll = h('div', { class: 'mus-roll' }, this.canvas, this.scroller, this.emptyHint);
 
     // Status bar under the roll: hover info and the selection's volume.
     this.hoverInfo = h('span', { class: 'mus-hover' });
@@ -199,7 +228,7 @@ class MusicEditor {
     const status = h('div', { class: 'mus-status' }, this.channelInfo, this.hoverInfo, h('span', { class: 'snd-spacer' }), this.selBox);
 
     // Arrangement
-    this.loopBtn = h('button', { type: 'button', class: 'btn small ghost mus-loop', title: 'Loop the song when it ends', onclick: () => this.toggleLoop() }, ico('loop', 14), 'Loop');
+    this.loopBtn = h('button', { type: 'button', class: 'btn small ghost mus-loop', title: 'Loop the song when it ends (right-click a slot to choose where it loops back to)', onclick: () => this.toggleLoop() }, ico('loop', 14), 'Loop');
     this.slotList = h('div', { class: 'mus-slots' });
     const arrange = h('div', { class: 'mus-arrange' },
       h('div', { class: 'mus-arrange-head' }, h('span', { class: 'snd-heading' }, 'Arrangement'), this.loopBtn),
@@ -253,17 +282,66 @@ class MusicEditor {
   renderToolbar() {
     const s = this.song;
     if (document.activeElement !== this.fBpm.input) this.fBpm.input.value = String(s.bpm);
-    if (document.activeElement !== this.fSpb.input) this.fSpb.input.value = String(s.stepsPerBeat);
-    if (document.activeElement !== this.fLen.input) this.fLen.input.value = String(s.patternLength);
     this.btnUndo.disabled = !this.history.canUndo;
     this.btnRedo.disabled = !this.history.canRedo;
     const ready = this.synth.ready;
     this.btnPlayPattern.disabled = !ready;
     this.btnPlaySong.disabled = !ready;
-    this.btnStop.disabled = !this.playing;
-    this.btnPlayPattern.classList.toggle('active', this.playing?.mode === 'pattern');
-    this.btnPlaySong.classList.toggle('active', this.playing?.mode === 'song');
+    const { icon } = this.ui;
+    const songOn = this.playing?.mode === 'song';
+    const patOn = this.playing?.mode === 'pattern';
+    if (this.btnPlaySong.dataset.state !== String(songOn)) {
+      this.btnPlaySong.dataset.state = String(songOn);
+      this.btnPlaySong.replaceChildren(icon(songOn ? 'stop' : 'play', 13), songOn ? 'Stop' : 'Play song');
+      this.btnPlaySong.title = songOn ? 'Stop (Escape)' : 'Play the whole song from the start (Shift+Space)';
+    }
+    if (this.btnPlayPattern.dataset.state !== String(patOn)) {
+      this.btnPlayPattern.dataset.state = String(patOn);
+      this.btnPlayPattern.replaceChildren(icon(patOn ? 'stop' : 'play', 13), patOn ? 'Stop' : 'Play pattern');
+      this.btnPlayPattern.title = patOn ? 'Stop (Escape)' : 'Loop the pattern you are editing (Space)';
+    }
+    this.btnPlaySong.classList.toggle('active', songOn);
+    this.btnPlayPattern.classList.toggle('active', patOn);
     this.loopBtn.setAttribute('aria-pressed', String(!!s.loop));
+  }
+
+  songMenu(anchor) {
+    const s = this.song;
+    this.ui.showMenu(anchor, [
+      { label: `Pattern length: ${s.patternLength} steps…`, icon: 'sliders', action: () => this.songSettingsDialog() },
+      { label: `Grid: ${s.stepsPerBeat} steps per beat…`, icon: 'grid', action: () => this.songSettingsDialog() },
+      '-',
+      { label: 'Zoom in', icon: 'search', shortcut: 'Ctrl+wheel', action: () => this.zoom(1.25) },
+      { label: 'Zoom out', shortcut: 'Ctrl+wheel', action: () => this.zoom(1 / 1.25) },
+      { label: 'Taller rows', shortcut: 'Alt+wheel', action: () => this.zoomY(1.25) },
+      { label: 'Shorter rows', shortcut: 'Alt+wheel', action: () => this.zoomY(1 / 1.25) },
+    ]);
+  }
+
+  /** Steps per beat and pattern length, which beginners rarely need. */
+  async songSettingsDialog() {
+    const { h } = this.ui;
+    const s = this.song;
+    const field = (label, key, hint) => {
+      const [min, max] = LIMITS[key];
+      const input = h('input', { type: 'number', class: 'input', min, max, step: '1', value: String(s[key]) });
+      return { key, input, el: h('label', { class: 'field' }, h('span', { class: 'mus-form-label' }, label), input, h('span', { class: 'mus-form-hint' }, hint)) };
+    };
+    const fields = [
+      field('Pattern length (steps)', 'patternLength', 'How many steps each pattern has.'),
+      field('Steps per beat', 'stepsPerBeat', 'The grid: 4 means each beat is split into four steps.'),
+    ];
+    const res = await this.ui.openDialog({
+      title: 'Song settings',
+      body: h('div', { class: 'mus-form' }, ...fields.map((f) => f.el)),
+      actions: [
+        { label: 'Cancel', value: null, ghost: true },
+        { label: 'Apply', value: 'ok', primary: true, submit: true },
+      ],
+      onOpen: () => { fields[0].input.focus(); fields[0].input.select(); },
+    });
+    if (res === 'ok') for (const f of fields) this.setSongField(f.key, f.input.value);
+    this.element.focus({ preventScroll: true });
   }
 
   setMode(mode) {
@@ -280,14 +358,14 @@ class MusicEditor {
     this.channelList.replaceChildren(...s.channels.map((ch, i) => {
       const audible = this.audible(i);
       const mute = h('button', {
-        type: 'button', class: 'mus-ms', title: 'Mute in previews', 'aria-pressed': String(this.muted.has(i)),
+        type: 'button', class: 'mus-ms', title: 'Mute this channel while you listen here (the song file is not changed)', 'aria-label': 'Mute', 'aria-pressed': String(this.muted.has(i)),
         onclick: (e) => { e.stopPropagation(); this.toggleSet(this.muted, i); },
       }, 'M');
       const solo = h('button', {
-        type: 'button', class: 'mus-ms solo', title: 'Solo in previews', 'aria-pressed': String(this.solo.has(i)),
+        type: 'button', class: 'mus-ms solo', title: 'Solo: hear only this channel while you listen here', 'aria-label': 'Solo', 'aria-pressed': String(this.solo.has(i)),
         onclick: (e) => { e.stopPropagation(); this.toggleSet(this.solo, i); },
       }, 'S');
-      const select = h('select', { class: 'select small mus-ch-ins', 'aria-label': `${ch.name} instrument`, title: 'Instrument' },
+      const select = h('select', { class: 'select small mus-ch-ins', 'aria-label': `${ch.name} instrument`, title: 'Instrument this channel plays' },
         ...s.instruments.map((ins, j) => h('option', { value: String(j), selected: j === ch.instrument }, ins.name || `Instrument ${j + 1}`)));
       select.addEventListener('click', (e) => e.stopPropagation());
       select.addEventListener('change', () => {
@@ -305,13 +383,14 @@ class MusicEditor {
       });
       vol.addEventListener('change', () => this.history.settle());
       vol.addEventListener('dblclick', () => { this.edit(() => { ch.volume = 0.8; }); this.renderChannels(); });
+      vol.title = `Channel volume ${Math.round(ch.volume * 100)}% (double-click to reset)`;
       const more = h('button', {
-        type: 'button', class: 'icon-btn small mus-more', title: 'Channel actions', 'aria-label': 'Channel actions',
+        type: 'button', class: 'icon-btn small mus-more', title: 'Rename, move or remove this channel', 'aria-label': 'Channel actions',
         onclick: (e) => { e.stopPropagation(); this.channelMenu(i, e.currentTarget); },
       }, icon('more', 14));
       const count = this.pat.notes.filter((n) => n.channel === i).length;
       const row = h('div', {
-        class: `mus-ch ${i === this.channel ? 'selected' : ''} ${audible ? '' : 'silent'}`,
+        class: `mus-ch ${i === this.channel ? 'selected' : ''} ${audible ? '' : 'silent'} ${this.muted.has(i) || this.solo.has(i) ? 'ms-on' : ''}`,
         style: { '--ch': channelColor(i) },
         onclick: () => this.selectChannel(i),
         oncontextmenu: (e) => { e.preventDefault(); this.channelMenu(i, { x: e.clientX, y: e.clientY }); },
@@ -321,7 +400,7 @@ class MusicEditor {
         h('span', { class: 'mus-ch-name', title: 'Double-click to rename', ondblclick: () => this.renameChannel(i) }, ch.name),
         h('span', { class: 'mus-count', title: 'Notes in this pattern' }, count || ''),
         mute, solo, more),
-      h('div', { class: 'mus-ch-bottom' }, select, vol));
+      h('div', { class: 'mus-ch-bottom' }, select, i === this.channel ? vol : null));
       return row;
     }));
   }
@@ -431,7 +510,7 @@ class MusicEditor {
     h('span', { class: 'mus-pat-name' }, p.name),
     h('span', { class: 'mus-count' }, p.notes.length ? `${p.notes.length}` : ''),
     h('button', {
-      type: 'button', class: 'icon-btn small mus-more', title: 'Pattern actions', 'aria-label': 'Pattern actions',
+      type: 'button', class: 'icon-btn small mus-more', title: 'Rename, duplicate or delete this pattern', 'aria-label': 'Pattern actions',
       onclick: (e) => { e.stopPropagation(); this.patternMenu(i, e.currentTarget); },
     }, icon('more', 14)))));
   }
@@ -535,7 +614,7 @@ class MusicEditor {
         class: `mus-slot ${i === this.slot && pi === this.pattern ? 'selected' : ''} ${this.playSlot === i && this.playing?.mode === 'song' ? 'playing' : ''}`,
         draggable: 'true',
         title: `${p?.name ?? '?'} — click to edit, drag to reorder, right-click for more`,
-        style: { '--slot-hue': String((pi * 47) % 360) },
+        style: { '--slot-color': CHANNEL_COLORS[pi % CHANNEL_COLORS.length] },
         onclick: () => { this.slot = i; this.selectPattern(pi); this.renderOrder(); },
         oncontextmenu: (e) => { e.preventDefault(); this.slotMenu(i, { x: e.clientX, y: e.clientY }); },
       },
@@ -639,6 +718,7 @@ class MusicEditor {
     const ch = s.channels[this.channel];
     const idx = ch.instrument;
     const ins = s.instruments[idx];
+    this.insDisclosure.note.textContent = ins ? ins.name || `Instrument ${idx + 1}` : '';
     if (!ins) {
       this.instrumentPanel.replaceChildren(h('div', { class: 'mus-empty' }, 'No instrument.'));
       return;
@@ -1170,7 +1250,7 @@ class MusicEditor {
     if (!W || !H) return;
     const ctx = fitCanvas(this.canvas, W, H);
     const el = this.element;
-    const dark = document.documentElement.dataset.theme !== 'light';
+    const dark = darkBackground(el);
     const c = {
       bg: cssVar(el, '--editor-bg'),
       panel: cssVar(el, '--panel'),
@@ -1183,10 +1263,10 @@ class MusicEditor {
       subtle: cssVar(el, '--fg-subtle'),
       accent: cssVar(el, '--accent'),
       accentSoft: cssVar(el, '--accent-soft'),
-      blackRow: dark ? 'rgba(0,0,0,0.24)' : 'rgba(0,0,0,0.035)',
-      blackKey: dark ? '#0b0b0d' : '#3f3f46',
-      whiteKey: dark ? '#2a2a2f' : '#ffffff',
-      outside: dark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.06)',
+      // Black-key rows and the area past the pattern's end: palette black, faint.
+      blackRowAlpha: dark ? 0.24 : 0.04,
+      outsideAlpha: dark ? 0.35 : 0.07,
+      whiteKey: dark ? cssVar(el, '--border-strong') : cssVar(el, '--panel-elev'),
     };
     const sx = this.scroller.scrollLeft;
     const sy = this.scroller.scrollTop;
@@ -1205,6 +1285,7 @@ class MusicEditor {
     const lastMidi = Math.max(LOW, this.midiAt(sy + gh));
 
     ctx.clearRect(0, 0, W, H);
+    this.emptyHint.hidden = this.pat.notes.some((n) => n.channel === this.channel) || !!this.drag;
 
     // --- Grid
     ctx.save();
@@ -1216,8 +1297,10 @@ class MusicEditor {
     for (let m = firstMidi; m >= lastMidi; m--) {
       const y = gy + this.noteY(m) - sy;
       if (isBlack(m)) {
-        ctx.fillStyle = c.blackRow;
+        ctx.fillStyle = INK;
+        ctx.globalAlpha = c.blackRowAlpha;
         ctx.fillRect(gx, y, gw, rh);
+        ctx.globalAlpha = 1;
       }
       if (this.hover && this.hover.midi === m && !this.drag) {
         ctx.fillStyle = c.accentSoft;
@@ -1237,8 +1320,10 @@ class MusicEditor {
     }
     const endX = gx + L * sw - sx;
     if (endX < gx + gw) {
-      ctx.fillStyle = c.outside;
+      ctx.fillStyle = INK;
+      ctx.globalAlpha = c.outsideAlpha;
       ctx.fillRect(endX, gy, gx + gw - endX, gh);
+      ctx.globalAlpha = 1;
     }
 
     // Other channels, faint.
@@ -1265,6 +1350,15 @@ class MusicEditor {
       roundRect(ctx, x + 1, y + 1, w - 2, rh - 2, Math.min(3, rh / 4));
       ctx.fill();
       ctx.globalAlpha = 1;
+      if (!dark) {
+        // Pale palette colors need an edge on a light background.
+        ctx.strokeStyle = INK;
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 1;
+        roundRect(ctx, x + 1.5, y + 1.5, w - 3, rh - 3, Math.min(3, rh / 4));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       if (selected) {
         ctx.strokeStyle = c.fg;
         ctx.lineWidth = 2;
@@ -1273,14 +1367,18 @@ class MusicEditor {
       }
       // A notch marking the resize handle.
       if (w >= 14 && rh >= 9) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillStyle = INK;
+        ctx.globalAlpha = 0.3;
         ctx.fillRect(x + w - 4, y + 3, 1, rh - 6);
+        ctx.globalAlpha = 1;
       }
       if (rh >= 11 && w >= 30) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillStyle = INK;
+        ctx.globalAlpha = 0.75;
         ctx.font = `600 ${Math.min(10, rh - 3)}px ${cssVar(el, '--font-ui', 'sans-serif')}`;
         ctx.textBaseline = 'middle';
         ctx.fillText(noteName(n.note), x + 4, y + rh / 2 + 0.5);
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -1323,8 +1421,10 @@ class MusicEditor {
       const y = gy + this.noteY(m) - sy;
       const active = this.keyDown === m || (this.hover?.midi === m);
       if (isBlack(m)) {
-        ctx.fillStyle = c.blackKey;
+        ctx.fillStyle = INK;
+        ctx.globalAlpha = dark ? 0.9 : 0.8;
         ctx.fillRect(0, y, KEY_W * 0.62, rh);
+        ctx.globalAlpha = 1;
       }
       if (active) {
         ctx.fillStyle = color;
