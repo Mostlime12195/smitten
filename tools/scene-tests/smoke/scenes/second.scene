@@ -1,0 +1,10 @@
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Second", "type": "Group", "script": "scenes/second.lua",
+    "children": [
+      { "name": "Title", "type": "Text", "properties": { "x": 320, "y": 180, "text": "The second scene", "size": 24 } }
+    ]
+  }
+}

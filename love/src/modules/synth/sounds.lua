@@ -176,6 +176,13 @@ function Song:setVolume(volume)
 	if self._source then self._source:setVolume(volume) end
 end
 
+---The Source the song plays from (rendering the song if it hasn't been):
+---for pitch, seek and the rest of LÖVE's Source methods.
+---@return love.Source
+function Song:getSource()
+	return self:_load()
+end
+
 ---@return boolean
 function Song:isPlaying()
 	return self._source ~= nil and self._source:isPlaying()

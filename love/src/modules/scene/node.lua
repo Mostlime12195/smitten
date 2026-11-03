@@ -171,7 +171,13 @@ local function enterTree(n)
 	if not n._ready then
 		n._ready = true
 		local f = n.ready
-		if f then f(n) end
+		local args = n._readyArgs
+		if args then
+			n._readyArgs = nil
+			if f then f(n, unpack(args, 1, table.maxn(args))) end
+		elseif f then
+			f(n)
+		end
 	end
 end
 node.enterTree = enterTree

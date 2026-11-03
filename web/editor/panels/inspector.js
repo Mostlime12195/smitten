@@ -138,7 +138,8 @@ export class InspectorPanel {
       if (!groups.has(g)) groups.set(g, []);
       groups.get(g).push(p);
     }
-    for (const [g, props] of groups) {
+    // Behavior (pausable, which every piece has) comes after the piece's own sections.
+    for (const [g, props] of [...groups].sort(([a], [b]) => (a === 'Behavior') - (b === 'Behavior'))) {
       out.push(this.section(`${node.type}:${g}`, g, props.flatMap((p) => this.row(node, p.name, p.def))));
     }
 

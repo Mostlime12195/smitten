@@ -196,6 +196,91 @@ function Tiles:cellsWith(tile)
 	return out
 end
 
+---Sets a rectangle of cells to one tile (-1 empties them).
+function Tiles:fill(cx, cy, columns, rows, tile)
+	ensure(self)
+	local grid = self._grid
+	for y = cy, cy + (rows or 1) - 1 do
+		local row = grid[y]
+		for x = cx, cx + (columns or 1) - 1 do
+			if tile == nil or tile < 0 then
+				if row then row[x] = nil end
+			else
+				if not row then
+					row = {}
+					grid[y] = row
+				end
+				row[x] = tile
+			end
+		end
+	end
+	changedAll(self)
+end
+
+---Empties every cell.
+function Tiles:clear()
+	ensure(self)
+	self._grid = {}
+	changedAll(self)
+end
+
+---The tile number under a point in the scene, or -1.
+function Tiles:tileAt(x, y)
+	return self:getTile(self:cellAt(x, y))
+end
+
+---True if the cell has a tile marked solid (and the Tiles piece is solid).
+function Tiles:isSolid(cx, cy)
+	ensure(self)
+	if not self._ts or not self.solid then return false end
+	return self:_solidAt(cx, cy) ~= nil
+end
+
+local AROUND = { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } }
+local AROUND8 = { { 0, -1 }, { 1, -1 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 }, { -1, -1 } }
+
+---The cells around one: a list of {column, row, tile} (tile -1 when empty),
+---up, right, down, left; with diagonal, all eight, clockwise from up.
+function Tiles:neighbors(cx, cy, diagonal)
+	local out = {}
+	for i, d in ipairs(diagonal and AROUND8 or AROUND) do
+		local x, y = cx + d[1], cy + d[2]
+		out[i] = { column = x, row = y, tile = self:getTile(x, y) }
+	end
+	return out
+end
+
+---The scene position of a cell's center.
+function Tiles:cellCenter(cx, cy)
+	local ts = ensure(self)
+	if not ts then return 0, 0 end
+	return self:toWorld((cx + 0.5) * ts.tileWidth, (cy + 0.5) * ts.tileHeight)
+end
+
+---The size of one cell in the scene (the tileset's tile size, scaled).
+function Tiles:getTileSize()
+	local tw, th = self:_cellSize()
+	return math.abs(tw), math.abs(th)
+end
+
+---The painted area in the scene: x, y, width, height (all 0 when empty).
+function Tiles:getBounds()
+	local ts = ensure(self)
+	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+	for cy, row in pairs(self._grid) do
+		for cx in pairs(row) do
+			if cx < x0 then x0 = cx end
+			if cx > x1 then x1 = cx end
+			if cy < y0 then y0 = cy end
+			if cy > y1 then y1 = cy end
+		end
+	end
+	if not ts or x0 > x1 then return 0, 0, 0, 0 end
+	local ax, ay = self:toWorld(x0 * ts.tileWidth, y0 * ts.tileHeight)
+	local bx, by = self:toWorld((x1 + 1) * ts.tileWidth, (y1 + 1) * ts.tileHeight)
+	return math.min(ax, bx), math.min(ay, by), math.abs(bx - ax), math.abs(by - ay)
+end
+
 -- The chunks that have tiles: key -> {kx, ky, dirty = true}.
 local function listChunks(self)
 	local chunks = {}

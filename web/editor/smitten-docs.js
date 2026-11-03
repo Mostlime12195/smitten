@@ -3,6 +3,15 @@
 // arguments the editor can complete. Node methods and script callbacks come
 // from the piece schema (core/schema.js).
 
+/**
+ * A page of the docs on the sharing site (platform/public/docs, made by
+ * tools/gen-docs.mjs): docsUrl(site, 'pieces', 'camera').
+ */
+export function docsUrl(site, page = '', anchor = '') {
+  const base = String(site || '').replace(/\/+$/, '');
+  return `${base}/docs/${page}${anchor ? `#${anchor.toLowerCase()}` : ''}`;
+}
+
 /** smitten.<module>.<name>: [args, doc]; null for values. */
 export const SMITTEN_MODULES = {
   scene: {
@@ -17,7 +26,10 @@ export const SMITTEN_MODULES = {
     worldToScreen: ['x, y', 'A point in the scene as a point on the screen.'],
     setCurrent: ['root', 'Makes a piece built in code the running scene.'],
     getDelta: ['', 'The current step\'s length: the frame time in update(), the fixed step in physicsUpdate().'],
-    current: null, path: null, args: null, paused: null, showShapes: null,
+    transition: ['kind, seconds?, color?', 'How go() and reload() change scenes: transition("fade", 0.4) or transition("none").'],
+    isChanging: ['', 'True while the scene is about to change or a transition is running.'],
+    runsWhilePaused: ['piece', 'True if a piece keeps running while the game is paused (pausable off on it or a piece it\'s inside).'],
+    current: null, path: null, args: null, paused: null, timeScale: null, showShapes: null,
   },
   input: {
     pressed: ['action', 'True on the frame the action went down: smitten.input.pressed("jump").'],
@@ -30,6 +42,15 @@ export const SMITTEN_MODULES = {
     unbind: ['action', 'Removes an action.'],
     bindings: ['action', 'The inputs bound to an action.'],
     actions: ['', 'Every action\'s name.'],
+    lastPressed: ['', 'The input pressed this frame ("space", "mouse:1", "pad:a"), or nil: for rebinding screens.'],
+    isInputName: ['name', 'True if a name is an input: a key, "mouse:1", "pad:a", "axis:leftx+", "wheel:up".'],
+    wheel: ['', 'How far the mouse wheel turned this frame: x, y.'],
+    typed: ['', 'The text typed this frame; turns text input on.'],
+    touches: ['', 'The fingers on the screen: a list of { id, x, y, worldX, worldY }.'],
+    gamepads: ['', 'How many gamepads are connected.'],
+    stick: ['side, player?', 'A gamepad stick ("left" or "right"): x, y from -1 to 1.'],
+    trigger: ['side, player?', 'A gamepad trigger ("left" or "right"): 0 to 1.'],
+    vibrate: ['strength, seconds, player?', 'Rumbles gamepads (all, or one player\'s).'],
   },
   tween: {
     to: ['target, seconds, values, easing?, done?', 'Changes numbers smoothly; smitten.tween(...) does the same.'],
@@ -104,6 +125,14 @@ export const LOVE_ADDITIONS = {
     pressed: ['key', 'True on the frame a key went down.'],
     released: ['key', 'True on the frame a key went up.'],
   },
+  audio: {
+    sfx: ['name, volume?, pitch?', 'Plays a sound once by name or path: smitten.audio.sfx("coin", { volume = 0.5 }).'],
+    music: ['name, options?', 'Plays music on a loop instead of the music playing; options: volume, pitch, fade.'],
+    stopMusic: ['fade?', 'Stops the music, fading out over fade seconds if given.'],
+    pauseMusic: ['', 'Pauses the music.'],
+    resumeMusic: ['', 'Continues the music.'],
+    getMusic: ['', 'The Source playing the music, or nil.'],
+  },
 };
 
 export const ENGINE_FIELDS = { version: null };
@@ -111,6 +140,11 @@ export const ENGINE_FIELDS = { version: null };
 /** Functions whose first argument is a project path, and which files fit. */
 export const PATH_ARGS = [
   { re: /\bscene\.(?:go|make|spawn)\s*\(\s*["']([^"']*)$/, ext: /\.scene$/ },
+  // The short API in scripts: go("scenes/..."), sfx("sounds/..."), sprite("art/...").
+  { re: /(?:^|[^\w.:])(?:go|make|spawn)\s*\(\s*["']([^"']*)$/, ext: /\.scene$/ },
+  { re: /(?:^|[^\w.:])(?:sfx|music)\s*\(\s*["']([^"']*)$/, ext: /\.(wav|ogg|mp3|flac|sfx|song)$/i },
+  { re: /\baudio\.(?:sfx|music)\s*\(\s*["']([^"']*)$/, ext: /\.(wav|ogg|mp3|flac|sfx|song)$/i },
+  { re: /(?:^|[^\w.:])sprite\s*\(\s*["']([^"']*)$/, ext: /\.(png|jpe?g|bmp|sprite)$/i },
   { re: /\bassets\.(?:image)\s*\(\s*["']([^"']*)$/, ext: /\.(png|jpe?g|bmp)$/i },
   { re: /\bassets\.sprite\s*\(\s*["']([^"']*)$/, ext: /\.sprite$/ },
   { re: /\bassets\.tileset\s*\(\s*["']([^"']*)$/, ext: /\.tileset$/ },
