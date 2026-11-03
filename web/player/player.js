@@ -3,14 +3,19 @@
 // Standalone:  player.html?game=path/to/game.love   (or drop a .love on the page)
 // Embedded:    <iframe src="player.html?embed=1">, then postMessage
 //              {type: 'run', files: {'main.lua': '...', 'img/a.png': Uint8Array}}
-//              or {type: 'run', love: Uint8Array}.
+//              or {type: 'run', love: Uint8Array}, plus modules: ['physics2d', ...].
+//
+// Optional engine modules (DESIGN.md, section 3) are loaded before the game
+// starts: from the run message, ?modules=a,b, or <meta name="smitten-modules">.
+// A game that uses one that isn't loaded reports missing-module; standalone,
+// the player reloads with it added.
 //
 // Messages sent to the embedding page all carry source: 'love-player':
 //   ready, started, log {level, text}, error {text}, quit {code}, title {title}
 // build.py replaces this with a hash of the engine files, so browsers never
-// combine a cached love.wasm with a newer love.mjs (or vice versa).
-const BUILD = '__LOVE_BUILD__';
-const { default: createLove } = await import(`./love.mjs?v=${BUILD}`);
+// combine a cached smitten.wasm with a newer smitten.mjs (or vice versa).
+const BUILD = '__SMITTEN_BUILD__';
+const { default: createSmitten } = await import(`./smitten.mjs?v=${BUILD}`);
 
 // Save files live under Smitten's own data folder (XDG_DATA_HOME, set in
 // preRun below). IDBFS names its IndexedDB database after the mount point, so
@@ -28,6 +33,8 @@ const scaleMode = params.get('scale') || document.querySelector('meta[name="love
 // ?jit=0 runs all Lua in the interpreter (for comparison or debugging).
 const jitEnabled = params.get('jit') !== '0';
 const gameUrl = params.get('game') || document.querySelector('meta[name="love-game"]')?.content || null;
+const listedModules = (params.get('modules') ?? document.querySelector('meta[name="smitten-modules"]')?.content ?? '')
+  .split(',').map((m) => m.trim()).filter(Boolean);
 
 const $ = (sel) => document.querySelector(sel);
 const canvas = $('#canvas');
@@ -203,8 +210,8 @@ function bodySize(res) {
 
 // Downloads the engine with progress, compiling it while it streams in.
 function instantiateEngine(imports, done) {
-  fetch(new URL(`love.wasm?v=${BUILD}`, import.meta.url)).then((res) => {
-    if (!res.ok) throw new Error(`love.wasm: ${res.status} ${res.statusText}`);
+  fetch(new URL(`smitten.wasm?v=${BUILD}`, import.meta.url)).then((res) => {
+    if (!res.ok) throw new Error(`smitten.wasm: ${res.status} ${res.statusText}`);
     downloads.engine[1] = bodySize(res);
     const counted = res.body.pipeThrough(new TransformStream({
       transform(chunk, controller) {
@@ -216,11 +223,11 @@ function instantiateEngine(imports, done) {
     const wasm = new Response(counted, { headers: { 'Content-Type': 'application/wasm' } });
     return WebAssembly.instantiateStreaming(wasm, imports);
   }).then(({ instance, module }) => done(instance, module))
-    .catch((e) => fail(`Could not load the LÖVE engine.\n${e?.message || e}`));
+    .catch((e) => fail(`Could not load the Smitten engine.\n${e?.message || e}`));
   return {};
 }
 
-const engineReady = createLove({
+const engineReady = createSmitten({
   canvas,
   preRun: [(M) => { M.ENV.XDG_DATA_HOME = DATA_HOME; }],
   locateFile: (path, prefix) => `${prefix}${path}?v=${BUILD}`,
@@ -230,13 +237,44 @@ const engineReady = createLove({
   onLoveQuit: (code) => onQuit(code),
   loveRequestGesture: requestGesture,
   onAbort: (what) => fail(`The engine crashed: ${what}`),
+  onMissingModule: (name) => onMissingModule(name),
 }).then((M) => {
   Module = M;
   return M;
 }).catch((e) => {
-  fail(`Could not load the LÖVE engine.\n${e?.message || e}`);
+  fail(`Could not load the Smitten engine.\n${e?.message || e}`);
   throw e;
 });
+
+// Optional engine modules, loaded into the engine before the game starts so
+// require() finds them in memory (love.cpp, preloadOptionalModules).
+const loadedModules = new Set();
+
+async function loadModules(M, names) {
+  for (const name of names) {
+    if (loadedModules.has(name) || !/^[a-z0-9]+$/.test(name)) continue;
+    const res = await fetch(new URL(`modules/${name}.wasm?v=${BUILD}`, import.meta.url));
+    if (!res.ok) throw new Error(`modules/${name}.wasm: ${res.status} ${res.statusText}`);
+    const path = `/modules/${name}.wasm`;
+    mkdirp(M.FS, '/modules');
+    M.FS.writeFile(path, new Uint8Array(await res.arrayBuffer()));
+    await M.loadDynamicLibrary(path, { loadAsync: true, global: true, nodelete: true });
+    loadedModules.add(name);
+  }
+}
+
+function onMissingModule(name) {
+  post({ type: 'missing-module', name });
+  if (embedded) return;
+  // Standalone: try again with the module, if this server has it.
+  fetch(new URL(`modules/${name}.wasm?v=${BUILD}`, import.meta.url), { method: 'HEAD' }).then((res) => {
+    if (!res.ok) return;
+    const url = new URL(location.href);
+    url.searchParams.set('modules', [...loadedModules, name].join(','));
+    url.searchParams.set('autoplay', '1');
+    location.replace(url);
+  });
+}
 
 function syncSaves(populate = false) {
   if (!Module || syncing) return Promise.resolve();
@@ -283,12 +321,18 @@ function writeFiles(M, files) {
   }
 }
 
-/** game: {love: Uint8Array} | {files: {path: string|Uint8Array}} */
+/** game: {love: Uint8Array} | {files: {path: string|Uint8Array}}, with optional modules: string[] */
 async function start(game) {
   if (running) return;
   showStatus('Starting…', { progress: null });
   const M = await engineReady;
   await savesReady;
+  try {
+    await loadModules(M, [...new Set([...listedModules, ...(game.modules || [])])]);
+  } catch (e) {
+    fail(`Could not load an engine module.\n${e?.message || e}`);
+    return;
+  }
 
   let arg;
   if (game.love) {
@@ -410,7 +454,7 @@ if (embedded) {
   window.addEventListener('message', (e) => {
     if (e.source !== window.parent || !e.data || typeof e.data !== 'object') return;
     const msg = e.data;
-    if (msg.type === 'run') start(msg.love ? { love: msg.love } : { files: msg.files || {} });
+    if (msg.type === 'run') start({ ...(msg.love ? { love: msg.love } : { files: msg.files || {} }), modules: msg.modules });
     else if (msg.type === 'stop') Module?._loveweb_quit();
     else if (msg.type === 'pause') Module?._loveweb_set_paused(msg.paused ? 1 : 0);
     else if (msg.type === 'focus') canvas.focus();

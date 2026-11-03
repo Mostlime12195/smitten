@@ -1,0 +1,429 @@
+{
+ "format": "smitten.scene",
+ "version": 2,
+ "root": {
+  "name": "World",
+  "type": "Node3D",
+  "script": "scenes/main.lua",
+  "children": [
+   {
+    "name": "Sky",
+    "type": "Environment3D",
+    "properties": {
+     "fog": true,
+     "fogStart": 15,
+     "fogEnd": 60
+    }
+   },
+   {
+    "name": "Sun",
+    "type": "DirectionalLight3D",
+    "properties": {
+     "rotationX": -0.9,
+     "rotationY": 0.6
+    }
+   },
+   {
+    "name": "Lamp",
+    "type": "PointLight3D",
+    "properties": {
+     "x": 2,
+     "y": 2,
+     "z": 1,
+     "color": [
+      1,
+      0.6,
+      0.3,
+      1
+     ],
+     "energy": 2
+    }
+   },
+   {
+    "name": "Ground",
+    "type": "StaticBody3D",
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D",
+      "properties": {
+       "width": 30,
+       "height": 1,
+       "depth": 30,
+       "y": -0.5
+      }
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "mesh": "box",
+       "width": 30,
+       "height": 1,
+       "depth": 30,
+       "y": -0.5,
+       "color": [
+        0.45,
+        0.6,
+        0.4,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Player",
+    "type": "CharacterBody3D",
+    "properties": {
+     "z": 6,
+     "y": 1
+    },
+    "groups": [
+     "player"
+    ],
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D",
+      "properties": {
+       "shape": "capsule",
+       "radius": 0.4,
+       "height": 1.8
+      }
+     },
+     {
+      "name": "Camera",
+      "type": "Camera3D",
+      "properties": {
+       "y": 0.6
+      }
+     },
+     {
+      "name": "Walk",
+      "type": "FirstPerson"
+     }
+    ]
+   },
+   {
+    "name": "Spinner",
+    "type": "MeshInstance3D",
+    "properties": {
+     "mesh": "sphere",
+     "x": -2,
+     "y": 1,
+     "color": [
+      0.3,
+      0.5,
+      1,
+      1
+     ],
+     "metallic": 0.6,
+     "roughness": 0.2
+    },
+    "children": [
+     {
+      "name": "Spin",
+      "type": "Spin"
+     }
+    ]
+   },
+   {
+    "name": "Info",
+    "type": "Label",
+    "properties": {
+     "x": 12,
+     "y": 10,
+     "width": 900
+    }
+   },
+   {
+    "name": "Crate0",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": -1.5,
+     "y": 3.5,
+     "z": 0,
+     "rotationY": 0.0
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate1",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": -0.3999999999999999,
+     "y": 3.5,
+     "z": 0,
+     "rotationY": 0.2
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate2",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": 0.7000000000000002,
+     "y": 3.5,
+     "z": 0,
+     "rotationY": 0.4
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate3",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": 1.8000000000000003,
+     "y": 3.5,
+     "z": 0,
+     "rotationY": 0.6000000000000001
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate4",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": -1.5,
+     "y": 4.55,
+     "z": 0,
+     "rotationY": 0.8
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate5",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": -0.3999999999999999,
+     "y": 4.55,
+     "z": 0,
+     "rotationY": 1.0
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate6",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": 0.7000000000000002,
+     "y": 4.55,
+     "z": 0,
+     "rotationY": 1.2000000000000002
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Crate7",
+    "type": "RigidBody3D",
+    "groups": [
+     "crates"
+    ],
+    "properties": {
+     "x": 1.8000000000000003,
+     "y": 4.55,
+     "z": 0,
+     "rotationY": 1.4000000000000001
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D"
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "color": [
+        0.8,
+        0.55,
+        0.3,
+        1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Pickup",
+    "type": "Area3D",
+    "properties": {
+     "x": 0,
+     "y": 0.5,
+     "z": 3
+    },
+    "children": [
+     {
+      "name": "Shape",
+      "type": "CollisionShape3D",
+      "properties": {
+       "shape": "sphere",
+       "radius": 0.5
+      }
+     },
+     {
+      "name": "Mesh",
+      "type": "MeshInstance3D",
+      "properties": {
+       "mesh": "sphere",
+       "radius": 0.3,
+       "color": [
+        1,
+        0.85,
+        0.2,
+        1
+       ],
+       "emission": [
+        0.5,
+        0.4,
+        0,
+        1
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

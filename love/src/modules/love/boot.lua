@@ -149,7 +149,7 @@ function love.boot()
 	-- before the save directory (the identity should be appended.)
 	pcall(love.filesystem.setIdentity, identity, true)
 
-	if can_has_game and not (love.filesystem.getInfo(main_file) or (not custom_main_file and love.filesystem.getInfo("conf.lua"))) then
+	if can_has_game and not (love.filesystem.getInfo(main_file) or (not custom_main_file and (love.filesystem.getInfo("conf.lua") or love.filesystem.getInfo("smitten.json")))) then
 		no_game_code = true
 	end
 
@@ -171,6 +171,9 @@ usage:
 end
 
 function love.init()
+
+	-- Smitten: modules that are separate downloads, loaded on first use.
+	love._optionalModules = { physics = true, video = true }
 
 	-- Create default configuration settings.
 	-- NOTE: Adding a new module to the modules list
@@ -366,9 +369,10 @@ function love.init()
 		"math",
 		"physics",
 	} do
-		-- Builds without a module (e.g. video on the web) leave it out of
-		-- package.preload; skip it instead of failing to boot.
-		if c.modules[v] and package.preload["love." .. v] then
+		-- Builds without a module leave it out of package.preload; skip it
+		-- instead of failing to boot. Smitten's optional modules (physics,
+		-- video) load the first time a game uses them (love.engine).
+		if c.modules[v] and package.preload["love." .. v] and not (love._optionalModules or {})[v] then
 			require("love." .. v)
 		end
 	end
@@ -377,9 +381,9 @@ function love.init()
 		love.createhandlers()
 	end
 
-	-- Smitten: the smitten module is a global, like love.
-	if package.preload.smitten then
-		smitten = require("smitten")
+	-- Smitten: its own modules, helpers and the scene tree's hooks.
+	if package.preload["love.engine"] then
+		require("love.engine").init(c)
 	end
 
 	-- Check the version

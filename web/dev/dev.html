@@ -4,12 +4,12 @@
 <body><canvas id="canvas" tabindex="1"></canvas><pre id="log"></pre>
 <script type="module">
 // Development harness: runs the Lua source in the URL hash (base64url) as main.lua.
-import createLove from './love.mjs';
+import createSmitten from './smitten.mjs';
 window.addEventListener('hashchange', () => location.reload());
 const log = (...a) => { document.getElementById('log').textContent += a.join(' ') + '\n'; console.log(...a); };
 const b64 = location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
 const main = new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
-const Module = await createLove({ canvas: document.getElementById('canvas'), print: log, printErr: log,
+const Module = await createSmitten({ canvas: document.getElementById('canvas'), print: log, printErr: log,
   onLoveQuit: (code) => log('quit', code) });
 Module.FS.mkdir('/game');
 Module.FS.writeFile('/game/main.lua', main);

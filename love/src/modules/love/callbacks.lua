@@ -166,6 +166,11 @@ end
 -----------------------------------------------------------
 
 function love.run()
+	-- Smitten: the scene tree, input actions and timers (love.engine). It
+	-- starts the project's main scene, if it has one, before love.load.
+	local engine = love._engine
+	if engine then engine.start() end
+
 	if love.load then love.load(love.parsedGameArguments, love.rawGameArguments) end
 
 	-- We don't want the first frame's dt to include time taken by love.load.
@@ -191,16 +196,22 @@ function love.run()
 
 		-- Call update and draw
 		if love.update then love.update(dt) end -- will pass 0 if love.timer is disabled
+		if engine then engine.update(dt) end
 
 		if love.graphics and love.graphics.isActive() then
 			love.graphics.origin()
 			love.graphics.clear(love.graphics.getBackgroundColor())
 
-			if love.draw then love.draw() end
+			if engine then
+				engine.draw(love.draw)
+			elseif love.draw then
+				love.draw()
+			end
 
 			love.graphics.present()
 		end
 
+		if engine then engine.endFrame() end
 		if love.timer then love.timer.sleep(0.001) end
 	end
 end

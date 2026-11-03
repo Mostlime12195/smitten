@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
-PLAYER_FILES = ["player.js", "player.css", "love.mjs", "love.wasm"]
+PLAYER_FILES = ["player.js", "player.css", "smitten.mjs", "smitten.wasm"]
 COMPAT_RULES = ROOT / "web" / "editor" / "compat-rules.json"
 
 

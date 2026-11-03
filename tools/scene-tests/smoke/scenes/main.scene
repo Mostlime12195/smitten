@@ -1,0 +1,33 @@
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Main", "type": "Node2D", "script": "scenes/main.lua",
+    "children": [
+      { "name": "Floor", "type": "StaticBody2D", "properties": { "x": 320, "y": 330 },
+        "children": [
+          { "name": "Shape", "type": "CollisionShape2D", "properties": { "width": 600, "height": 20 } },
+          { "name": "Look", "type": "Shape2D", "properties": { "width": 600, "height": 20, "color": [0.3, 0.3, 0.35, 1] } }
+        ] },
+      { "name": "Player", "type": "CharacterBody2D", "properties": { "x": 100, "y": 100 }, "groups": ["player"],
+        "children": [
+          { "name": "Shape", "type": "CollisionShape2D", "properties": { "width": 24, "height": 32 } },
+          { "name": "Look", "type": "Shape2D", "properties": { "width": 24, "height": 32 } },
+          { "name": "Move", "type": "Platformer" }
+        ] },
+      { "name": "Coin", "type": "Area2D", "properties": { "x": 300, "y": 300 }, "groups": ["coins"],
+        "children": [
+          { "name": "Shape", "type": "CollisionShape2D", "properties": { "shape": "circle", "radius": 10 } },
+          { "name": "Look", "type": "Shape2D", "properties": { "shape": "circle", "radius": 10, "color": [1, 0.8, 0.2, 1] } },
+          { "name": "Spin", "type": "Spin" }
+        ] },
+      { "name": "Camera", "type": "Camera2D", "properties": { "x": 320, "y": 180 } },
+      { "name": "UI", "type": "Node", "children": [
+        { "name": "Score", "type": "Label", "properties": { "text": "Coins: 0", "x": 16, "y": 12, "width": 300 } },
+        { "name": "Restart", "type": "Button", "properties": { "anchor": "topRight", "x": 16, "y": 12, "text": "Restart" } },
+        { "name": "Bar", "type": "ProgressBar", "properties": { "anchor": "bottom", "y": 16, "width": 300, "height": 14, "value": 30 } }
+      ] },
+      { "name": "Tick", "type": "Timer", "properties": { "wait": 0.5, "autostart": true } }
+    ]
+  }
+}
