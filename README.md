@@ -235,6 +235,25 @@ http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
 `dist/index.html`. Everything is stored in the browser (IndexedDB); nothing is
 uploaded anywhere unless you share a link.
 
+The layout is a game engine's: play controls in the middle of the top bar,
+an activity bar on the left with the project's sections, tabs with the
+editors and tools in the middle, and the running game with its console on
+the right.
+
+- **Sections** (Alt+1 to 6): Files (the whole tree), Code (scripts grouped
+  by folder, each described by its first comment), Art (thumbnails,
+  showing a sprite's first frame), Maps (rendered previews of each level,
+  and tilesets), Sounds and Music (with play buttons). Each has search and a
+  **New** button
+- **Home** tab: the project at a glance, cards to create a script, sprite,
+  tileset, map, sound or song, a getting-started checklist, recent files,
+  and the smitten cheat sheet
+- **Project settings**: name, resolution (with presets) and palette (import a
+  Lospec `.hex` file or paste colors)
+- The game panel can be hidden (Ctrl+Shift+G) or take over the window
+  (Ctrl+Shift+F), the console folds away (Ctrl+J), and pixel-perfect
+  scaling is one click
+- Auto save is on by default
 - Projects with a file tree showing thumbnails; import files, folders,
   `.love` and `.zip` by drag and drop. **New** (the + in the file panel)
   makes files, folders and assets (sprite, map, tileset, sound effect, song)
