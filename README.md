@@ -521,9 +521,9 @@ top of it. DESIGN.md, section 9, summarizes what it changes from LÖVE.
 
 ## Licenses
 
+Smitten is under the zlib license (`LICENSE`), like LÖVE.
 LÖVE is under the zlib license (`love/license.txt`); its bundled libraries
 keep their own licenses. Lua 5.1 is MIT (`deps/lua-5.1.5/COPYRIGHT`), as is
 LuaBitOp (`deps/luabitop/bit.c`). libtheora is BSD-style
 (`deps/theora/COPYING`).
-Changes in this repository are marked in the source and follow the same
-licenses. The default palette is Sweetie 16 by GrafxKid.
+Changes to those projects are marked in the source and keep their licenses. The default palette is Sweetie 16 by GrafxKid.
