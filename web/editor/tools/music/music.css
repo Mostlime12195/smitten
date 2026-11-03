@@ -1,0 +1,222 @@
+/* Music editor. Shared pieces (toolbar, sliders, banner, wave buttons) are
+   in ../sfx/sfx.css. Uses the editor's theme variables. */
+
+.mus-toolbar { gap: 4px; }
+.mus-toolbar .segmented button { height: 22px; padding: 0 8px; }
+.mus-play.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.mus-play svg { fill: currentColor; }
+.mus-play .icon:has(polygon) svg { stroke-width: 1.5; }
+.mus-field { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-muted); font-size: 12px; white-space: nowrap; margin-right: 4px; }
+.mus-num { width: 58px; height: 26px; padding: 0 4px 0 7px; font-variant-numeric: tabular-nums; }
+
+.mus-body { display: flex; flex: 1; min-height: 0; }
+
+/* Sidebar */
+.mus-sidebar {
+  width: 264px;
+  flex: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.mus-section { padding: 6px 8px 10px; border-bottom: 1px solid var(--border); }
+.mus-section:last-child { border-bottom: 0; }
+.mus-section-head { display: flex; align-items: center; height: 28px; }
+.mus-section-head .snd-heading { padding: 0 4px; }
+.mus-list { display: flex; flex-direction: column; gap: 2px; }
+.mus-empty { color: var(--fg-subtle); padding: 6px; font-size: 12px; }
+.mus-count { color: var(--fg-subtle); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: right; }
+.mus-more { width: 22px; height: 22px; opacity: 0; }
+.mus-ch:hover .mus-more, .mus-pat:hover .mus-more, .mus-more:focus-visible { opacity: 1; }
+
+.mus-ch {
+  padding: 5px 6px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.mus-ch:hover { background: var(--hover); }
+.mus-ch.selected { background: var(--panel-elev); border-color: var(--border-strong); box-shadow: inset 3px 0 0 var(--ch); }
+.mus-ch.silent .mus-ch-name { color: var(--fg-subtle); text-decoration: line-through; text-decoration-color: var(--border-strong); }
+.mus-ch-top { display: flex; align-items: center; gap: 6px; height: 22px; }
+.mus-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--ch); flex: none; }
+.mus-ch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.mus-ms {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-subtle);
+  font: 600 10px/1 var(--font-ui);
+  cursor: pointer;
+  flex: none;
+}
+.mus-ms:hover { color: var(--fg); border-color: var(--border-strong); }
+.mus-ms[aria-pressed="true"] { background: var(--danger-solid); border-color: var(--danger-solid); color: #fff; }
+.mus-ms.solo[aria-pressed="true"] { background: var(--warning); border-color: var(--warning); color: #111; }
+.mus-ch-bottom { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; align-items: center; margin-top: 4px; padding-left: 16px; }
+.mus-ch-ins { width: 100%; min-width: 0; height: 24px; font-size: 12px; }
+
+.mus-pat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 4px 0 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.mus-pat:hover { background: var(--hover); }
+.mus-pat.selected { background: var(--accent-soft); color: var(--accent-text); }
+.mus-pat-num {
+  min-width: 20px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--fg-muted);
+  font: 600 11px/18px var(--font-mono);
+  text-align: center;
+}
+.mus-pat.selected .mus-pat-num { background: var(--accent); color: var(--accent-fg); }
+.mus-pat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Instrument panel */
+.mus-instrument { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+.mus-ins-name { width: 100%; font-weight: 500; }
+.mus-ins-meta { display: flex; }
+.mus-ins-type { width: 100%; }
+.mus-ins-type button { flex: 1; justify-content: center; }
+.mus-ins-users { color: var(--fg-subtle); font-size: 11.5px; margin-top: -2px; }
+.mus-instrument .snd-waves { margin: 0; gap: 3px; }
+.mus-instrument .snd-waves button { padding: 4px 0 3px; font-size: 10px; }
+.mus-instrument .snd-waves .snd-wave-icon svg { width: 20px; height: 14px; }
+.mus-ins-sliders .snd-row { grid-template-columns: 76px minmax(40px, 1fr) 64px; gap: 6px; min-height: 26px; }
+.mus-ins-sliders .snd-label { font-size: 11.5px; }
+.mus-ins-sliders .snd-readout { font-size: 11px; padding: 0 4px; }
+.snd-row.inactive { opacity: .45; }
+.mus-sfx-row { display: flex; gap: 6px; }
+.mus-sfx-select { flex: 1; min-width: 0; }
+.mus-switch-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: pointer; }
+.mus-hint { color: var(--fg-subtle); font-size: 11.5px; width: 100%; padding-left: 42px; margin-top: -4px; }
+
+/* Piano roll */
+.mus-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mus-roll { position: relative; flex: 1; min-height: 120px; overflow: hidden; background: var(--editor-bg); }
+.mus-canvas { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+.mus-scroll {
+  position: absolute;
+  right: 0;
+  overflow: auto;
+  z-index: 1;
+  cursor: crosshair;
+  touch-action: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.mus-scroll.select-mode { cursor: default; }
+.mus-sizer { pointer-events: none; }
+
+.mus-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 30px;
+  flex: none;
+  padding: 0 10px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mus-channel-info { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); font-weight: 500; }
+.mus-channel-info::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--ch); }
+.mus-hover { font-variant-numeric: tabular-nums; color: var(--fg-subtle); }
+.mus-sel { display: inline-flex; align-items: center; gap: 8px; }
+.mus-sel-label { color: var(--fg-subtle); }
+.mus-sel-volume { width: 110px; }
+.mus-sel-text { width: 34px; text-align: right; font: 11.5px var(--font-mono); color: var(--fg); }
+
+/* Arrangement */
+.mus-arrange {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 52px;
+  padding: 0 10px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.mus-arrange-head { display: flex; flex-direction: column; align-items: flex-start; gap: 0; flex: none; }
+.mus-arrange-head .snd-heading { padding: 0 2px 2px; }
+.mus-loop { height: 22px !important; padding: 0 6px !important; font-size: 11.5px; }
+.mus-loop[aria-pressed="true"] { color: var(--accent-text); background: var(--accent-soft); }
+.mus-slots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.mus-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  max-width: 150px;
+  flex: none;
+  padding: 0 10px 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel-elev);
+  color: var(--fg);
+  cursor: pointer;
+  border-bottom: 3px solid hsl(var(--slot-hue) 65% 55%);
+}
+.mus-slot:hover { background: var(--panel-2); }
+.mus-slot.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); border-bottom-color: hsl(var(--slot-hue) 65% 55%); }
+.mus-slot.playing { background: var(--accent-soft); }
+.mus-slot.drop-before::before, .mus-slot.drop-after::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--accent);
+}
+.mus-slot.drop-before::before { left: -4px; }
+.mus-slot.drop-after::after { right: -4px; }
+.mus-slot-num { font: 600 11px var(--font-mono); color: var(--fg-muted); }
+.mus-slot-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.mus-slot-flag { color: var(--brand); display: inline-flex; margin-right: -2px; }
+.mus-slot-flag svg { fill: currentColor; }
+.mus-slot-add {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.mus-slot-add:hover { color: var(--fg); background: var(--hover); }
+
+@media (max-width: 760px) {
+  .mus-sidebar { width: 210px; }
+  .mus-field span { display: none; }
+}

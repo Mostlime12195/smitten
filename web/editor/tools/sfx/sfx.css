@@ -1,0 +1,252 @@
+/* Sound effect editor, plus pieces the music editor shares (snd-*). Uses the
+   editor's theme variables (editor.css), so light and dark both work. */
+
+.snd-tool {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--editor-bg);
+  color: var(--fg);
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.snd-tool input[type="text"], .snd-tool input[type="number"] { user-select: text; -webkit-user-select: text; }
+
+.snd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  flex: none;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.snd-toolbar .btn.small { height: 26px; padding: 0 8px; gap: 5px; }
+.snd-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 6px; flex: none; }
+.snd-spacer { flex: 1; min-width: 8px; }
+.snd-switch-label { color: var(--fg-muted); font-size: 12px; margin-right: 8px; white-space: nowrap; cursor: pointer; }
+
+.snd-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--fg);
+  font-size: 12px;
+}
+.snd-banner .icon { color: var(--accent-text); }
+.snd-banner-text { flex: 1; min-width: 0; }
+.snd-banner .btn.small { height: 24px; }
+
+.snd-heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  padding: 4px 8px 6px;
+}
+.snd-divider { height: 1px; background: var(--border); margin: 8px 4px; }
+
+.snd-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 10px 12px 8px;
+  min-width: 0;
+}
+.snd-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.snd-card-note { font-weight: 400; color: var(--fg-subtle); font-size: 11.5px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.snd-card.inactive .snd-row { opacity: .5; }
+
+/* A labeled slider with an editable readout. */
+.snd-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 108px) minmax(60px, 1fr) 96px;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+}
+.snd-label { color: var(--fg-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.snd-row.off .snd-readout { color: var(--fg-subtle); }
+.snd-readout {
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  font: 11.5px/1 var(--font-mono);
+  text-align: right;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.snd-readout:hover { border-color: var(--border); }
+.snd-readout:focus { border-color: var(--accent); background: var(--input-bg); box-shadow: 0 0 0 3px var(--accent-soft); text-align: left; }
+
+.snd-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.snd-range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--border-strong); }
+.snd-range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border-strong); }
+.snd-range::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+.snd-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--fg);
+  box-shadow: 0 0 0 2px var(--editor-bg);
+}
+.snd-range::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 3px; background: var(--fg); box-shadow: 0 0 0 2px var(--editor-bg); }
+.snd-range:hover::-webkit-slider-thumb, .snd-range:focus-visible::-webkit-slider-thumb { background: var(--accent); }
+.snd-range:hover::-moz-range-thumb, .snd-range:focus-visible::-moz-range-thumb { background: var(--accent); }
+.snd-range:focus-visible { outline: none; }
+.snd-range:focus-visible::-webkit-slider-runnable-track { background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+
+.snd-wave-icon svg { display: block; }
+
+/* Wave buttons */
+.sfx-waves, .snd-waves {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sfx-waves button, .snd-waves button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--editor-bg);
+  color: var(--fg-muted);
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 0;
+}
+.sfx-waves button span:last-child, .snd-waves button span:last-child { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sfx-waves button:hover, .snd-waves button:hover { color: var(--fg); background: var(--hover); }
+.sfx-waves button[aria-pressed="true"], .snd-waves button[aria-pressed="true"] {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sound effect editor layout */
+
+.sfx-body { display: flex; flex: 1; min-height: 0; }
+.sfx-presets {
+  width: 168px;
+  flex: none;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.sfx-preset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.sfx-preset .icon { color: var(--fg-muted); }
+.sfx-preset:hover { background: var(--hover); }
+.sfx-preset:hover .icon { color: var(--brand); }
+.sfx-preset:active { background: var(--active); }
+
+.sfx-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.sfx-wave-row { display: flex; gap: 12px; align-items: stretch; margin-bottom: 14px; }
+.sfx-play {
+  width: 96px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+  transition: filter .12s, transform .06s;
+}
+.sfx-play:hover:not(:disabled) { filter: brightness(1.08); }
+.sfx-play:active:not(:disabled) { transform: scale(.97); }
+.sfx-play:disabled { background: var(--panel-2); color: var(--fg-subtle); cursor: default; }
+.sfx-play svg { fill: currentColor; }
+.sfx-wave {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+.sfx-wave-canvas { position: absolute; inset: 0; display: block; image-rendering: pixelated; }
+.sfx-wave-info {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font: 11px/1 var(--font-mono);
+  color: var(--fg-subtle);
+  pointer-events: none;
+}
+.no-synth .sfx-wave-info { inset: 0; display: grid; place-items: center; font: 12px var(--font-ui); }
+
+.sfx-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .sfx-presets { width: 132px; }
+  .sfx-play { width: 64px; }
+}
