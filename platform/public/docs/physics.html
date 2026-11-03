@@ -25,65 +25,68 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics" aria-current="page">Physics</a><ul class="nav-sub"><li><a href="#bodies">Bodies</a></li><li><a href="#scripted-bodies">Scripted bodies</a></li><li><a href="#physics-bodies">Physics bodies</a></li><li><a href="#collisions">Collisions</a></li><li><a href="#zones">Zones</a></li><li><a href="#tiles">Tiles</a></li><li><a href="#queries">Queries</a></li><li><a href="#gravity">Gravity</a></li><li><a href="#joints">Joints</a></li><li><a href="#love-physics">love.physics</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics" aria-current="page">Physics</a><ul class="nav-sub"><li><a href="#bodies">Bodies</a></li><li><a href="#moving-players-and-enemies">Moving players and enemies</a></li><li><a href="#physics-bodies">Physics bodies</a></li><li><a href="#collisions">Collisions</a></li><li><a href="#zones">Zones</a></li><li><a href="#tiles">Tiles</a></li><li><a href="#queries">Queries</a></li><li><a href="#gravity">Gravity</a></li><li><a href="#joints">Joints</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Physics</h1>
-<p>Each scene has a Box2D 3 world. <strong>Bodies</strong> are solid, <strong>Zones</strong> detect overlaps, <strong>Hitboxes</strong> add shapes, <strong>Joints</strong> connect bodies, and solid <strong>tiles</strong> are walls and floors. Physics steps 60 times a second, after <code>physicsUpdate(dt)</code>.</p>
-<p>Units: pixels, pixels per second, radians (clockwise), kilograms. <code>y</code> points down.</p>
+<p>Every scene has a physics world, powered by Box2D. <strong>Bodies</strong> are solid things that bump into each other, <strong>Zones</strong> notice when things go in and out, <strong>Hitboxes</strong> give either one extra shapes, <strong>Joints</strong> connect bodies together, and solid <strong>tiles</strong> act as walls and floors. Physics updates 60 times a second, right after every piece's <code>physicsUpdate(dt)</code>.</p>
+<p>Lengths are in pixels, speeds in pixels per second, angles in radians (clockwise), and mass in kilograms. As everywhere in Smitten, <code>y</code> points down, so <code>vy = -400</code> moves up.</p>
 <h2 id="bodies"><a class="anchor" href="#bodies" aria-hidden="true">#</a>Bodies</h2>
+<p>A Body's <strong>motion</strong> decides what moves it:</p>
 <div class="table"><table>
-<thead><tr><th><code>motion</code></th><th>Moved by</th><th>For</th></tr></thead>
+<thead><tr><th><code>motion</code></th><th>Moved by</th><th>Good for</th></tr></thead>
 <tbody><tr><td><code>still</code></td><td>Nothing, unless a script moves it</td><td>Floors, walls, moving platforms</td></tr>
-<tr><td><code>scripted</code></td><td><code>vx</code>, <code>vy</code> and <code>move()</code></td><td>Players, enemies</td></tr>
-<tr><td><code>physics</code></td><td>Gravity, collisions, forces, joints</td><td>Crates, balls, debris</td></tr></tbody>
+<tr><td><code>scripted</code></td><td>Its script, by setting <code>vx</code>, <code>vy</code> and calling <code>move()</code></td><td>Players and enemies</td></tr>
+<tr><td><code>physics</code></td><td>The physics world: gravity, collisions, forces, joints</td><td>Crates, balls, debris</td></tr></tbody>
 </table></div>
-<p><code>motion</code> can change at any time.</p>
+<p>Motion can change at any time, so a crate can sit <code>still</code> until something knocks it loose.</p>
+<p>A Body's <strong>shape</strong> is the part that collides:</p>
 <div class="table"><table>
 <thead><tr><th><code>shape</code></th><th></th></tr></thead>
-<tbody><tr><td><code>auto</code></td><td>Fits the Sprites and Shapes inside</td></tr>
+<tbody><tr><td><code>auto</code></td><td>Fits the Sprites and Shapes inside the Body (the default)</td></tr>
 <tr><td><code>rectangle</code></td><td><code>width</code> × <code>height</code></td></tr>
 <tr><td><code>circle</code></td><td><code>radius</code></td></tr>
-<tr><td><code>capsule</code></td><td><code>width</code> × <code>height</code>, round ends</td></tr>
-<tr><td><code>polygon</code></td><td><code>points</code> <code>{x1, y1, x2, y2, ...}</code>, up to 8, convex</td></tr>
-<tr><td><code>none</code></td><td>Hitboxes only</td></tr></tbody>
+<tr><td><code>capsule</code></td><td><code>width</code> × <code>height</code> with rounded ends; good for characters</td></tr>
+<tr><td><code>polygon</code></td><td>Up to 8 corners in <code>points</code>: <code>{x1, y1, x2, y2, ...}</code></td></tr>
+<tr><td><code>none</code></td><td>Only its Hitboxes</td></tr></tbody>
 </table></div>
-<p>Shapes move, turn and scale with the piece. A <strong>Hitbox</strong> inside a Body or Zone adds a shape; <code>off = true</code> disables it.</p>
-<h2 id="scripted-bodies"><a class="anchor" href="#scripted-bodies" aria-hidden="true">#</a>Scripted bodies</h2>
+<p>Shapes move, turn and scale with the piece. A <strong>Hitbox</strong> inside a Body or Zone adds another shape, for things <code>auto</code> can't make, like an L shape or a sword's reach; set its <code>off</code> to disable it.</p>
+<h2 id="moving-players-and-enemies"><a class="anchor" href="#moving-players-and-enemies" aria-hidden="true">#</a>Moving players and enemies</h2>
+<p>Scripted bodies are moved by their script. Set the speed you want, then call <code>move()</code>:</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
   vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * <span class="tk-n">220</span>
-  vy = math.<span class="tk-f">min</span>(vy + <span class="tk-n">1800</span> * dt, <span class="tk-n">1000</span>)
+  vy = math.<span class="tk-f">min</span>(vy + <span class="tk-n">1800</span> * dt, <span class="tk-n">1000</span>)            <span class="tk-c">-- gravity, with a top speed</span>
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
   <span class="tk-f">move</span>()
 <span class="tk-k">end</span></code></pre>
-<p><code>move()</code> moves by <code>vx * dt</code>, <code>vy * dt</code>. It slides along surfaces, climbs slopes up to <code>slope</code> (45°), stays grounded over small steps, rides moving platforms, pushes physics bodies according to <code>mass</code>, passes up through one-way tiles, and turns by <code>spin</code>.</p>
+<p><code>move()</code> does the hard parts of platformer movement for you: it slides along walls, walks up and down slopes up to <code>slope</code> degrees, stays on the ground over small bumps, rides moving platforms, pushes physics bodies (harder the heavier its <code>mass</code>), jumps up through one-way tiles and lands on them.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>onGround()</code>, <code>onWall()</code>, <code>onCeiling()</code></td><td>What the last move touched</td></tr>
-<tr><td><code>moveBy(dx, dy)</code></td><td>Moves until blocked; returns what it hit, or nil</td></tr></tbody>
+<tbody><tr><td><code>onGround()</code>, <code>onWall()</code>, <code>onCeiling()</code></td><td>What the last <code>move()</code> ran into</td></tr>
+<tr><td><code>moveBy(dx, dy)</code></td><td>Moves in a straight line until blocked, and returns what it hit</td></tr></tbody>
 </table></div>
-<p>Setting <code>x</code>, <code>y</code> or <code>rotation</code> moves the body there, pushing what's in the way for short distances.</p>
+<p>Setting <code>x</code>, <code>y</code> or <code>rotation</code> directly moves a body there, pushing aside what's in the way over short distances.</p>
 <h2 id="physics-bodies"><a class="anchor" href="#physics-bodies" aria-hidden="true">#</a>Physics bodies</h2>
-<p><code>vx</code>, <code>vy</code> and <code>spin</code> are the current velocity; set them to throw.</p>
+<p>Physics bodies move on their own. <code>vx</code>, <code>vy</code> and <code>spin</code> are their current velocity; set them to throw something. To push them around:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>applyImpulse(ix, iy[, x, y])</code></td><td>Instant change of velocity by impulse / <code>mass</code>; at a point, also spins</td></tr>
-<tr><td><code>applyForce(fx, fy[, x, y])</code></td><td>Force for one step; call every <code>physicsUpdate</code></td></tr>
-<tr><td><code>applyTorque(t)</code>, <code>applyAngularImpulse(i)</code></td><td>Turning force; instant turn</td></tr>
-<tr><td><code>wake()</code></td><td>Wakes a sleeping body</td></tr>
-<tr><td><code>grab(x, y)</code>, <code>dragTo(x, y)</code>, <code>drop()</code></td><td>Hold, move and release by a point; keeps momentum</td></tr></tbody>
+<tbody><tr><td><code>applyImpulse(ix, iy)</code></td><td>A sudden push, like a jump or a kick. Applied at a point (<code>applyImpulse(ix, iy, x, y)</code>), it also spins the body</td></tr>
+<tr><td><code>applyForce(fx, fy)</code></td><td>A steady push for one step; call it every <code>physicsUpdate</code> for wind or thrusters</td></tr>
+<tr><td><code>applyTorque(t)</code>, <code>applyAngularImpulse(i)</code></td><td>The same for turning</td></tr>
+<tr><td><code>grab(x, y)</code>, <code>dragTo(x, y)</code>, <code>drop()</code></td><td>Hold the body by a point, move it, and let go (it keeps its momentum)</td></tr>
+<tr><td><code>wake()</code></td><td>Wake a body that has come to rest</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Setting</th><th></th></tr></thead>
-<tbody><tr><td><code>mass</code></td><td>Kilograms</td></tr>
-<tr><td><code>gravity</code></td><td>Gravity scale: 0 floats, -1 falls up</td></tr>
-<tr><td><code>friction</code>, <code>bounce</code></td><td>0 to 1</td></tr>
-<tr><td><code>drag</code>, <code>spinDrag</code></td><td>Linear and angular damping</td></tr>
-<tr><td><code>fixedRotation</code></td><td>Never turns</td></tr>
-<tr><td><code>bullet</code></td><td>Continuous collision against other moving bodies</td></tr>
-<tr><td><code>asleep</code></td><td>Start at rest</td></tr></tbody>
+<tbody><tr><td><code>mass</code></td><td>How heavy it is, in kilograms</td></tr>
+<tr><td><code>gravity</code></td><td>How strongly gravity pulls it: 0 floats, -1 falls up</td></tr>
+<tr><td><code>friction</code>, <code>bounce</code></td><td>From 0 to 1: grip, and bounciness</td></tr>
+<tr><td><code>drag</code>, <code>spinDrag</code></td><td>Slow its movement and its turning, like air resistance</td></tr>
+<tr><td><code>fixedRotation</code></td><td>Never turns over</td></tr>
+<tr><td><code>bullet</code></td><td>Extra-careful collisions for small, fast things</td></tr>
+<tr><td><code>asleep</code></td><td>Start resting until something touches it</td></tr></tbody>
 </table></div>
-<p>Setting <code>x</code>, <code>y</code> or <code>rotation</code> teleports and keeps velocity.</p>
+<p>Setting <code>x</code>, <code>y</code> or <code>rotation</code> of a physics body teleports it and keeps its speed. Here's an explosion that throws everything nearby outwards:</p>
 <pre><code class="lang-lua"><span class="tk-k">for</span> _, p <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">overlap</span>(<span class="tk-s">&quot;circle&quot;</span>, x, y, <span class="tk-n">150</span>)) <span class="tk-k">do</span>
   <span class="tk-k">if</span> p.motion == <span class="tk-s">&quot;physics&quot;</span> <span class="tk-k">then</span>
     <span class="tk-k">local</span> dx, dy = p.x - x, p.y - y
@@ -92,27 +95,31 @@
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="collisions"><a class="anchor" href="#collisions" aria-hidden="true">#</a>Collisions</h2>
-<p><code>hit(other, contact)</code> runs on both bodies when they start touching.</p>
+<p>When a Body starts touching something, its script's <code>hit(other, contact)</code> runs, on both bodies. <code>contact</code> says where and how hard:</p>
 <div class="table"><table>
 <thead><tr><th><code>contact</code></th><th></th></tr></thead>
-<tbody><tr><td><code>x</code>, <code>y</code></td><td>Contact point</td></tr>
-<tr><td><code>nx</code>, <code>ny</code></td><td>Normal, from <code>other</code> towards this body</td></tr>
-<tr><td><code>impulse</code></td><td>Strength of the impact</td></tr></tbody>
+<tbody><tr><td><code>x</code>, <code>y</code></td><td>Where they touched</td></tr>
+<tr><td><code>nx</code>, <code>ny</code></td><td>The direction from <code>other</code> towards this body</td></tr>
+<tr><td><code>impulse</code></td><td>How hard they hit: small for a touch, large for a crash</td></tr></tbody>
 </table></div>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">hit</span>(other, contact)
+  <span class="tk-k">if</span> contact.impulse &gt; <span class="tk-n">300</span> <span class="tk-k">then</span> <span class="tk-f">sfx</span>(<span class="tk-s">&quot;thud&quot;</span>) <span class="tk-k">end</span>
+  <span class="tk-k">if</span> other:<span class="tk-f">is</span>(<span class="tk-s">&quot;spikes&quot;</span>) <span class="tk-k">then</span> <span class="tk-f">reload</span>() <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>isTouching(pieceOrTag)</code></td><td>Whether it touches it now</td></tr>
-<tr><td><code>touching(pieceOrTag)</code></td><td>The first touching match, or nil</td></tr>
-<tr><td><code>contacts()</code></td><td>Current contacts: <code>{piece, x, y, nx, ny, impulse}</code></td></tr>
-<tr><td><code>touchingTile(setting)</code></td><td>Settings of a touching tile that has <code>setting</code></td></tr></tbody>
+<tbody><tr><td><code>isTouching(pieceOrTag)</code></td><td>Whether it's touching that piece, or anything with that tag, right now</td></tr>
+<tr><td><code>touching(pieceOrTag)</code></td><td>The first matching piece it's touching, or nil</td></tr>
+<tr><td><code>contacts()</code></td><td>Everything it's touching: <code>{piece, x, y, nx, ny, impulse}</code></td></tr>
+<tr><td><code>touchingTile(setting)</code></td><td>The settings of a touched tile with that setting</td></tr></tbody>
 </table></div>
-<p><code>passThrough</code> lists tags this body ignores, both ways; <code>&quot;tiles&quot;</code> ignores solid tiles.</p>
+<p><strong>passThrough</strong> lists tags a body goes straight through, both ways: a ghost might pass through <code>&quot;walls&quot;</code>. <code>&quot;tiles&quot;</code> passes through solid tiles.</p>
 <h2 id="zones"><a class="anchor" href="#zones" aria-hidden="true">#</a>Zones</h2>
-<p><code>entered(other)</code> and <code>exited(other)</code> run on the Zone and on the Body. <code>detects</code> limits them to tags, <code>active = false</code> turns the Zone off, and <code>inside()</code> lists what's in it. Zones don't block and don't detect still bodies.</p>
+<p>A Zone notices bodies and other zones going in and out, without blocking anything. Its script gets <code>entered(other)</code> and <code>exited(other)</code>, and so does the Body that went in. <strong>detects</strong> limits it to things with certain tags, <code>active = false</code> turns it off, and <code>inside()</code> lists what's in it right now. Zones don't notice <code>still</code> bodies.</p>
 <h2 id="tiles"><a class="anchor" href="#tiles" aria-hidden="true">#</a>Tiles</h2>
-<p>Solid tiles have smooth seams. <code>oneWay</code> tiles block only from above. Changes by <code>setTile</code>, <code>fill</code> and <code>clear</code> apply immediately. See <a href="tiles">Tiles</a>.</p>
+<p>Solid tiles in a Tiles piece are walls and floors with smooth seams, so nothing catches on the edges between tiles. One-way tiles are solid only from above. Changing tiles with <code>setTile</code>, <code>fill</code> or <code>clear</code> takes effect immediately. See <a href="tiles">Tiles</a>.</p>
 <h2 id="queries"><a class="anchor" href="#queries" aria-hidden="true">#</a>Queries</h2>
-<p>Global in scripts and on <code>smitten.physics</code>:</p>
+<p>These ask the physics world about the scene. They work in any script, and on <code>smitten.physics</code>:</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>raycast(x1, y1, x2, y2, tags)</code></td><td>The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them.</td></tr>
@@ -122,27 +129,26 @@
 <tr><td><code>getGravity()</code></td><td>The scene's gravity: x, y in pixels per second per second.</td></tr>
 <tr><td><code>setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats everything.</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua"><span class="tk-k">local</span> hit = <span class="tk-f">raycast</span>(x, y, player.x, player.y)
+<pre><code class="lang-lua"><span class="tk-c">-- Can this enemy see the player, with nothing solid in between?</span>
+<span class="tk-k">local</span> hit = <span class="tk-f">raycast</span>(x, y, player.x, player.y)
 <span class="tk-k">local</span> sees = hit <span class="tk-k">and</span> hit.piece == player</code></pre>
-<p>Raycasts ignore Zones and the backs of tiles.</p>
+<p>Raycasts skip Zones and the backs of tiles.</p>
 <h2 id="gravity"><a class="anchor" href="#gravity" aria-hidden="true">#</a>Gravity</h2>
-<p>Set in <strong>Project settings › Physics</strong> (<code>physics.gravity</code>, default <code>[0, 980]</code>). <code>setGravity(x, y)</code> and <code>getGravity()</code> change it at run time. Scripted bodies apply their own gravity.</p>
+<p>The scene's gravity is set in <strong>Project settings › Physics</strong> (<code>physics.gravity</code>, <code>[0, 980]</code> by default). <code>setGravity(0, 0)</code> switches it off for a space level, and <code>getGravity()</code> reads it. Scripted bodies apply their own gravity in their script, as in the example above.</p>
 <h2 id="joints"><a class="anchor" href="#joints" aria-hidden="true">#</a>Joints</h2>
-<p>A Joint connects body <code>a</code> to body <code>b</code>, or to its own position when <code>b</code> is empty. It acts at the Joint's position.</p>
+<p>A <strong>Joint</strong> connects body <code>a</code> to body <code>b</code>, or to its own spot in the scene when <code>b</code> is empty. It acts where the Joint piece is, so a door's hinge Joint goes at the hinge.</p>
 <div class="table"><table>
 <thead><tr><th><code>kind</code></th><th></th></tr></thead>
-<tbody><tr><td><code>pin</code></td><td>Rotates around the Joint. <code>motor</code>, <code>limit</code> (<code>minAngle</code>, <code>maxAngle</code>), <code>spring</code></td></tr>
-<tr><td><code>weld</code></td><td>Fixed together; <code>spring</code> makes it flex</td></tr>
-<tr><td><code>rope</code></td><td>At most <code>length</code> apart</td></tr>
-<tr><td><code>spring</code></td><td>Pulls to <code>length</code>: <code>stiffness</code>, <code>damping</code></td></tr>
-<tr><td><code>distance</code></td><td>Exactly <code>length</code> apart</td></tr>
-<tr><td><code>slider</code></td><td>Moves along the Joint's x axis. <code>motor</code>, <code>limit</code> (<code>lower</code>, <code>upper</code>), <code>spring</code></td></tr>
-<tr><td><code>wheel</code></td><td>Rotates, and springs along the Joint's y axis. <code>motor</code></td></tr>
-<tr><td><code>mouse</code></td><td>Pulls <code>a</code> towards the Joint's position</td></tr></tbody>
+<tbody><tr><td><code>pin</code></td><td>Turns around the Joint, like a hinge or a wheel on an axle. Can have a <code>motor</code>, a <code>limit</code> (<code>minAngle</code>, <code>maxAngle</code>) and a <code>spring</code></td></tr>
+<tr><td><code>weld</code></td><td>Holds them together; with <code>spring</code>, it flexes</td></tr>
+<tr><td><code>rope</code></td><td>Keeps them at most <code>length</code> apart</td></tr>
+<tr><td><code>spring</code></td><td>Pulls them towards <code>length</code> apart, with <code>stiffness</code> and <code>damping</code></td></tr>
+<tr><td><code>distance</code></td><td>Keeps them exactly <code>length</code> apart, like a rod</td></tr>
+<tr><td><code>slider</code></td><td>Slides along the Joint's x direction, like a piston. Can have a <code>motor</code>, a <code>limit</code> (<code>lower</code>, <code>upper</code>) and a <code>spring</code></td></tr>
+<tr><td><code>wheel</code></td><td>Turns, with a spring along the Joint's y direction, like a car's wheel</td></tr>
+<tr><td><code>mouse</code></td><td>Pulls <code>a</code> towards wherever the Joint is</td></tr></tbody>
 </table></div>
-<p>Settings apply while running. <code>collide</code> lets connected bodies collide. <code>breakForce</code> above 0 breaks the joint under that force and emits <code>broke</code>. Read state with <code>getAngle()</code>, <code>getTranslation()</code>, <code>getLength()</code>, <code>getSpeed()</code>, <code>getForce()</code> and <code>getTorque()</code>.</p>
-<h2 id="love-physics"><a class="anchor" href="#love-physics" aria-hidden="true">#</a>love.physics</h2>
-<p>LÖVE's <code>love.physics</code> (Box2D 2.4) works as in LÖVE, as the optional <code>lovephysics</code> module. Scenes don't use it.</p>
+<p>Joint settings can change while the game runs (<code>motorSpeed = 5</code>). <code>collide</code> lets the two connected bodies still bump into each other. With a <code>breakForce</code>, the joint snaps when pulled harder than that and sends <code>broke</code>. <code>getAngle()</code>, <code>getTranslation()</code>, <code>getLength()</code>, <code>getSpeed()</code>, <code>getForce()</code> and <code>getTorque()</code> read its state.</p>
 <h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>

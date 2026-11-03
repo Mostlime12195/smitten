@@ -1,11 +1,16 @@
 # Scripts
 
-A script is a Lua file attached to a piece. Names in it refer to the
-piece: no `self.`, no table to return.
+A script is a piece's own code. Attach one to any piece in the Inspector,
+and it can move the piece, react to what happens to it, and change the
+rest of the game. Scripts are written in Lua with a few additions.
+
+Inside a script, names refer to the piece it's attached to. There's no
+`self.` to write and no table to return: `x` is the piece's position,
+`move()` calls its `move` method, and a variable you set belongs to it.
 
 ```lua
 -- scripts/enemy.lua, on a Body
-speed = 80           -- script variable: editable per piece in the Inspector
+speed = 80           -- a script variable: editable per piece in the Inspector
 local hp = 3         -- private to this piece
 
 function ready()
@@ -15,10 +20,10 @@ end
 function physicsUpdate(dt)
   vy += 1800 * dt
   move()
-  if onWall() then vx = -vx end
+  if onWall() then vx = -vx end   -- turn around at walls
 end
 
-function hurt(damage)          -- other scripts call other:hurt(1)
+function hurt(damage)             -- other scripts can call other:hurt(1)
   hp -= damage
   if hp <= 0 then destroy() end
 end
@@ -28,64 +33,84 @@ function hit(other)
 end
 ```
 
-## Names
+## How names are found
 
-A name is looked up in this order:
+When a script uses a name, Smitten looks for it in this order:
 
-1. the script's functions;
-2. the piece's properties, script variables and methods (`x`, `vx`, `move()`);
-3. children, for capitalized names (`Look.color`, `Camera.zoom`);
-4. the [Script API](api.md) (`pressed`, `spawn`, `sfx`);
-5. Lua globals (`math`, `print`, `smitten`).
+1. functions defined in the script itself;
+2. the piece's own properties, script variables and methods (`x`, `vx`, `move()`);
+3. the piece's children, for names that start with a capital letter (`Look.color`, `Camera.zoom`);
+4. the [Script API](api.md): `pressed`, `spawn`, `sfx`, `wait` and the rest;
+5. Lua's built-ins, such as `math`, `string` and `print`.
 
-Assigning a name without `local` sets it on the piece. `self` is the piece.
-`spawn()` adds to the scene; `self:spawn()` adds inside the piece. `type()`
-is Lua's; the piece's type is `self.type`.
+Assigning to a name that isn't `local` stores it on the piece, where other
+scripts can read it (`other.hp`). `self` is the piece itself, for when you
+need to pass it somewhere.
+
+Two details: `spawn()` adds a new piece to the scene, while `self:spawn()`
+adds it inside this piece; and `type()` is Lua's function, so a piece's
+type is `self.type`.
 
 ## Script variables
 
-Top-level `name = value` lines with a number, string, boolean or color
-(`{r, g, b, a}`) appear in the Inspector, with the line's comment as help.
-Names starting with `_` are hidden. Top-level `local`s are per piece; for
-state shared by the whole game, use [`game`](scenes.md#the-game-table).
+Any top-level line like `speed = 80` with a number, text, true/false or a
+color (`{r, g, b, a}`) becomes a **script variable**. The Inspector shows
+it, uses the comment on the same line as its help, and lets each piece
+that uses the script have its own value. Names starting with `_` stay
+hidden.
 
-## Callbacks
+Top-level `local` variables belong to each piece separately. For
+something the whole game shares, like the score, use the
+[`game`](scenes.md#the-game-table) table.
+
+## What the engine calls
+
+Define any of these and the engine calls them at the right time:
 
 | Function | Called |
 | --- | --- |
-| `ready(...)` | Once, after the piece and its children enter the scene. The scene root gets `go()`'s extra values |
-| `update(dt)` | Every frame |
-| `physicsUpdate(dt)` | 60 times a second, before bodies move |
-| `draw()` | After the piece draws, in its own coordinates ([Drawing](drawing.md)) |
-| `removed()` | When it leaves the scene |
+| `ready(...)` | Once, after the piece and its children have joined the scene. The scene's root receives `go()`'s extra values |
+| `update(dt)` | Every frame. `dt` is the time since the last frame, in seconds |
+| `physicsUpdate(dt)` | 60 times a second, just before bodies move. Put movement here |
+| `draw()` | After the piece draws itself, in its own coordinates (see [Drawing](drawing.md)) |
+| `removed()` | When the piece leaves the scene |
 
-Pieces also call **events**, such as `hit(other)`, `entered(other)`,
-`pressed()`, `finished()` and `tick()`. Each piece's events are listed in
-[Pieces](pieces.md).
+Pieces also call **events** when things happen to them: a Body's
+`hit(other)`, a Zone's `entered(other)`, a Button's `pressed()`, a
+Timer's `tick()`, and so on. [Pieces](pieces.md) lists every piece's
+events.
 
 ## Your own events
 
-`emit(name, ...)` calls the piece's function of that name and its
-listeners. `piece:on(name, fn)` listens and returns a handle with `:off()`.
+`emit(name, ...)` sends an event of your own: it calls the piece's
+function with that name, and anyone listening. `piece:on(name, fn)`
+listens, and returns a handle whose `:off()` stops listening.
 
 ```lua
+-- On the player, when it lands:
+emit("landed")
+
+-- Somewhere else, shake the camera whenever that happens:
 first("player"):on("landed", function() shake(4, 0.2) end)
 ```
 
 ## Waiting
 
-`ready()`, `removed()` and events can `wait(seconds)`. `update()`,
-`physicsUpdate()` and `draw()` can't; start a `task` from them instead.
+`ready()`, `removed()` and events can pause partway with `wait(seconds)`
+and carry on afterwards, which makes sequences easy to write:
 
 ```lua
 function hit(other)
   if other:is("spikes") then
     visible = false
     wait(1)
-    x, y, visible = 100, 100, true
+    x, y, visible = 100, 100, true   -- back to the start, a second later
   end
 end
 ```
+
+`update()`, `physicsUpdate()` and `draw()` run every frame, so they can't
+wait. Start a `task` from them instead, or use `after`.
 
 <!-- api:Time -->
 | Call | |
@@ -98,19 +123,21 @@ end
 | `time()` | Seconds since the game started. |
 <!-- end -->
 
-A piece's waits, timers and tweens stop when it's destroyed or the scene
-changes, and pause with the game. `after`, `every` and `tween` return a
-handle with `:cancel()`; a tween's `:after(fn)` runs when it ends.
-
-Easings: `linear`, `outQuad` (default), `inQuad`, `inOutQuad`, `inCubic`,
-`outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inExpo`,
-`outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`, `outElastic`.
+A piece's waits, timers and tweens end when the piece is destroyed or the
+scene changes, and pause while the game is paused. `after`, `every` and
+`tween` return a handle with `:cancel()`, and a tween's `:after(fn)` runs
+when it finishes.
 
 ```lua
-tween(self, 0.4, { y = y - 40 }, "outBack")
+tween(self, 0.4, { y = y - 40 }, "outBack")   -- hop up 40 pixels
 ```
 
-## Math
+Easings: `linear`, `outQuad` (the default), `inQuad`, `inOutQuad`,
+`inCubic`, `outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`,
+`inExpo`, `outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`,
+`outElastic`.
+
+## Math helpers
 
 <!-- api:Math -->
 | Call | |
@@ -126,32 +153,31 @@ tween(self, 0.4, { y = y - 40 }, "outBack")
 | `jumpSpeed(height, gravity)` | How fast to go up to jump this high (with the piece's gravity). |
 <!-- end -->
 
-More in [`smitten.math`](engine.md).
+There's more in [`smitten.math`](engine.md).
 
-## Lua additions
+## Smitten's Lua
 
-| Syntax | |
+Scripts are Lua 5.1 with a few conveniences:
+
+| Write | Means |
 | --- | --- |
-| `score += 10` | Also `-=`, `*=`, `/=`, `%=`, `^=`, `..=` |
-| `` `HP: {hp}` `` | String interpolation |
-| `continue` | Next loop iteration |
-| `x = if a then b else c` | `if` expression |
+| `score += 10` | `score = score + 10`; also `-=`, `*=`, `/=`, `%=`, `^=`, `..=` |
+| `` `HP: {hp}/{maxHp}` `` | Text with values filled in |
+| `continue` | Skip to the next turn of a loop |
+| `x = if a then b else c` | An `if` that produces a value |
 
 ## Ready-made scripts
 
-**Attach a script** copies one of these into `scripts/`:
+**Attach a script** offers scripts to start from. Choosing one copies it
+into your `scripts/` folder, so you can read it and change anything.
 
 | Script | For |
 | --- | --- |
-| `platformer.lua` | A Body that runs and jumps |
+| `platformer.lua` | A Body that runs and jumps, with coyote time and double jumps |
 | `topdown.lua` | A Body that walks in any direction |
-| `patrol.lua` | A Body that walks back and forth |
-| `chase.lua` | Moves towards the first piece with a tag |
-| `fly.lua` | Moves the way it faces |
-| `pickup.lua` | A Zone the player collects; emits `collected` on the scene root |
-| `spin.lua`, `bob.lua` | Turns; floats up and down |
-| `drag.lua` | Dragged with the mouse or a finger |
-
-## Old-style scripts
-
-Scripts that return a table (`function Player:update(dt)`) still work.
+| `patrol.lua` | An enemy that walks back and forth, turning at walls and edges |
+| `chase.lua` | Moves towards the nearest piece with a tag |
+| `fly.lua` | Keeps moving the way it faces: bullets, arrows |
+| `pickup.lua` | A Zone the player collects; tells the scene with `collected` |
+| `spin.lua`, `bob.lua` | Keeps turning; floats gently up and down |
+| `drag.lua` | Picked up with the mouse or a finger, and thrown |

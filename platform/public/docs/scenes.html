@@ -25,32 +25,37 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes" aria-current="page">Scenes and pieces</a><ul class="nav-sub"><li><a href="#finding-pieces">Finding pieces</a></li><li><a href="#tags">Tags</a></li><li><a href="#making-and-removing-pieces">Making and removing pieces</a></li><li><a href="#changing-scenes">Changing scenes</a></li><li><a href="#the-game-table">The game table</a></li><li><a href="#pausing">Pausing</a></li><li><a href="#every-piece">Every piece</a></li><li><a href="#positions">Positions</a></li><li><a href="#smitten-scene">smitten.scene</a></li></ul></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes" aria-current="page">Scenes and pieces</a><ul class="nav-sub"><li><a href="#finding-pieces">Finding pieces</a></li><li><a href="#tags">Tags</a></li><li><a href="#making-and-removing-pieces">Making and removing pieces</a></li><li><a href="#changing-scenes">Changing scenes</a></li><li><a href="#the-game-table">The game table</a></li><li><a href="#pausing-and-slow-motion">Pausing and slow motion</a></li><li><a href="#every-piece">Every piece</a></li><li><a href="#position-size-and-drawing-order">Position, size and drawing order</a></li><li><a href="#smitten-scene">smitten.scene</a></li></ul></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Scenes and pieces</h1>
-<p>A scene is a tree of pieces in a <code>.scene</code> file. One scene runs at a time, starting with the project's main scene. A scene can be placed inside another; each placed copy can override its properties.</p>
+<p>A <strong>scene</strong> is one screen of your game, such as a level, a menu or a game over screen, saved as a <code>.scene</code> file. It's a tree of <strong>pieces</strong>: a level might hold the player, the ground, some coins and a camera, and the player holds its picture and its own camera. One scene runs at a time, starting with the project's main scene.</p>
+<p>Scenes can be placed inside other scenes. The Platformer template's coin is its own small scene, placed many times in the level; each copy can change its settings, and editing the coin scene changes them all.</p>
 <h2 id="finding-pieces"><a class="anchor" href="#finding-pieces" aria-hidden="true">#</a>Finding pieces</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>Look</code>, <code>Camera</code></td><td>A child by name (capitalized), in the piece's script</td></tr>
-<tr><td><code>find(&quot;UI/Score&quot;)</code></td><td>A piece by path from this one; <code>..</code> goes up</td></tr>
-<tr><td><code>findDeep(&quot;Score&quot;)</code></td><td>The first piece with that name inside this one</td></tr>
+<tbody><tr><td><code>Look</code>, <code>Camera</code></td><td>A child, by its name (names starting with a capital letter work like this)</td></tr>
+<tr><td><code>find(&quot;UI/Score&quot;)</code></td><td>A piece by its path from this one; <code>..</code> goes up a level</td></tr>
+<tr><td><code>findDeep(&quot;Score&quot;)</code></td><td>The first piece with that name anywhere inside this one</td></tr>
 <tr><td><code>findChildOfType(&quot;Sprite&quot;)</code></td><td>The first child of a type</td></tr>
-<tr><td><code>parent</code>, <code>children</code></td><td>The parent; the list of children</td></tr>
-<tr><td><code>root()</code></td><td>The scene's root</td></tr>
-<tr><td><code>first(&quot;player&quot;)</code>, <code>tagged(&quot;coin&quot;)</code></td><td>The first piece with a tag; all of them</td></tr></tbody>
+<tr><td><code>parent</code>, <code>children</code></td><td>The piece this one is inside; the pieces inside it</td></tr>
+<tr><td><code>root()</code></td><td>The scene's top piece</td></tr>
+<tr><td><code>first(&quot;player&quot;)</code>, <code>tagged(&quot;coin&quot;)</code></td><td>The first piece with a tag; every piece with it</td></tr></tbody>
 </table></div>
 <h2 id="tags"><a class="anchor" href="#tags" aria-hidden="true">#</a>Tags</h2>
-<p>Set tags in the Inspector or with <code>tag(name)</code> and <code>untag(name)</code>. <code>other:is(&quot;enemy&quot;)</code> checks a tag or a type (<code>other:is(&quot;Body&quot;)</code>). <code>hasAnyTag(&quot;enemy, spikes&quot;)</code> checks several.</p>
+<p>Tags are labels you give pieces, like <code>player</code>, <code>enemy</code> or <code>coin</code>, so scripts can find them and tell them apart. Add them in the Inspector, or with <code>tag(name)</code> and <code>untag(name)</code> from a script.</p>
+<p><code>other:is(&quot;enemy&quot;)</code> checks for a tag, or a type (<code>other:is(&quot;Body&quot;)</code>). <code>hasAnyTag(&quot;enemy, spikes&quot;)</code> checks several at once. Bodies and Zones also use tags to decide what they bump into (<a href="physics">Physics</a>).</p>
 <h2 id="making-and-removing-pieces"><a class="anchor" href="#making-and-removing-pieces" aria-hidden="true">#</a>Making and removing pieces</h2>
+<p><code>spawn</code> makes a new piece, from a scene file or a piece type, and adds it to the scene:</p>
 <pre><code class="lang-lua"><span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/bullet.scene&quot;</span>, { x = x, y = y, rotation = rotation })
 <span class="tk-f">spawn</span>(<span class="tk-s">&quot;Text&quot;</span>, { text = <span class="tk-s">&quot;+10&quot;</span>, x = x, y = y - <span class="tk-n">20</span> })
-self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/hat.scene&quot;</span>)            <span class="tk-c">-- inside this piece</span>
-<span class="tk-k">local</span> enemy = <span class="tk-f">make</span>(<span class="tk-s">&quot;scenes/enemy.scene&quot;</span>)  <span class="tk-c">-- not in the scene yet</span>
+self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/hat.scene&quot;</span>)           <span class="tk-c">-- inside this piece instead</span>
+
+<span class="tk-k">local</span> enemy = <span class="tk-f">make</span>(<span class="tk-s">&quot;scenes/enemy.scene&quot;</span>) <span class="tk-c">-- made, but not added yet</span>
 Enemies:<span class="tk-f">add</span>(enemy)
-<span class="tk-f">destroy</span>()                                 <span class="tk-c">-- at the end of the frame</span></code></pre>
-<p><code>destroy()</code> removes a piece and its children at the end of the frame. <code>remove()</code> takes it out immediately, to <code>add</code> it elsewhere.</p>
+
+<span class="tk-f">destroy</span>()                                <span class="tk-c">-- remove this piece</span></code></pre>
+<p><code>destroy()</code> removes a piece and everything inside it at the end of the frame. <code>remove()</code> takes a piece out straight away without destroying it, so you can <code>add</code> it somewhere else.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
@@ -69,28 +74,28 @@ Enemies:<span class="tk-f">add</span>(enemy)
 <tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
 </table></div>
 <h2 id="changing-scenes"><a class="anchor" href="#changing-scenes" aria-hidden="true">#</a>Changing scenes</h2>
-<p><code>go(path, ...)</code> changes scene at the end of the frame. The extra values go to the new root's <code>ready(...)</code>.</p>
+<p><code>go(&quot;scenes/level2.scene&quot;)</code> switches to another scene at the end of the frame. Any extra values are handed to the new scene's root, in its <code>ready(...)</code>:</p>
 <pre><code class="lang-lua"><span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/gameover.scene&quot;</span>, score)
 
-<span class="tk-c">-- on the game over scene's root</span>
+<span class="tk-c">-- on the game over scene's root piece</span>
 <span class="tk-k">function</span> <span class="tk-f">ready</span>(score)
   <span class="tk-f">find</span>(<span class="tk-s">&quot;Score&quot;</span>).text = <span class="tk-s">`Score: {score}`</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>reload()</code> restarts the scene with the same values. <code>transition(&quot;fade&quot;, 0.4[, color])</code> makes later scene changes fade; <code>transition(&quot;none&quot;)</code> turns it off.</p>
+<p><code>reload()</code> starts the current scene again. <code>transition(&quot;fade&quot;, 0.4)</code> makes scene changes fade through black (or another color: <code>transition(&quot;fade&quot;, 0.4, {1, 1, 1})</code>), and <code>transition(&quot;none&quot;)</code> goes back to instant cuts.</p>
 <h2 id="the-game-table"><a class="anchor" href="#the-game-table" aria-hidden="true">#</a>The game table</h2>
-<p><code>game</code> is shared by every script and survives scene changes:</p>
+<p>Everything in a scene is gone when it ends. <code>game</code> is a table every script can use that lasts for the whole time the game runs, which makes it the place for things like lives and score:</p>
 <pre><code class="lang-lua">game.lives = (game.lives <span class="tk-k">or</span> <span class="tk-n">3</span>) - <span class="tk-n">1</span></code></pre>
-<p>To keep values between plays, use <a href="saving">Saving</a>.</p>
-<h2 id="pausing"><a class="anchor" href="#pausing" aria-hidden="true">#</a>Pausing</h2>
-<p><code>pauseGame()</code> stops <code>update</code>, <code>physicsUpdate</code>, physics, animations, timers and tweens. Drawing and UI input continue. Pieces with <code>pausable</code> off, and their children, keep running: put the pause menu in one.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- on a Group with pausable off</span>
+<p>To keep something after the game closes, <a href="saving">save</a> it.</p>
+<h2 id="pausing-and-slow-motion"><a class="anchor" href="#pausing-and-slow-motion" aria-hidden="true">#</a>Pausing and slow motion</h2>
+<p><code>pauseGame()</code> stops pieces' <code>update</code> and <code>physicsUpdate</code>, physics, animations, timers and tweens; the screen still draws and UI still responds. Pieces whose <strong>pausable</strong> setting is off, and everything inside them, keep running, so put your pause menu inside one:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- on a Group with pausable off, holding the pause menu</span>
 <span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;pause&quot;</span>) <span class="tk-k">then</span>
     <span class="tk-k">if</span> <span class="tk-f">isPaused</span>() <span class="tk-k">then</span> <span class="tk-f">resumeGame</span>() <span class="tk-k">else</span> <span class="tk-f">pauseGame</span>() <span class="tk-k">end</span>
     visible = <span class="tk-f">isPaused</span>()
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>timeScale(0.5)</code> runs the game at half speed; <code>timeScale(0)</code> freezes it. Music isn't affected by either.</p>
+<p><code>timeScale(0.5)</code> runs the game at half speed for a slow-motion moment, and <code>timeScale(1)</code> puts it back. Music keeps playing normally through both.</p>
 <h2 id="every-piece"><a class="anchor" href="#every-piece" aria-hidden="true">#</a>Every piece</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
@@ -125,8 +130,8 @@ Enemies:<span class="tk-f">add</span>(enemy)
 <tr><td><code>function removed()</code></td><td>The piece is leaving the scene.</td></tr></tbody>
 </table></div>
 <p>Every piece also has <code>name</code>, <code>type</code>, <code>parent</code>, <code>children</code> and <code>script</code>.</p>
-<h2 id="positions"><a class="anchor" href="#positions" aria-hidden="true">#</a>Positions</h2>
-<p>Group and every piece made from it have <code>x</code>, <code>y</code>, <code>rotation</code> (radians), <code>scaleX</code>, <code>scaleY</code>, <code>visible</code>, <code>tint</code> and <code>layer</code>, relative to the parent. <code>y</code> grows downwards.</p>
+<h2 id="position-size-and-drawing-order"><a class="anchor" href="#position-size-and-drawing-order" aria-hidden="true">#</a>Position, size and drawing order</h2>
+<p>Pieces that appear in the world (Group and everything based on it) have <code>x</code>, <code>y</code>, <code>rotation</code> (in radians), <code>scaleX</code>, <code>scaleY</code>, <code>visible</code>, <code>tint</code> and <code>layer</code>. Positions are measured from the parent piece, and <code>y</code> grows downwards. Higher layers draw on top.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent.</td></tr>

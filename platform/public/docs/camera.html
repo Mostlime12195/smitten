@@ -25,28 +25,35 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera" aria-current="page">Camera</a><ul class="nav-sub"><li><a href="#following">Following</a></li><li><a href="#limits">Limits</a></li><li><a href="#zoom-and-shake">Zoom and shake</a></li><li><a href="#several-cameras">Several cameras</a></li><li><a href="#coordinates">Coordinates</a></li></ul></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera" aria-current="page">Camera</a><ul class="nav-sub"><li><a href="#following-the-player">Following the player</a></li><li><a href="#keeping-it-inside-the-level">Keeping it inside the level</a></li><li><a href="#zoom-and-shake">Zoom and shake</a></li><li><a href="#several-cameras">Several cameras</a></li><li><a href="#screen-and-scene-positions">Screen and scene positions</a></li></ul></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Camera</h1>
-<p>A Camera sets which part of the scene is on screen. Without one, the scene's (0, 0) is the top-left corner. Cameras don't move UI.</p>
-<h2 id="following"><a class="anchor" href="#following" aria-hidden="true">#</a>Following</h2>
-<p>Put the Camera inside the player, or set its <code>target</code> (or call <code>Camera:follow(piece)</code>). <code>smoothing</code> glides (0 sticks); <code>offsetX</code> and <code>offsetY</code> shift the view; <code>snap()</code> jumps to the target.</p>
-<pre><code class="lang-lua">Camera.offsetX = <span class="tk-f">approach</span>(Camera.offsetX, <span class="tk-f">sign</span>(vx) * <span class="tk-n">60</span>, <span class="tk-n">120</span> * dt)</code></pre>
-<h2 id="limits"><a class="anchor" href="#limits" aria-hidden="true">#</a>Limits</h2>
-<p><code>left</code>, <code>top</code>, <code>right</code> and <code>bottom</code> stop the view at those edges. <code>setLimits(l, t, r, b)</code> sets all four; <code>limitTo(tiles)</code> uses a Tiles piece's painted area. A limited area smaller than the screen is centered.</p>
+<p>A <strong>Camera</strong> decides which part of the scene is on the screen. Without one, the screen shows the scene from (0, 0) at the top-left corner. UI pieces stay put on the screen whatever the camera does.</p>
+<h2 id="following-the-player"><a class="anchor" href="#following-the-player" aria-hidden="true">#</a>Following the player</h2>
+<p>The simplest way is to put the Camera inside the player: it moves with them. Or set the Camera's <strong>target</strong> to the player in the Inspector (or call <code>Camera:follow(player)</code>), which lets the camera live anywhere and switch targets later.</p>
+<p><strong>smoothing</strong> makes it glide after its target instead of sticking to it (0 sticks, 5 is gentle). <code>offsetX</code> and <code>offsetY</code> shift the view, for example to look ahead of a running player. After teleporting the player, <code>snap()</code> jumps the camera straight there.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On the player: look ahead in the direction it's running</span>
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  Camera.offsetX = <span class="tk-f">approach</span>(Camera.offsetX, <span class="tk-f">sign</span>(vx) * <span class="tk-n">60</span>, <span class="tk-n">120</span> * dt)
+<span class="tk-k">end</span></code></pre>
+<h2 id="keeping-it-inside-the-level"><a class="anchor" href="#keeping-it-inside-the-level" aria-hidden="true">#</a>Keeping it inside the level</h2>
+<p><code>left</code>, <code>top</code>, <code>right</code> and <code>bottom</code> stop the camera from showing anything past those edges. <code>setLimits(left, top, right, bottom)</code> sets all four, and <code>limitTo(level)</code> uses the painted area of a Tiles piece, so the view never shows empty space outside the level. If the limited area is smaller than the screen, it's centered.</p>
 <h2 id="zoom-and-shake"><a class="anchor" href="#zoom-and-shake" aria-hidden="true">#</a>Zoom and shake</h2>
-<p><code>zoom = 2</code> doubles the size. <code>shake(strength, seconds)</code>: <code>shake(6, 0.3)</code>.</p>
+<p><code>zoom = 2</code> makes everything twice as big; tween it for a smooth zoom. <code>shake(strength, seconds)</code> shakes the view and fades out: <code>shake(6, 0.3)</code> for a hit, <code>shake(16, 0.8)</code> for an explosion.</p>
 <h2 id="several-cameras"><a class="anchor" href="#several-cameras" aria-hidden="true">#</a>Several cameras</h2>
-<p>The first active camera is used. <code>makeCurrent()</code> switches; <code>camera()</code> returns the one in use.</p>
-<h2 id="coordinates"><a class="anchor" href="#coordinates" aria-hidden="true">#</a>Coordinates</h2>
+<p>The first active camera in the scene is the one used. <code>makeCurrent()</code> switches to another camera, and <code>camera()</code> returns the one in use.</p>
+<h2 id="screen-and-scene-positions"><a class="anchor" href="#screen-and-scene-positions" aria-hidden="true">#</a>Screen and scene positions</h2>
+<p>The screen is measured in game pixels, and the scene in its own units through the camera. These convert between them:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>mouse()</code></td><td>The pointer in the scene</td></tr>
-<tr><td><code>Camera:screenToWorld(x, y)</code>, <code>worldToScreen(x, y)</code></td><td>Convert between screen and scene</td></tr>
-<tr><td><code>Camera:getView()</code></td><td>The visible area: x, y, width, height</td></tr></tbody>
+<tbody><tr><td><code>mouse()</code></td><td>The pointer's position in the scene</td></tr>
+<tr><td><code>Camera:screenToWorld(x, y)</code></td><td>A point on the screen, as a point in the scene</td></tr>
+<tr><td><code>Camera:worldToScreen(x, y)</code></td><td>A point in the scene, as a point on the screen</td></tr>
+<tr><td><code>Camera:getView()</code></td><td>The part of the scene on screen: x, y, width, height</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua"><span class="tk-k">local</span> vx, vy, vw, vh = <span class="tk-f">camera</span>():<span class="tk-f">getView</span>()
+<pre><code class="lang-lua"><span class="tk-c">-- Spawn a bat just past the right edge of the screen</span>
+<span class="tk-k">local</span> vx, vy, vw, vh = <span class="tk-f">camera</span>():<span class="tk-f">getView</span>()
 <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/bat.scene&quot;</span>, { x = vx + vw + <span class="tk-n">32</span>, y = vy + <span class="tk-f">rnd</span>(vh) })</code></pre>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
