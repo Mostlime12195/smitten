@@ -89,6 +89,18 @@ B2_API float b2World_CastMover( b2WorldId worldId, const b2Capsule* mover, b2Vec
 B2_API void b2World_CollideMover( b2WorldId worldId, const b2Capsule* mover, b2QueryFilter filter, b2PlaneResultFcn* fcn,
 								  void* context );
 
+/// Smitten: a callback that decides whether a mover collides with a shape (return false to skip it).
+typedef bool b2MoverFilterFcn( b2ShapeId shapeId, void* context );
+
+/// Smitten: b2World_CastMover for a mover of any convex shape: a rounded polygon (or capsule, or circle) in world
+/// space. Its radius must be more than twice the linear slop. accept (optional) can skip shapes.
+B2_API float b2World_CastMoverProxy( b2WorldId worldId, const b2ShapeProxy* mover, b2Vec2 translation, b2QueryFilter filter,
+									 b2MoverFilterFcn* accept, void* context );
+
+/// Smitten: b2World_CollideMover for a mover of any convex shape (see b2World_CastMoverProxy).
+B2_API void b2World_CollideMoverProxy( b2WorldId worldId, const b2ShapeProxy* mover, b2QueryFilter filter,
+									   b2MoverFilterFcn* accept, b2PlaneResultFcn* fcn, void* context );
+
 /// Enable/disable sleep. If your application does not need sleeping, you can gain some performance
 /// by disabling sleep completely at the world level.
 /// @see b2WorldDef

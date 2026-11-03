@@ -2535,6 +2535,168 @@ void b2World_CollideMover( b2WorldId worldId, const b2Capsule* mover, b2QueryFil
 	}
 }
 
+// Smitten: movers of any convex shape, with a callback to skip shapes.
+
+typedef struct WorldProxyMoverContext
+{
+	b2World* world;
+	b2QueryFilter filter;
+	b2MoverFilterFcn* accept;
+	void* acceptContext;
+	float fraction;
+	b2PlaneResultFcn* fcn;
+	b2ShapeProxy mover;
+	void* userContext;
+} WorldProxyMoverContext;
+
+static float ProxyMoverCastCallback( const b2ShapeCastInput* input, int proxyId, uint64_t userData, void* context )
+{
+	B2_UNUSED( proxyId );
+
+	int shapeId = (int)userData;
+	WorldProxyMoverContext* worldContext = context;
+	b2World* world = worldContext->world;
+
+	b2Shape* shape = b2ShapeArray_Get( &world->shapes, shapeId );
+
+	if ( b2ShouldQueryCollide( shape->filter, worldContext->filter ) == false )
+	{
+		return worldContext->fraction;
+	}
+
+	if ( worldContext->accept != NULL )
+	{
+		b2ShapeId id = { shapeId + 1, world->worldId, shape->generation };
+		if ( worldContext->accept( id, worldContext->acceptContext ) == false )
+		{
+			return worldContext->fraction;
+		}
+	}
+
+	b2Body* body = b2BodyArray_Get( &world->bodies, shape->bodyId );
+	b2Transform transform = b2GetBodyTransformQuick( world, body );
+
+	b2CastOutput output = b2ShapeCastShape( input, shape, transform );
+	if ( output.fraction == 0.0f )
+	{
+		// Ignore overlapping shapes
+		return worldContext->fraction;
+	}
+
+	worldContext->fraction = output.fraction;
+	return output.fraction;
+}
+
+float b2World_CastMoverProxy( b2WorldId worldId, const b2ShapeProxy* mover, b2Vec2 translation, b2QueryFilter filter,
+							  b2MoverFilterFcn* accept, void* context )
+{
+	B2_ASSERT( b2IsValidVec2( translation ) );
+	B2_ASSERT( mover->radius > 2.0f * B2_LINEAR_SLOP );
+
+	b2World* world = b2GetWorldFromId( worldId );
+	B2_ASSERT( world->locked == false );
+	if ( world->locked )
+	{
+		return 1.0f;
+	}
+
+	b2ShapeCastInput input = { 0 };
+	input.proxy = *mover;
+	input.translation = translation;
+	input.maxFraction = 1.0f;
+	input.canEncroach = true;
+
+	WorldProxyMoverContext worldContext = { 0 };
+	worldContext.world = world;
+	worldContext.filter = filter;
+	worldContext.accept = accept;
+	worldContext.acceptContext = context;
+	worldContext.fraction = 1.0f;
+
+	for ( int i = 0; i < b2_bodyTypeCount; ++i )
+	{
+		b2DynamicTree_ShapeCast( world->broadPhase.trees + i, &input, filter.maskBits, ProxyMoverCastCallback, &worldContext );
+
+		if ( worldContext.fraction == 0.0f )
+		{
+			return 0.0f;
+		}
+
+		input.maxFraction = worldContext.fraction;
+	}
+
+	return worldContext.fraction;
+}
+
+static bool ProxyTreeCollideCallback( int proxyId, uint64_t userData, void* context )
+{
+	B2_UNUSED( proxyId );
+
+	int shapeId = (int)userData;
+	WorldProxyMoverContext* worldContext = (WorldProxyMoverContext*)context;
+	b2World* world = worldContext->world;
+
+	b2Shape* shape = b2ShapeArray_Get( &world->shapes, shapeId );
+
+	if ( b2ShouldQueryCollide( shape->filter, worldContext->filter ) == false )
+	{
+		return true;
+	}
+
+	b2ShapeId id = { shapeId + 1, world->worldId, shape->generation };
+	if ( worldContext->accept != NULL && worldContext->accept( id, worldContext->acceptContext ) == false )
+	{
+		return true;
+	}
+
+	b2Body* body = b2BodyArray_Get( &world->bodies, shape->bodyId );
+	b2Transform transform = b2GetBodyTransformQuick( world, body );
+
+	b2PlaneResult result = b2CollideMoverProxy( shape, transform, &worldContext->mover );
+
+	if ( result.hit && b2IsNormalized( result.plane.normal ) )
+	{
+		return worldContext->fcn( id, &result, worldContext->userContext );
+	}
+
+	return true;
+}
+
+void b2World_CollideMoverProxy( b2WorldId worldId, const b2ShapeProxy* mover, b2QueryFilter filter,
+								b2MoverFilterFcn* accept, b2PlaneResultFcn* fcn, void* context )
+{
+	b2World* world = b2GetWorldFromId( worldId );
+	B2_ASSERT( world->locked == false );
+	if ( world->locked )
+	{
+		return;
+	}
+
+	b2AABB aabb = { mover->points[0], mover->points[0] };
+	for ( int i = 1; i < mover->count; ++i )
+	{
+		aabb.lowerBound = b2Min( aabb.lowerBound, mover->points[i] );
+		aabb.upperBound = b2Max( aabb.upperBound, mover->points[i] );
+	}
+	b2Vec2 r = { mover->radius, mover->radius };
+	aabb.lowerBound = b2Sub( aabb.lowerBound, r );
+	aabb.upperBound = b2Add( aabb.upperBound, r );
+
+	WorldProxyMoverContext worldContext = { 0 };
+	worldContext.world = world;
+	worldContext.filter = filter;
+	worldContext.accept = accept;
+	worldContext.acceptContext = context;
+	worldContext.fcn = fcn;
+	worldContext.mover = *mover;
+	worldContext.userContext = context;
+
+	for ( int i = 0; i < b2_bodyTypeCount; ++i )
+	{
+		b2DynamicTree_Query( world->broadPhase.trees + i, aabb, filter.maskBits, ProxyTreeCollideCallback, &worldContext );
+	}
+}
+
 #if 0
 
 void b2World_Dump()

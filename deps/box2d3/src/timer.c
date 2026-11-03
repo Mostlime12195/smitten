@@ -93,7 +93,12 @@ float b2GetMillisecondsAndReset( uint64_t* ticks )
 
 void b2Yield( void )
 {
+#if defined( __EMSCRIPTEN__ )
+	// Smitten: one thread in the browser; nothing to yield to (and the
+	// engine's core doesn't export sched_yield to side modules).
+#else
 	sched_yield();
+#endif
 }
 
 #elif defined( __APPLE__ )

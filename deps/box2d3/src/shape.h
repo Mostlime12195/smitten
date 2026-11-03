@@ -103,6 +103,7 @@ b2PlaneResult b2CollideMoverAndCapsule( const b2Capsule* shape, const b2Capsule*
 b2PlaneResult b2CollideMoverAndPolygon( const b2Polygon* shape, const b2Capsule* mover );
 b2PlaneResult b2CollideMoverAndSegment( const b2Segment* shape, const b2Capsule* mover );
 b2PlaneResult b2CollideMover( const b2Shape* shape, b2Transform transform, const b2Capsule* mover );
+b2PlaneResult b2CollideMoverProxy( const b2Shape* shape, b2Transform transform, const b2ShapeProxy* mover ); // Smitten
 
 static inline float b2GetShapeRadius( const b2Shape* shape )
 {

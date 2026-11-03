@@ -390,6 +390,7 @@ b2ChainId b2CreateChain( b2BodyId bodyId, const b2ChainDef* def )
 	shapeDef.userData = def->userData;
 	shapeDef.filter = def->filter;
 	shapeDef.enableSensorEvents = def->enableSensorEvents;
+	shapeDef.enablePreSolveEvents = def->enablePreSolveEvents; // Smitten
 	shapeDef.enableContactEvents = false;
 	shapeDef.enableHitEvents = false;
 
@@ -858,6 +859,34 @@ b2CastOutput b2ShapeCastShape( const b2ShapeCastInput* input, const b2Shape* sha
 	output.point = b2TransformPoint( transform, output.point );
 	output.normal = b2RotateVector( transform.q, output.normal );
 	return output;
+}
+
+// Smitten: b2CollideMover for a mover of any convex shape (a rounded polygon, in world space).
+b2PlaneResult b2CollideMoverProxy( const b2Shape* shape, b2Transform transform, const b2ShapeProxy* mover )
+{
+	b2DistanceInput distanceInput;
+	distanceInput.proxyA = b2MakeShapeDistanceProxy( shape );
+	distanceInput.proxyB = *mover;
+	distanceInput.transformA = transform;
+	distanceInput.transformB = b2Transform_identity;
+	distanceInput.useRadii = false;
+
+	float totalRadius = mover->radius + distanceInput.proxyA.radius;
+
+	b2SimplexCache cache = { 0 };
+	b2DistanceOutput distanceOutput = b2ShapeDistance( &distanceInput, &cache, NULL, 0 );
+
+	if ( distanceOutput.distance <= totalRadius )
+	{
+		b2Plane plane = { distanceOutput.normal, totalRadius - distanceOutput.distance };
+		return (b2PlaneResult){
+			.plane = plane,
+			.point = distanceOutput.pointA,
+			.hit = true,
+		};
+	}
+
+	return (b2PlaneResult){ 0 };
 }
 
 b2PlaneResult b2CollideMover( const b2Shape* shape, b2Transform transform, const b2Capsule* mover )

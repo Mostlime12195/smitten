@@ -453,6 +453,9 @@ typedef struct b2ChainDef
 	/// Enable sensors to detect this chain. False by default.
 	bool enableSensorEvents;
 
+	/// Smitten: enable pre-solve callbacks on the chain's segments (one-way platforms). False by default.
+	bool enablePreSolveEvents;
+
 	/// Used internally to detect a valid definition. DO NOT SET.
 	int internalValue;
 } b2ChainDef;
