@@ -1,5 +1,5 @@
-// Project settings (smitten.json): name and main scene, display, input
-// actions, physics and engine modules.
+// Project settings (smitten.json): name and main scene, display, splash,
+// input actions, physics and engine modules.
 
 import { h, icon, openDialog, formatBytes } from '../ui.js';
 import { detectModules, moduleSize, MODULES } from '../core/modules.js';
@@ -18,6 +18,12 @@ const DEFAULT_ACTIONS = {
 
 export function inputActions(project) {
   return Object.keys({ ...DEFAULT_ACTIONS, ...(project.settings().input || {}) }).sort();
+}
+
+/** True for a "#rrggbb" light enough to want dark text on it. */
+export function lightColor(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
 }
 
 const STRETCH = [
@@ -68,6 +74,45 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     ...field('Resolution', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, width, '×', height), 'The size your game is designed for, in pixels. It scales to any window.'),
     ...field('Fit to window', stretch),
     ...field('Texture filter', filter));
+
+  // Splash: what the player shows while the game loads (web/player/player.js).
+  const splash = { image: '', background: '', duration: 1, madeWith: true, ...(s.splash || {}) };
+  const images = project.paths().filter((p) => /\.(png|jpe?g|webp|gif|svg)$/i.test(p));
+  const splashImage = select(splash.image, [['', '(none)'], ...images.map((p) => [p, p])]);
+  const toHex = (c) => Array.isArray(c) ? `#${c.slice(0, 3).map((n) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, '0')).join('')}` : /^#[0-9a-f]{6}$/i.test(c) ? c : '#0b0c0f';
+  const splashBackground = h('input', { type: 'color', value: toHex(splash.background), 'aria-label': 'Splash background' });
+  const splashDuration = text(splash.duration, { type: 'number', min: 0, max: 10, step: 0.5, style: 'width: 90px' });
+  const madeWith = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(splash.madeWith !== false), 'aria-label': 'Made with Smitten' });
+  madeWith.addEventListener('click', () => {
+    madeWith.setAttribute('aria-checked', String(madeWith.getAttribute('aria-checked') !== 'true'));
+    drawPreview();
+  });
+  const preview = h('div', { class: 'splash-preview', 'aria-hidden': 'true' });
+  let previewUrl = '';
+  const drawPreview = () => {
+    URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+    const bytes = splashImage.value && project.readBytes(splashImage.value);
+    if (bytes) previewUrl = URL.createObjectURL(new Blob([bytes], { type: splashImage.value.endsWith('.svg') ? 'image/svg+xml' : '' }));
+    const showMadeWith = madeWith.getAttribute('aria-checked') === 'true';
+    preview.style.background = splashBackground.value;
+    preview.classList.toggle('light', lightColor(splashBackground.value));
+    preview.style.aspectRatio = `${Number(width.value) || 16} / ${Number(height.value) || 9}`;
+    preview.replaceChildren(
+      previewUrl ? h('img', { src: previewUrl, alt: '', class: filter.value === 'pixel' ? 'pixel' : '' }) : showMadeWith ? icon('heart', 28) : '',
+      showMadeWith ? h('span', {}, 'Made with Smitten') : '');
+  };
+  splashImage.addEventListener('change', drawPreview);
+  splashBackground.addEventListener('input', drawPreview);
+  drawPreview();
+  const splashTab = h('div', {},
+    h('p', { class: 'settings-intro' }, 'Shown while your game loads in a browser, then it fades into your main scene.'),
+    preview,
+    h('div', { class: 'settings-grid' },
+      ...field('Image', splashImage, 'A logo or title picture from your project. Leave it empty for Smitten\'s heart.'),
+      ...field('Background', splashBackground),
+      ...field('Show for at least', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, splashDuration, 'seconds'), 'It stays up longer if the game is still loading.'),
+      ...field('“Made with Smitten”', madeWith)));
 
   // Input
   const inputRows = h('div', { class: 'input-map' });
@@ -148,6 +193,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const sections = {
     general: ['General', 'sliders', general],
     display: ['Display', 'monitor', displayTab],
+    splash: ['Splash', 'image', splashTab],
     input: ['Input', 'gamepad', inputTab],
     physics: ['Physics', 'bodyPhysics', physicsTab],
     modules: ['Modules', 'package', modulesTab],
@@ -170,6 +216,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     body: h('div', { class: 'settings-layout' }, nav, content),
     actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Save', value: true, primary: true }],
   });
+  URL.revokeObjectURL(previewUrl);
   if (!ok) return false;
   const next = {
     name: name.value.trim() || s.name,
@@ -188,6 +235,15 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const gy = gravityY.value === '' ? 980 : Number(gravityY.value) || 0;
   next.physics = gx === 0 && gy === 980 ? undefined : { ...physics, gravity: [gx, gy] };
   if (!Object.keys(modules).length) next.modules = undefined;
+  const nextSplash = {
+    image: splashImage.value,
+    background: splashBackground.value === '#0b0c0f' ? '' : splashBackground.value,
+    duration: Math.max(0, Math.min(10, Number(splashDuration.value) || 0)),
+    madeWith: madeWith.getAttribute('aria-checked') === 'true',
+  };
+  // Only what differs from Smitten's own splash is written down.
+  for (const [k, v] of Object.entries({ image: '', background: '', duration: 1, madeWith: true })) if (nextSplash[k] === v) delete nextSplash[k];
+  next.splash = Object.keys(nextSplash).length ? { ...(s.splash || {}), ...nextSplash } : undefined;
   project.updateSettings(next);
   return true;
 }

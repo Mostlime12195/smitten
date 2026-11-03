@@ -2,8 +2,8 @@
 
 **Project › Project settings** (Ctrl+,) edits `smitten.json`, the file at
 the top of every project. It holds the game's name, the scene it starts
-with, its resolution and how it fits the screen, input actions, physics
-settings and which engine modules it downloads.
+with, its resolution and how it fits the screen, its splash screen, input
+actions, physics settings and which engine modules it downloads.
 
 ```json
 {
@@ -24,6 +24,7 @@ settings and which engine modules it downloads.
 | `display.stretch` | How it fits the screen (below) |
 | `display.filter` | `smooth`, or `pixel` for crisp pixel art |
 | `display.background` | The color behind everything |
+| `splash` | The splash screen shown while the game loads (below) |
 | `input` | [Input actions](input.md#actions) to add or change |
 | `physics.gravity` | Gravity, as `[x, y]` in pixels per second per second. See [Physics](physics.md) |
 | `modules` | Force an engine module `"always"` or `"never"` |
@@ -62,6 +63,31 @@ Browsers only allow fullscreen right after a click or key press, so call
 
 Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`.
 <!-- end -->
+
+## The splash screen
+
+While a game loads in a browser, Smitten shows a splash screen: a heart
+and "Made with Smitten" on a dark background. Once the game has loaded,
+and the splash has been up for a second, it fades into the main scene.
+There's no Play button to press.
+
+Make it yours in **Project settings › Splash**. Pick a picture from your
+project (a logo or a title screen), a background color and how long it
+stays up, and choose whether "Made with Smitten" shows underneath.
+
+```json
+"splash": { "image": "art/logo.png", "background": "#1a1c2c", "duration": 2, "madeWith": false }
+```
+
+| `splash` | |
+| --- | --- |
+| `image` | A picture from the project, shown in the middle. Empty for Smitten's heart |
+| `background` | `"#rrggbb"`, or `[r, g, b]` from 0 to 1 |
+| `duration` | Seconds it stays up at least (0 to 10); longer if the game is still loading |
+| `madeWith` | Show "Made with Smitten" (`true` unless you turn it off) |
+
+Pixel-art games (`display.filter` set to `pixel`) get a crisp, unblurred
+splash picture.
 
 ## Engine modules
 
