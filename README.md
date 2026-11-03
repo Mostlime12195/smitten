@@ -1,170 +1,78 @@
-# Cupid
+# Smitten
 
-LÖVE 12 for the web: the real [LÖVE](https://love2d.org) 12 engine compiled
-to WebAssembly, with a player for publishing games and a browser-based editor
-for making them. Try the editor at
-<https://mostlime12195.github.io/cupid/>.
+A game engine in your browser. Write Lua, draw pixel art, paint tile maps,
+make sound effects and music, and publish the game, all in one tab with
+nothing to install. Underneath it's the real [LÖVE](https://love2d.org) 12
+engine, compiled to WebAssembly, so everything LÖVE can do, a Smitten game
+can do too.
 
-Cupid is an independent project, not affiliated with the LÖVE team.
+Smitten's engine and editor started from the code of
+[Cupid](https://github.com/Mostlime12195/cupid), which brings LÖVE 12 to the
+web with a Lua-to-WebAssembly JIT. Smitten is a separate project built on
+that code, and neither is affiliated with the LÖVE team.
 
-This isn't a reimplementation of the LÖVE API. It's the upstream C++ engine
-(`love2d/love` main branch, 12.0 development) built with Emscripten, plus a
-small set of patches for the browser. Games behave the way they do on
-desktop, including LÖVE's own error screen, shaders, Box2D physics, audio
-decoding, and save files.
+## What you get
+
+- **An editor** with code, a file panel, the running game and a console side
+  by side. Projects live in your browser.
+- **Built-in tools** that open the files they make:
+  - a **pixel editor** for sprites and animations (`.png` + `.sprite.json`)
+  - a **map editor** for tile maps and objects (`.map.json`), and a tileset
+    editor for tile properties such as `solid` (`.tileset.json`)
+  - a **sound effect editor** in the style of sfxr (`.sfx.json`)
+  - a **music editor** with a piano roll, instruments, patterns and an
+    arrangement (`.song.json`)
+- **The `smitten` module**, a global like `love`, which loads what the tools
+  make and adds what most games need:
+  ```lua
+  local hero = smitten.sprite("sprites/hero"):animation("run")
+  local level = smitten.map("maps/level1")
+  smitten.sfx("sfx/jump"):play()
+  smitten.song("music/theme"):play()
+  smitten.input.bind("jump", { "space", "pad:a" })
+  smitten.scene.switch(Title)
+  local hit = smitten.collide.move(level, player, dx, dy)
+  ```
+- **A friendlier Lua**: `score += 10`, `continue`, `` `HP: {hp}` `` and
+  `if a then b else c` expressions, compiled by the engine's own parser (see
+  "Smitten syntax").
+- **Pixel-first defaults**: the templates draw at 320×180 scaled up by whole
+  numbers, with a 16-color palette, but any image, resolution or sound file
+  works.
+- **Publishing**: a web build ready for itch.io, a project zip, share links
+  for small games, and a `.love` for games that don't use Smitten's
+  additions.
+
+`docs/reference.md` documents the file formats, the `smitten` module and the
+interface the editor's tools implement. `DESIGN.md` explains the decisions
+behind Smitten.
 
 ## What's here
 
 | Path | What it is |
 | --- | --- |
-| `dist/` | Ready-to-host build output: `index.html` (editor), `player.html`, `love.mjs` + `love.wasm` (engine), `examples/` |
-| `love/` | LÖVE source (upstream commit `ef388d4`) with web patches |
-| `deps/lua-5.1.5/` | PUC Lua 5.1.5 (LuaJIT can't target WebAssembly) |
+| `dist/` | Build output: `index.html` (editor), `player.html`, `love.mjs` + `love.wasm` (engine), `synth.mjs` (the synthesizer, for the editor), `examples/` |
+| `love/` | LÖVE source (upstream commit `ef388d4`) with Cupid's web patches |
+| `love/src/modules/smitten/` | The `smitten` module: C++ (the synthesizer) and Lua (`lua/*.lua`, embedded by `build.py`) |
+| `deps/lua-5.1.5/` | PUC Lua 5.1.5 with LuaJIT's extensions, the JIT and Smitten's syntax |
 | `deps/theora/` | libtheora 1.2.0 decoder, for `love.video` |
 | `web/native/` | Web entry point (`web_main.cpp`) replacing LÖVE's blocking `main()` |
 | `web/player/` | The player page (standalone and embeddable) |
-| `web/editor/` | The Cupid editor |
-| `web/examples/` | Example projects used by the editor |
+| `web/editor/` | The editor; its tools are in `web/editor/tools/` |
+| `web/examples/` | Example projects |
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a game folder or `.love` |
-| `tools/` | Test games: `bench` (benchmark), `smoke` (feature checks), `threads`, `video`, `https`, `filedialog`, `textinput`; `test_server.py` serves them |
+| `tools/` | Test games (`smitten-sprite`, `smitten-map`, `smitten-audio`, and Cupid's `bench`, `smoke`, `threads`, ...), the JIT's test suite and `test_server.py` |
 
-## Compared to love.js
+## Performance
 
-[love.js](https://github.com/Davidobot/love.js) is the established way to run
-LÖVE on the web. Its latest release (11.4.1, 2022) ships LÖVE 11.4.
-
-| | love.js 11.4.1 | This project |
-| --- | --- | --- |
-| LÖVE version | 11.4 | 12.0 (current development branch) |
-| Lua speed | PUC Lua 5.1 interpreter | Same interpreter plus a Lua-to-WebAssembly JIT: 1.7–5.6× faster on Lua-heavy code (measured in V8) |
-| `love.thread` | Compatibility build: `Thread:start()` returns `false`. Threaded build: needs `SharedArrayBuffer`, i.e. COOP/COEP headers | Works on any host, no special headers (see below) |
-| Audio | Compatibility build: "dodgy audio" (its readme) | Streaming refilled from the frame loop and a timer; keeps playing in background tabs |
-| `bit` library (LuaJIT built-in) | Missing | Included (LuaBitOp), as a global and as `require "bit"` |
-| LuaJIT language extensions (`goto`, `\x` escapes, yield inside `pcall`, ...) | Missing | Included (see "Lua compatibility") |
-| Memory | Grows, but the initial size must cover the game's assets (`-m`) | Grows as needed; nothing to configure |
-| Packaging | Node CLI builds a page and data package per game | Any `.love` file runs as is: by URL, drag and drop, or from the editor |
-| Editor | None | Built-in editor with run, console and export |
-
-The love.js entries come from its 11.4.1 npm package and readme. The threads
-and `bit` rows were checked by running the same test game in both.
-
-### Performance
-
-**Lua-heavy code runs 1.7–5.6× faster than love.js** (code that mostly calls
-C library functions gains 10–20%), thanks to a JIT that compiles hot Lua
-functions to WebAssembly (see [The Lua JIT](#the-lua-jit)). Neither
-LuaJIT nor any other machine-code JIT can run in a browser, so love.js (and
-this project with `?jit=0`) interprets every Lua instruction.
-
-Pure-Lua benchmark (`tools/jit/bench.lua`), median of 3 runs in V8 (Node
-26, same engine as Chrome), same build flags as the web build. "JIT off" is
-the plain PUC Lua 5.1 interpreter, which performs like love.js's (see the
-next table):
-
-| Test | JIT off | JIT on | Speedup |
-| --- | --- | --- | --- |
-| Mandelbrot 200×200 (float math loops) | 58.6 ms | 10.5 ms | 5.6× |
-| Update 10k particles (table fields) | 27.0 ms | 5.9 ms | 4.6× |
-| Sieve of Eratosthenes, 1M (array reads/writes) | 46.0 ms | 12.2 ms | 3.8× |
-| Recursive `fib(27)` (Lua calls) | 26.6 ms | 15.5 ms | 1.7× |
-| OOP with metatables, 300k objects | 115.0 ms | 97.2 ms | 1.2× |
-| String formatting and patterns | 29.5 ms | 25.5 ms | 1.2× |
-| Fill and `table.sort` 200k numbers | 39.8 ms | 36.1 ms | 1.1× |
-
-The last three spend most of their time in C library functions
-(`setmetatable`, `string.format`, `table.sort`) and allocation, which the
-JIT doesn't change.
-
-Against love.js, measured with the same `.love` (`tools/bench`, which runs
-unchanged on 11.4 and 12) in the same Chrome instance, back to back, before
-the JIT existed:
-
-| Test (`tools/bench`) | love.js 11.4.1 | This project, interpreter only |
-| --- | --- | --- |
-| Lua: recursive `fib(27)` | 11.9 ms | 11.7 ms |
-| Lua: fill and sort 200k-element table | 34.1 ms | 28.9 ms |
-| Lua: string formatting and pattern matching | 20.4 ms | 20.2 ms |
-| Lua: OOP with metatables (300k objects) | 69.3 ms | 71.4 ms |
-| `ImageData:mapPixel` on 512×512 | 9.6 ms | 9.0 ms |
-| CPU time to submit 20k sprites + 5k rectangles | 5.6 ms | 6.1 ms |
-| Page load to `love.load` (local server, cached) | 90 ms | 112 ms |
-
-One back-to-back run on an Apple Silicon Mac; runs varied by 10–20% while
-other work was running, so treat differences under ~15% as noise. Reaching
-parity needed one fix: with link-time optimization, Lua's interpreter loop
-was inlined into the `setjmp`-protected function behind
-`pcall`/`coroutine.resume`, so every call paid for WebAssembly exception
-handling. `luaV_execute` is now kept out of line (`deps/lua-5.1.5/lvm.c`).
-
-### Compared to desktop LÖVE
-
-The same benchmark in the official macOS build of LÖVE 12 from the same
-upstream commit (`love2d/love` CI run for `ef388d4`), which uses LuaJIT with
-its JIT on, median of 3 runs:
-
-| Test | Desktop LÖVE 12 (LuaJIT) | This project (web, JIT on) |
-| --- | --- | --- |
-| Recursive `fib(27)` | 0.9 ms | 15.5 ms |
-| Fill and sort 200k numbers | 32.0 ms | 36.1 ms |
-| String formatting and patterns | 5.3 ms | 25.5 ms |
-| OOP with metatables, 300k objects | 10.9 ms | 97.2 ms |
-| `ImageData:mapPixel` on 512×512 | 0.3 ms | 9.0 ms (browser, no JIT) |
-| CPU time to submit 20k sprites + 5k rectangles | 14.1 ms (Metal) | 5.6–6.1 ms (WebGL 2) |
-
-LuaJIT's trace compiler is in a different league for pure Lua (10–17×
-faster on call- and allocation-heavy code); expect CPU-heavy Lua to need
-noticeably more headroom on the web. Engine-side work (drawing, physics,
-audio and image decoding) is the same C++ code on both, and drawing was
-actually cheaper on the web in this test, so games that spend their frame
-in LÖVE's C++ code rather than in Lua lose little. The web column for the
-Lua rows comes from the Node/V8 runs above, not from inside a browser.
-
-### Compared to p5.js
-
-`tools/p5bench` is the same workload written the idiomatic p5.js way
-(`tint`, `push`/`translate`/`rotate`/`image`/`pop`, `rect`, `pixels[]`).
-Both ran in the same Chromium on an Apple Silicon Mac, 800×600 canvas at
-pixel density 1. "Frame period" is the measured time between frames, so it
-includes GPU work.
-
-| Drawing 20k tinted, rotated sprites + 5k rectangles | Frame period |
-| --- | --- |
-| This project (WebGL 2) | 12 ms |
-| p5.js 1.11.3, `WEBGL` | 400 ms |
-| p5.js 2.0.3, `WEBGL` | 617 ms |
-| p5.js 1.11.3, default canvas | about 3,800 ms |
-| p5.js 2.0.3, default canvas | about 3,100 ms |
-| p5.js 2.0.3, default canvas, sprites not tinted | 50 ms |
-
-LÖVE batches consecutive draws of the same texture into one GPU draw call;
-p5.js issues each shape separately, and its default canvas renderer redraws
-the image into an offscreen canvas for every tinted draw.
-
-Pure-language speed goes the other way, since V8 compiles JavaScript to
-machine code directly (p5.js: median of 6 page loads; this project: 2 page
-loads):
-
-| Test | p5.js (JavaScript) | This project (Lua, JIT on) |
-| --- | --- | --- |
-| Recursive `fib(27)` | 1.0 ms | 12.5–13.9 ms |
-| Fill and sort 200k numbers | 22 ms | 33–38 ms |
-| String formatting and patterns | 3.4 ms | 25–30 ms |
-| 300k small objects | 1.4 ms | 109–117 ms |
-| Fill a 512×512 image | 0.6 ms (`pixels[]`) | 14–15 ms (`mapPixel`) |
-
-So a sketch that draws a lot runs far faster here, while one dominated by
-its own number crunching runs faster in p5.js.
-
-Download size is larger than love.js because LÖVE 12 itself is: it adds the
-glslang shader compiler, HarfBuzz text shaping, a Noto Sans default font,
-and here also Theora video.
-
-| | love.js 11.4.1 | This project |
-| --- | --- | --- |
-| Engine (`.wasm`), gzip | 1.63 MB | 2.52 MB |
-| Glue JS, gzip | 0.07 MB | 0.06 MB |
+Lua runs on PUC Lua 5.1 plus a JIT that compiles hot functions to
+WebAssembly: 1.7–5.6× faster than the plain interpreter on Lua-heavy code
+(Cupid's README has the full measurements). Drawing, physics, audio and
+image decoding are LÖVE's own C++ code, batched into WebGL 2. Compared with
+desktop LÖVE on LuaJIT, pure-Lua code is slower and engine-side work is
+about the same, so games that spend their frame drawing lose little.
 
 ## Threads without SharedArrayBuffer
 
@@ -188,7 +96,7 @@ blocking-style code work but don't add parallel speed.
 
 ## Lua compatibility
 
-Desktop LÖVE runs LuaJIT, which is Lua 5.1 plus extensions. Cupid runs PUC
+Desktop LÖVE runs LuaJIT, which is Lua 5.1 plus extensions. Smitten runs PUC
 Lua 5.1.5 with the LuaJIT 2.1 extensions that games and libraries commonly
 use added back (`deps/lua-5.1.5`), so code written for desktop LÖVE loads
 and behaves the same:
@@ -296,7 +204,10 @@ source /path/to/emsdk/emsdk_env.sh
 python3 build.py
 ```
 
-Builds are incremental (about 400 source files the first time). Other options:
+Builds are incremental (about 430 source files the first time). The build
+also embeds the `smitten` module's Lua files in the engine and compiles the
+synthesizer a second time, on its own, as `dist/synth.mjs` for the editor's
+previews. Other options:
 
 - `python3 build.py --debug` for assertions and no optimization
 - `python3 build.py --web-only` to copy only the player, editor and examples into `dist/`
@@ -308,9 +219,12 @@ Then serve `dist/`:
 python3 serve.py
 ```
 
-and open http://localhost:8765/ for the editor or
-http://localhost:8765/player.html?game=examples/hello.love for the player.
+and open http://localhost:8766/ for the editor or
+http://localhost:8766/player.html?game=examples/hello.love for the player.
 
+The `smitten` module's test games print a pass count:
+`tools/smitten-sprite`, `tools/smitten-map` and `tools/smitten-audio` (whose
+`check.mjs` confirms the engine and `synth.mjs` render identical samples).
 The test games in `tools/` run with `python3 tools/test_server.py 8772`,
 which zips them on request and adds the routes the `https` test needs:
 http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
@@ -319,27 +233,34 @@ http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
 ## The editor
 
 `dist/index.html`. Everything is stored in the browser (IndexedDB); nothing is
-uploaded anywhere.
+uploaded anywhere unless you share a link.
 
-- Projects with a file tree; import files, folders, `.love` and `.zip` by drag and drop
-- CodeMirror 6 editor with Lua highlighting and LÖVE 12 autocompletion. The
-  API list (`web/editor/love-api.json`) is generated by introspecting the
-  real engine (`web/editor/tools/introspect.html`)
+- Projects with a file tree showing thumbnails; import files, folders,
+  `.love` and `.zip` by drag and drop. **New** (the + in the file panel)
+  makes files, folders and assets (sprite, map, tileset, sound effect, song)
+- Dragging a file into the code inserts the code that loads it
+  (`smitten.sprite("sprites/hero")`, `require("entities.player")`, ...)
+- Renaming or moving an asset fixes the paths in maps, tilesets, sprites and
+  songs that point at it, moves a PNG's `.sprite.json` along, and offers to
+  update code that loads it
+- The built-in tools open their files in tabs; **Open as text** in a file's
+  menu shows the JSON instead
+- CodeMirror 6 editor with Lua and Smitten syntax highlighting, and
+  completion for LÖVE 12 (generated by introspecting the real engine,
+  `web/editor/tools/introspect.html`), the `smitten` module and asset paths
 - Run (F5 or Ctrl+Enter), Stop, Restart, Pause, run after saving, pop-out window
 - Command palette (Ctrl+Shift+P or F1), go to file (Ctrl+P), go to function
   (Ctrl+Shift+O), go to line from the status bar
-- Settings (Ctrl+,): theme (system, light, dark), font size (Ctrl +/−), tab
-  size, spaces or tabs, word wrap (Alt+Z), line numbers, whitespace, bracket
-  closing, suggestions, auto save, trimming whitespace on save, game scaling
-  (fit or pixel-perfect), the Lua JIT, console timestamps and wrapping, and a
-  list of every keyboard shortcut
-- Console with clickable `file:line` errors that jump to the line, filtering,
-  and copying the output
-- Web compatibility check on every run and export, with a status bar count
-  of issues that opens a list of them
-- Image, audio and font previews
-- Export `.love`, export a ready-to-upload web build (zip), share links for small projects
-- Examples: platformer, particles, shaders, physics, text input, canvas and blend modes, synth
+- Settings (Ctrl+,): theme, font size, indentation, word wrap, line numbers,
+  whitespace, bracket closing, suggestions, auto save, game scaling, the Lua
+  JIT, console options, and a list of every keyboard shortcut
+- Console with clickable `file:line` errors, filtering, and copying the output
+- Web compatibility check on every run and export
+- Export for the web (a zip for itch.io), download the project as a zip,
+  download a `.love` (with a warning when the game needs Smitten), and share
+  links for small projects (text plus small images, up to 32 KB compressed)
+- Examples: the Smitten platformer, plus Cupid's LÖVE examples (platformer,
+  particles, shaders, physics, text input, canvas and blend modes, synth)
 - Works on narrow screens
 
 The editor loads CodeMirror from esm.sh, so the first load needs an internet
@@ -435,7 +356,8 @@ Player URL options:
 `web/native/web_main.cpp` replaces LÖVE's `main()`. On desktop LÖVE resumes
 its boot coroutine in a `while` loop. `boot.lua` yields once per iteration of
 `love.run`'s main loop, so on the web that coroutine is resumed once per
-`requestAnimationFrame` instead. Nothing in LÖVE's own Lua code changes.
+`requestAnimationFrame` instead. LÖVE's own Lua code changes only where
+noted below.
 
 The engine patches (`git diff dca79b4 -- love deps`) are kept small so they
 can be rebased onto newer LÖVE commits:
@@ -464,6 +386,27 @@ can be rebased onto newer LÖVE commits:
 - `love.window.showFileDialog` hands the dialog to `library_love.js`
   instead of SDL (`love/src/modules/window/sdl/Window.cpp`).
 
+### Smitten's additions
+
+Smitten extends LÖVE without changing what `love.*` does (DESIGN.md,
+section 3):
+
+- `love/src/modules/smitten/`: the `smitten` module. `wrap_Smitten.cpp`
+  registers it next to LÖVE's modules (`love.cpp`, under `LOVE_SMITTEN`) and
+  loads its Lua files, which `build.py` embeds from `lua/` as
+  `build/gen/smitten_lua.h`. Each file is loaded the first time a game uses
+  what it provides. `boot.lua` makes the module the global `smitten` once
+  LÖVE's modules are loaded.
+- `Synth.cpp` renders sound effects and songs (no LÖVE dependencies, so the
+  same code is built into `synth.mjs` for the editor), and `LoopDecoder.cpp`
+  plays a rendered song with a seamless loop as a streaming Source.
+- `deps/lua-5.1.5`: Smitten's syntax in `llex.c` and `lparser.c`, and the
+  original `tostring` kept in the registry for interpolation.
+- The player keeps save files under its own data folder
+  (`XDG_DATA_HOME`), and the editor uses its own storage names, so
+  Smitten never shares projects, settings or saves with Cupid or other
+  LÖVE players on the same site.
+
 ## Licenses
 
 LÖVE is under the zlib license (`love/license.txt`); its bundled libraries
@@ -471,4 +414,4 @@ keep their own licenses. Lua 5.1 is MIT (`deps/lua-5.1.5/COPYRIGHT`), as is
 LuaBitOp (`deps/luabitop/bit.c`). libtheora is BSD-style
 (`deps/theora/COPYING`).
 Changes in this repository are marked in the source and follow the same
-licenses.
+licenses. The default palette is Sweetie 16 by GrafxKid.

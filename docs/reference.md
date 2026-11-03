@@ -76,7 +76,13 @@ anim:pause(); anim:resume()
 anim.name           -- current animation
 anim.frame          -- current frame number in the sheet
 anim.finished       -- true once a non-looping animation reached its end
+anim.paused
+anim:getFps(); anim:getDuration()     -- seconds for one pass
 ```
+
+Also: `hero.columns`, `hero.rows`, `hero.imagePath`, `hero.animations`,
+`hero:animationNames()`; `hero:animation()` with no name plays every frame
+at 8 fps. A `.sprite.json` may set `"filter": "linear"` for smooth scaling.
 
 Errors name the file and what's wrong: missing file, unknown animation
 (listing the ones that exist), frame out of range.
@@ -92,6 +98,8 @@ function love.draw()
 end
 smitten.screen.toGame(mx, my)    -- window coordinates -> game coordinates
 smitten.screen.width, smitten.screen.height, smitten.screen.scale
+smitten.screen.toWindow(gx, gy)  -- game coordinates -> window coordinates
+smitten.screen.x, smitten.screen.y, smitten.screen.canvas
 ```
 
 ## Tilesets
@@ -168,17 +176,23 @@ level:drawLayer("ground")
 level:getTile("ground", tx, ty)    -- tile number or -1 (tile coordinates from 0)
 level:setTile("ground", tx, ty, tile)
 level:tileProperties(tile)         -- that tile's properties table (empty table if none)
-level:isSolid(px, py)              -- any tile layer has a solid tile at pixel (px, py)
+level:isSolid(px, py)              -- any tile layer (hidden ones too) has a solid tile at pixel (px, py)
 level:objects("player")            -- list of objects (all if no type given)
 level:spawn(classes)               -- for each object whose type is in classes:
                                    --   classes[type].new(object) or classes[type](object)
                                    -- returns the list of created entities
 level.properties
+level.backgroundColor             -- {r, g, b, a} from "background", for love.graphics.clear
+level.tileCount
+level:layer("ground")              -- the layer table; set .visible to show or hide it
+level:tilesetOf(tile)
+level:isSolidTile(tx, ty)
 
 local tiles = smitten.tileset("tiles/terrain")  -- cached
 tiles.image, tiles.tileWidth, tiles.tileHeight, tiles.count
 tiles:quad(tile)
 tiles:properties(tile)
+tiles.columns, tiles.rows, tiles.path
 ```
 
 `draw` draws in map pixels from (0, 0); use `love.graphics.translate` for
@@ -210,11 +224,15 @@ smitten.scene.push(Pause, ...)       -- put a scene on top (the one below stops 
                                      -- and draws only if the top scene has `transparent = true`)
 smitten.scene.pop(...)               -- back to the scene below; its resume(...) is called
 smitten.scene.current()
+smitten.scene.depth()                -- how many scenes are stacked
 ```
 
 Once a scene is active, the love callbacks the game defines still run, and
 the current scene's method of the same name runs after them. Games that
-define no `love.update`/`love.draw` can rely on scenes alone.
+define no `love.update`/`love.draw` can rely on scenes alone. Pushing a scene calls `pause()` on the one below. Callbacks the game
+assigns after the first scene is set (`love.update = ...`) keep working:
+the module keeps the game's functions and wraps them, so libraries that wrap
+callbacks themselves still work too.
 
 ## Input
 
@@ -224,6 +242,8 @@ smitten.input.bind("left", { "left", "a", "pad:dpleft", "axis:leftx-" })
 smitten.input.down("jump")       -- held now
 smitten.input.pressed("jump")    -- went down since the previous frame
 smitten.input.released("jump")
+smitten.input.unbind("jump")
+smitten.input.bindings("jump")   -- the inputs bound to an action
 ```
 
 Keys use `love.keyboard` key constants; `pad:<button>` uses
@@ -434,7 +454,7 @@ export default {
 | `save()` | Promise; writes the tool's files with `host.write` |
 | `focus()` | Optional |
 | `show()` / `hide()` | Optional; called when its tab is selected or left |
-| `reload()` | Optional; called when one of its files changed outside the tool |
+| `reload(path)` | Optional; called with the path of any project file that changed outside the tool |
 | `destroy()` | Called when the tab closes |
 | `handleKey(event)` | Optional; return `true` if the tool used the key |
 
@@ -448,7 +468,7 @@ variables (`editor.css`), so light and dark themes work.
 
 ```js
 synth.renderSfx(params)          // -> Float32Array, 44100 Hz mono
-synth.renderSong(song, readSfx)  // readSfx(path) -> params; -> Float32Array
+synth.renderSong(song, readSfx)  // readSfx(path as written in the song) -> params or null; -> Float32Array
 synth.play(samples)              // plays through WebAudio; returns {stop()}
 synth.sampleRate                 // 44100
 ```
