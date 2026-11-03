@@ -144,8 +144,8 @@ end
 
 local function syncTiles(map)
 	local t = tileBodies[map]
-	local version = tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid)
-	if t and t.version == version and not map._dirty then return end
+	local version = tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid) .. "#" .. tostring(map._changes)
+	if t and t.version == version then return end
 	if t then t.body:destroy() end
 	if not map._ts or not map.solid then
 		tileBodies[map] = nil
