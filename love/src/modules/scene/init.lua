@@ -35,7 +35,7 @@ local tree = {
 	systems = {},  -- name -> {step = fn(h), reset = fn(), order = n}
 	systemList = {},
 	frame = 0,
-	epoch = 0,  -- counts physics steps and updates (physics2d's broadphase)
+	epoch = 0,  -- counts physics steps and updates
 	accumulator = 0,
 	dt = 0,
 }
@@ -74,9 +74,9 @@ function scene._getSystem(name)
 end
 
 ---------------------------------------------------------------------------
--- Piece types (each file extends the classes made from pieces.json). Bodies
--- that use physics and joints load rigid2d.lua (and with it the physics2d
--- module) when the first one joins a scene.
+-- Piece types (each file extends the classes made from pieces.json). The
+-- first Body, Zone or Joint in a scene loads the physics2d module (Box2D);
+-- joints2d.lua loads with the first Joint.
 
 for _, f in ipairs({ "love.scene.basic", "love.scene.nodes2d", "love.scene.tilemap", "love.scene.physics2d",
 	"love.scene.ui", "love.scene.audio" }) do
@@ -84,7 +84,7 @@ for _, f in ipairs({ "love.scene.basic", "love.scene.nodes2d", "love.scene.tilem
 end
 
 local function ensureType(typeName)
-	if typeName == "Joint" then require("love.scene.rigid2d") end
+	if typeName == "Joint" then require("love.scene.joints2d") end
 end
 
 ---------------------------------------------------------------------------
