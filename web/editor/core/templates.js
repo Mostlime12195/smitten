@@ -163,7 +163,7 @@ function physicsToy(name) {
       wall('LeftWall', -20, 360, 40, 720),
       wall('RightWall', 1300, 360, 40, 720),
       // Things roll down the ramp and off its end.
-      wall('Ramp', 330, 450, 520, 24, { rotation: 0.3, friction: 0.2 }),
+      wall('Ramp', 330, 440, 520, 24, { rotation: 0.42, friction: 0.05 }),
       // A seesaw: a plank pinned on a triangle.
       p('Stand', 'Body', { x: 900, y: 655, motion: 'still', shape: 'polygon', points: [0, -36, 40, 26, -40, 26] },
         [p('Look', 'Shape', { shape: 'polygon', points: [0, -36, 40, 26, -40, 26], color: dark })]),
@@ -172,7 +172,7 @@ function physicsToy(name) {
       p('Hinge', 'Joint', { x: 900, y: 616, kind: 'pin', a: 'Plank' }),
       // A wrecking ball on a rope.
       p('Rope', 'Joint', { x: 1130, y: 0, kind: 'rope', a: 'Wrecker' }),
-      p('Wrecker', 'Body', { motion: 'physics', x: 1130, y: 300, mass: 6, friction: 0.4 },
+      p('Wrecker', 'Body', { motion: 'physics', x: 900, y: 190, mass: 6, friction: 0.4 },
         [p('Look', 'Shape', { shape: 'circle', radius: 30, color: [0.35, 0.37, 0.42, 1] })], { ...drag, tags: ['thing'] }),
       ...things,
       p('UI', 'Group', null, [p('Help', 'Label', { anchor: 'top', y: 20, width: 700, align: 'center', text: 'Drag and throw things with the mouse. Space makes everything jump.', outline: true })]),
