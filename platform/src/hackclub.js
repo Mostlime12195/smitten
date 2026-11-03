@@ -9,11 +9,15 @@
 // a code; the server swaps the code for an access token (with the client
 // secret) and asks the userinfo endpoint who it is. Only the "sub" (a
 // stable id) is kept. Someone new picks a username next (/signup?via=hackclub).
+//
+// A password account connects Hack Club from its settings (link=1), and can
+// disconnect it again (DELETE /api/account/hackclub) as long as it can still
+// sign in another way: with a password. A Hack Club account sets one first.
 
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpError, cookie, readCookie, redirect } from './http.js';
+import { HttpError, cookie, json, readCookie, readJson, redirect } from './http.js';
 import { db } from './db.js';
-import { SESSION_COOKIE, SESSION_DAYS, auth, createSession } from './auth.js';
+import { SESSION_COOKIE, SESSION_DAYS, accountView, auth, confirmPassword, createSession, requireUser } from './auth.js';
 import { pendingHackclubCookie } from './account.js';
 
 const FLOW_COOKIE = 'smitten_hackclub_flow';
@@ -124,4 +128,21 @@ export async function callback(ctx) {
   const res = redirect(`/signup?via=hackclub&next=${encodeURIComponent(next)}`, 302, { 'Set-Cookie': clearFlow });
   res.headers.append('Set-Cookie', pendingHackclubCookie(ctx, sub));
   return res;
+}
+
+/**
+ * DELETE /api/account/hackclub {password}: disconnects Hack Club. Only for
+ * accounts with a password, so they can still sign in; it asks for it.
+ * Works even when Hack Club sign-in is turned off.
+ */
+export async function disconnect(ctx) {
+  const user = requireUser(ctx);
+  const body = await readJson(ctx.request);
+  if (!user.hackclub_id) throw new HttpError(404, "Your account isn't connected to Hack Club.", { code: 'not-connected' });
+  if (!user.password_hash) {
+    throw new HttpError(409, 'Set a password first, so you can still sign in after disconnecting Hack Club.', { code: 'needs-password' });
+  }
+  await confirmPassword(ctx, user, body.password);
+  db.run('UPDATE users SET hackclub_id = NULL, updated_at = ? WHERE id = ?', Date.now(), user.id);
+  return json({ user: accountView({ ...user, hackclub_id: null }) });
 }

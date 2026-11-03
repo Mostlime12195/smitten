@@ -83,10 +83,73 @@ export function loadConfig(env = null) {
       scope: 'profile read',
     } : null,
 
+    // Email on accounts (src/email.js, src/mail.js): off unless
+    // EMAIL_TRANSPORT is smtp, resend or log.
+    email: emailConfig(env, publicUrl),
+
     // scrypt's cost (2^n). 15 takes ~50 ms and 32 MB per hash.
     scryptLogN: Math.min(20, Math.max(10, int(env.SCRYPT_LOG_N, 15))),
   };
   return config;
+}
+
+// An address mail can go to or come from: plain ASCII, no spaces or line
+// breaks, one @, a dot in the domain.
+export const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+
+/** EMAIL_FROM: "Name <address>" or "address" → {header, address}, or null. */
+export function parseFrom(value) {
+  const text = String(value || '').trim();
+  const m = /^(?:"?([^"<>\r\n]*?)"?\s*)?<([^<>\s]+)>$/.exec(text) || /^()([^<>\s]+)$/.exec(text);
+  if (!m || !EMAIL_PATTERN.test(m[2]) || m[2].includes('..')) return null;
+  const name = m[1].trim();
+  if (!name) return { header: m[2], address: m[2] };
+  if (!/^[\x20-\x7e]*$/.test(name)) {
+    return { header: `=?UTF-8?B?${Buffer.from(name).toString('base64')}?= <${m[2]}>`, address: m[2] };
+  }
+  const quoted = /^[A-Za-z0-9 !#$%&'*+/=?^_`{|}~-]+$/.test(name) ? name : `"${name.replace(/[\\"]/g, '\\$&')}"`;
+  return { header: `${quoted} <${m[2]}>`, address: m[2] };
+}
+
+function emailConfig(env, publicUrl) {
+  const transport = String(env.EMAIL_TRANSPORT || '').trim().toLowerCase();
+  if (!transport || /^(off|none|0|false|no)$/.test(transport)) return null;
+  const problem = (message) => new Error(`Email settings: ${message} (see deploy/env.example), or leave EMAIL_TRANSPORT unset for no email.`);
+  if (!['smtp', 'resend', 'log'].includes(transport)) throw problem(`EMAIL_TRANSPORT must be smtp, resend or log, not "${transport}"`);
+  const host = publicUrl.hostname;
+  const logDomain = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host) && /[a-z]/i.test(host) ? host : 'localhost.localdomain';
+  const from = parseFrom(env.EMAIL_FROM || (transport === 'log' ? `Smitten <no-reply@${logDomain}>` : ''));
+  if (!from) throw problem('set EMAIL_FROM to the sender, like "Smitten <no-reply@games.example.com>"');
+  const email = {
+    transport,
+    from: from.header,
+    fromAddress: from.address,
+    timeoutMs: Math.max(1, int(env.EMAIL_TIMEOUT_SECONDS, 20)) * 1000,
+    // The first retry's delay; each one after waits four times as long.
+    retryBaseMs: Math.max(10, int(env.EMAIL_RETRY_BASE_MS, 30_000)),
+  };
+  if (transport === 'smtp') {
+    if (!env.SMTP_HOST) throw problem('set SMTP_HOST');
+    const port = int(env.SMTP_PORT, 587);
+    const secure = String(env.SMTP_SECURE || (port === 465 ? 'tls' : 'starttls')).toLowerCase();
+    if (!['tls', 'starttls', 'none'].includes(secure)) throw problem('SMTP_SECURE must be tls (port 465), starttls (port 587) or none');
+    if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASS)) throw problem('set both SMTP_USER and SMTP_PASS, or neither');
+    email.smtp = {
+      host: env.SMTP_HOST,
+      port,
+      secure,
+      user: env.SMTP_USER || '',
+      pass: env.SMTP_PASS || '',
+      helo: env.SMTP_HELO || (/^[\d.]+$/.test(host) ? `[${host}]` : host.includes(':') ? `[IPv6:${host.replace(/^\[|\]$/g, '')}]` : host),
+      timeoutMs: email.timeoutMs,
+    };
+  } else if (transport === 'resend') {
+    if (!env.RESEND_API_KEY) throw problem('set RESEND_API_KEY');
+    email.resend = { apiKey: env.RESEND_API_KEY, url: (env.RESEND_API_URL || 'https://api.resend.com').replace(/\/+$/, '') };
+  } else {
+    email.logFile = env.EMAIL_LOG_FILE ? resolve(ROOT, env.EMAIL_LOG_FILE) : null;
+  }
+  return email;
 }
 
 // A random secret kept in the data folder, so a fresh install works without

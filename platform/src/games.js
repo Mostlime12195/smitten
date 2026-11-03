@@ -183,7 +183,7 @@ export function getConfig(ctx) {
     reportReasons: REPORT_REASONS,
     modules: MODULES,
     limits: limits(config),
-    accounts: { hackclub: Boolean(config.hackclub), hackatime: Boolean(config.hackatime), usernameRules: USERNAME_RULES },
+    accounts: { hackclub: Boolean(config.hackclub), hackatime: Boolean(config.hackatime), email: Boolean(config.email), usernameRules: USERNAME_RULES },
   });
 }
 

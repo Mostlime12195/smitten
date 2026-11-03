@@ -24,6 +24,22 @@
 <main class="page narrow">
   <section class="panel" id="recover">
     <h1 id="heading">Forgot your password?</h1>
+
+    <div id="by-email" hidden>
+      <p class="lead">Type the email on your account, and we'll send you a link to choose a new password.</p>
+      <form class="form" id="email-form" novalidate>
+        <label class="field">
+          <span>Email</span>
+          <input class="input" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+          <span class="field-error" data-error-for="email"></span>
+        </label>
+        <p class="field-error" data-error-for="form" role="alert"></p>
+        <button type="submit" class="btn primary wide">Email me a link</button>
+      </form>
+      <p class="banner" id="email-sent" role="status" hidden></p>
+      <p class="or"><span>or use a recovery code</span></p>
+    </div>
+
     <p class="lead" id="lead">Use one of the recovery codes you saved when you made your account.</p>
 
     <form class="form" id="form" novalidate>
@@ -46,7 +62,7 @@
       <button type="submit" class="btn primary wide">Set my new password</button>
     </form>
 
-    <p class="fine" data-code-only>No codes? If you signed up with Hack Club, <a href="/signin">sign in with Hack Club</a>. Otherwise, ask a moderator or the person who runs this site for a reset link.</p>
+    <p class="fine" data-code-only id="no-codes">No codes? If you signed up with Hack Club, <a href="/signin">sign in with Hack Club</a>. Otherwise, ask a moderator or the person who runs this site for a reset link.</p>
   </section>
 
   <section class="panel" id="done" hidden>

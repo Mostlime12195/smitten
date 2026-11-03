@@ -1,11 +1,14 @@
-// Account settings: display name, games, password, recovery codes, Hack
-// Club, Hackatime, where you're signed in, and deleting the account.
+// Account settings: display name, games, password, email, recovery codes,
+// Hack Club, Hackatime, where you're signed in, and deleting the account.
 
 import { $, h, api, send, accountDetails, siteConfig, showError, clearErrors, codesBlock, timeAgo, plays, toast } from './site.js';
 
 const main = $('#main');
 const params = new URLSearchParams(location.search);
 let user = null;
+let config = {};
+// {email, pendingEmail: {address, expiresAt}} from /api/account.
+let email = { email: null, pendingEmail: null };
 
 function banner(text, kind = '') {
   const el = $('#banner');
@@ -115,6 +118,49 @@ function renderPassword(codesLeft) {
   const del = $('#delete-form');
   del.password.hidden = !has;
   del.confirm.hidden = has;
+  renderEmail();
+  renderHackclub();
+}
+
+function renderEmail() {
+  const on = Boolean(config.accounts?.email);
+  // Shown when the site sends mail, or when there's an address to remove.
+  $('#email-section').hidden = !on && !email.email && !email.pendingEmail;
+  $('#email-current').hidden = !email.email;
+  $('#email-address').textContent = email.email || '';
+  const pending = email.pendingEmail;
+  $('#email-pending').hidden = !pending;
+  if (pending) {
+    $('#email-pending-text').textContent = `We sent a link to ${pending.address}. Open it to confirm ${email.email ? 'your new address' : 'your email'}. It works for 24 hours.`;
+    $('#email-resend').hidden = !on;
+  }
+  const form = $('#email-form');
+  form.hidden = !on && !email.email;
+  form.email.closest('.field').hidden = !on;
+  $('#email-label').textContent = email.email ? 'New email' : 'Email';
+  $('#email-submit').textContent = email.email ? 'Change email' : 'Add email';
+  $('#email-submit').hidden = !on;
+  $('#email-remove').hidden = !email.email;
+  $('#email-password-field').hidden = !user.hasPassword;
+}
+
+function renderHackclub() {
+  const on = Boolean(config.accounts?.hackclub);
+  $('#hackclub-section').hidden = !on && !user.hackclub;
+  $('#hackclub-badge').hidden = !user.hackclub;
+  $('#hackclub-connect').hidden = user.hackclub || !on;
+  $('#hackclub-disconnect-form').hidden = !user.hackclub || !user.hasPassword;
+  if (user.hackclub) {
+    $('#hackclub-status').textContent = user.hasPassword
+      ? 'You can sign in with Hack Club or with your password.'
+      : 'You sign in with Hack Club.';
+    $('#hackclub-fine').textContent = user.hasPassword
+      ? 'Disconnecting means signing in with your username and password only. You can connect again any time.'
+      : 'To disconnect Hack Club, set a password first (above), so you can still sign in.';
+  } else {
+    $('#hackclub-status').textContent = 'Connect your Hack Club account to sign in with it, without typing a password.';
+    $('#hackclub-fine').textContent = 'This site only keeps an id for your Hack Club account: no name, no email.';
+  }
 }
 
 function renderHackatime(c) {
@@ -130,6 +176,7 @@ function renderHackatime(c) {
 async function start() {
   const details = await accountDetails();
   user = details.user;
+  email = { email: details.email || null, pendingEmail: details.pendingEmail || null };
   if (!user) {
     location.replace('/signin?next=/account');
     return;
@@ -139,8 +186,9 @@ async function start() {
   renderPassword(details.recoveryCodesLeft || 0);
   if (params.get('error')) banner(params.get('error'), 'error');
   else if (params.get('connected') === 'hackclub') banner('Your Hack Club account is connected. You can sign in with it now.');
+  else if (params.get('verified') === '1') banner('Your email is confirmed.');
   else if (params.get('connected') === 'hackatime') banner('Hackatime is connected. In the editor, Settings › Hackatime › Connect with Hackatime sets up time tracking.');
-  if (params.has('error') || params.has('connected')) history.replaceState(null, '', '/account');
+  if (params.has('error') || params.has('connected') || params.has('verified')) history.replaceState(null, '', '/account');
 
   $('#name-form').displayName.value = user.displayName;
   onSubmit($('#name-form'), async (form) => {
@@ -169,14 +217,64 @@ async function start() {
   });
 
   siteConfig().then((c) => {
+    config = c;
     renderHackatime(c);
-    if (!c.accounts?.hackclub && !user.hackclub) return;
-    $('#hackclub-section').hidden = false;
-    $('#hackclub-status').textContent = user.hackclub
-      ? 'Your Hack Club account is connected: you can sign in with it.'
-      : 'Connect your Hack Club account to sign in with it.';
-    $('#hackclub-connect').hidden = user.hackclub || !c.accounts?.hackclub;
+    renderEmail();
+    renderHackclub();
   }).catch(() => {});
+
+  onSubmit($('#email-form'), async (form) => {
+    email = await send('/api/account/email', { email: form.email.value, password: form.password.value });
+    form.reset();
+    renderEmail();
+    toast(`Check ${email.pendingEmail?.address || 'your inbox'} for a link to confirm it.`);
+  });
+  $('#email-remove').addEventListener('click', async () => {
+    const form = $('#email-form');
+    clearErrors(form);
+    if (user.hasPassword && !form.password.value) {
+      showError(form, Object.assign(new Error('Type your password to remove your email.'), { data: { field: 'current' } }));
+      return;
+    }
+    if (!confirm('Remove your email? You won’t be able to reset your password by email.')) return;
+    try {
+      email = await send('/api/account/email', { password: form.password.value }, 'DELETE');
+      form.reset();
+      renderEmail();
+      toast('Your email is removed.');
+    } catch (err) {
+      showError(form, err);
+    }
+  });
+  $('#email-resend').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    try {
+      email = await send('/api/account/email/resend');
+      renderEmail();
+      toast('Sent. Check your inbox, and your spam folder.');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      e.target.disabled = false;
+    }
+  });
+  $('#email-cancel').addEventListener('click', async () => {
+    try {
+      email = await send('/api/account/email/cancel');
+      renderEmail();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  onSubmit($('#hackclub-disconnect-form'), async (form) => {
+    if (!confirm('Disconnect Hack Club? You’ll sign in with your username and password.')) return;
+    const res = await send('/api/account/hackclub', { password: form.password.value }, 'DELETE');
+    form.reset();
+    user = res.user;
+    renderHackclub();
+    toast('Hack Club is disconnected.');
+  });
   $('#hackatime-disconnect').addEventListener('click', async (e) => {
     if (!confirm('Disconnect Hackatime? Your games stop showing their hours, and the editor keeps the key it has until you remove it there.')) return;
     e.target.disabled = true;

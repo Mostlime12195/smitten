@@ -5,18 +5,17 @@ import { createHash } from 'node:crypto';
 import { HttpError, cookie, json, readCookie, readJson } from './http.js';
 import { checkLimit, countHit, db, hmac, rateLimit, randomCode, safeEqual, sha256, ID_PATTERN } from './db.js';
 import {
-  SESSION_COOKIE, SESSION_DAYS, accountView, auth, createSession, hashPassword, ipHash, newRecoveryCodes,
+  FAILED_PER_USER, SESSION_COOKIE, SESSION_DAYS, accountView, auth, confirmPassword, createSession, hashPassword, ipHash, newRecoveryCodes,
   publicUser, recoveryCodesLeft, requireSameOrigin, requireUser, useRecoveryCode, verifyPassword,
 } from './auth.js';
 import { checkPassword, cleanDisplayName, cleanUsername } from './validate.js';
 import { publicGame, removeGame } from './games.js';
 import { checkAddress, noteAddress } from './bans.js';
 import { forgetUser } from './hackatime.js';
+import { cleanEmail, emailState, notifyPasswordChanged, startVerification } from './email.js';
 
 const DAY = 86400_000;
 const EDITOR_CODE_MS = 5 * 60_000;
-// Failed sign-ins (or recovery attempts) per username and hour.
-const FAILED_PER_USER = 10;
 
 const sessionCookie = (ctx, token) => cookie(ctx.config, SESSION_COOKIE, token, { maxAge: SESSION_DAYS.web * 86400 });
 const clearSessionCookie = (ctx) => cookie(ctx.config, SESSION_COOKIE, '', { maxAge: 0 });
@@ -66,6 +65,8 @@ export async function signUp(ctx) {
   const username = cleanUsername(body.username);
   const displayName = cleanDisplayName(body.displayName, username);
   const password = viaHackclub ? null : checkPassword(body.password, username);
+  // An email is optional, and only taken when the site sends mail.
+  const email = ctx.config.email && typeof body.email === 'string' && body.email.trim() ? cleanEmail(body.email) : null;
   if (findUser(username)) throw new HttpError(409, 'That username is taken. Try another one.', { field: 'username' });
   if (hackclubId && db.get('SELECT id FROM users WHERE hackclub_id = ?', hackclubId)) {
     throw new HttpError(409, 'That Hack Club account already has a Smitten account. Sign in with Hack Club instead.');
@@ -89,7 +90,18 @@ export async function signUp(ctx) {
     if (/UNIQUE/.test(e.message)) throw new HttpError(409, 'That username is taken. Try another one.', { field: 'username' });
     throw e;
   }
-  const res = signedIn(ctx, user, { recoveryCodes }, 201);
+  let pendingEmail = null;
+  if (email) {
+    try {
+      startVerification(ctx, user, email);
+      pendingEmail = email;
+    } catch (e) {
+      // Too many confirmation mails to that address lately: the account is
+      // made anyway, and the address can be added again from its settings.
+      if (e.status !== 429) throw e;
+    }
+  }
+  const res = signedIn(ctx, user, { recoveryCodes, pendingEmail }, 201);
   if (viaHackclub) res.headers.append('Set-Cookie', cookie(ctx.config, PENDING_COOKIE, '', { maxAge: 0 }));
   return res;
 }
@@ -127,8 +139,8 @@ export function signOut(ctx) {
 
 /**
  * Resets a forgotten password, with {username, code} (a recovery code) or
- * {resetToken} (a link from a moderator), and {password}. Signs out
- * everywhere else.
+ * {resetToken} (a link from a moderator, or one sent by email: email.js),
+ * and {password}. Signs out everywhere else.
  */
 export async function recover(ctx) {
   requireSameOrigin(ctx);
@@ -138,7 +150,9 @@ export async function recover(ctx) {
   let usedCode = false;
   if (body.resetToken) {
     const row = db.get('SELECT * FROM password_resets WHERE token_hash = ?', sha256(String(body.resetToken)));
-    if (!row || row.expires_at < Date.now()) throw new HttpError(400, "That reset link doesn't work anymore. Ask a moderator for a new one.", { field: 'resetToken' });
+    if (!row || row.expires_at < Date.now()) {
+      throw new HttpError(400, "That reset link doesn't work anymore. Each link works once, for a limited time: ask for a new one.", { field: 'resetToken', code: 'bad-link' });
+    }
     user = db.get('SELECT * FROM users WHERE id = ?', row.user_id);
   } else {
     const name = String(body.username || '').trim().toLowerCase().slice(0, 40);
@@ -165,6 +179,7 @@ export async function recover(ctx) {
     db.run('DELETE FROM sessions WHERE user_id = ?', user.id);
     db.run('DELETE FROM password_resets WHERE user_id = ?', user.id);
   });
+  notifyPasswordChanged(ctx, user);
   return signedIn(ctx, { ...user, password_hash: hash }, { codesLeft: usedCode ? recoveryCodesLeft(user.id) : undefined });
 }
 
@@ -177,7 +192,11 @@ export function me(ctx) {
   if (!a && ctx.badToken) requireUser(ctx, { editor: true });
   if (!a) return json({ user: null });
   const out = { user: accountView(a.user), via: a.via };
-  if (a.via === 'web') out.recoveryCodesLeft = a.user.password_hash ? recoveryCodesLeft(a.user.id) : 0;
+  if (a.via === 'web') {
+    out.recoveryCodesLeft = a.user.password_hash ? recoveryCodesLeft(a.user.id) : 0;
+    // The account's email is only ever shown to its owner, on the site.
+    Object.assign(out, emailState(a.user));
+  }
   return json(out);
 }
 
@@ -187,15 +206,6 @@ export async function updateAccount(ctx) {
   const displayName = cleanDisplayName(body.displayName, user.username);
   db.run('UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?', displayName, Date.now(), user.id);
   return json({ user: accountView({ ...user, display_name: displayName }) });
-}
-
-async function confirmPassword(ctx, user, password) {
-  const key = `signin-failed:${user.username}`;
-  checkLimit(key, FAILED_PER_USER, 'tried to sign in to this account');
-  if (!(await verifyPassword(password, user.password_hash, ctx.config))) {
-    countHit(key);
-    throw new HttpError(403, "That isn't your current password.", { field: 'current' });
-  }
 }
 
 /** Changes (or, for Hack Club accounts, sets) the password, and signs out everywhere else. */
@@ -212,6 +222,7 @@ export async function changePassword(ctx) {
     db.run('DELETE FROM sessions WHERE user_id = ? AND id != ?', user.id, session.id);
     if (!user.password_hash) recoveryCodes = newRecoveryCodes(user.id, ctx.config);
   });
+  notifyPasswordChanged(ctx, user);
   return json({ ok: true, recoveryCodes });
 }
 
@@ -373,7 +384,7 @@ export function revokeEditorToken(ctx) {
 
 export function createResetLink(ctx, userId) {
   const token = randomCode(32);
-  db.run('DELETE FROM password_resets WHERE user_id = ? OR expires_at < ?', userId, Date.now());
-  db.run('INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)', sha256(token), userId, Date.now() + DAY);
+  db.run("DELETE FROM password_resets WHERE (user_id = ? AND kind = 'admin') OR expires_at < ?", userId, Date.now());
+  db.run("INSERT INTO password_resets (token_hash, user_id, expires_at, kind) VALUES (?, ?, ?, 'admin')", sha256(token), userId, Date.now() + DAY);
   return `${ctx.origin}/recover#reset=${token}`;
 }

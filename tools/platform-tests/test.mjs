@@ -1,23 +1,28 @@
 // Tests the game-sharing site (platform/): its pages, the API, accounts,
 // sessions, the editor's sign-in, ownership, claiming old games, moderation,
-// banning, and connecting Hackatime.
+// banning, connecting Hackatime, and email (sending it, and on accounts).
 //
 //   node tools/platform-tests/test.mjs
 //
 // It starts the server itself on port 8788 (PLATFORM_PORT changes it) with
-// an empty data folder, an admin token, and stand-ins for Hack Club Auth and
-// Hackatime, and stops it at the end (plus, briefly, a second server on the
-// next port without Hackatime). To test a server that's already running
+// an empty data folder, an admin token, and stand-ins for Hack Club Auth,
+// Hackatime and a mail server (SMTP on the first free port from 8791, or
+// SMTP_TEST_PORT; with STARTTLS when openssl can make a certificate), and
+// stops it at the end (plus, briefly, a server on the next port without
+// Hackatime or email, and one with EMAIL_TRANSPORT=log on a free port after
+// the mail server's). To test a server that's already running
 // instead, set PLATFORM_URL (and ADMIN_TOKEN for the admin checks); tests
 // that need the server's database or the stand-ins are skipped then. That
 // server must run with TRUST_PROXY=1 and PUBLIC_URL set to PLATFORM_URL:
 // the tests act as many different people by sending X-Forwarded-For.
 
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import net from 'node:net';
+import tls from 'node:tls';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -393,6 +398,240 @@ const fakeHackatime = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// A stand-in mail server (SMTP, RFC 5321): EHLO, STARTTLS, AUTH PLAIN and
+// LOGIN, MAIL, RCPT, DATA (undoing dot-stuffing), RSET, NOOP, QUIT. It
+// keeps every message, parsed (headers, and the text and HTML parts with
+// quoted-printable decoded).
+
+/** The first port from start that's free. */
+async function freePort(start) {
+  for (let port = start; port < start + 200; port++) {
+    const free = await new Promise((resolve) => {
+      const probe = net.createServer();
+      probe.once('error', () => resolve(false));
+      probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+    });
+    if (free) return port;
+  }
+  throw new Error(`No free port from ${start}`);
+}
+
+/** A self-signed certificate for localhost (and 127.0.0.1), or null without openssl. */
+function makeCertificate(dir) {
+  try {
+    const key = join(dir, 'smtp-key.pem');
+    const cert = join(dir, 'smtp-cert.pem');
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '2',
+      '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
+    return { key: readFileSync(key, 'utf8'), cert: readFileSync(cert, 'utf8'), certFile: cert };
+  } catch {
+    return null;
+  }
+}
+
+function decodeQuotedPrintable(text) {
+  const s = text.replace(/=\r?\n/g, '');
+  const bytes = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '=' && /^[0-9A-F]{2}$/.test(s.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(s.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else bytes.push(s.charCodeAt(i) & 0xff);
+  }
+  return Buffer.from(bytes).toString('utf8');
+}
+
+const decodeWords = (value) => value.replace(/\?=\s+=\?/g, '?==?').replace(/=\?UTF-8\?B\?([^?]*)\?=/gi, (_, b) => Buffer.from(b, 'base64').toString('utf8'));
+
+/** {headers: {name: value}, subject, text, html, lines} from a message as DATA carried it. */
+function parseMail(raw) {
+  const split = raw.indexOf('\r\n\r\n');
+  const head = raw.slice(0, split).replace(/\r\n[ \t]+/g, ' ');
+  const body = raw.slice(split + 4);
+  const headers = {};
+  for (const line of head.split('\r\n')) {
+    const i = line.indexOf(':');
+    headers[line.slice(0, i).toLowerCase()] = line.slice(i + 1).trim();
+  }
+  const out = { headers, subject: decodeWords(headers.subject || ''), text: '', html: '', lines: raw.split('\r\n') };
+  const boundary = /boundary="([^"]+)"/.exec(headers['content-type'] || '')?.[1];
+  for (const part of boundary ? body.split(`--${boundary}`).slice(1, -1) : []) {
+    const p = part.replace(/^\r\n/, '');
+    const j = p.indexOf('\r\n\r\n');
+    const partHead = p.slice(0, j).toLowerCase();
+    const content = decodeQuotedPrintable(p.slice(j + 4).replace(/\r\n$/, ''));
+    if (partHead.includes('text/plain')) out.text = content;
+    if (partHead.includes('text/html')) out.html = content;
+  }
+  return out;
+}
+
+/** A mail server. opts: {cert, implicitTls, user, pass, mechanisms, silent}. */
+function fakeSmtpServer(opts = {}) {
+  const server = {
+    messages: [],
+    failNext: 0, // answer MAIL with 451 (try again later)
+    rejectNext: 0, // answer RCPT with 550, naming the address
+    connections: 0,
+    port: null,
+  };
+  const session = (socket) => {
+    server.connections++;
+    let sock = socket;
+    let secure = Boolean(opts.implicitTls);
+    let buffer = '';
+    let state = 'command';
+    let authed = false;
+    let authMethod = null;
+    let loginUser = null;
+    let mail = null;
+    let lines = [];
+    const reply = (line) => sock.write(`${line}\r\n`);
+    const b64 = (s) => Buffer.from(s, 'base64').toString('utf8');
+    const checkAuth = (user, pass, method) => {
+      if (user === opts.user && pass === opts.pass) {
+        authed = true;
+        authMethod = method;
+        reply('235 2.7.0 Authentication successful');
+      } else reply('535 5.7.8 Authentication credentials invalid');
+    };
+    const handle = (line) => {
+      if (state === 'data') {
+        if (line === '.') {
+          state = 'command';
+          const raw = `${lines.join('\r\n')}\r\n`;
+          server.messages.push({ ...mail, raw, secure, authMethod, ...parseMail(raw) });
+          mail = null;
+          return reply('250 2.0.0 Ok: queued');
+        }
+        lines.push(line.startsWith('.') ? line.slice(1) : line);
+        return;
+      }
+      if (state === 'login-user') {
+        loginUser = b64(line);
+        state = 'login-pass';
+        return reply('334 UGFzc3dvcmQ6');
+      }
+      if (state === 'login-pass') {
+        state = 'command';
+        return checkAuth(loginUser, b64(line), 'LOGIN');
+      }
+      const [verb, ...rest] = line.split(' ');
+      const arg = rest.join(' ');
+      switch (verb.toUpperCase()) {
+        case 'EHLO': {
+          const ext = [];
+          if (opts.cert && !secure && !opts.noStarttls) ext.push('STARTTLS');
+          if (opts.user && (secure || !opts.cert || opts.noStarttls)) ext.push(`AUTH ${(opts.mechanisms || ['PLAIN', 'LOGIN']).join(' ')}`);
+          ext.push('8BITMIME');
+          reply(`250-smtp.test Hello ${arg}`);
+          ext.forEach((e, i) => reply(`250${i === ext.length - 1 ? ' ' : '-'}${e}`));
+          return;
+        }
+        case 'STARTTLS': {
+          if (!opts.cert || secure || opts.noStarttls) return reply('502 5.5.1 Not now');
+          reply('220 2.0.0 Ready to start TLS');
+          sock.removeAllListeners('data');
+          const upgraded = new tls.TLSSocket(sock, { isServer: true, key: opts.cert.key, cert: opts.cert.cert });
+          upgraded.on('data', onData);
+          upgraded.on('error', () => {});
+          sock = upgraded;
+          secure = true;
+          return;
+        }
+        case 'AUTH': {
+          const [mech, initial] = arg.split(' ');
+          if (mech.toUpperCase() === 'PLAIN') {
+            const [, user, pass] = b64(initial || '').split('\0');
+            return checkAuth(user, pass, 'PLAIN');
+          }
+          if (mech.toUpperCase() === 'LOGIN') {
+            state = 'login-user';
+            return reply('334 VXNlcm5hbWU6');
+          }
+          return reply('504 5.5.4 Unrecognized authentication type');
+        }
+        case 'MAIL':
+          if (opts.user && !authed) return reply('530 5.7.0 Authentication required');
+          if (server.failNext > 0) {
+            server.failNext--;
+            return reply('451 4.3.0 Try again later');
+          }
+          mail = { from: /<([^>]*)>/.exec(arg)?.[1], to: null };
+          return reply('250 2.1.0 Ok');
+        case 'RCPT': {
+          const to = /<([^>]*)>/.exec(arg)?.[1];
+          if (server.rejectNext > 0) {
+            server.rejectNext--;
+            return reply(`550 5.1.1 <${to}>: Recipient address rejected: User unknown`);
+          }
+          mail.to = to;
+          return reply('250 2.1.5 Ok');
+        }
+        case 'DATA':
+          if (!mail?.to) return reply('503 5.5.1 Need RCPT first');
+          state = 'data';
+          lines = [];
+          return reply('354 End data with <CR><LF>.<CR><LF>');
+        case 'RSET':
+          mail = null;
+          return reply('250 2.0.0 Ok');
+        case 'NOOP':
+          return reply('250 2.0.0 Ok');
+        case 'QUIT':
+          reply('221 2.0.0 Bye');
+          return sock.end();
+        default:
+          return reply('500 5.5.2 Unknown command');
+      }
+    };
+    function onData(chunk) {
+      buffer += chunk.toString('latin1');
+      let i;
+      while ((i = buffer.indexOf('\r\n')) >= 0) {
+        const line = buffer.slice(0, i);
+        buffer = buffer.slice(i + 2);
+        handle(line);
+      }
+    }
+    socket.on('data', onData);
+    socket.on('error', () => {});
+    if (!opts.silent) reply('220 smtp.test ESMTP ready');
+  };
+  server.net = opts.implicitTls ? tls.createServer({ key: opts.cert.key, cert: opts.cert.cert }, session) : net.createServer(session);
+  server.listen = async (start) => {
+    server.port = await freePort(start);
+    await new Promise((resolve) => server.net.listen(server.port, '127.0.0.1', resolve));
+    return server;
+  };
+  server.close = () => server.net.close();
+  return server;
+}
+
+const SMTP = { user: 'smitten-mailer', pass: randomBytes(12).toString('hex') };
+const SMTP_START = Number(process.env.SMTP_TEST_PORT || 8791);
+let certificate = null;
+let mailServer = null;
+
+/** Mail the stand-in got for an address (and subject) that no test has taken yet; waits for it. */
+async function takeMail(to, subject = null, ms = 5000) {
+  const found = await eventually(() => mailServer.messages.find((m) => !m.taken && m.to === to && (!subject || subject.test(m.subject))),
+    `mail to ${to}${subject ? ` (${subject})` : ''}`, ms);
+  found.taken = true;
+  return found;
+}
+
+/** Checks that nothing (more) arrives for an address. */
+async function noMail(to, ms = 600) {
+  await new Promise((r) => setTimeout(r, ms));
+  const left = mailServer.messages.filter((m) => !m.taken && m.to === to);
+  assert.equal(left.length, 0, `unexpected mail to ${to}: ${left.map((m) => m.subject).join(', ')}`);
+}
+
+let emailCounter = 0;
+const freshEmail = (prefix = 'kid') => `${prefix}.${run}.${++emailCounter}${Date.now().toString(36).slice(-3)}@example.test`;
+
 /** Starts the site with env on port; resolves with the child process once it answers. */
 async function spawnServer(port, dir, env) {
   const child = spawn(process.execPath, [`${ROOT}platform/src/server.js`], {
@@ -429,7 +668,18 @@ async function startServer() {
   dataDir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-'));
   await fakeHackclub.start();
   await fakeHackatime.start();
+  certificate = makeCertificate(dataDir);
+  mailServer = await fakeSmtpServer({ cert: certificate, ...SMTP }).listen(SMTP_START);
   server = await spawnServer(PORT, dataDir, {
+    EMAIL_TRANSPORT: 'smtp',
+    EMAIL_FROM: 'Smitten Test <no-reply@smitten.test>',
+    SMTP_HOST: 'localhost',
+    SMTP_PORT: String(mailServer.port),
+    SMTP_SECURE: certificate ? 'starttls' : 'none',
+    SMTP_USER: SMTP.user,
+    SMTP_PASS: SMTP.pass,
+    EMAIL_RETRY_BASE_MS: '200',
+    ...(certificate ? { NODE_EXTRA_CA_CERTS: certificate.certFile } : {}),
     PUBLIC_URL: BASE,
     ADMIN_TOKEN: ADMIN,
     HACKCLUB_CLIENT_ID: HC.clientId,
@@ -448,6 +698,7 @@ function stopServer() {
   server?.kill();
   fakeHackclub.server?.close();
   fakeHackatime.server?.close();
+  mailServer?.close();
   if (dataDir) rmSync(dataDir, { recursive: true, force: true });
 }
 
@@ -486,6 +737,7 @@ async function main() {
     process.exit(2);
   }
   console.log(`Testing ${BASE}${ADMIN ? '' : ' (no ADMIN_TOKEN: admin checks are skipped)'}`);
+  if (mailServer) console.log(`Mail goes to a stand-in SMTP server on port ${mailServer.port} (${certificate ? 'STARTTLS' : 'no TLS: openssl is missing'})`);
 
   section('Pages and headers');
   await test('config lists report reasons, modules, limits and sign-in options', async () => {
@@ -1453,6 +1705,505 @@ async function main() {
       assert.equal((await call('DELETE', '/api/account', { body: { confirm: 'someone-else' }, session: hcSession })).status, 422);
       assert.equal((await call('DELETE', '/api/account', { body: { confirm: me.username }, session: hcSession })).status, 200);
     });
+    await test('a Hack Club account sets a password, then can disconnect Hack Club (and only then)', async () => {
+      const sub3 = `ident!${randomBytes(4).toString('hex')}`;
+      const r = await hackclubFlow(sub3);
+      const username = uniqueName('hc');
+      const s = await call('POST', '/api/auth/signup', { body: { via: 'hackclub', username }, cookies: { smitten_hackclub: r.cookies.smitten_hackclub }, site: true });
+      assert.equal(s.status, 201, JSON.stringify(s.data));
+      const session = s.cookies.smitten_session;
+      const early = await call('DELETE', '/api/account/hackclub', { body: {}, session });
+      assert.equal(early.status, 409, 'no password to fall back on');
+      assert.equal(early.data.code, 'needs-password');
+      const set = await call('POST', '/api/account/password', { body: { password: 'my very own password' }, session });
+      assert.equal(set.status, 200, JSON.stringify(set.data));
+      assert.equal(set.data.recoveryCodes.length, 8, 'setting a first password gives recovery codes');
+      const me = await call('GET', '/api/account', { session });
+      assert.equal(me.data.user.hasPassword, true);
+      assert.equal(me.data.user.hackclub, true);
+      assert.equal(me.data.recoveryCodesLeft, 8);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username, password: 'my very own password' }, site: true })).status, 200);
+      const editor = await editorToken(session);
+      assert.equal((await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, token: editor })).status, 403, 'not from the editor');
+      const wrong = await call('DELETE', '/api/account/hackclub', { body: { password: 'not my password' }, session });
+      assert.equal(wrong.status, 403);
+      assert.equal(wrong.data.field, 'current');
+      const ok = await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, session });
+      assert.equal(ok.status, 200, JSON.stringify(ok.data));
+      assert.equal(ok.data.user.hackclub, false);
+      assert.equal(ok.data.user.hasPassword, true);
+      const again = await call('DELETE', '/api/account/hackclub', { body: { password: 'my very own password' }, session });
+      assert.equal(again.status, 404);
+      assert.equal(again.data.code, 'not-connected');
+      const back = await hackclubFlow(sub3);
+      assert.match(back.headers.get('location'), /^\/signup\?via=hackclub/, 'that Hack Club account no longer signs in to it');
+      assert.equal(back.cookies.smitten_session, undefined);
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username, password: 'my very own password' }, site: true })).status, 200);
+    });
+    await test('the sign-up and sign-in pages offer Hack Club, and how to connect it to an account', async () => {
+      const signup = new TextDecoder().decode((await call('GET', '/signup')).data);
+      assert.match(signup, /Sign up with Hack Club/);
+      assert.match(signup, /Connect your Hack Club account/);
+      const signin = new TextDecoder().decode((await call('GET', '/signin')).data);
+      assert.match(signin, /Sign in with Hack Club/);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  section('Email');
+  if (external) {
+    skip('Email', 'the stand-in mail server only runs with the test\'s own server');
+  } else {
+    const VERIFY = /\/verify-email#token=([A-Za-z0-9_-]+)/;
+    const RESET = /\/recover#reset=([A-Za-z0-9_-]+)/;
+    const tokenIn = (mail, re) => {
+      const m = re.exec(mail.text);
+      assert.ok(m, `no link in:\n${mail.text}`);
+      assert.ok(mail.html.includes(m[0]), 'the HTML part has the link too');
+      return m[1];
+    };
+    const verify = (token) => call('POST', '/api/auth/verify-email', { body: { token }, site: true });
+    /** Signs up with an email (waiting to be confirmed). */
+    const signUpWithEmail = async (address = freshEmail()) => {
+      const username = uniqueName('em');
+      const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: address }, site: true });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      return { username, password: PASSWORD, session: r.cookies.smitten_session, address, signup: r };
+    };
+    const confirm = async (address) => {
+      const r = await verify(tokenIn(await takeMail(address, /^Confirm your email/), VERIFY));
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      return r;
+    };
+    /** Someone with a confirmed email. */
+    const personWithEmail = async () => {
+      const p = await signUpWithEmail();
+      await confirm(p.address);
+      return p;
+    };
+    const requestReset = (email, opts = {}) => call('POST', '/api/auth/recover/email', { body: { email }, site: true, ...opts });
+    const sentSince = (n) => mailServer.messages.length - n;
+
+    await test('the config says email is on; /verify-email is a page', async () => {
+      assert.equal((await call('GET', '/api/config')).data.accounts.email, true);
+      const page = await call('GET', '/verify-email');
+      assert.equal(page.status, 200);
+      assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
+    });
+    await test('an email that doesn\'t look like one is refused before the account is made', async () => {
+      const username = uniqueName('em');
+      for (const email of ['not an email', 'a@b', 'x@@y.test', 'line\r\nbreak@x.test', 'ünï@x.test', `${'a'.repeat(250)}@x.test`, 'two..dots@x.test']) {
+        const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email }, site: true });
+        assert.equal(r.status, 422, `${email}: ${JSON.stringify(r.data)}`);
+        assert.equal(r.data.field, 'email');
+      }
+      assert.equal((await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: '' }, site: true })).status, 201, 'no email is fine');
+    });
+
+    let em;
+    await test('signing up with an email sends a link to confirm it (SMTP, STARTTLS, AUTH)', async () => {
+      const address = freshEmail();
+      const username = uniqueName('em');
+      const r = await call('POST', '/api/auth/signup', { body: { username, password: PASSWORD, email: `  ${address.toUpperCase()} ` }, site: true });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      assert.equal(r.data.pendingEmail, address, 'trimmed, lower case');
+      assert.equal(r.data.recoveryCodes.length, 8, 'recovery codes too');
+      assert.deepEqual(Object.keys(r.data.user).sort(), ['createdAt', 'displayName', 'hackatime', 'hackclub', 'hasPassword', 'username']);
+      const session = r.cookies.smitten_session;
+      const me = await call('GET', '/api/account', { session });
+      assert.equal(me.data.email, null, 'not until it\'s confirmed');
+      assert.equal(me.data.pendingEmail.address, address);
+      assert.ok(me.data.pendingEmail.expiresAt > Date.now() + 23 * 3600_000);
+
+      const mail = await takeMail(address, /^Confirm your email for Smitten$/);
+      assert.equal(mail.from, 'no-reply@smitten.test', 'the envelope sender');
+      assert.equal(mail.headers.from, 'Smitten Test <no-reply@smitten.test>');
+      assert.equal(mail.headers.to, `<${address}>`);
+      assert.match(mail.headers['message-id'], /^<[0-9a-f]{32}@smitten\.test>$/);
+      assert.ok(Math.abs(Date.parse(mail.headers.date) - Date.now()) < 60_000, mail.headers.date);
+      assert.match(mail.headers['content-type'], /^multipart\/alternative; boundary="[^"]+"$/);
+      assert.equal(mail.headers['mime-version'], '1.0');
+      assert.equal(mail.headers['auto-submitted'], 'auto-generated');
+      if (certificate) assert.equal(mail.secure, true, 'sent after STARTTLS');
+      assert.ok(['PLAIN', 'LOGIN'].includes(mail.authMethod), 'authenticated');
+      assert.ok(mail.lines.every((l) => l.length <= 78), 'short lines');
+      assert.match(mail.text, new RegExp(`@${username}`));
+      assert.match(mail.html, /^<!doctype html>/);
+      assert.doesNotMatch(mail.html, /<img|<script|<link/i, 'no images, scripts or tracking');
+      em = { username, session, address, token: tokenIn(mail, VERIFY) };
+    });
+    if (!em) throw new Error('Signing up with an email failed; the email tests depend on it.');
+    await test('the link confirms the address, once; it\'s never shown to anyone else', async () => {
+      assert.equal((await verify('not-a-real-token')).status, 400);
+      assert.equal((await call('POST', '/api/auth/verify-email', { body: { token: em.token } })).status, 403, 'only from the site\'s page');
+      const r = await verify(em.token);
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.username, em.username);
+      assert.equal((await verify(em.token)).status, 400, 'once');
+      const me = await call('GET', '/api/account', { session: em.session });
+      assert.equal(me.data.email, em.address);
+      assert.equal(me.data.pendingEmail, null);
+      const profile = await call('GET', `/api/users/${em.username}`);
+      assert.ok(!JSON.stringify(profile.data).includes(em.address));
+      const editor = await call('GET', '/api/account', { token: await editorToken(em.session) });
+      assert.equal(editor.status, 200);
+      assert.ok(!JSON.stringify(editor.data).includes(em.address), 'not to the editor either');
+      const admin = await call('GET', `/api/admin/users/${em.username}`, { token: ADMIN });
+      assert.ok(!JSON.stringify(admin.data).includes(em.address), 'moderators see it masked');
+      assert.equal(admin.data.user.email.masked, 'k***@e***.test');
+      assert.equal(admin.data.user.email.verified, true);
+    });
+    await test('changing it needs the password, is confirmed by a link, tells the old address, and ends old reset links', async () => {
+      assert.equal((await requestReset(em.address)).status, 200);
+      const oldReset = tokenIn(await takeMail(em.address, /^Reset your Smitten password$/), RESET);
+      const next = freshEmail('new');
+      const wrong = await call('POST', '/api/account/email', { body: { email: next, password: 'not my password' }, session: em.session });
+      assert.equal(wrong.status, 403);
+      assert.equal(wrong.data.field, 'current');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: em.address, password: PASSWORD }, session: em.session })).status, 422, 'already yours');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, token: await editorToken(em.session) })).status, 403, 'not from the editor');
+      const r = await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, session: em.session });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.email, em.address, 'the old one stays until the new one is confirmed');
+      assert.equal(r.data.pendingEmail.address, next);
+      await confirm(next);
+      assert.equal((await call('GET', '/api/account', { session: em.session })).data.email, next);
+      const note = await takeMail(em.address, /^Your Smitten email was changed$/);
+      assert.ok(!note.text.includes(next), 'the note doesn\'t say the new address');
+      const late = await call('POST', '/api/auth/recover', { body: { resetToken: oldReset, password: 'sneaky new password' }, site: true });
+      assert.equal(late.status, 400);
+      em.address = next;
+    });
+    await test('adding an address that\'s on another account: the same answer, and a note to it instead of a link', async () => {
+      const other = await signUp();
+      const r = await call('POST', '/api/account/email', { body: { email: em.address, password: PASSWORD }, session: other.session });
+      assert.equal(r.status, 200);
+      assert.deepEqual(Object.keys(r.data).sort(), ['email', 'pendingEmail']);
+      assert.equal(r.data.pendingEmail.address, em.address);
+      const note = await takeMail(em.address, /^This email is already on a Smitten account$/);
+      assert.doesNotMatch(note.text, VERIFY);
+      assert.match(note.text, new RegExp(`@${em.username}`));
+      assert.equal((await call('GET', '/api/account', { session: em.session })).data.email, em.address);
+    });
+    await test('when two accounts wait for one address, the first to confirm gets it', async () => {
+      const shared = freshEmail('shared');
+      const a = await signUp();
+      const b = await signUp();
+      for (const p of [a, b]) assert.equal((await call('POST', '/api/account/email', { body: { email: shared, password: PASSWORD }, session: p.session })).status, 200);
+      const forA = tokenIn(await takeMail(shared, /^Confirm/), VERIFY);
+      const forB = tokenIn(await takeMail(shared, /^Confirm/), VERIFY);
+      assert.equal((await verify(forB)).status, 200);
+      const late = await verify(forA);
+      assert.equal(late.status, 409);
+      assert.equal(late.data.code, 'email-taken');
+      assert.equal((await call('GET', '/api/account', { session: a.session })).data.email, null);
+    });
+    await test('sending the link again replaces it; cancelling forgets the address', async () => {
+      const p = await signUp();
+      const address = freshEmail();
+      assert.equal((await call('POST', '/api/account/email', { body: { email: address, password: PASSWORD }, session: p.session })).status, 200);
+      const first = tokenIn(await takeMail(address, /^Confirm/), VERIFY);
+      assert.equal((await call('POST', '/api/account/email/resend', { session: p.session })).status, 200);
+      const second = tokenIn(await takeMail(address, /^Confirm/), VERIFY);
+      assert.equal((await verify(first)).status, 400, 'the old link stops working');
+      const c = await call('POST', '/api/account/email/cancel', { session: p.session });
+      assert.equal(c.status, 200);
+      assert.equal(c.data.pendingEmail, null);
+      assert.equal((await verify(second)).status, 400);
+      assert.equal((await call('POST', '/api/account/email/resend', { session: p.session })).status, 404);
+    });
+    await test('confirmation mails are limited per address and per account', async () => {
+      const target = freshEmail('target');
+      for (let i = 0; i < 3; i++) {
+        const p = await signUp();
+        assert.equal((await call('POST', '/api/account/email', { body: { email: target, password: PASSWORD }, session: p.session })).status, 200);
+      }
+      const p = await signUp();
+      const r = await call('POST', '/api/account/email', { body: { email: target, password: PASSWORD }, session: p.session });
+      assert.equal(r.status, 429);
+      let last;
+      for (let i = 0; i < 5; i++) {
+        last = await call('POST', '/api/account/email', { body: { email: freshEmail(), password: PASSWORD }, session: p.session });
+        assert.equal(last.status, 200);
+      }
+      last = await call('POST', '/api/account/email', { body: { email: freshEmail(), password: PASSWORD }, session: p.session });
+      assert.equal(last.status, 429, 'five an hour per account');
+      for (let i = 0; i < 3; i++) await takeMail(target, /^Confirm/);
+    });
+    await test('removing it needs the password, tells the address, and stops resets to it', async () => {
+      const p = await personWithEmail();
+      assert.equal((await call('DELETE', '/api/account/email', { body: { password: 'not my password' }, session: p.session })).status, 403);
+      const r = await call('DELETE', '/api/account/email', { body: { password: PASSWORD }, session: p.session });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.email, null);
+      await takeMail(p.address, /^Your email was removed from Smitten$/);
+      assert.equal((await call('GET', '/api/account', { session: p.session })).data.email, null);
+      assert.equal((await requestReset(p.address)).status, 200);
+      await noMail(p.address);
+    });
+
+    section('Resetting a password by email');
+    await test('a reset link comes by email, works once, signs out everywhere, and a note says so', async () => {
+      const p = await personWithEmail();
+      const token = await editorToken(p.session);
+      const r = await requestReset(p.address.toUpperCase());
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.data, { ok: true });
+      const mail = await takeMail(p.address, /^Reset your Smitten password$/);
+      assert.match(mail.text, new RegExp(`Your username is @${p.username}`));
+      const resetToken = tokenIn(mail, RESET);
+      const rec = await call('POST', '/api/auth/recover', { body: { resetToken, password: 'reset by email today' }, site: true });
+      assert.equal(rec.status, 200, JSON.stringify(rec.data));
+      assert.ok(rec.cookies.smitten_session, 'and signs in');
+      assert.equal((await call('GET', '/api/account', { session: p.session })).data.user, null);
+      assert.equal((await call('GET', '/api/account', { token })).status, 401);
+      assert.equal((await call('POST', '/api/auth/recover', { body: { resetToken, password: 'and once more now' }, site: true })).status, 400, 'once');
+      assert.equal((await call('POST', '/api/auth/signin', { body: { username: p.username, password: 'reset by email today' }, site: true })).status, 200);
+      await takeMail(p.address, /^Your Smitten password was changed$/);
+    });
+    await test('the answer is the same whether or not the address is on an account', async () => {
+      const known = await personWithEmail();
+      const waiting = await signUpWithEmail();
+      await takeMail(waiting.address, /^Confirm/);
+      const unknown = freshEmail('nobody');
+      const answers = [];
+      for (const address of [known.address, waiting.address, unknown]) {
+        const r = await requestReset(address);
+        answers.push([r.status, JSON.stringify(r.data)]);
+      }
+      assert.deepEqual(answers[0], answers[1]);
+      assert.deepEqual(answers[0], answers[2]);
+      await takeMail(known.address, /^Reset/);
+      await noMail(waiting.address);
+      await noMail(unknown, 0);
+      assert.equal((await requestReset('not an address')).status, 422);
+      assert.equal((await call('POST', '/api/auth/recover/email', { body: { email: unknown } })).status, 403, 'only from the site');
+    });
+    await test('reset links expire after an hour', async () => {
+      const p = await personWithEmail();
+      await requestReset(p.address);
+      const resetToken = tokenIn(await takeMail(p.address, /^Reset/), RESET);
+      db.prepare("UPDATE password_resets SET expires_at = ? WHERE kind = 'email' AND user_id = (SELECT id FROM users WHERE username = ?)").run(Date.now() - 1, p.username);
+      const r = await call('POST', '/api/auth/recover', { body: { resetToken, password: 'too late for this' }, site: true });
+      assert.equal(r.status, 400);
+      assert.equal(r.data.code, 'bad-link');
+    });
+    await test('reset mails are limited per address, per account (quietly) and per network', async () => {
+      const unknown = freshEmail('nobody');
+      for (let i = 0; i < 3; i++) assert.equal((await requestReset(unknown)).status, 200);
+      assert.equal((await requestReset(unknown)).status, 429, 'per address, whether or not it\'s on an account');
+      const p = await personWithEmail();
+      for (let i = 0; i < 3; i++) assert.equal((await requestReset(p.address)).status, 200);
+      assert.equal((await requestReset(p.address)).status, 429);
+      for (let i = 0; i < 3; i++) await takeMail(p.address, /^Reset/);
+      // A new address on the same account: the account's limit still holds, without saying so.
+      const next = freshEmail('new');
+      assert.equal((await call('POST', '/api/account/email', { body: { email: next, password: PASSWORD }, session: p.session })).status, 200);
+      await confirm(next);
+      await takeMail(p.address, /changed/);
+      const r = await requestReset(next);
+      assert.equal(r.status, 200);
+      await noMail(next);
+      const ip = freshIp();
+      let last;
+      for (let i = 0; i < 11; i++) last = await requestReset(freshEmail('nobody'), { ip });
+      assert.equal(last.status, 429, 'per network');
+    });
+    await test('a banned network can\'t send reset mail; a banned account gets none', async () => {
+      const ip = '198.51.100.77';
+      assert.equal((await call('POST', '/api/admin/addresses/ban', { body: { ip, reason: 'test', days: 1 }, token: ADMIN })).status, 200);
+      const r = await requestReset(freshEmail('nobody'), { ip });
+      assert.equal(r.status, 403);
+      assert.equal(r.data.code, 'address-banned');
+      assert.equal((await call('POST', '/api/admin/addresses/unban', { body: { ip }, token: ADMIN })).status, 200);
+      const p = await personWithEmail();
+      assert.equal((await call('POST', `/api/admin/users/${p.username}/ban`, { body: { reason: 'test' }, token: ADMIN })).status, 200);
+      assert.equal((await requestReset(p.address)).status, 200);
+      await noMail(p.address);
+      assert.equal((await call('POST', `/api/admin/users/${p.username}/unban`, { token: ADMIN })).status, 200);
+    });
+    await test('a moderator\'s reset link still works for accounts with an email', async () => {
+      const p = await personWithEmail();
+      const link = await call('POST', `/api/admin/users/${p.username}/reset-password`, { token: ADMIN });
+      assert.equal(link.status, 200);
+      await requestReset(p.address);
+      await takeMail(p.address, /^Reset/);
+      const r = await call('POST', '/api/auth/recover', { body: { resetToken: link.data.url.split('#reset=')[1], password: 'a moderator helped' }, site: true });
+      assert.equal(r.status, 200, 'an email link doesn\'t cancel the moderator\'s');
+      await takeMail(p.address, /password was changed/);
+    });
+
+    section('Account mail');
+    await test('changing the password sends a note', async () => {
+      const p = await personWithEmail();
+      const r = await call('POST', '/api/account/password', { body: { current: PASSWORD, password: 'a different secret' }, session: p.session });
+      assert.equal(r.status, 200);
+      const mail = await takeMail(p.address, /^Your Smitten password was changed$/);
+      assert.match(mail.text, /\/recover/);
+    });
+    await test('a moderator hiding or restoring a game tells its owner (only if they have an email)', async () => {
+      const p = await personWithEmail();
+      const token = await editorToken(p.session);
+      const title = `Mail me <b>${tag}</b>`;
+      const g = await publish({ title }, mainLuaGame(), null, { token });
+      assert.equal(g.status, 201, JSON.stringify(g.data));
+      assert.equal((await call('POST', `/api/admin/games/${g.data.id}/hide`, { token: ADMIN })).status, 200);
+      const hid = await takeMail(p.address, /^A moderator hid one of your games$/);
+      assert.ok(hid.text.includes(title));
+      assert.ok(hid.html.includes(`Mail me &lt;b&gt;${tag}&lt;/b&gt;`), 'escaped in HTML');
+      await call('POST', `/api/admin/games/${g.data.id}/hide`, { token: ADMIN });
+      await noMail(p.address);
+      assert.equal((await call('POST', `/api/admin/games/${g.data.id}/restore`, { token: ADMIN })).status, 200);
+      const back = await takeMail(p.address, /^Your game is back on Smitten$/);
+      assert.ok(back.text.includes(`/play/${g.data.id}`));
+      const before = mailServer.messages.length;
+      const plain = await publish({ title: `No mail ${tag}` });
+      await call('POST', `/api/admin/games/${plain.data.id}/hide`, { token: ADMIN });
+      await call('POST', `/api/admin/games/${plain.data.id}/restore`, { token: ADMIN });
+      await new Promise((r) => setTimeout(r, 500));
+      assert.equal(sentSince(before), 0);
+    });
+    await test('mail that can\'t be sent right now is tried again', async () => {
+      mailServer.failNext = 1;
+      const p = await personWithEmail();
+      assert.ok(p);
+      assert.match(server.output(), /Mail #\d+: not sent \(attempt 1\), trying again/);
+    });
+    await test('mail refused for good is dropped, and the log names no address or link', async () => {
+      mailServer.rejectNext = 1;
+      const p = await signUpWithEmail();
+      await eventually(() => /giving up/.test(server.output()), 'the server to give up');
+      await noMail(p.address);
+      assert.match(server.output(), /Mail #\d+: not sent, giving up after 1 attempt: .*550/);
+      assert.doesNotMatch(server.output(), /@example\.test/);
+      assert.doesNotMatch(server.output(), /token=|reset=/);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM mail_queue').get().n, 0);
+    });
+
+    section('Sending mail');
+    const mailer = await import(`${ROOT}platform/src/mail.js`);
+    const smtpTo = (srv, extra = {}) => ({
+      host: 'localhost', port: srv.port, secure: certificate ? 'starttls' : 'none', user: SMTP.user, pass: SMTP.pass, helo: 'tests.local', timeoutMs: 3000, ...extra,
+    });
+    const tlsOptions = certificate ? { ca: certificate.cert } : {};
+    const sample = (to) => {
+      const text = ['.', '..two dots', '.starts with a dot', 'é'.repeat(120), `trailing space ${' '}`, 'tab\tin it', 'a=b and =3D', '', 'end'].join('\n');
+      const subject = `Héllo 💜 ${'a long subject '.repeat(6)}`;
+      return { text, subject, data: mailer.buildMessage({ from: 'Smitten <no-reply@smitten.test>', fromAddress: 'no-reply@smitten.test', to, subject, text, html: `<p>${text}</p>` }) };
+    };
+    await test('dot-stuffing, long lines and UTF-8 arrive intact', async () => {
+      const to = freshEmail('raw');
+      const { text, subject, data } = sample(to);
+      assert.ok(data.split('\r\n').every((l) => l.length <= 78), 'every line short');
+      assert.ok(!/(^|[^\r])\n/.test(data), 'CRLF only');
+      await mailer.sendSmtp(smtpTo(mailServer), { from: 'no-reply@smitten.test', to, data }, { tlsOptions });
+      const got = await takeMail(to);
+      assert.equal(got.text.replace(/\r\n/g, '\n'), text);
+      assert.equal(got.subject, subject);
+    });
+    await test('implicit TLS (port 465) with AUTH LOGIN', async () => {
+      if (!certificate) return;
+      const implicit = await fakeSmtpServer({ cert: certificate, implicitTls: true, ...SMTP, mechanisms: ['LOGIN'] }).listen(SMTP_START);
+      try {
+        const to = freshEmail('tls');
+        await mailer.sendSmtp(smtpTo(implicit, { secure: 'tls' }), { from: 'no-reply@smitten.test', to, data: sample(to).data }, { tlsOptions });
+        assert.equal(implicit.messages.length, 1);
+        assert.equal(implicit.messages[0].authMethod, 'LOGIN');
+        assert.equal(implicit.messages[0].secure, true);
+      } finally {
+        implicit.close();
+      }
+    });
+    await test('no password without TLS, wrong passwords fail for good, silent servers time out', async () => {
+      const to = freshEmail('fail');
+      const { data } = sample(to);
+      if (certificate) {
+        const plain = await fakeSmtpServer({ cert: certificate, noStarttls: true, ...SMTP }).listen(SMTP_START);
+        try {
+          await assert.rejects(mailer.sendSmtp(smtpTo(plain, { secure: 'starttls' }), { from: 'no-reply@smitten.test', to, data }, { tlsOptions }),
+            (e) => /STARTTLS/.test(e.message) && e.permanent === true);
+          assert.equal(plain.messages.length, 0);
+        } finally {
+          plain.close();
+        }
+      }
+      await assert.rejects(mailer.sendSmtp(smtpTo(mailServer, { pass: 'wrong' }), { from: 'no-reply@smitten.test', to, data }, { tlsOptions }),
+        (e) => /535/.test(e.message) && e.permanent === true);
+      const silent = await fakeSmtpServer({ silent: true }).listen(SMTP_START);
+      try {
+        const started = Date.now();
+        await assert.rejects(mailer.sendSmtp(smtpTo(silent, { secure: 'none', user: '', timeoutMs: 300 }), { from: 'no-reply@smitten.test', to, data }),
+          (e) => /timed out/.test(e.message) && !e.permanent);
+        assert.ok(Date.now() - started < 3000);
+      } finally {
+        silent.close();
+      }
+    });
+    await test('Resend: the API call, and which failures are tried again', async () => {
+      const seen = [];
+      const statuses = [];
+      const api = createServer(async (req, res) => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        seen.push({ method: req.method, url: req.url, headers: req.headers, body: JSON.parse(body) });
+        const status = statuses.shift() ?? 200;
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(status === 200 ? { id: 'abc' } : { name: 'validation_error', message: `Invalid \`to\` field: ${seen.at(-1).body.to[0]}` }));
+      });
+      const port = await freePort(SMTP_START);
+      await new Promise((r) => api.listen(port, '127.0.0.1', r));
+      try {
+        const config = { email: { transport: 'resend', from: 'Smitten <no-reply@smitten.test>', fromAddress: 'no-reply@smitten.test', timeoutMs: 2000, resend: { apiKey: 're_test_key', url: `http://127.0.0.1:${port}` } } };
+        const to = freshEmail('resend');
+        const message = { id: 7, createdAt: 1234, to, subject: 'Hi', text: 'Hello', html: '<p>Hello</p>' };
+        await mailer.send(config, message);
+        assert.equal(seen[0].method, 'POST');
+        assert.equal(seen[0].url, '/emails');
+        assert.equal(seen[0].headers.authorization, 'Bearer re_test_key');
+        assert.equal(seen[0].headers['idempotency-key'], 'smitten-7-1234');
+        assert.deepEqual(seen[0].body.to, [to]);
+        assert.equal(seen[0].body.from, 'Smitten <no-reply@smitten.test>');
+        assert.equal(seen[0].body.text, 'Hello');
+        assert.equal(seen[0].body.html, '<p>Hello</p>');
+        statuses.push(422);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === true);
+        statuses.push(500);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === false);
+        statuses.push(429);
+        await assert.rejects(mailer.send(config, message), (e) => e.permanent === false);
+      } finally {
+        api.close();
+      }
+    });
+    await test('EMAIL_TRANSPORT=log writes each message to EMAIL_LOG_FILE', async () => {
+      const port = await freePort(mailServer.port + 1);
+      const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-log-'));
+      const file = join(dir, 'mail.log');
+      let child;
+      try {
+        child = await spawnServer(port, dir, { EMAIL_TRANSPORT: 'log', EMAIL_LOG_FILE: file });
+        const address = freshEmail('log');
+        const r = await fetch(`http://127.0.0.1:${port}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}`, 'X-Forwarded-For': freshIp() },
+          body: JSON.stringify({ username: uniqueName('log'), password: PASSWORD, email: address }),
+        });
+        assert.equal(r.status, 201);
+        const entry = await eventually(() => {
+          try {
+            return readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).find((e) => e.to === address);
+          } catch {
+            return null;
+          }
+        }, 'the log file');
+        assert.equal(entry.subject, 'Confirm your email for Smitten');
+        assert.match(entry.text, new RegExp(`http://127\\.0\\.0\\.1:${port}/verify-email#token=`));
+        assert.match(entry.from, /^Smitten <no-reply@localhost\.localdomain>$/);
+      } finally {
+        child?.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   }
 
 
@@ -1687,7 +2438,7 @@ async function main() {
       assert.equal((await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: ro.session })).status, 200);
       assert.ok(fakeHackatime.revoked.includes(access));
     });
-    await test('without HACKATIME_CLIENT_ID and _SECRET, Hackatime is off', async () => {
+    await test('without HACKATIME_CLIENT_ID and _SECRET (or EMAIL_TRANSPORT), Hackatime (and email) are off', async () => {
       const port = PORT + 1;
       const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-off-'));
       let child;
@@ -1701,6 +2452,23 @@ async function main() {
         const key = await at('/api/account/hackatime-key');
         assert.equal(key.status, 404);
         assert.equal((await key.json()).code, 'hackatime-off');
+
+        assert.equal(config.accounts.email, false);
+        const site = { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}` };
+        const post = (path, body, headers = {}) => at(path, { method: 'POST', headers: { ...site, ...headers }, body: JSON.stringify(body) });
+        const reset = await post('/api/auth/recover/email', { email: 'someone@example.test' });
+        assert.equal(reset.status, 404);
+        assert.equal((await reset.json()).code, 'email-off');
+        assert.equal((await post('/api/auth/verify-email', { token: 'x' })).status, 404);
+        const signup = await post('/api/auth/signup', { username: uniqueName('off'), password: PASSWORD, email: 'someone@example.test' });
+        assert.equal(signup.status, 201, 'an email is ignored');
+        const session = /smitten_session=([^;]+)/.exec(signup.headers.get('set-cookie'))[1];
+        const me = await (await at('/api/account', { headers: { Cookie: `smitten_session=${session}` } })).json();
+        assert.equal(me.email, null);
+        assert.equal(me.pendingEmail, null);
+        const add = await post('/api/account/email', { email: 'someone@example.test', password: PASSWORD }, { Cookie: `smitten_session=${session}` });
+        assert.equal(add.status, 404);
+        assert.match(child.output(), /Email: off/);
       } finally {
         child?.kill();
         rmSync(dir, { recursive: true, force: true });

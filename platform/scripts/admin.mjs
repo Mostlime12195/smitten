@@ -6,6 +6,7 @@
 //   node scripts/admin.mjs restore <game id>        make it public, close its reports
 //   node scripts/admin.mjs delete <game id>
 //   node scripts/admin.mjs user <username>          an account and its games
+//   node scripts/admin.mjs email <username>         whether it has a confirmed email (masked, never the whole address)
 //   node scripts/admin.mjs ban <username> [reason]  sign out, hide games, block sign-in
 //   node scripts/admin.mjs ban-network <username> [reason]  the account and the addresses it used (30 days)
 //   node scripts/admin.mjs ban-ip <address> [reason]     no new accounts, publishing or reports from it (30 days)
@@ -31,6 +32,8 @@ const COMMANDS = {
   restore: ['POST', (id) => `/api/admin/games/${id}/restore`],
   delete: ['DELETE', (id) => `/api/admin/games/${id}`],
   user: ['GET', (name) => `/api/admin/users/${encodeURIComponent(name)}`],
+  email: ['GET', (name) => `/api/admin/users/${encodeURIComponent(name)}`, null,
+    (data) => (data?.user ? { username: data.user.username, email: data.user.email, emailPending: data.user.emailPending } : data)],
   ban: ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/ban`, () => ({ reason: rest.join(' ') })],
   unban: ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/unban`],
   'ban-network': ['POST', (name) => `/api/admin/users/${encodeURIComponent(name)}/ban`, () => ({ reason: rest.join(' '), addresses: true })],
@@ -51,7 +54,7 @@ if (!config.adminToken) {
   process.exit(2);
 }
 
-const [method, path, body] = spec;
+const [method, path, body, show = (data) => data] = spec;
 const headers = { Authorization: `Bearer ${config.adminToken}` };
 const payload = body ? JSON.stringify(body(arg)) : undefined;
 if (payload) headers['Content-Type'] = 'application/json';
@@ -63,5 +66,5 @@ try {
   process.exit(1);
 }
 const data = await res.json().catch(() => null);
-console.log(JSON.stringify(data, null, 2));
+console.log(JSON.stringify(res.ok ? show(data) : data, null, 2));
 process.exit(res.ok ? 0 : 1);

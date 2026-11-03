@@ -7,6 +7,7 @@ import { ipHashOf, isAdmin, publicUser } from './auth.js';
 import { DEFAULT_BAN_DAYS, addressesOf, banAddresses, listAddressBans, unbanAddresses } from './bans.js';
 import { getRow, publicGame, removeGame } from './games.js';
 import { createResetLink, deleteUser } from './account.js';
+import { maskEmail, notifyGame } from './email.js';
 
 function requireAdmin(ctx) {
   if (!ctx.config.adminToken) throw new HttpError(503, 'Admin endpoints are off: set ADMIN_TOKEN (see deploy/env.example).');
@@ -55,23 +56,26 @@ export function adminReports(ctx) {
   });
 }
 
+/** Hides a game; its owner gets an email (if they have a confirmed address) unless it was already hidden. */
 export function adminHide(ctx, id) {
   requireAdmin(ctx);
-  requireGame(id);
+  const game = requireGame(id);
   db.run("UPDATE games SET status = 'hidden', hidden_by = 'admin' WHERE id = ?", id);
   log('hide', `game:${id}`);
+  if (game.status === 'public') notifyGame(ctx, game, 'hidden');
   return json({ id, status: 'hidden' });
 }
 
-/** Makes a game public again and closes its open reports. */
+/** Makes a game public again and closes its open reports. Its owner gets an email if it was hidden. */
 export function adminRestore(ctx, id) {
   requireAdmin(ctx);
-  requireGame(id);
+  const game = requireGame(id);
   db.tx(() => {
     db.run("UPDATE games SET status = 'public', hidden_by = NULL WHERE id = ?", id);
     db.run('UPDATE reports SET resolved = 1 WHERE game_id = ? AND resolved = 0', id);
   });
   log('restore', `game:${id}`);
+  if (game.status !== 'public') notifyGame(ctx, game, 'restored');
   return json({ id, status: 'public' });
 }
 
@@ -99,6 +103,9 @@ export function adminUser(ctx, username) {
       banReason: user.ban_reason,
       hasPassword: Boolean(user.password_hash),
       hackclub: Boolean(user.hackclub_id),
+      // Never the whole address: whether there is one, masked.
+      email: user.email ? { masked: maskEmail(user.email), verified: true, verifiedAt: user.email_verified_at } : null,
+      emailPending: Boolean(db.get("SELECT 1 FROM email_tokens WHERE user_id = ? AND purpose = 'verify' AND expires_at > ?", user.id, Date.now())),
       createdAt: user.created_at,
       sessions: db.get('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?', user.id).n,
     },
