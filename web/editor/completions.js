@@ -5,6 +5,7 @@
 // docs come from love-docs.js.
 
 import { CALLBACKS, DOCS, RETURNS, NAME_HINTS, METHOD_DOCS } from './love-docs.js';
+import { SMITTEN, SMITTEN_NAMESPACES, SMITTEN_TYPES, SMITTEN_LOADERS } from './smitten-docs.js';
 
 const LUA_KEYWORDS = ['and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while'];
 
@@ -32,7 +33,7 @@ const LUA_GLOBALS = {
   collectgarbage: ['opt?, arg?', 'Controls the garbage collector.'],
   setfenv: ['f, t', 'Sets the environment of a function.'],
   getfenv: ['f?', 'Returns the environment of a function.'],
-  _G: null, _VERSION: null, love: null, math: null, string: null, table: null, os: null, coroutine: null, utf8: null, io: null, debug: null, self: null,
+  _G: null, _VERSION: null, love: null, smitten: null, math: null, string: null, table: null, os: null, coroutine: null, utf8: null, io: null, debug: null, self: null,
 };
 
 const LUA_LIBS = {
@@ -53,6 +54,7 @@ const METHOD_RETURNS = {
 
 const FILE_FUNCS = /(?:newImage|newSource|newFont|newShader|newImageData|newSoundData|newVideo|newImageFont|newArrayImage|newCubeImage|newDecoder|newFileData|read|lines|load|getInfo|newFile|openFile)\s*\(\s*["']([^"']*)$/;
 const REQUIRE = /\brequire\s*\(?\s*["']([^"']*)$/;
+const SMITTEN_LOAD = /\bsmitten\.(sprite|tileset|map|sfx|song)\s*\(\s*["']([^"']*)$/;
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const visible = (name) => !name.startsWith('_');
@@ -84,7 +86,19 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     { label: `love.${name}`, type: 'function', detail: `(${args})`, info: doc },
   ));
 
+  // The smitten module: smitten.x, smitten.ns.x, and the objects it returns.
+  const smittenOption = (name, d, detail) => (d
+    ? { label: name, type: 'function', detail: `(${d[0]})`, info: d[1], boost: 1 }
+    : { label: name, type: SMITTEN_NAMESPACES[name] ? 'namespace' : 'property', detail });
+  const smittenMembers = Object.entries(SMITTEN).map(([n, d]) => smittenOption(n, d, 'smitten'));
+  const smittenNamespaces = Object.fromEntries(Object.entries(SMITTEN_NAMESPACES)
+    .map(([ns, members]) => [ns, Object.entries(members).map(([n, d]) => smittenOption(n, d, `smitten.${ns}`))]));
+
   const typeMethods = {};
+  for (const [type, members] of Object.entries(SMITTEN_TYPES)) {
+    typeMethods[type] = Object.entries(members).filter(([, d]) => d)
+      .map(([n, d]) => ({ label: n, type: 'method', detail: `(${d[0]})`, info: d[1], boost: 1 }));
+  }
   const allMethods = new Map(); // method -> [types]
   for (const [type, methods] of Object.entries(types)) {
     typeMethods[type] = methods.filter(visible).map((m) => {
@@ -118,12 +132,15 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     snippetCompletion('while ${condition} do\n\t${}\nend', { label: 'while', detail: 'snippet', type: 'keyword' }),
   ];
   const globalOptions = Object.entries(LUA_GLOBALS).map(([name, d]) => ({
-    label: name, type: d ? 'function' : (LUA_LIBS[name] || name === 'love' ? 'namespace' : 'variable'),
-    detail: d ? `(${d[0]})` : undefined, info: d?.[1], boost: name === 'love' ? 3 : 0,
+    label: name, type: d ? 'function' : (LUA_LIBS[name] || name === 'love' || name === 'smitten' ? 'namespace' : 'variable'),
+    detail: d ? `(${d[0]})` : undefined, info: d?.[1], boost: name === 'love' || name === 'smitten' ? 3 : 0,
   }));
 
   function inferType(text, receiver) {
     const last = receiver.split(/[.:]/).pop();
+    const assigned = new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*smitten\\.(\\w+)\\s*\\(`, 'm').exec(text);
+    if (assigned && SMITTEN_LOADERS[assigned[1]]) return SMITTEN_LOADERS[assigned[1]].type;
+    if (new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*[\\w.]+:animation\\s*\\(`, 'm').test(text)) return 'Animation';
     const patterns = [
       new RegExp(`(?:^|[^\\w.])${escapeRe(receiver)}\\s*=\\s*love\\.(\\w+)\\.(\\w+)`, 'm'),
       new RegExp(`(?:^|[^\\w])(?:[\\w.]+\\.)?${escapeRe(last)}\\s*=\\s*love\\.(\\w+)\\.(\\w+)`, 'm'),
@@ -148,6 +165,15 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     }));
   }
 
+  /** Asset paths a smitten loader accepts, without their extension (sprites/hero). */
+  function assetOptions(loader) {
+    const { ext, strip } = SMITTEN_LOADERS[loader];
+    const seen = new Set();
+    return getProjectFiles().filter((p) => ext.test(p)).map((p) => p.replace(strip, ''))
+      .filter((p) => !seen.has(p) && seen.add(p))
+      .map((p) => ({ label: p, type: 'text', detail: loader }));
+  }
+
   function documentWords(state, current) {
     const words = new Set();
     const text = state.doc.toString();
@@ -170,6 +196,7 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
 
     if (/string/i.test(nodeName) || /["'][^"']*$/.test(before)) {
       if ((m = REQUIRE.exec(before))) return { from: pos - m[1].length, options: requireOptions(), validFor: /^[\w.]*$/ };
+      if ((m = SMITTEN_LOAD.exec(before))) return { from: pos - m[2].length, options: assetOptions(m[1]), validFor: /^[\w./-]*$/ };
       if ((m = FILE_FUNCS.exec(before))) return { from: pos - m[1].length, options: projectFileOptions(m[1]), validFor: /^[\w./-]*$/ };
       if (/string/i.test(nodeName)) return null;
     }
@@ -184,6 +211,13 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     }
     if ((m = /(?:^|[^\w.:])love\.(\w*)$/.exec(before))) {
       return { from: pos - m[1].length, options: loveMembers, validFor: /^\w*$/ };
+    }
+    if ((m = /(?:^|[^\w.:])smitten\.(\w+)\.(\w*)$/.exec(before))) {
+      const opts = smittenNamespaces[m[1]];
+      return opts ? { from: pos - m[2].length, options: opts, validFor: /^\w*$/ } : null;
+    }
+    if ((m = /(?:^|[^\w.:])smitten\.(\w*)$/.exec(before))) {
+      return { from: pos - m[1].length, options: smittenMembers, validFor: /^\w*$/ };
     }
     if ((m = /(?:^|[^\w.:])(math|string|table|os|coroutine|utf8|io|debug)\.(\w*)$/.exec(before))) {
       return { from: pos - m[2].length, options: libMembers[m[1]], validFor: /^\w*$/ };

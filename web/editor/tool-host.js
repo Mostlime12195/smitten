@@ -107,6 +107,18 @@ export class ToolHost {
 
   focus(path) { this.open.get(path)?.instance.focus?.(); }
 
+  /** Offer a key to the active tool while focus is inside it. Returns true if the tool used it. */
+  handleKey(e) {
+    const entry = this.active && this.open.get(this.active);
+    if (!entry?.instance.handleKey || !entry.instance.element.contains(document.activeElement)) return false;
+    try {
+      return !!entry.instance.handleKey(e);
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  }
+
   async save(path) {
     const e = this.open.get(path);
     if (!e) return false;

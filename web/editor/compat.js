@@ -23,7 +23,7 @@ const blank = (s) => s.replace(/[^\n]/g, ' ');
  * contents blanked out (`code`). Newlines are kept so line numbers still match.
  */
 export function stripLua(text) {
-  const special = /--|["'[]/g;
+  const special = /--|["'`[]/g; // ` starts a Smitten interpolated string
   const longOpen = /\[(=*)\[/y;
   let source = '', code = '', i = 0;
   const longEnd = (level, from) => {
@@ -52,7 +52,7 @@ export function stripLua(text) {
       j = longEnd(lm[1].length, longOpen.lastIndex);
       source += text.slice(m.index, j);
       code += blank(text.slice(m.index, j));
-    } else {  // quoted string
+    } else {  // quoted or interpolated string
       j = m.index + 1;
       while (j < text.length && text[j] !== m[0] && text[j] !== '\n') j += text[j] === '\\' ? 2 : 1;
       j = Math.min(j + 1, text.length);

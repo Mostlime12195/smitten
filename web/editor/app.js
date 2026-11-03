@@ -696,7 +696,7 @@ async function newAsset(asset, dir = '') {
   });
   if (!name) return;
   const path = store.normalizePath(joinPath(folder, name.endsWith(asset.extension) ? name : name + asset.extension));
-  const files = asset.files(path.slice(0, -asset.extension.length));
+  const files = asset.files(path.slice(0, -asset.extension.length), tools.createHost(path));
   const clash = Object.keys(files).filter((p) => p !== path && state.entries.has(p));
   if (clash.length && !await confirmDialog({
     title: 'Replace files?', message: `This also writes ${clash.join(', ')}, which already exist${clash.length === 1 ? 's' : ''}. Replace?`,
@@ -1404,6 +1404,8 @@ function handleShortcut(e, fromGame = false) {
   const key = e.key;
   const lower = key.length === 1 ? key.toLowerCase() : key;
   if (document.querySelector('dialog[open]')) return key === 'F5' && !fromGame; // just block reloads
+  // Tools get first pick of keys while they have focus (e.g. Ctrl+= zooms the pixel editor).
+  if (!fromGame && key !== 'F5' && tools.handleKey(e)) return true;
 
   if (key === 'F5' && !mod) { if (e.shiftKey) stop(); else run(); return true; }
   if (mod && key === 'Enter') { run(); return true; }
