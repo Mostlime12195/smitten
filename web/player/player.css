@@ -153,6 +153,9 @@ body:hover #toolbar { opacity: 0.85; }
 #toolbar button:hover { transform: scale(1.06); }
 #toolbar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 body.embed #toolbar { display: none; }
+/* Touch screens have no hover to reveal it, and an invisible button would
+   take the game's touches; games there go fullscreen with fullscreen(true). */
+@media (hover: none) { #toolbar { display: none; } }
 
 /* Shown when a game opens a file dialog outside of a click or key press:
    browsers only open file pickers in response to one. */

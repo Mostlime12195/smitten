@@ -35,7 +35,7 @@
   &quot;version&quot;: 2,
   &quot;name&quot;: &quot;My game&quot;,
   &quot;main&quot;: &quot;scenes/level.scene&quot;,
-  &quot;display&quot;: { &quot;width&quot;: 1280, &quot;height&quot;: 720, &quot;stretch&quot;: &quot;expand&quot;, &quot;filter&quot;: &quot;smooth&quot; },
+  &quot;display&quot;: { &quot;width&quot;: 1280, &quot;height&quot;: 720, &quot;stretch&quot;: &quot;expand&quot; },
   &quot;input&quot;: { &quot;dash&quot;: [&quot;lshift&quot;, &quot;pad:rightshoulder&quot;] }
 }</code></pre>
 <div class="table"><table>
@@ -44,8 +44,9 @@
 <tr><td><code>main</code></td><td>The scene the game starts with</td></tr>
 <tr><td><code>display.width</code>, <code>display.height</code></td><td>The resolution the game is designed for</td></tr>
 <tr><td><code>display.stretch</code></td><td>How it fits the screen (below)</td></tr>
-<tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for crisp pixel art</td></tr>
-<tr><td><code>display.background</code></td><td>The color behind everything</td></tr>
+<tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for crisp pixel art (the default with <code>pixel</code> stretch)</td></tr>
+<tr><td><code>display.antialias</code></td><td>Smooth edges on shapes and lines. On, except with <code>pixel</code> stretch</td></tr>
+<tr><td><code>display.background</code></td><td>The color behind everything, bars included, as <code>[r, g, b, a]</code></td></tr>
 <tr><td><code>splash</code></td><td>The splash screen shown while the game loads (below)</td></tr>
 <tr><td><code>input</code></td><td><a href="input#actions">Input actions</a> to add or change</td></tr>
 <tr><td><code>physics.gravity</code></td><td>Gravity, as <code>[x, y]</code> in pixels per second per second. See <a href="physics">Physics</a></td></tr>
@@ -53,14 +54,15 @@
 <tr><td><code>identity</code></td><td>The name saves use, if it shouldn't follow <code>name</code></td></tr></tbody>
 </table></div>
 <h2 id="resolution-and-fitting-the-screen"><a class="anchor" href="#resolution-and-fitting-the-screen" aria-hidden="true">#</a>Resolution and fitting the screen</h2>
-<p>You design a game for one resolution, like 1280×720, and Smitten scales it to fit whatever window or screen it's played on. Positions in scenes and UI are always in these game pixels.</p>
+<p>You design a game for one resolution, like 1280×720, and Smitten scales it to fit whatever window or screen it's played on. Positions in scenes and UI are always in these game pixels. The resolution is the size you design for, not a limit: the game always fills the window and draws at the screen's full sharpness, so it looks crisp in fullscreen and on phones.</p>
 <div class="table"><table>
 <thead><tr><th><code>stretch</code></th><th></th></tr></thead>
-<tbody><tr><td><code>expand</code></td><td>Scales to fit, and shows a little more of the world where the shapes differ instead of bars</td></tr>
+<tbody><tr><td><code>expand</code></td><td>The default. Scales to fit, and shows a little more of the world where the shapes differ, so there are never bars</td></tr>
 <tr><td><code>fit</code></td><td>Scales to fit, and fills the leftover space with the background color</td></tr>
 <tr><td><code>stretch</code></td><td>Fills the screen exactly, distorting if the shapes differ</td></tr>
-<tr><td><code>pixel</code></td><td>Scales by whole numbers only (2×, 3×...), for crisp pixel art</td></tr></tbody>
+<tr><td><code>pixel</code></td><td>Draws at your resolution and scales it up by whole numbers (2×, 3×...), for crisp pixel art</td></tr></tbody>
 </table></div>
+<p>With <code>expand</code>, the edges of the screen move with its shape. Anchor UI to the edges, and use <code>smitten.display</code>'s <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code> and <code>viewHeight</code> for the area that's actually showing. <code>screenWidth()</code> and <code>screenHeight()</code> are always your resolution.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
@@ -74,7 +76,7 @@
 <tr><td><code>smitten.display.toWindow(x, y)</code></td><td>Game coordinates to window coordinates.</td></tr>
 <tr><td><code>smitten.display.getWindowRect()</code></td><td>The game's area in the window: x, y, width, height.</td></tr></tbody>
 </table></div>
-<p>Fields: <code>width</code>, <code>height</code>, <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code>, <code>viewHeight</code>, <code>scale</code>, <code>stretch</code>, <code>filter</code>.</p>
+<p>Fields: <code>width</code>, <code>height</code>, <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code>, <code>viewHeight</code>, <code>scale</code>, <code>stretch</code>, <code>filter</code>, <code>antialias</code>, <code>background</code>.</p>
 <h2 id="the-splash-screen"><a class="anchor" href="#the-splash-screen" aria-hidden="true">#</a>The splash screen</h2>
 <p>While a game loads in a browser, Smitten shows a splash screen: a heart and &quot;Made with Smitten&quot; on a dark background. Once the game has loaded, and the splash has been up for a second, it fades into the main scene. There's no Play button to press.</p>
 <p>Make it yours in <strong>Project settings › Splash</strong>. Pick a picture from your project (a logo or a title screen), a background color and how long it stays up, and choose whether &quot;Made with Smitten&quot; shows underneath.</p>

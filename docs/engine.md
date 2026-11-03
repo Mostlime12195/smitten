@@ -103,7 +103,7 @@ See [Project settings](settings.md).
 | `smitten.display.toWindow(x, y)` | Game coordinates to window coordinates. |
 | `smitten.display.getWindowRect()` | The game's area in the window: x, y, width, height. |
 
-Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`.
+Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`, `antialias`, `background`.
 
 ### smitten.json
 

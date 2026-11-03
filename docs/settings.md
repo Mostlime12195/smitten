@@ -11,7 +11,7 @@ actions, physics settings and which engine modules it downloads.
   "version": 2,
   "name": "My game",
   "main": "scenes/level.scene",
-  "display": { "width": 1280, "height": 720, "stretch": "expand", "filter": "smooth" },
+  "display": { "width": 1280, "height": 720, "stretch": "expand" },
   "input": { "dash": ["lshift", "pad:rightshoulder"] }
 }
 ```
@@ -22,8 +22,9 @@ actions, physics settings and which engine modules it downloads.
 | `main` | The scene the game starts with |
 | `display.width`, `display.height` | The resolution the game is designed for |
 | `display.stretch` | How it fits the screen (below) |
-| `display.filter` | `smooth`, or `pixel` for crisp pixel art |
-| `display.background` | The color behind everything |
+| `display.filter` | `smooth`, or `pixel` for crisp pixel art (the default with `pixel` stretch) |
+| `display.antialias` | Smooth edges on shapes and lines. On, except with `pixel` stretch |
+| `display.background` | The color behind everything, bars included, as `[r, g, b, a]` |
 | `splash` | The splash screen shown while the game loads (below) |
 | `input` | [Input actions](input.md#actions) to add or change |
 | `physics.gravity` | Gravity, as `[x, y]` in pixels per second per second. See [Physics](physics.md) |
@@ -34,14 +35,21 @@ actions, physics settings and which engine modules it downloads.
 
 You design a game for one resolution, like 1280×720, and Smitten scales
 it to fit whatever window or screen it's played on. Positions in scenes
-and UI are always in these game pixels.
+and UI are always in these game pixels. The resolution is the size you
+design for, not a limit: the game always fills the window and draws at
+the screen's full sharpness, so it looks crisp in fullscreen and on phones.
 
 | `stretch` | |
 | --- | --- |
-| `expand` | Scales to fit, and shows a little more of the world where the shapes differ instead of bars |
+| `expand` | The default. Scales to fit, and shows a little more of the world where the shapes differ, so there are never bars |
 | `fit` | Scales to fit, and fills the leftover space with the background color |
 | `stretch` | Fills the screen exactly, distorting if the shapes differ |
-| `pixel` | Scales by whole numbers only (2×, 3×...), for crisp pixel art |
+| `pixel` | Draws at your resolution and scales it up by whole numbers (2×, 3×...), for crisp pixel art |
+
+With `expand`, the edges of the screen move with its shape. Anchor UI to
+the edges, and use `smitten.display`'s `viewX`, `viewY`, `viewWidth` and
+`viewHeight` for the area that's actually showing. `screenWidth()` and
+`screenHeight()` are always your resolution.
 
 <!-- api:Screen -->
 | Call | |
@@ -61,7 +69,7 @@ Browsers only allow fullscreen right after a click or key press, so call
 | `smitten.display.toWindow(x, y)` | Game coordinates to window coordinates. |
 | `smitten.display.getWindowRect()` | The game's area in the window: x, y, width, height. |
 
-Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`.
+Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`, `antialias`, `background`.
 <!-- end -->
 
 ## The splash screen

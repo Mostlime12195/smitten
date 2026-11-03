@@ -223,7 +223,8 @@ in place; standard conventions; neutral looks with icons from
   the running copy and are gone when it stops; the saved scene is never
   touched. (`love/src/modules/engine/live.lua`, `web/editor/core/live-doc.js`.)
 - **Project settings**: name, main scene, display (resolution and how it
-  fits the window, smooth or pixel), input actions, modules.
+  fits the window, smooth or pixel, antialiasing, background color),
+  splash screen, input actions, physics, modules.
 - **Export**: a web zip with only the modules the game uses, a project
   zip, a `.love`; share links; publishing to the sharing site.
 
