@@ -1,4 +1,4 @@
-// Music editor: opens .song.json files (docs/reference.md, "Songs"). A piano
+// Music editor: opens .song files (docs/reference.md, "Songs"). A piano
 // roll for one channel of one pattern at a time, with the channels,
 // patterns, instruments and the arrangement (order list) around it.
 // Playback renders the song with the editor's synthesizer (host.synth()), so
@@ -743,11 +743,11 @@ class MusicEditor {
     ];
 
     if (ins.type === 'sfx') {
-      const files = this.host.list().filter((p) => /\.sfx\.json$/i.test(p)).sort();
+      const files = this.host.list().filter((p) => /\.sfx$/i.test(p)).sort();
       const dir = dirName(this.host.path);
       const current = ins.sfx ? this.resolveSfxPath(ins.sfx) : '';
       const select = h('select', { class: 'select small mus-sfx-select', 'aria-label': 'Sound effect file' },
-        h('option', { value: '', selected: !ins.sfx }, files.length ? 'Choose a sound effect…' : 'No .sfx.json files in the project'),
+        h('option', { value: '', selected: !ins.sfx }, files.length ? 'Choose a sound effect…' : 'No .sfx files in the project'),
         ...files.map((f) => h('option', { value: f, selected: f === current }, f)),
         ins.sfx && !files.includes(current) ? h('option', { value: `missing:${ins.sfx}`, selected: true }, `${ins.sfx} (missing)`) : null);
       select.addEventListener('change', () => {
@@ -857,7 +857,7 @@ class MusicEditor {
     if (ins.type === type) return;
     this.edit(() => {
       if (type === 'sfx') {
-        const first = this.host.list().filter((p) => /\.sfx\.json$/i.test(p)).sort()[0];
+        const first = this.host.list().filter((p) => /\.sfx$/i.test(p)).sort()[0];
         s.instruments[idx] = normalizeInstrument({ name: ins.name, type: 'sfx', sfx: first ? relativePath(dirName(this.host.path), first) : '', pitched: false }, idx);
       } else {
         s.instruments[idx] = normalizeInstrument({ name: ins.name, type: 'synth', ...SYNTH_DEFAULTS }, idx);
@@ -1899,7 +1899,7 @@ class MusicEditor {
   }
 
   reload(path) {
-    if (/\.sfx\.json$/i.test(path)) {
+    if (/\.sfx$/i.test(path)) {
       // The sound effect list or an instrument's sound changed.
       if (this.song.instruments[this.song.channels[this.channel]?.instrument]?.type === 'sfx') this.renderInstrument();
       return;
@@ -1940,12 +1940,12 @@ function roundRect(ctx, x, y, w, h, r) {
 export default {
   id: 'music',
   label: 'Music editor',
-  match: (path) => /\.song\.json$/i.test(path),
+  match: (path) => /\.song$/i.test(path),
   newAssets: [{
     label: 'Song',
     folder: 'music',
-    extension: '.song.json',
-    files: (base) => ({ [`${base}.song.json`]: songText(defaultSong()) }),
+    extension: '.song',
+    files: (base) => ({ [`${base}.song`]: songText(defaultSong()) }),
   }],
   open(host) {
     return new MusicEditor(host);

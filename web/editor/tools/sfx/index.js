@@ -1,4 +1,4 @@
-// Sound effect editor: opens .sfx.json files (docs/reference.md, "Sound
+// Sound effect editor: opens .sfx files (docs/reference.md, "Sound
 // effects"). Presets, mutate, a slider for every parameter, a waveform view
 // and previews rendered by the editor's synthesizer (host.synth()), so they
 // sound exactly like the game.
@@ -471,7 +471,7 @@ class SfxEditor {
       this.host.toast('There is nothing to export: the synthesizer is not available.', { type: 'error' });
       return;
     }
-    const name = baseName(this.host.path).replace(/\.sfx\.json$/i, '') || 'sound';
+    const name = baseName(this.host.path).replace(/\.sfx$/i, '') || 'sound';
     this.ui.downloadBlob(encodeWav(samples, this.synth.sampleRate), `${name}.wav`);
   }
 
@@ -651,12 +651,12 @@ function presetIcon(id) {
 export default {
   id: 'sfx',
   label: 'Sound editor',
-  match: (path) => /\.sfx\.json$/i.test(path),
+  match: (path) => /\.sfx$/i.test(path),
   newAssets: [{
     label: 'Sound effect',
     folder: 'sfx',
-    extension: '.sfx.json',
-    files: (base) => ({ [`${base}.sfx.json`]: sfxText(newSfxParams()) }),
+    extension: '.sfx',
+    files: (base) => ({ [`${base}.sfx`]: sfxText(newSfxParams()) }),
   }],
   open(host) {
     return new SfxEditor(host);

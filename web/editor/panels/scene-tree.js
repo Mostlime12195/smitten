@@ -1,0 +1,311 @@
+// The Scene panel: the open scene's node tree. Click to select, F2 or
+// double-click to rename, drag to reparent or reorder, right-click for more.
+// An instance shows the nodes its scene brings (in italics, read-only).
+
+import { h, icon, showMenu, modKey } from '../ui.js';
+import { nodeIcon } from '../shell/node-icons.js';
+import { isA, typeDef } from '../core/schema.js';
+
+export class SceneTreePanel {
+  /** actions: { addNode(parent), instanceScene(parent), attachScript(node), openScript(node), openScene(path), saveBranchAsScene(node), copy(), paste(), changeType(node) } */
+  constructor(el, actions) {
+    this.el = el;
+    this.actions = actions;
+    this.doc = null;
+    this.collapsed = new Set();
+    this.filter = '';
+
+    const add = h('button', { type: 'button', class: 'icon-btn', title: `Add a node (${modKey}+A)`, 'aria-label': 'Add a node' }, icon('plus', 16));
+    add.addEventListener('click', () => this.doc && actions.addNode(this.targetParent()));
+    const inst = h('button', { type: 'button', class: 'icon-btn', title: 'Place a scene in this one', 'aria-label': 'Place a scene' }, icon('link', 15));
+    inst.addEventListener('click', () => this.doc && actions.instanceScene(this.targetParent()));
+    this.search = h('input', { class: 'input', type: 'search', placeholder: 'Filter nodes', 'aria-label': 'Filter nodes' });
+    this.search.addEventListener('input', () => {
+      this.filter = this.search.value.trim().toLowerCase();
+      this.render();
+    });
+    this.list = h('div', { class: 'scene-tree', tabindex: '0', role: 'tree', 'aria-label': 'Scene tree' });
+    this.empty = h('div', { class: 'empty' },
+      h('h3', {}, 'No scene open'),
+      h('p', {}, 'Open a scene from Files, or make one: scenes hold everything in a level, a menu or a character.'));
+    el.append(h('div', { class: 'panel' },
+      h('div', { class: 'panel-toolbar' }, add, inst, this.search),
+      h('div', { class: 'panel-scroll' }, this.list, this.empty)));
+
+    this.list.addEventListener('keydown', (e) => this.onKey(e));
+    this.list.addEventListener('contextmenu', (e) => {
+      if (e.target.closest('.node-row')) return;
+      e.preventDefault();
+      if (this.doc) this.menu(null, { x: e.clientX, y: e.clientY });
+    });
+    this.onChange = () => this.render();
+    this.onSelect = () => this.render();
+  }
+
+  setDoc(doc) {
+    if (this.doc) {
+      this.doc.removeEventListener('change', this.onChange);
+      this.doc.removeEventListener('select', this.onSelect);
+    }
+    this.doc = doc;
+    if (doc) {
+      doc.addEventListener('change', this.onChange);
+      doc.addEventListener('select', this.onSelect);
+    }
+    this.render();
+  }
+
+  /** Where Add node puts things: under the selected node (or the root). */
+  targetParent() {
+    const sel = this.doc.selected();
+    const n = sel[sel.length - 1];
+    if (!n || n.readonly) return this.doc.root;
+    return n;
+  }
+
+  render() {
+    const doc = this.doc;
+    this.empty.hidden = !!doc;
+    this.list.hidden = !doc;
+    this.list.replaceChildren();
+    if (!doc) return;
+    const matches = (n) => !this.filter || n.name.toLowerCase().includes(this.filter) || n.type.toLowerCase().includes(this.filter);
+    const anyMatch = (n) => matches(n) || doc.effectiveChildren(n).some(anyMatch);
+    const rows = [];
+    const visit = (n, depth) => {
+      if (this.filter && !anyMatch(n)) return;
+      rows.push(this.row(n, depth));
+      const kids = doc.effectiveChildren(n);
+      if (kids.length && (this.filter || !this.collapsed.has(n.id))) for (const c of kids) visit(c, depth + 1);
+    };
+    visit(doc.root, 0);
+    this.list.append(...rows);
+  }
+
+  row(n, depth) {
+    const doc = this.doc;
+    const kids = doc.effectiveChildren(n);
+    const open = !this.collapsed.has(n.id);
+    const twisty = h('span', { class: `twisty ${kids.length ? '' : 'leaf'}` }, icon(open ? 'chevronDown' : 'chevronRight', 14));
+    twisty.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (open) this.collapsed.add(n.id); else this.collapsed.delete(n.id);
+      this.render();
+    });
+    const badges = h('span', { class: 'node-badges' });
+    const script = doc.scriptOf(n);
+    if (script) {
+      const b = h('button', { type: 'button', class: 'node-badge', title: `Script: ${script} (click to open)` }, icon('code', 14));
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScript(n); });
+      badges.append(b);
+    }
+    if (n.instance) {
+      const b = h('button', { type: 'button', class: 'node-badge', title: `Uses ${n.instance} (click to open it)` }, icon('link', 13));
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.actions.openScene(n.instance); });
+      badges.append(b);
+    }
+    const warn = this.warning(n);
+    if (warn) badges.append(h('span', { class: 'node-badge', title: warn, style: 'color: var(--warning)' }, icon('alert', 14)));
+    if (!n.readonly && (isA(n.type, 'Node2D') || isA(n.type, 'Node3D') || isA(n.type, 'Control'))) {
+      const visible = doc.get(n, 'visible') !== false;
+      const b = h('button', { type: 'button', class: `node-badge ${visible ? '' : 'off'}`, title: visible ? 'Hide' : 'Show' }, icon(visible ? 'eye' : 'eyeOff', 14));
+      b.addEventListener('click', (e) => { e.stopPropagation(); doc.setProp(n, 'visible', !visible, { label: visible ? 'Hide' : 'Show' }); });
+      badges.append(b);
+    }
+    const row = h('div', {
+      class: `node-row ${doc.selection.has(n.id) ? 'selected' : ''} ${n.readonly ? 'readonly' : ''}`,
+      role: 'treeitem', 'data-id': n.id, draggable: n.readonly || n === doc.root ? 'false' : 'true',
+      style: `padding-left: ${4 + depth * 16}px`, title: n.readonly ? `Part of ${this.instanceOwner(n)?.instance || 'an instance'}` : typeDef(n.type)?.description || '',
+    }, twisty, nodeIcon(n.type), h('span', { class: 'node-name' }, n.name), badges);
+    row.addEventListener('click', (e) => this.click(n, e));
+    row.addEventListener('dblclick', () => !n.readonly && this.rename(n));
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!doc.selection.has(n.id)) doc.select([n]);
+      this.menu(n, { x: e.clientX, y: e.clientY });
+    });
+    this.dragAndDrop(row, n);
+    return row;
+  }
+
+  instanceOwner(n) {
+    let p = n.parent;
+    while (p && p.readonly) p = p.parent;
+    return p;
+  }
+
+  /** Common mistakes, explained (like Godot's node warnings). */
+  warning(n) {
+    const doc = this.doc;
+    const kids = doc.effectiveChildren(n);
+    const bodies2d = ['CharacterBody2D', 'StaticBody2D', 'Area2D', 'RigidBody2D'];
+    const bodies3d = ['CharacterBody3D', 'StaticBody3D', 'Area3D', 'RigidBody3D'];
+    if (bodies2d.includes(n.type) && !kids.some((c) => c.type === 'CollisionShape2D')) {
+      return 'Add a CollisionShape2D inside it, or it has no shape and touches nothing.';
+    }
+    if (bodies3d.includes(n.type) && !kids.some((c) => c.type === 'CollisionShape3D')) {
+      return 'Add a CollisionShape3D inside it, or it has no shape and touches nothing.';
+    }
+    const def = typeDef(n.type);
+    if (def?.parent && n.parent && !def.parent.some((t) => isA(n.parent.type, t))) {
+      return `${n.type} works on its parent, which should be a ${def.parent.join(' or ')}.`;
+    }
+    if (n.type === 'CollisionShape2D' && n.parent && !bodies2d.includes(n.parent.type)) {
+      return 'A CollisionShape2D gives its parent a shape: put it inside a body or an area.';
+    }
+    if (n.type === 'CollisionShape3D' && n.parent && !bodies3d.includes(n.parent.type)) {
+      return 'A CollisionShape3D gives its parent a shape: put it inside a 3D body or area.';
+    }
+    return null;
+  }
+
+  click(n, e) {
+    const doc = this.doc;
+    if (n.readonly) n = this.instanceOwner(n) || n;
+    if (e.shiftKey && this.anchor) {
+      const ids = [...this.list.querySelectorAll('.node-row')].map((r) => r.dataset.id);
+      const a = ids.indexOf(this.anchor);
+      const b = ids.indexOf(n.id);
+      const range = ids.slice(Math.min(a, b), Math.max(a, b) + 1).map((id) => doc.byId(id)).filter(Boolean);
+      doc.select(range);
+    } else if (e.ctrlKey || e.metaKey) {
+      doc.toggleSelect(n);
+      this.anchor = n.id;
+    } else {
+      doc.select([n]);
+      this.anchor = n.id;
+    }
+    this.list.focus({ preventScroll: true });
+  }
+
+  rename(n) {
+    const row = this.list.querySelector(`.node-row[data-id="${n.id}"]`);
+    if (!row) return;
+    const label = row.querySelector('.node-name');
+    const input = h('input', { class: 'rename', value: n.name, spellcheck: 'false', 'aria-label': 'Name' });
+    label.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (save) => {
+      if (done) return;
+      done = true;
+      if (save) this.doc.rename(n, input.value);
+      else this.render();
+      this.list.focus();
+    };
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') finish(true);
+      if (e.key === 'Escape') finish(false);
+    });
+    input.addEventListener('blur', () => finish(true));
+  }
+
+  renameSelected() {
+    const n = this.doc?.selected()[0];
+    if (n && !n.readonly) this.rename(n);
+  }
+
+  onKey(e) {
+    const doc = this.doc;
+    if (!doc) return;
+    const sel = doc.selected();
+    const rows = [...this.list.querySelectorAll('.node-row')];
+    const i = rows.findIndex((r) => r.dataset.id === sel[sel.length - 1]?.id);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+      const n = next && doc.byId(next.dataset.id);
+      if (n) doc.select([n]);
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const n = sel[0];
+      if (!n) return;
+      e.preventDefault();
+      if (e.key === 'ArrowLeft') this.collapsed.add(n.id); else this.collapsed.delete(n.id);
+      this.render();
+    } else if (e.key === 'F2') {
+      e.preventDefault();
+      this.renameSelected();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      doc.remove(sel);
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      doc.select(doc.duplicate(sel));
+    }
+  }
+
+  menu(n, at) {
+    const doc = this.doc;
+    const a = this.actions;
+    const items = [];
+    const parent = n && !n.readonly ? n : doc.root;
+    items.push({ label: 'Add node…', icon: 'plus', shortcut: `${modKey}+A`, action: () => a.addNode(parent) });
+    items.push({ label: 'Place a scene…', icon: 'link', action: () => a.instanceScene(parent) });
+    if (n && !n.readonly) {
+      items.push('-');
+      items.push({ label: 'Rename', icon: 'pencil', shortcut: 'F2', action: () => this.rename(n) });
+      if (n !== doc.root) items.push({ label: 'Duplicate', icon: 'copy', shortcut: `${modKey}+D`, action: () => doc.select(doc.duplicate(doc.selected())) });
+      items.push({ label: 'Copy', shortcut: `${modKey}+C`, action: () => a.copy() });
+      items.push({ label: 'Paste inside', shortcut: `${modKey}+V`, action: () => a.paste(n) });
+      items.push('-');
+      const script = doc.scriptOf(n);
+      items.push(script
+        ? { label: 'Open script', icon: 'code', action: () => a.openScript(n) }
+        : { label: 'Attach a script…', icon: 'code', action: () => a.attachScript(n) });
+      if (n.script) items.push({ label: 'Detach script', action: () => doc.setScript(n, null) });
+      if (!n.instance) items.push({ label: 'Change type…', action: () => a.changeType(n) });
+      if (n !== doc.root && !n.instance) items.push({ label: 'Save as a scene…', icon: 'save', action: () => a.saveBranchAsScene(n) });
+      if (n.instance) items.push({ label: `Open ${n.instance.split('/').pop()}`, icon: 'link', action: () => a.openScene(n.instance) });
+      if (n !== doc.root) {
+        items.push('-');
+        items.push({ label: 'Delete', icon: 'trash', shortcut: 'Delete', danger: true, action: () => doc.remove(doc.selected()) });
+      }
+    }
+    showMenu(at, items);
+  }
+
+  dragAndDrop(row, n) {
+    const doc = this.doc;
+    row.addEventListener('dragstart', (e) => {
+      if (!doc.selection.has(n.id)) doc.select([n]);
+      e.dataTransfer.setData('application/x-smitten-node', n.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    const zone = (e) => {
+      const r = row.getBoundingClientRect();
+      const y = (e.clientY - r.top) / r.height;
+      if (n === doc.root) return 'inside';
+      return y < 0.28 ? 'before' : y > 0.72 ? 'after' : 'inside';
+    };
+    row.addEventListener('dragover', (e) => {
+      const types = e.dataTransfer.types;
+      if (!types.includes('application/x-smitten-node') && !types.includes('application/x-smitten-path')) return;
+      if (n.readonly) return;
+      e.preventDefault();
+      row.classList.remove('drop-before', 'drop-after', 'drop-inside');
+      row.classList.add(`drop-${types.includes('application/x-smitten-path') ? 'inside' : zone(e)}`);
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drop-before', 'drop-after', 'drop-inside'));
+    row.addEventListener('drop', (e) => {
+      row.classList.remove('drop-before', 'drop-after', 'drop-inside');
+      if (n.readonly) return;
+      const path = e.dataTransfer.getData('application/x-smitten-path');
+      if (path) {
+        e.preventDefault();
+        this.actions.dropFile?.(path, n);
+        return;
+      }
+      const id = e.dataTransfer.getData('application/x-smitten-node');
+      if (!id) return;
+      e.preventDefault();
+      const z = zone(e);
+      const moving = doc.selected().filter((m) => m !== doc.root && !m.readonly);
+      for (const m of moving) {
+        if (z === 'inside') doc.move(m, n, n.children.length);
+        else doc.move(m, n.parent, n.parent.children.indexOf(n) + (z === 'after' ? 1 : 0));
+      }
+    });
+  }
+}

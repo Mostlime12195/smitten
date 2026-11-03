@@ -21,6 +21,20 @@ export function h(tag, attrs = {}, ...children) {
 }
 
 const ICONS = {
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M10.7 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="m2 2 20 20M14.1 14.1a3 3 0 1 1-4.2-4.2"/>',
+  pointer: '<path d="m4 4 7 17 2.5-7.5L21 11Z"/>',
+  move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+  rotate: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  scale: '<path d="M21 3 9 15"/><path d="M21 3h-6M21 3v6"/><rect x="3" y="13" width="8" height="8" rx="1"/>',
+  magnet: '<path d="m6 15-4-4 6.8-6.8a5.7 5.7 0 0 1 8 8L10 19l-4-4 6.6-6.6a1 1 0 0 0-1.4-1.4Z"/><path d="m5 8 4 4M12 15l4 4"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  box: '<path d="M21 8 12 3 3 8l9 5 9-5ZM3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  square: '<rect x="4" y="4" width="16" height="16" rx="2"/>',
+  focus: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/>',
+  brush: '<path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/>',
+  speaker: '<path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
   stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
   pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',

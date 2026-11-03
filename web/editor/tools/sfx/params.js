@@ -1,5 +1,5 @@
 // Sound effect parameters (docs/reference.md, "Sound effects"): defaults,
-// slider metadata, presets, mutation and the .sfx.json text. Shared with the
+// slider metadata, presets, mutation and the .sfx text. Shared with the
 // music editor, whose instruments can play sound effects.
 
 export const SFX_FORMAT = 'smitten.sfx';
@@ -203,7 +203,7 @@ export function extraFields(data) {
   return out;
 }
 
-/** Parse .sfx.json text: {params, extra}. Throws on invalid JSON. */
+/** Parse .sfx text: {params, extra}. Throws on invalid JSON. */
 export function parseSfx(text) {
   const data = typeof text === 'string' && text.trim() ? JSON.parse(text) : {};
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('A sound effect file must hold a JSON object.');

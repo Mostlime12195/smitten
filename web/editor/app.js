@@ -1,1874 +1,965 @@
-// Smitten editor: application glue.
+// The Smitten editor (DESIGN.md, section 8): Home, and a project's editor
+// with workspaces (Scene, Script, Paint, Sound, Music), docked panels (Scene,
+// Files, Inspector, Output), the game view, menus, shortcuts and the
+// command palette.
 
-import {
-  h, icon, hydrateIcons, openDialog, promptDialog, confirmDialog, showMenu, toast, downloadBlob, formatBytes, timeAgo, isMac, modKey,
-} from './ui.js';
+import { h, icon, hydrateIcons, showMenu, toast, promptDialog, confirmDialog, openDialog, modKey, isMac } from './ui.js';
 import { settings, applyTheme } from './settings.js';
 import { openSettings } from './settings-dialog.js';
-import { openPicker } from './palette.js';
 import * as store from './fs-store.js';
-import { kindOf, mimeOf, classifyBytes, languageLabel, iconFor, baseName, dirName, byteSize } from './file-types.js';
-import { createEditor } from './code-editor.js';
-import { createLoveCompletions } from './completions.js';
-import { ConsolePanel, findLocation } from './console.js';
-import { Runner, openPopup, showInPopup } from './runner.js';
-import { FileTree, readDataTransfer } from './file-tree.js';
-import { initLayout } from './layout.js';
-import { BLANK, loadExampleIndex, loadTemplateFiles } from './templates.js';
-import { buildLove, buildWebExport, unzipToProjectFiles, slugify, zipFiles } from './exporter.js';
-import { smittenOnlyFeatures } from './portability.js';
-import { AssetPanel, objectInfo } from './asset-panel.js';
-import { renderHome } from './home.js';
-import { openProjectSettings } from './project-settings.js';
-import { parseManifest, manifestText } from './project.js';
-import { SMITTEN, SMITTEN_NAMESPACES, SMITTEN_TYPES } from './smitten-docs.js';
-import { createShareLink, readShareHash } from './share.js';
-import { checkProject } from './compat.js';
-import { ToolHost } from './tool-host.js';
-import { referenceUpdates, companionsOf } from './references.js';
-
-const $ = (sel) => document.querySelector(sel);
-const LS = {
-  get(key, fallback = null) {
-    try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
-  },
-  set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
-  },
-};
-
-const state = {
-  project: null,
-  entries: new Map(), // path -> {path, kind, data}
-  tabs: [],
-  active: null,
-  saved: new Map(), // path -> text as last saved (open text files)
-  dirty: new Set(),
-  errors: new Map(), // path -> {line, message}
-  api: null,
-  hasRun: false,
-  lastError: false,
-};
-
-let editor;
-let runner;
-let consolePanel;
-let tree;
-let tools;
-let assets;
-
-// ---------------------------------------------------------------------------
-// Boot
-
-async function init() {
-  hydrateIcons();
-  for (const k of document.querySelectorAll('kbd.mod')) k.textContent = modKey;
-  applyTheme();
-  initLayout($('#app'));
-  setSidebarVisible(LS.get('smitten-editor.sidebar', innerWidth > 860), false);
-
-  consolePanel = new ConsolePanel($('#console-output'), {
-    filter: $('#console-filter'),
-    clear: $('#console-clear'), copy: $('#console-copy'), badge: $('#console-badge'),
-  }, {
-    fileExists: (p) => state.entries.get(p)?.kind === 'file',
-    onOpenLocation: (path, line) => openFile(path, { line }),
-    onCopied: (n) => flashStatus(`Copied ${n} console line${n === 1 ? '' : 's'}`),
-  });
-
-  runner = new Runner($('#game-stage'), {
-    onState: onRunnerState,
-    onLog: (level, text) => {
-      // A Lua panic kills the engine without going through LÖVE's error screen.
-      if (/^PANIC: /.test(text)) onGameError(text);
-      else consolePanel.log(level, text);
-    },
-    onError: onGameError,
-    onTitle: (title) => { $('#game-title').textContent = title || state.project?.name || 'Game'; },
-    onQuit: (code) => consolePanel.info(code ? `Game exited with code ${code}.` : 'Game exited.'),
-    onShortcut: (e) => handleShortcut(e, true),
-  });
-
-  tree = new FileTree($('#file-tree'), {
-    onOpen: (path, opts) => openFile(path, { focus: opts?.focusEditor }),
-    onContextMenu: showTreeMenu,
-    onMove: moveEntry,
-    onDropFiles: async (dt, dir) => importFiles(await readDataTransfer(dt), dir),
-    isDirty: (p) => state.dirty.has(p),
-    onEmptyAction: () => newFile(''),
-    onKeyAction: (action, path, kind) => {
-      if (action === 'rename') renameEntry(path, kind);
-      if (action === 'delete') deleteEntry(path, kind);
-    },
-  });
-
-  tools = new ToolHost($('#tool-host'), {
-    entries: () => state.entries,
-    write: writeProjectFile,
-    setDirty: (path, dirty) => {
-      if (dirty) state.dirty.add(path);
-      else state.dirty.delete(path);
-      renderTabs();
-      tree.render();
-    },
-    openFile: (path) => openFile(path, { focus: true }),
-  });
-
-  assets = new AssetPanel($('#asset-view'), {
-    entries: () => state.entries,
-    active: () => state.active,
-    isDirty: (p) => state.dirty.has(p),
-    open: (p) => openFile(p, { focus: true }),
-    menu: (p, point) => showTreeMenu(p, 'file', point),
-    create: (label) => createAsset(label),
-    importFiles: () => importTarget('files', ''),
-    synth: () => tools.createHost('').synth(),
-    toast: (m) => toast(m, { type: 'error' }),
-  });
-
-  wireUi();
-  setFilesMode(LS.get('smitten-editor.allFiles', false));
-  setConsoleCollapsed(LS.get('smitten-editor.consoleCollapsed', false));
-  setGamePanelVisible(LS.get('smitten-editor.gamePanel', true));
-  loadApi();
-
-  editor = await createEditor($('#editor-host'), {
-    onChange: onEditorChange,
-    onCursor: (line, col, sel) => {
-      $('#status-cursor').textContent = `Ln ${line}, Col ${col}${sel > 1 ? ` (${sel} cursors)` : ''}`;
-    },
-  });
-  attachCompletions();
-  applyAllSettings();
-  settings.onChange(onSettingChanged);
-  $('#app').classList.remove('booting');
-
-  let opened = false;
-  try {
-    opened = await importShareHash();
-  } catch (e) {
-    toast(`Could not open the shared project: ${e.message}`, { type: 'error', timeout: 6000 });
-  }
-  if (!opened) {
-    const projects = await store.listProjects();
-    const last = LS.get('smitten-editor.lastProject');
-    const target = projects.find((p) => p.id === last) || projects[0];
-    if (target) await openProject(target.id);
-    else {
-      const p = await store.createProject('My First Game', BLANK.files);
-      await openProject(p.id);
-      consolePanel.info('Welcome to Smitten! Press F5 to run, or open the project menu to try the examples.');
-    }
-  }
-  window.addEventListener('hashchange', () => importShareHash().catch((e) => toast(e.message, { type: 'error' })));
-}
-
-async function loadApi() {
-  try {
-    const res = await fetch('love-api.json', { cache: 'no-cache' });
-    state.api = await res.json();
-    attachCompletions();
-  } catch (e) {
-    console.warn('love-api.json could not be loaded', e);
-  }
-}
-
-function attachCompletions() {
-  if (!editor || editor.kind !== 'codemirror') return;
-  editor.completionSource = createLoveCompletions(state.api, editor.cm, () => [...state.entries.values()].filter((e) => e.kind === 'file').map((e) => e.path));
-}
-
-// ---------------------------------------------------------------------------
-// Projects
-
-async function openProject(id) {
-  if (state.project && state.dirty.size) await saveAll({ quiet: true });
-  const project = await store.getProject(id);
-  if (!project) return;
-  runner.destroy();
-  for (const path of state.tabs) editor.close(path);
-  tools.closeAll();
-  Object.assign(state, { project, tabs: [], active: null, hasRun: false, lastError: false });
-  onRunnerState('idle');
-  state.saved.clear();
-  state.dirty.clear();
-  state.errors.clear();
-  LS.set('smitten-editor.lastProject', id);
-
-  $('#project-name').textContent = project.name;
-  $('#game-title').textContent = project.name;
-  document.title = `${project.name} · Smitten`;
-  tree.setProject(id);
-  await refreshEntries();
-
-  const tabs = (project.tabs || []).filter((p) => state.entries.get(p)?.kind === 'file');
-  state.tabs = tabs;
-  // New projects (and ones last left on Home) open on the Home tab.
-  const active = tabs.includes(project.active) ? project.active : null;
-  if (active) await openFile(active, { persist: false });
-  else showHome();
-  renderTabs();
-  consolePanel.separator(`Opened ${project.name}`);
-}
-
-async function refreshEntries() {
-  const list = await store.listEntries(state.project.id);
-  state.entries = new Map(list.map((e) => [e.path, e]));
-  tree.setEntries(list);
-  const files = list.filter((e) => e.kind === 'file');
-  const size = files.reduce((n, e) => n + byteSize(e.data), 0);
-  $('#sidebar-footer').replaceChildren(
-    h('span', {}, `${files.length} file${files.length === 1 ? '' : 's'}`),
-    h('span', {}, formatBytes(size)),
-  );
-  onProjectFilesChanged();
-}
-
-/** Keep everything that summarizes the project's files up to date. */
-function onProjectFilesChanged() {
-  assets?.refresh();
-  if (!state.active && state.project) renderHomeView();
-}
-
-function manifest() {
-  return parseManifest(state.entries.get('smitten.json')?.data);
-}
-
-let persistTimer = 0;
-function persistTabs() {
-  clearTimeout(persistTimer);
-  const id = state.project?.id;
-  const data = { tabs: [...state.tabs], active: state.active };
-  persistTimer = setTimeout(() => { if (id) store.updateProject(id, data).catch(() => {}); }, 300);
-}
-
-async function uniqueProjectName(base) {
-  const names = new Set((await store.listProjects()).map((p) => p.name));
-  if (!names.has(base)) return base;
-  for (let i = 2; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
-}
-
-async function createFromTemplate(template, name) {
-  const files = await loadTemplateFiles(template);
-  const project = await store.createProject(await uniqueProjectName(name || template.name), files);
-  await openProject(project.id);
-  toast(`Created “${project.name}”`, { type: 'success' });
-  return project;
-}
-
-async function importShareHash() {
-  const shared = await readShareHash();
-  if (!shared) return false;
-  history.replaceState(null, '', location.pathname + location.search);
-  const project = await store.createProject(await uniqueProjectName(shared.name), shared.files);
-  await openProject(project.id);
-  toast(`Opened shared project “${project.name}”`, { type: 'success' });
-  return true;
-}
-
-async function openArchiveAsProject(file) {
-  try {
-    const files = await unzipToProjectFiles(new Uint8Array(await file.arrayBuffer()));
-    if (!Object.keys(files).length) throw new Error('The archive is empty.');
-    const name = file.name.replace(/\.(love|zip)$/i, '') || 'Imported game';
-    const project = await store.createProject(await uniqueProjectName(name), files);
-    await openProject(project.id);
-    toast(`Imported ${Object.keys(files).length} files from ${file.name}`, { type: 'success' });
-    if (!files['main.lua']) toast('This archive has no main.lua at its root, so it will not run as is.', { type: 'error', timeout: 6000 });
-  } catch (e) {
-    toast(`Could not open ${file.name}: ${e.message}`, { type: 'error', timeout: 6000 });
-  }
-}
-
-async function openProjectsDialog() {
-  const [projects, examples] = await Promise.all([store.listProjects(), loadExampleIndex()]);
-  const templates = [BLANK, ...examples];
-  let chosen = BLANK;
-  let projectList = projects;
-
-  const list = h('div', { class: 'project-list', role: 'list' });
-  const nameInput = h('input', { class: 'input', type: 'text', placeholder: 'Project name', value: 'My Game', 'aria-label': 'New project name', spellcheck: 'false' });
-  const grid = h('div', { class: 'template-grid', role: 'group', 'aria-label': 'Templates' });
-  let dlgFinish = null;
-
-  const renderList = () => {
-    list.replaceChildren(...projectList.map((p) => {
-      const current = p.id === state.project?.id;
-      const actionBtn = (name, title, fn) => h('button', {
-        type: 'button', class: 'icon-btn small', title, 'aria-label': `${title} ${p.name}`,
-        onclick: (e) => { e.stopPropagation(); fn(); },
-      }, icon(name, 15));
-      const item = h('div', {
-        class: `project-item ${current ? 'current' : ''}`, role: 'listitem', tabindex: '0',
-        onclick: async () => { dlgFinish?.(null); if (!current) await openProject(p.id); },
-        onkeydown: (e) => { if (e.key === 'Enter' && e.target === item) item.click(); },
-      },
-      h('span', { class: 'preview-icon' }, icon(current ? 'folderOpen' : 'folder', 16)),
-      h('div', { class: 'project-info' },
-        h('div', { class: 'project-title' }, p.name),
-        h('div', { class: 'project-meta' }, current ? 'Open now · ' : '', `Edited ${timeAgo(p.updated)}`)),
-      h('div', { class: 'project-actions' },
-        actionBtn('pencil', 'Rename', async () => {
-          const name = await promptDialog({ title: 'Rename project', label: 'Name', value: p.name, okLabel: 'Rename', validate: validateProjectName });
-          if (!name) return;
-          await store.updateProject(p.id, { name });
-          if (current) {
-            state.project.name = name;
-            $('#project-name').textContent = name;
-            document.title = `${name} · Smitten`;
-          }
-          projectList = await store.listProjects();
-          renderList();
-        }),
-        actionBtn('copy', 'Duplicate', async () => {
-          if (current) await saveAll({ quiet: true });
-          await store.duplicateProject(p.id, await uniqueProjectName(`${p.name} copy`));
-          projectList = await store.listProjects();
-          renderList();
-          toast(`Duplicated “${p.name}”`, { type: 'success' });
-        }),
-        actionBtn('trash', 'Delete', async () => {
-          const ok = await confirmDialog({
-            title: 'Delete project?',
-            message: `“${p.name}” and all of its files will be deleted from this browser. This cannot be undone.`,
-            okLabel: 'Delete project', danger: true,
-          });
-          if (!ok) return;
-          await store.deleteProject(p.id);
-          projectList = await store.listProjects();
-          if (current) {
-            if (projectList.length) await openProject(projectList[0].id);
-            else {
-              const np = await store.createProject('My Game', BLANK.files);
-              await openProject(np.id);
-              projectList = await store.listProjects();
-            }
-          }
-          renderList();
-          toast(`Deleted “${p.name}”`);
-        })));
-      return item;
-    }));
-    if (!projectList.length) list.append(h('p', { class: 'projects-footer-note' }, 'No projects yet.'));
-  };
-
-  const renderGrid = () => {
-    grid.replaceChildren(...templates.map((t) => h('button', {
-      type: 'button', class: 'template-card', 'aria-pressed': String(t === chosen),
-      onclick: () => {
-        const prevDefault = chosen === BLANK ? 'My Game' : chosen.name;
-        if (!nameInput.value.trim() || nameInput.value === prevDefault) nameInput.value = t === BLANK ? 'My Game' : t.name;
-        chosen = t;
-        renderGrid();
-      },
-      ondblclick: () => create(),
-    }, h('strong', {}, t.name), h('span', {}, t.description))));
-  };
-
-  const create = async () => {
-    const name = nameInput.value.trim() || chosen.name;
-    dlgFinish?.(null);
-    try {
-      await createFromTemplate(chosen, name);
-    } catch (e) {
-      toast(`Could not create the project: ${e.message}`, { type: 'error' });
-    }
-  };
-  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); create(); } });
-
-  renderList();
-  renderGrid();
-  const body = h('div', { class: 'projects-layout' },
-    h('div', {}, h('h3', { class: 'section-title' }, 'Your projects'), list),
-    h('div', {},
-      h('h3', { class: 'section-title' }, 'New project'),
-      grid,
-      h('div', { class: 'new-project-row' }, nameInput, h('button', { type: 'button', class: 'btn primary', onclick: create }, icon('plus'), 'Create'))));
-
-  const res = await openDialog({
-    title: 'Projects',
-    body,
-    wide: true,
-    actions: [
-      { label: 'Open .love / .zip…', value: 'open-archive', ghost: true, left: true },
-      { label: 'Close', value: null },
-    ],
-    onOpen: (dlg, finish) => { dlgFinish = finish; },
-    initialFocus: '.project-item.current',
-  });
-  if (res === 'open-archive') $('#input-open-project').click();
-}
-
-function validateProjectName(name) {
-  if (!name) return 'Please enter a name.';
-  if (name.length > 80) return 'That name is too long.';
-  return '';
-}
-
-// ---------------------------------------------------------------------------
-// Tabs & files
-
-function isText(path) {
-  return typeof state.entries.get(path)?.data === 'string';
-}
-
-/** asText: open a file a tool would open in the code editor instead. */
-async function openFile(path, { line, focus = false, persist = true, asText = false } = {}) {
-  const entry = state.entries.get(path);
-  if (!entry || entry.kind !== 'file') {
-    toast(`“${path}” does not exist in this project.`, { type: 'error' });
-    return;
-  }
-  if (!state.tabs.includes(path)) {
-    const i = state.tabs.indexOf(state.active);
-    state.tabs.splice(i < 0 ? state.tabs.length : i + 1, 0, path);
-  }
-  state.active = path;
-  $('#home-view').hidden = true;
-  rememberRecent(path);
-
-  if (asText && tools.has(path)) {
-    if (tools.isDirty(path)) await saveFile(path);
-    tools.close(path);
-  }
-  if (!asText && !editor.has(path) && tools.show(path)) {
-    editor.hide();
-    hidePreview();
-    if (focus) tools.focus(path);
-    $('#status-cursor').textContent = '';
-  } else if (typeof entry.data === 'string') {
-    tools.hide();
-    hidePreview();
-    if (!editor.has(path)) state.saved.set(path, entry.data);
-    editor.open(path, entry.data);
-    const err = state.errors.get(path);
-    if (err) editor.setError(path, err.line, err.message);
-    if (line) editor.gotoLine(line);
-    else if (focus) editor.focus();
-  } else {
-    tools.hide();
-    editor.hide();
-    showPreview(entry);
-    $('#status-cursor').textContent = '';
-  }
-  $('#status-lang').textContent = tools.has(path) ? tools.toolFor(path).label : languageLabel(path, entry.data);
-  tree.setActive(path);
-  renderTabs();
-  assets.refresh();
-  updatePlayScene();
-  if (persist) persistTabs();
-}
-
-function renderTabs() {
-  $('#tab-home').setAttribute('aria-selected', String(!state.active));
-  const host = $('#tabs');
-  host.replaceChildren(...state.tabs.map((path) => {
-    const entry = state.entries.get(path);
-    const selected = path === state.active;
-    const name = baseName(path);
-    const dupe = state.tabs.some((p) => p !== path && baseName(p) === name);
-    const tab = h('div', {
-      class: `tab ${state.dirty.has(path) ? 'dirty' : ''} ${state.errors.has(path) ? 'has-error' : ''}`,
-      role: 'tab', tabindex: selected ? '0' : '-1', 'aria-selected': String(selected), title: path,
-      dataset: { path },
-    },
-    icon(iconFor(path, entry?.data), 14),
-    h('span', { class: 'tab-name' }, name),
-    dupe && dirName(path) ? h('span', { class: 'tab-dir' }, dirName(path)) : null,
-    h('button', { type: 'button', class: 'tab-close', tabindex: '-1', title: 'Close (Alt+W)', 'aria-label': `Close ${name}` }, icon('x', 13)));
-    tab.addEventListener('click', (e) => {
-      if (e.target.closest('.tab-close')) closeTab(path);
-      else if (path !== state.active) openFile(path);
-    });
-    tab.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); closeTab(path); } });
-    tab.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFile(path, { focus: true }); }
-    });
-    return tab;
-  }));
-  host.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-}
-
-async function closeTab(path) {
-  if (!path || !state.tabs.includes(path)) return;
-  if (state.dirty.has(path)) {
-    const res = await openDialog({
-      title: 'Save changes?',
-      body: h('p', { class: 'dialog-message' }, `“${baseName(path)}” has unsaved changes.`),
-      actions: [
-        { label: "Don't save", value: 'discard', ghost: true, left: true },
-        { label: 'Cancel', value: null },
-        { label: 'Save', value: 'save', primary: true, submit: true },
-      ],
-    });
-    if (!res) return;
-    if (res === 'save') await saveFile(path);
-  }
-  const i = state.tabs.indexOf(path);
-  state.tabs.splice(i, 1);
-  editor.close(path);
-  tools.close(path);
-  state.saved.delete(path);
-  state.dirty.delete(path);
-  if (state.active === path) {
-    state.active = null;
-    const next = state.tabs[Math.min(i, state.tabs.length - 1)];
-    if (next) await openFile(next);
-    else showEmptyEditor();
-  }
-  renderTabs();
-  tree.render();
-  persistTabs();
-}
-
-function showEmptyEditor() {
-  showHome();
-}
-
-/** The Home tab: the project overview, shown when no file is selected. */
-function showHome() {
-  state.active = null;
-  editor?.hide();
-  tools?.hide();
-  hidePreview();
-  $('#home-view').hidden = false;
-  $('#status-cursor').textContent = '';
-  $('#status-lang').textContent = '';
-  tree.setActive(null);
-  renderTabs();
-  renderHomeView();
-  assets?.refresh();
-  if (tools) updatePlayScene();
-  persistTabs();
-}
-
-function projectFlags() {
-  return state.project?.flags || {};
-}
-
-async function setProjectFlag(name, value) {
-  if (!state.project || projectFlags()[name] === value) return;
-  state.project.flags = { ...projectFlags(), [name]: value };
-  await store.updateProject(state.project.id, { flags: state.project.flags }).catch(() => {});
-  if (!state.active) renderHomeView();
-}
-
-let recentTimer = 0;
-function rememberRecent(path) {
-  if (!state.project) return;
-  const recent = [path, ...(state.project.recent || []).filter((p) => p !== path)].slice(0, 12);
-  state.project.recent = recent;
-  clearTimeout(recentTimer);
-  const id = state.project.id;
-  recentTimer = setTimeout(() => store.updateProject(id, { recent }).catch(() => {}), 500);
-}
-
-function renderHomeView() {
-  if (!state.project) return;
-  renderHome($('#home-view'), {
-    project: state.project,
-    manifest: manifest(),
-    entries: state.entries,
-    recent: state.project.recent || [],
-    flags: projectFlags(),
-    run: () => run(),
-    share,
-    open: (p) => openFile(p, { focus: true }),
-    create: (label) => createAsset(label),
-    projectSettings: editProjectSettings,
-    openProjects: openProjectsDialog,
-    showApi: showSmittenApi,
-    showShortcuts: () => showSettings('shortcuts'),
-    setFlag: setProjectFlag,
-  });
-}
-
-let autoSaveTimer = 0;
-function onEditorChange(path) {
-  if (!path) return;
-  if (settings.get('autoSave') === 'delay') {
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => saveAll({ quiet: true }), 1000);
-  }
-  const wasDirty = state.dirty.has(path);
-  const isDirty = editor.getText(path) !== state.saved.get(path);
-  if (wasDirty === isDirty) return;
-  if (isDirty) state.dirty.add(path);
-  else state.dirty.delete(path);
-  renderTabs();
-  tree.render();
-}
-
-async function saveFile(path) {
-  if (tools.has(path)) {
-    try {
-      return await tools.save(path);
-    } catch (e) {
-      console.error(e);
-      toast(`Could not save ${baseName(path)}: ${e.message}`, { type: 'error', timeout: 6000 });
-      return false;
-    }
-  }
-  if (!editor.has(path)) return false;
-  editor.normalize(path, { trim: settings.get('trimWhitespaceOnSave'), finalNewline: settings.get('finalNewlineOnSave') });
-  const text = editor.getText(path);
-  await store.writeFile(state.project.id, path, text);
-  const entry = state.entries.get(path);
-  if (entry) entry.data = text;
-  state.saved.set(path, text);
-  state.dirty.delete(path);
-  tools.changed(path);
-  onProjectFilesChanged();
-  return true;
-}
-
-/**
- * Write a file for a tool (source: the tool's own path). Keeps open code
- * buffers and other tools in step with the new contents.
- */
-async function writeProjectFile(path, data, source = null) {
-  path = store.normalizePath(path);
-  const isNew = !state.entries.has(path);
-  await store.writeFile(state.project.id, path, data);
-  if (isNew) await refreshEntries();
-  else state.entries.get(path).data = data;
-  if (editor.has(path) && !state.dirty.has(path) && typeof data === 'string') {
-    editor.setText(path, data);
-    state.saved.set(path, data);
-  }
-  tools.changed(path, source);
-  tree.render();
-  if (!isNew) onProjectFilesChanged();
-}
-
-/** Ask the browser not to evict projects (once, after the first save). */
-let persistRequested = false;
-function requestPersistentStorage() {
-  if (persistRequested) return;
-  persistRequested = true;
-  navigator.storage?.persist?.().catch(() => {});
-}
-
-async function saveAll({ quiet = false } = {}) {
-  const paths = [...state.dirty];
-  if (paths.length) requestPersistentStorage();
-  for (const p of paths) await saveFile(p);
-  if (paths.length) {
-    renderTabs();
-    tree.render();
-    if (!quiet) flashStatus(`Saved ${paths.length} file${paths.length === 1 ? '' : 's'}`);
-  }
-  return paths.length;
-}
-
-async function saveActive() {
-  if (!state.active || (!isText(state.active) && !tools.has(state.active))) return;
-  await saveFile(state.active);
-  renderTabs();
-  tree.render();
-  flashStatus(`Saved ${baseName(state.active)}`);
-  if (settings.get('autorun')) run({ focus: false });
-}
-
-let statusTimer = 0;
-function flashStatus(text) {
-  const el = $('#status-left');
-  el.textContent = text;
-  clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => { el.textContent = ''; }, 2500);
-}
-
-// ---------------------------------------------------------------------------
-// Binary previews
-
-let previewUrl = null;
-let fontCounter = 0;
-
-function hidePreview() {
-  $('#preview').hidden = true;
-  $('#preview').replaceChildren();
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = null;
-}
-
-function showPreview(entry) {
-  hidePreview();
-  const box = $('#preview');
-  box.hidden = false;
-  const kind = kindOf(entry.path, entry.data);
-  const blob = new Blob([entry.data], { type: mimeOf(entry.path) });
-  previewUrl = URL.createObjectURL(blob);
-  const size = formatBytes(entry.data.byteLength);
-  const downloadBtn = h('button', { type: 'button', class: 'btn small', onclick: () => downloadBlob(blob, baseName(entry.path)) }, icon('download', 14), 'Download');
-
-  if (kind === 'image') {
-    const frame = h('div', { class: 'preview-checker' });
-    const img = h('img', { src: previewUrl, alt: baseName(entry.path) });
-    const dims = h('span', {}, '…');
-    img.addEventListener('load', () => {
-      dims.replaceChildren(h('strong', {}, `${img.naturalWidth} × ${img.naturalHeight}`), ' px');
-      if (img.naturalWidth <= 128 && img.naturalHeight <= 128) {
-        frame.classList.add('pixelated');
-        img.style.width = `${Math.min(512, img.naturalWidth * Math.floor(256 / Math.max(img.naturalWidth, img.naturalHeight) || 1))}px`;
-      }
-    });
-    img.addEventListener('error', () => dims.replaceChildren('This image format cannot be previewed in the browser, but LÖVE may still load it.'));
-    frame.append(img);
-    box.append(frame, h('div', { class: 'preview-meta' }, h('strong', {}, entry.path), dims, h('span', {}, size), downloadBtn));
-  } else if (kind === 'audio') {
-    box.append(
-      h('div', { class: 'preview-icon' }, icon('music', 48)),
-      h('div', { class: 'preview-audio' }, h('audio', { controls: true, src: previewUrl, preload: 'metadata' })),
-      h('div', { class: 'preview-meta' }, h('strong', {}, entry.path), h('span', {}, size), downloadBtn),
-    );
-  } else if (kind === 'font') {
-    const family = `lws-preview-${++fontCounter}`;
-    const sampleText = 'The quick brown fox jumps over the lazy dog. 0123456789 ÄÖÜ ❤';
-    const samples = [14, 20, 32, 48].map((px) => h('div', { class: 'sample', style: `font-family: "${family}", var(--font-ui); font-size: ${px}px` }, sampleText));
-    const input = h('input', { class: 'input', type: 'text', value: sampleText, 'aria-label': 'Sample text', spellcheck: 'false' });
-    input.addEventListener('input', () => { for (const s of samples) s.textContent = input.value; });
-    const status = h('span', {}, '');
-    new FontFace(family, entry.data).load().then((face) => { document.fonts.add(face); }).catch(() => {
-      status.textContent = 'This font cannot be previewed in the browser.';
-    });
-    box.append(h('div', { class: 'preview-font' }, input, ...samples),
-      h('div', { class: 'preview-meta' }, h('strong', {}, entry.path), h('span', {}, size), status, downloadBtn));
-  } else {
-    box.append(
-      h('div', { class: 'preview-icon' }, icon('binary', 48)),
-      h('p', {}, 'This is a binary file and can’t be edited here.'),
-      h('div', { class: 'preview-meta' }, h('strong', {}, entry.path), h('span', {}, size), downloadBtn),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// File operations
-
-const INVALID_NAME = /[\\:*?"<>|]/;
-
-function validatePath(path, { allowExisting = null } = {}) {
-  if (!path) return 'Please enter a name.';
-  if (INVALID_NAME.test(path)) return 'Names cannot contain \\ : * ? " < > |';
-  if (path.split('/').some((s) => !s || s === '.' || s === '..')) return 'That is not a valid path.';
-  if (state.entries.has(path) && path !== allowExisting) return `“${path}” already exists.`;
-  return '';
-}
-
-const joinPath = (dir, name) => (dir ? `${dir}/${name}` : name);
-
-async function newFile(dir = '', suggested = 'untitled.lua') {
-  let defaultName = suggested;
-  for (let n = 2; state.entries.has(joinPath(dir, defaultName)); n++) defaultName = suggested.replace(/(\.\w+)$/, `${n}$1`);
-  const name = await promptDialog({
-    title: 'New file', label: dir ? `In ${dir}/` : 'File name (use / for folders)', value: defaultName, placeholder: 'player.lua', okLabel: 'Create',
-    selectBase: true, validate: (v) => validatePath(store.normalizePath(joinPath(dir, v))),
-  });
-  if (!name) return;
-  const path = store.normalizePath(joinPath(dir, name));
-  await store.writeFile(state.project.id, path, '');
-  await refreshEntries();
-  await openFile(path, { focus: true });
-}
-
-/** Create a file with a tool (asset: an entry of a tool's newAssets). */
-async function newAsset(asset, dir = '') {
-  const folder = dir || asset.folder || '';
-  let n = 1;
-  const stem = asset.label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  while (state.entries.has(joinPath(folder, `${stem}${n > 1 ? n : ''}${asset.extension}`))) n++;
-  const name = await promptDialog({
-    title: `New ${asset.label.toLowerCase()}`, label: folder ? `In ${folder}/` : 'Name (use / for folders)',
-    value: `${stem}${n > 1 ? n : ''}${asset.extension}`, okLabel: 'Create', selectBase: true,
-    validate: (v) => validatePath(store.normalizePath(joinPath(folder, v.endsWith(asset.extension) ? v : v + asset.extension))),
-  });
-  if (!name) return;
-  const path = store.normalizePath(joinPath(folder, name.endsWith(asset.extension) ? name : name + asset.extension));
-  const files = asset.files(path.slice(0, -asset.extension.length), tools.createHost(path));
-  const clash = Object.keys(files).filter((p) => p !== path && state.entries.has(p));
-  if (clash.length && !await confirmDialog({
-    title: 'Replace files?', message: `This also writes ${clash.join(', ')}, which already exist${clash.length === 1 ? 's' : ''}. Replace?`,
-    okLabel: 'Replace', danger: true,
-  })) return;
-  await store.writeFiles(state.project.id, files);
-  await refreshEntries();
-  for (const p of Object.keys(files)) tools.changed(p);
-  if (folder) tree.toggle(folder, true);
-  await openFile(path, { focus: true });
-}
-
-/** Make something new from a view's or Home's "+" (label: 'script' or a tool's newAssets label). */
-async function createAsset(label) {
-  if (label === 'script') return newFile('', 'script.lua');
-  if (label === 'Object') return newObject();
-  // Older scene editors called a scene a map.
-  const asset = tools.newAssets.find((a) => a.label === label) || (label === 'Scene' && tools.newAssets.find((a) => a.label === 'Map'));
-  if (asset) return newAsset(asset, '');
-  return newFile('');
-}
-
-const OBJECT_KINDS = [
-  { id: 'platformer', title: 'Platformer', desc: 'Runs and jumps with the arrow keys or a gamepad.', icon: 'gamepad' },
-  { id: 'topdown', title: 'Top-down', desc: 'Walks in 8 directions, like an RPG character.', icon: 'expand' },
-  { id: 'none', title: 'Just a thing', desc: 'Stays where you put it: coins, doors, signs.', icon: 'image' },
+import { loadSchema, typeDef, isA, properties, methods, events } from './core/schema.js';
+import { Project } from './core/project.js';
+import { SceneDoc } from './core/scene-doc.js';
+import { includedModules, detectModules } from './core/modules.js';
+import { DockManager } from './shell/dock.js';
+import { renderHome } from './shell/home.js';
+import { nodeIcon } from './shell/node-icons.js';
+import { SceneTreePanel } from './panels/scene-tree.js';
+import { InspectorPanel } from './panels/inspector.js';
+import { SceneWorkspace } from './workspaces/scene/scene-workspace.js';
+import { ScriptWorkspace } from './workspaces/script-workspace.js';
+import { ToolWorkspace } from './workspaces/tool-workspace.js';
+import { addNodeDialog } from './dialogs/add-node.js';
+import { projectSettingsDialog, inputActions } from './dialogs/project-settings.js';
+import { exportDialog } from './dialogs/export.js';
+import { FileTree } from './file-tree.js';
+import { ConsolePanel } from './console.js';
+import { Runner } from './runner.js';
+import { classifyBytes, kindOf } from './file-types.js';
+import { unzipToProjectFiles } from './exporter.js';
+
+const app = document.getElementById('app');
+
+const WORKSPACES = [
+  { id: 'scene', label: 'Scene', icon: 'box' },
+  { id: 'script', label: 'Script', icon: 'code' },
+  { id: 'paint', label: 'Paint', icon: 'brush' },
+  { id: 'sound', label: 'Sound', icon: 'wave' },
+  { id: 'music', label: 'Music', icon: 'music' },
 ];
 
-/** New object: a name, how it moves, and a sprite (made for it unless one with its name exists). */
-async function newObject() {
-  let kind = 'platformer';
-  const nameInput = h('input', { class: 'input', type: 'text', value: '', placeholder: 'player', spellcheck: 'false', 'aria-label': 'Object name' });
-  const error = h('div', { class: 'field-error' });
-  const cards = h('div', { class: 'kind-cards', role: 'radiogroup', 'aria-label': 'How it moves' });
-  const renderCards = () => cards.replaceChildren(...OBJECT_KINDS.map((k) => h('button', {
-    type: 'button', class: 'kind-card', role: 'radio', 'aria-checked': String(k.id === kind),
-    onclick: () => { kind = k.id; renderCards(); },
-  }, icon(k.icon, 18), h('strong', {}, k.title), h('span', {}, k.desc))));
-  renderCards();
-  const slug = (v) => v.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-  const res = await openDialog({
-    title: 'New object',
-    className: 'new-object-dialog',
-    body: h('div', { class: 'project-settings' },
-      h('div', { class: 'field' }, h('label', {}, 'Name'), nameInput, error),
-      h('div', { class: 'field' }, h('label', {}, 'How it moves'), cards)),
-    actions: [
-      { label: 'Cancel', value: null },
-      {
-        label: 'Create', value: 'create', primary: true, submit: true,
-        validate: () => {
-          const name = slug(nameInput.value);
-          error.textContent = !name ? 'Give it a name, like player or coin.'
-            : state.entries.has(`objects/${name}.lua`) ? `objects/${name}.lua already exists.` : '';
-          return !error.textContent;
-        },
-      },
-    ],
-    initialFocus: 'input',
-  });
-  if (res !== 'create') return;
-  const name = slug(nameInput.value);
-  const files = {};
-  const sprite = `sprites/${name}`;
-  if (!state.entries.has(`${sprite}.png`)) {
-    const spriteAsset = tools.newAssets.find((a) => a.label === 'Sprite');
-    if (spriteAsset) Object.assign(files, spriteAsset.files(sprite, tools.createHost(`${sprite}.png`)));
-  }
-  const cls = name.split('_').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'Thing';
-  const behavior = kind === 'none' ? '' : `\n  behaviors = { "${kind}" },`;
-  const comment = {
-    platformer: `-- ${name}: runs and jumps. Change how it feels with speed, jumpSpeed and gravity.`,
-    topdown: `-- ${name}: walks in 8 directions. Change its speed below.`,
-    none: `-- ${name}: place it in a scene; touch() runs when something bumps into it.`,
-  }[kind];
-  const extra = kind === 'platformer' ? '\n  camera = true,      -- the camera follows it\n  speed = 90,\n  jumpSpeed = 260,'
-    : kind === 'topdown' ? '\n  camera = true,      -- the camera follows it\n  speed = 80,' : '';
-  files[`objects/${name}.lua`] = `${comment}
+const DEFAULT_LAYOUTS = {
+  scene: { left: [['scene'], ['files']], right: [['inspector']], bottom: [['output']], sizes: { left: 270, right: 320, bottom: 170 } },
+  script: { left: [['files']], right: [], bottom: [['output']], sizes: { left: 250, right: 300, bottom: 170 } },
+  paint: { left: [['files']], right: [], bottom: [], sizes: { left: 230, right: 300, bottom: 170 } },
+  sound: { left: [['files']], right: [], bottom: [], sizes: { left: 230, right: 300, bottom: 170 } },
+  music: { left: [['files']], right: [], bottom: [], sizes: { left: 230, right: 300, bottom: 170 } },
+};
+const LAYOUT_KEY = 'smitten-editor.layouts';
 
-local ${cls} = smitten.object {
-  sprite = "${sprite}",${behavior}${extra}
-}
+const TEXT_FILE = /\.(lua|json|md|txt|glsl|frag|vert|csv|xml|yaml|yml|toml|html|css|js)$/i;
 
-function ${cls}:update(dt)
-  -- Runs every frame.
-end
+let ed = null; // the open editor's state
 
-function ${cls}:touch(other)
-  -- Runs when another object starts touching this one. other.type is its name.
-end
+// ---------------------------------------------------------------------------
+// Boot and routing
 
-return ${cls}
-`;
-  await store.writeFiles(state.project.id, files);
-  await refreshEntries();
-  for (const p of Object.keys(files)) tools.changed(p);
-  await openFile(`objects/${name}.lua`, { focus: true });
-  toast(`Created ${name}. Draw it in ${sprite}.png, then place it in a scene.`, { type: 'success', timeout: 5000 });
-}
-
-/** The scene file being edited, if the active tab is one. */
-function activeScene() {
-  return state.active && /\.(scene|map)\.json$/i.test(state.active) ? state.active : null;
-}
-
-function updatePlayScene() {
-  $('#btn-run-scene').hidden = !activeScene();
-}
-
-/** Play from the scene being edited (Godot's "play current scene"). */
-async function runScene() {
-  const path = activeScene();
-  if (!path) {
-    toast('Open a scene to play from it.', { timeout: 3000 });
-    return;
-  }
-  const name = path.replace(/^scenes\//i, '').replace(/\.(scene|map)\.json$/i, '');
-  return run({ extraFiles: { '.smitten/start': name } });
-}
-
-function showNewMenu(anchor) {
-  showMenu(anchor, [
-    { label: 'File…', icon: 'filePlus', shortcut: `${alt}+N`, action: () => newFile('') },
-    { label: 'Folder…', icon: 'folderPlus', action: () => newFolder('') },
-    '-',
-    ...tools.newAssets.map((a) => ({ label: `${a.label}…`, icon: 'plus', action: () => newAsset(a, '') })),
-  ]);
-}
-
-async function newFolder(dir = '') {
-  const name = await promptDialog({
-    title: 'New folder', label: dir ? `In ${dir}/` : 'Folder name', placeholder: 'assets', okLabel: 'Create',
-    validate: (v) => validatePath(store.normalizePath(joinPath(dir, v))),
-  });
-  if (!name) return;
-  const path = store.normalizePath(joinPath(dir, name));
-  await store.createDir(state.project.id, path);
-  tree.expanded.add(path);
-  tree.reveal(`${path}/x`, false);
-  await refreshEntries();
-}
-
-function remapPaths(moved) {
-  for (const [from, to] of moved) {
-    const ti = state.tabs.indexOf(from);
-    if (ti >= 0) state.tabs[ti] = to;
-    if (state.active === from) state.active = to;
-    for (const map of [state.saved, state.errors]) {
-      if (map.has(from)) { map.set(to, map.get(from)); map.delete(from); }
-    }
-    if (state.dirty.delete(from)) state.dirty.add(to);
-    editor.rename(from, to);
-    tools.close(from); // reopens at the new path when its tab is shown
-  }
-}
-
-async function renameEntry(path, kind) {
-  const name = await promptDialog({
-    title: kind === 'dir' ? 'Rename folder' : 'Rename file', label: 'New name', value: baseName(path), okLabel: 'Rename', selectBase: kind !== 'dir',
-    validate: (v) => validatePath(store.normalizePath(joinPath(dirName(path), v)), { allowExisting: path }),
-  });
-  if (!name) return;
-  const to = store.normalizePath(joinPath(dirName(path), name));
-  if (to === path) return;
-  await doMove(path, to);
-}
-
-async function moveEntry(from, toDir) {
-  const to = joinPath(toDir, baseName(from));
-  if (state.entries.has(to)) {
-    toast(`“${to}” already exists.`, { type: 'error' });
-    return;
-  }
-  await doMove(from, to);
-  if (toDir) tree.toggle(toDir, true);
-}
-
-async function doMove(from, to) {
+async function boot() {
+  applyTheme();
   try {
-    for (const p of state.tabs) {
-      if ((p === from || p.startsWith(`${from}/`)) && tools.isDirty(p)) await saveFile(p);
-    }
-    const moved = await store.renameEntry(state.project.id, from, to);
-    // A sprite's .sprite.json is found by its image's name, so it moves along.
-    const isFile = (p) => state.entries.get(p)?.kind === 'file';
-    if (isFile(from) && /\.png$/i.test(to)) {
-      for (const companion of companionsOf(from, isFile)) {
-        const target = `${to.replace(/\.png$/i, '')}.sprite.json`;
-        if (!state.entries.has(target)) moved.push(...await store.renameEntry(state.project.id, companion, target));
-      }
-    }
-    remapPaths(moved);
-    await refreshEntries();
-    await updateReferences(moved);
-    if (state.active) {
-      tree.setActive(state.active);
-      $('#status-lang').textContent = languageLabel(state.active, state.entries.get(state.active)?.data);
-    }
-    renderTabs();
-    persistTabs();
-    if (state.active && !editor.has(state.active) && tools.toolFor(state.active)) await openFile(state.active, { persist: false });
+    await loadSchema();
   } catch (e) {
-    toast(e.message, { type: 'error' });
+    app.replaceChildren(h('div', { class: 'empty' }, h('h3', {}, 'Smitten couldn\'t start'), h('p', {}, `The node list didn't load (${e.message}). Check your connection and reload.`)));
+    return;
   }
+  window.addEventListener('hashchange', route);
+  route();
 }
 
-/** After files moved: fix paths in Smitten's JSON files, and offer to fix code that loads them. */
-async function updateReferences(moves) {
-  if (!moves.length) return;
-  const files = {};
-  for (const e of state.entries.values()) if (e.kind === 'file') files[e.path] = e.data;
-  const { json, code } = referenceUpdates(files, moves);
-  for (const [path, text] of Object.entries(json)) await writeProjectFile(path, text);
-  const skipped = Object.keys(code).filter((p) => state.dirty.has(p));
-  const paths = Object.keys(code).filter((p) => !state.dirty.has(p));
-  const count = paths.reduce((n, p) => n + code[p].count, 0);
-  if (count) {
-    const ok = await confirmDialog({
-      title: 'Update code?',
-      message: `${count} place${count === 1 ? '' : 's'} in ${paths.length === 1 ? paths[0] : `${paths.length} files`} load${count === 1 ? 's' : ''} the old path. Update ${count === 1 ? 'it' : 'them'} to the new one?`,
-      okLabel: 'Update', cancelLabel: 'Leave as is',
-    });
-    if (ok) {
-      for (const p of paths) await writeProjectFile(p, code[p].text);
-      flashStatus(`Updated ${count} reference${count === 1 ? '' : 's'}`);
-    }
-  }
-  if (skipped.length) toast(`${skipped.join(', ')} ${skipped.length === 1 ? 'has' : 'have'} unsaved changes and may still use the old path.`, { timeout: 6000 });
+function route() {
+  const id = new URLSearchParams(location.hash.slice(1)).get('project');
+  if (id && ed?.project.id === id) return;
+  if (ed) closeEditor();
+  if (id) openProject(id);
+  else showHome();
 }
 
-async function deleteEntry(path, kind) {
-  const isDir = kind === 'dir';
-  const inside = isDir ? [...state.entries.values()].filter((e) => e.kind === 'file' && e.path.startsWith(`${path}/`)).length : 0;
-  const ok = await confirmDialog({
-    title: isDir ? 'Delete folder?' : 'Delete file?',
-    message: isDir
-      ? `“${path}” and the ${inside} file${inside === 1 ? '' : 's'} in it will be deleted. This cannot be undone.`
-      : `“${path}” will be deleted. This cannot be undone.`,
-    okLabel: 'Delete', danger: true,
+function showHome() {
+  document.title = 'Smitten';
+  const root = h('div', { id: 'home-root', style: 'display: flex; flex: 1; min-height: 0' });
+  app.replaceChildren(root);
+  renderHome(root, {
+    openProject: (id) => { location.hash = `project=${id}`; },
+    importZip: async (file) => {
+      const files = await unzipToProjectFiles(new Uint8Array(await file.arrayBuffer()));
+      const name = file.name.replace(/\.(zip|love)$/i, '');
+      const p = await store.createProject(name, files);
+      location.hash = `project=${p.id}`;
+    },
   });
-  if (!ok) return;
-  const affected = state.tabs.filter((p) => p === path || p.startsWith(`${path}/`));
-  const wasActive = affected.includes(state.active);
-  for (const p of affected) {
-    state.dirty.delete(p);
-    state.errors.delete(p);
-    state.saved.delete(p);
-    editor.close(p);
-    tools.close(p);
-  }
-  state.tabs = state.tabs.filter((p) => !affected.includes(p));
-  await store.deleteEntry(state.project.id, path);
-  await refreshEntries();
-  if (wasActive) {
-    state.active = null;
-    if (state.tabs.length) await openFile(state.tabs[0]);
-    else showEmptyEditor();
-  }
-  renderTabs();
-  persistTabs();
-  toast(`Deleted ${baseName(path)}`);
 }
 
-async function duplicateFile(path) {
-  if (state.dirty.has(path)) await saveFile(path);
-  const base = baseName(path);
-  const dot = base.lastIndexOf('.');
-  const stem = dot > 0 ? base.slice(0, dot) : base;
-  const ext = dot > 0 ? base.slice(dot) : '';
-  let n = 1;
-  let target;
-  do { target = joinPath(dirName(path), `${stem} copy${n > 1 ? ` ${n}` : ''}${ext}`); n++; } while (state.entries.has(target));
-  await store.writeFile(state.project.id, target, state.entries.get(path).data);
-  await refreshEntries();
-  await openFile(target);
-}
-
-function downloadFile(path) {
-  const entry = state.entries.get(path);
-  const data = editor.has(path) ? editor.getText(path) : entry.data;
-  downloadBlob(new Blob([data], { type: mimeOf(path) }), baseName(path));
-}
-
-function showTreeMenu(path, kind, point) {
-  const dir = kind === 'dir' ? path : kind === 'file' ? dirName(path) : '';
-  const items = [];
-  if (kind === 'file') {
-    items.push({ label: 'Open', icon: 'file', action: () => openFile(path, { focus: true }) });
-    if (tools.toolFor(path) && isText(path)) items.push({ label: 'Open as text', icon: 'code', action: () => openFile(path, { focus: true, asText: true }) });
-    items.push('-');
-  }
-  items.push(
-    { label: dir ? 'New file here…' : 'New file…', icon: 'filePlus', action: () => newFile(dir) },
-    { label: dir ? 'New folder here…' : 'New folder…', icon: 'folderPlus', action: () => newFolder(dir) },
-    ...tools.newAssets.map((a) => ({ label: `New ${a.label.toLowerCase()}…`, icon: 'plus', action: () => newAsset(a, dir) })),
-  );
-  if (kind === 'root') items.push({ label: 'Import files…', icon: 'upload', action: () => importTarget('files', '') });
-  if (kind !== 'root') {
-    items.push('-', { label: 'Rename…', icon: 'pencil', shortcut: 'F2', action: () => renameEntry(path, kind) });
-    if (kind === 'file') {
-      items.push(
-        { label: 'Duplicate', icon: 'copy', action: () => duplicateFile(path) },
-        { label: 'Download', icon: 'download', action: () => downloadFile(path) },
-      );
-    } else {
-      items.push({ label: 'Import files here…', icon: 'upload', action: () => importTarget('files', path) });
-    }
-    items.push('-', { label: 'Delete', icon: 'trash', danger: true, shortcut: 'Del', action: () => deleteEntry(path, kind) });
-  }
-  showMenu(point, items);
+function closeEditor() {
+  saveAll();
+  ed.runner?.destroy();
+  ed = null;
 }
 
 // ---------------------------------------------------------------------------
-// Import
+// The editor
 
-let importDir = '';
-
-function importTarget(type, dir) {
-  importDir = dir;
-  if (type === 'files') $('#input-files').click();
-  else if (type === 'folder') $('#input-folder').click();
-  else $('#input-archive').click();
-}
-
-/** items: [{path, file}] */
-async function importFiles(items, dir = '') {
-  if (!items.length || !state.project) return;
-  const files = {};
+async function openProject(id) {
+  let project;
   try {
-    for (const { path, file } of items) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      if (/\.(love|zip)$/i.test(path)) {
-        const unzipped = await unzipToProjectFiles(bytes);
-        for (const [p, d] of Object.entries(unzipped)) files[store.normalizePath(joinPath(dir, p))] = d;
-      } else {
-        files[store.normalizePath(joinPath(dir, path))] = classifyBytes(path, bytes);
-      }
-    }
+    project = await Project.open(id);
   } catch (e) {
-    toast(`Import failed: ${e.message}`, { type: 'error' });
+    toast(e.message, { type: 'error' });
+    location.hash = '';
     return;
   }
-  const paths = Object.keys(files);
-  if (!paths.length) return;
-  const existing = paths.filter((p) => state.entries.has(p));
-  if (existing.length) {
-    const ok = await confirmDialog({
-      title: 'Replace files?',
-      message: existing.length === 1
-        ? `“${existing[0]}” already exists. Replace it?`
-        : `${existing.length} files already exist (${existing.slice(0, 3).join(', ')}${existing.length > 3 ? ', …' : ''}). Replace them?`,
-      okLabel: 'Replace', danger: true,
-    });
-    if (!ok) return;
-  }
-  await store.writeFiles(state.project.id, files);
-  await refreshEntries();
-  // Refresh open buffers that were replaced.
-  for (const p of existing) {
-    if (!editor.has(p)) continue;
-    const data = files[p];
-    if (typeof data === 'string') {
-      editor.setText(p, data);
-      state.saved.set(p, data);
-      state.dirty.delete(p);
-    } else {
-      editor.close(p);
-      state.saved.delete(p);
+  document.title = `${project.name} · Smitten`;
+  ed = { project, workspaces: {}, ws: null, layouts: loadLayouts(), clipboard: [] };
+
+  // Top bar
+  const menus = h('div', { class: 'tb-left' },
+    h('a', { class: 'brand', href: '#', title: 'Home: all your games' }, h('span', { class: 'brand-mark' }, icon('heart', 16)), h('span', {}, 'Smitten')),
+    menuButton('Project', projectMenu), menuButton('Edit', editMenu), menuButton('View', viewMenu), menuButton('Help', helpMenu),
+    ed.titleEl = h('span', { class: 'project-title', title: 'Project settings' }, project.name));
+  ed.titleEl.addEventListener('click', () => openProjectSettings());
+  const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' });
+  WORKSPACES.forEach((w, i) => {
+    const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
+    b.addEventListener('click', () => switchWorkspace(w.id));
+    switcher.append(b);
+  });
+  ed.playBtn = h('button', { type: 'button', class: 'play-btn primary', title: 'Play the game from its main scene (F5)' }, icon('play', 14), 'Play');
+  ed.playBtn.addEventListener('click', () => play());
+  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop');
+  ed.stopBtn.addEventListener('click', () => stop());
+  const titlebar = h('header', { class: 'titlebar' }, menus, switcher, h('div', { class: 'tb-right' }, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
+
+  // Center: workspaces and the game view
+  const area = h('div', { class: 'workspace-area' });
+  const center = h('div', { class: 'center' }, area);
+  const shell = h('main', { class: 'shell' });
+  ed.status = { left: h('span', {}, 'Saved'), modules: h('button', { type: 'button', title: 'Engine modules this game uses (Project settings › Modules)' }), right: h('span', {}) };
+  ed.status.modules.addEventListener('click', () => openProjectSettings('modules'));
+  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.modules);
+  app.replaceChildren(h('div', { id: 'editor' }, titlebar, shell, statusbar));
+
+  // Panels
+  const panelEl = () => h('div', { class: 'panel-host', style: 'position: absolute; inset: 0' });
+  const panels = {
+    scene: { id: 'scene', title: 'Scene', region: 'left', el: panelEl() },
+    files: { id: 'files', title: 'Files', region: 'left', el: panelEl() },
+    inspector: { id: 'inspector', title: 'Inspector', region: 'right', el: panelEl() },
+    output: { id: 'output', title: 'Output', region: 'bottom', el: panelEl() },
+  };
+  ed.dock = new DockManager(shell, center, Object.values(panels));
+  ed.dock.addEventListener('change', () => saveLayout());
+  ed.dock.addEventListener('resize', () => ed.ws && ed.workspaces[ed.ws]?.resize());
+
+  ed.panels = {};
+  ed.panels.tree = new SceneTreePanel(panels.scene.el, {
+    addNode: (parent) => addNodeTo(parent),
+    instanceScene: (parent) => instanceScene(parent),
+    attachScript: (node) => attachScript(node),
+    openScript: (node) => openFile(sceneWs().doc.scriptOf(node)),
+    openScene: (path) => openFile(path),
+    saveBranchAsScene: (node) => saveBranchAsScene(node),
+    copy: () => copyNodes(),
+    paste: (parent) => pasteNodes(parent),
+    changeType: (node) => changeType(node),
+    dropFile: (path, target) => dropFileOnNode(path, target),
+  });
+  ed.panels.inspector = new InspectorPanel(panels.inspector.el, {
+    project,
+    inputActions: () => inputActions(project),
+    openScript: (node) => openFile(sceneWs().doc.scriptOf(node)),
+    attachScript: (node) => attachScript(node),
+    openScene: (path) => openFile(path),
+    openDocs: (type) => nodeDocs(type),
+  });
+  buildFilesPanel(panels.files.el);
+  buildOutputPanel(panels.output.el);
+
+  // Workspaces
+  const wsApp = {
+    project,
+    panels: ed.panels,
+    settings: settings.all(),
+    playScene: (path) => play(path),
+    newScene: (kind) => newScene(kind),
+    newScript: () => newScript(),
+    openFile: (path) => openFile(path),
+    addNodeDialog: (parent) => addNodeTo(parent),
+    setCursor: (text) => { ed.status.right.textContent = text; },
+  };
+  for (const w of WORKSPACES) {
+    const el = h('section', { class: 'workspace', 'data-ws': w.id, hidden: true });
+    area.append(el);
+    if (w.id === 'scene') ed.workspaces.scene = new SceneWorkspace(el, wsApp);
+    else if (w.id === 'script') ed.workspaces.script = new ScriptWorkspace(el, wsApp);
+    else {
+      const defs = {
+        paint: { toolId: 'sprite', untitledBase: 'image', untitledLabel: 'New image', icon: 'image' },
+        sound: { toolId: 'sfx', untitledBase: 'sound', untitledLabel: 'New sound', icon: 'wave' },
+        music: { toolId: 'music', untitledBase: 'song', untitledLabel: 'New song', icon: 'music' },
+      };
+      ed.workspaces[w.id] = new ToolWorkspace(el, wsApp, { id: w.id, ...defs[w.id] });
     }
   }
-  for (const p of existing) tools.changed(p);
-  if (state.active && existing.includes(state.active)) await openFile(state.active);
-  renderTabs();
-  toast(`Imported ${paths.length} file${paths.length === 1 ? '' : 's'}`, { type: 'success' });
-  if (paths.length === 1) await openFile(paths[0]);
+
+  // The game view sits over the workspaces while a game runs.
+  ed.gameTitle = h('span', { class: 'game-title' }, 'Game');
+  const gameHost = h('div', { class: 'game-host' });
+  const restart = h('button', { type: 'button', class: 'tool-btn', title: 'Restart (F5)' }, icon('restart', 14), 'Restart');
+  restart.addEventListener('click', () => play(ed.lastRun));
+  const back = h('button', { type: 'button', class: 'tool-btn', title: 'Stop and go back to editing (F8)' }, icon('stop', 13), 'Stop');
+  back.addEventListener('click', () => stop());
+  ed.gameView = h('div', { class: 'game-view', hidden: true }, h('div', { class: 'game-bar' }, ed.gameTitle, restart, back), gameHost);
+  area.append(ed.gameView);
+  ed.runner = new Runner(gameHost, {
+    onState: (s) => runState(s),
+    onLog: (level, text) => ed.console.log(level, text),
+    onError: (text) => {
+      ed.console.error(text);
+      ed.dock.show('output');
+    },
+    onTitle: (t) => { ed.gameTitle.textContent = t || 'Game'; },
+    onQuit: () => stop(),
+    onShortcut: (e) => handleGlobalKey(e),
+    onMissingModule: (name) => missingModule(name),
+  });
+
+  project.addEventListener('file', (e) => {
+    ed.files.setEntries(entries());
+    saving();
+    if (e.detail.path === 'smitten.json') updateModulesStatus();
+    if (e.detail.kind === 'rename') renameReferences(e.detail.from, e.detail.path);
+  });
+  project.addEventListener('settings', () => {
+    ed.titleEl.textContent = project.name;
+    document.title = `${project.name} · Smitten`;
+    updateModulesStatus();
+  });
+  window.addEventListener('smitten-save-error', () => toast('Saving failed: your browser may be out of storage space.', { type: 'error', timeout: 8000 }));
+  updateModulesStatus();
+
+  // Where we left off: the open scenes and scripts, else the main scene.
+  const saved = project.meta.editor || {};
+  switchWorkspace(saved.workspace || 'scene', { focus: false });
+  const main = project.settings().main;
+  const scenes = (saved.scenes || []).filter((p) => project.has(p));
+  if (!scenes.length && main && project.has(main)) scenes.push(main);
+  if (!scenes.length) {
+    const first = project.paths().find((p) => p.endsWith('.scene'));
+    if (first) scenes.push(first);
+  }
+  for (const p of scenes) await ed.workspaces.scene.open(p);
+  for (const p of (saved.scripts || []).filter((x) => project.has(x))) await ed.workspaces.script.open(p);
+  if (!scenes.length && project.has('main.lua')) {
+    await ed.workspaces.script.open('main.lua');
+    if (!saved.workspace) switchWorkspace('script');
+  }
+  if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
+  window.addEventListener('beforeunload', saveAll);
+  hydrateIcons(app);
+}
+
+function sceneWs() {
+  return ed.workspaces.scene;
+}
+
+function menuButton(label, items) {
+  const b = h('button', { type: 'button', class: 'menubar-btn', 'aria-haspopup': 'menu' }, label);
+  b.addEventListener('click', () => showMenu(b, items()));
+  return b;
+}
+
+function switchWorkspace(id, { focus = true } = {}) {
+  if (!ed || !ed.workspaces[id]) return;
+  if (ed.ws && ed.ws !== id) ed.layouts[ed.ws] = ed.dock.getLayout();
+  ed.ws = id;
+  for (const el of app.querySelectorAll('.workspace')) el.hidden = el.dataset.ws !== id;
+  for (const b of app.querySelectorAll('.workspace-switch button')) b.setAttribute('aria-pressed', String(b.dataset.ws === id));
+  ed.dock.setLayout(ed.layouts[id] || DEFAULT_LAYOUTS[id]);
+  const ws = ed.workspaces[id];
+  ws.show?.();
+  requestAnimationFrame(() => ws.resize());
+  saveEditorState();
+  if (focus) ws.el.querySelector('.viewport, .cm-content, canvas')?.focus?.();
+}
+
+function loadLayouts() {
+  try {
+    return { ...DEFAULT_LAYOUTS, ...JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') };
+  } catch {
+    return { ...DEFAULT_LAYOUTS };
+  }
+}
+
+function saveLayout() {
+  if (!ed?.ws) return;
+  ed.layouts[ed.ws] = ed.dock.getLayout();
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(ed.layouts));
+}
+
+function resetLayout() {
+  ed.layouts = { ...DEFAULT_LAYOUTS };
+  localStorage.removeItem(LAYOUT_KEY);
+  ed.dock.setLayout(DEFAULT_LAYOUTS[ed.ws]);
+}
+
+function saveEditorState() {
+  if (!ed) return;
+  ed.project.saveEditorState({
+    workspace: ed.ws,
+    scenes: ed.workspaces.scene?.openPaths() || [],
+    scripts: ed.workspaces.script?.openPaths() || [],
+  });
+}
+
+function saveAll() {
+  if (!ed) return;
+  for (const ws of Object.values(ed.workspaces)) ws.saveAll?.();
+  saveEditorState();
+  return ed.project.flush();
+}
+
+let savingTimer = 0;
+function saving() {
+  ed.status.left.textContent = 'Saving…';
+  clearTimeout(savingTimer);
+  savingTimer = setTimeout(() => ed.project.saving.then(() => { if (ed) ed.status.left.textContent = 'Saved'; }), 700);
+}
+
+function updateModulesStatus() {
+  const det = detectModules(ed.project);
+  const names = Object.values(det).filter((m) => m.included).map((m) => m.name);
+  ed.status.modules.textContent = names.length ? `Modules: ${names.join(', ')}` : 'Modules: core only';
+}
+
+// ---------------------------------------------------------------------------
+// Files
+
+function entries() {
+  const out = [];
+  for (const d of ed.project.dirs) out.push({ path: d, kind: 'dir' });
+  for (const p of ed.project.paths()) out.push({ path: p, kind: 'file', data: ed.project.read(p) });
+  return out;
+}
+
+function buildFilesPanel(el) {
+  const newBtn = h('button', { type: 'button', class: 'btn small' }, icon('plus', 14), 'New');
+  newBtn.addEventListener('click', () => showMenu(newBtn, newMenuItems('')));
+  const importInput = h('input', { type: 'file', multiple: true, hidden: true });
+  importInput.addEventListener('change', async () => {
+    await importFiles([...importInput.files], '');
+    importInput.value = '';
+  });
+  const importBtn = h('button', { type: 'button', class: 'icon-btn', title: 'Import files (or drop them here)', 'aria-label': 'Import files' }, icon('upload', 15));
+  importBtn.addEventListener('click', () => importInput.click());
+  const treeEl = h('div', { id: 'file-tree', tabindex: '0', role: 'tree' });
+  el.append(h('div', { class: 'panel' }, h('div', { class: 'panel-toolbar' }, newBtn, h('span', { style: 'flex: 1' }), importBtn, importInput), h('div', { class: 'panel-scroll' }, treeEl)));
+  ed.files = new FileTree(treeEl, {
+    onOpen: (path) => openFile(path),
+    onContextMenu: (path, kind, at) => fileMenu(path, kind, at),
+    onMove: (from, toDir) => {
+      const to = toDir ? `${toDir}/${from.split('/').pop()}` : from.split('/').pop();
+      if (to !== from) ed.project.rename(from, to);
+    },
+    onDropFiles: async (dt, toDir) => {
+      const { readDataTransfer } = await import('./file-tree.js');
+      const files = await readDataTransfer(dt);
+      for (const [p, data] of Object.entries(files)) ed.project.write(toDir ? `${toDir}/${p}` : p, data);
+      toast(`Imported ${Object.keys(files).length} file(s).`);
+    },
+    isDirty: () => false,
+    onEmptyAction: () => {},
+  });
+  ed.files.setProject(ed.project.id);
+  ed.files.setEntries(entries());
+}
+
+async function importFiles(files, dir) {
+  for (const f of files) {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const path = dir ? `${dir}/${f.name}` : f.name;
+    ed.project.write(path, classifyBytes(path, bytes));
+  }
+  if (files.length) toast(`Imported ${files.length} file(s). Drag them into a scene to use them.`);
+}
+
+function newMenuItems(dir) {
+  const inDir = (folder) => dir || folder;
+  return [
+    { label: 'Scene', icon: 'box', action: () => newScene(null, inDir('scenes')) },
+    { label: 'Script', icon: 'code', action: () => newScript(null, inDir('scripts')) },
+    { label: 'Image', icon: 'image', action: () => { switchWorkspace('paint'); ed.workspaces.paint.newUntitled(); } },
+    { label: 'Sound effect', icon: 'wave', action: () => { switchWorkspace('sound'); ed.workspaces.sound.newUntitled(); } },
+    { label: 'Song', icon: 'music', action: () => { switchWorkspace('music'); ed.workspaces.music.newUntitled(); } },
+    '-',
+    { label: 'Folder', icon: 'folderPlus', action: async () => {
+      const name = await promptDialog({ title: 'New folder', label: 'Name', okLabel: 'Create' });
+      if (name) ed.project.mkdir(dir ? `${dir}/${name}` : name);
+      ed.files.setEntries(entries());
+    } },
+  ];
+}
+
+function fileMenu(path, kind, at) {
+  const items = [];
+  if (kind === 'file') {
+    items.push({ label: 'Open', action: () => openFile(path) });
+    if (path.endsWith('.scene')) {
+      items.push({ label: 'Play this scene', icon: 'play', action: () => play(path) });
+      items.push({ label: 'Make it the main scene', action: () => ed.project.updateSettings({ main: path }) });
+    }
+  }
+  if (kind === 'dir' || kind === 'root') items.push({ label: 'New', icon: 'plus', action: () => showMenu(at, newMenuItems(kind === 'dir' ? path : '')) });
+  if (path) {
+    items.push('-', { label: 'Rename…', icon: 'pencil', action: async () => {
+      const name = await promptDialog({ title: 'Rename', label: 'Name', value: path.split('/').pop(), okLabel: 'Rename', selectBase: true });
+      if (name) ed.project.rename(path, path.includes('/') ? `${path.slice(0, path.lastIndexOf('/'))}/${name}` : name);
+    } });
+    if (kind === 'file') items.push({ label: 'Duplicate', icon: 'copy', action: () => {
+      const dot = path.lastIndexOf('.');
+      let copy = `${path.slice(0, dot)} copy${path.slice(dot)}`;
+      for (let i = 2; ed.project.has(copy); i++) copy = `${path.slice(0, dot)} copy ${i}${path.slice(dot)}`;
+      ed.project.write(copy, ed.project.read(path));
+    } });
+    items.push({ label: 'Copy path', action: () => navigator.clipboard?.writeText(path) });
+    items.push('-', { label: 'Delete…', icon: 'trash', danger: true, action: async () => {
+      if (await confirmDialog({ title: `Delete ${path.split('/').pop()}?`, message: kind === 'dir' ? 'The folder and everything in it will be deleted.' : 'The file will be deleted.', okLabel: 'Delete', danger: true })) ed.project.remove(path);
+    } });
+  }
+  showMenu(at, items);
+}
+
+/** Opens a file in the workspace that edits it. */
+async function openFile(path, opts = {}) {
+  if (!path) return;
+  if (path.endsWith('.scene')) {
+    switchWorkspace('scene', { focus: false });
+    await sceneWs().open(path);
+  } else if (ed.workspaces.paint.canOpen(path)) {
+    switchWorkspace('paint');
+    ed.workspaces.paint.open(path);
+  } else if (ed.workspaces.sound.canOpen(path)) {
+    switchWorkspace('sound');
+    ed.workspaces.sound.open(path);
+  } else if (ed.workspaces.music.canOpen(path)) {
+    switchWorkspace('music');
+    ed.workspaces.music.open(path);
+  } else if (TEXT_FILE.test(path) || typeof ed.project.read(path) === 'string') {
+    switchWorkspace('script', { focus: false });
+    await ed.workspaces.script.open(path, opts);
+  } else {
+    const kind = kindOf(path, ed.project.read(path));
+    const hint = /\.(glb|gltf)$/i.test(path) ? 'Drag it into a 3D scene to use it.'
+      : kind === 'audio' ? 'Drag it into a scene to make an AudioPlayer.'
+        : kind === 'font' ? 'Pick it as the font of a Label or Text2D.' : 'Smitten has no editor for this kind of file.';
+    toast(`${path.split('/').pop()}: ${hint}`);
+  }
+  saveEditorState();
+}
+
+/** Keeps paths in scenes and settings pointing at a file after it's renamed. */
+function renameReferences(from, to) {
+  for (const p of ed.project.paths()) {
+    if (!p.endsWith('.scene') && p !== 'smitten.json') continue;
+    const text = ed.project.readText(p);
+    const quoted = JSON.stringify(from);
+    if (text && text.includes(quoted)) ed.project.write(p, text.split(quoted).join(JSON.stringify(to)));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Making things
+
+function uniquePath(dir, base, ext) {
+  let p = `${dir ? dir + '/' : ''}${base}${ext}`;
+  for (let i = 2; ed.project.has(p); i++) p = `${dir ? dir + '/' : ''}${base}${i}${ext}`;
+  return p;
+}
+
+const fileName = (s) => s.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
+
+async function newScene(kind, dir = 'scenes') {
+  if (!kind) {
+    kind = await openDialog({
+      title: 'New scene',
+      body: h('p', { class: 'insp-desc' }, 'What kind of scene? You can mix 2D, 3D and UI nodes in any scene; this picks its root node and its view.'),
+      actions: [{ label: 'Cancel', value: null, ghost: true }, { label: 'Menu (UI)', value: 'ui' }, { label: '3D', value: '3d' }, { label: '2D', value: '2d', primary: true }],
+    });
+    if (!kind) return;
+  }
+  const name = await promptDialog({ title: 'New scene', label: 'Name', value: kind === 'ui' ? 'menu' : 'level', okLabel: 'Create' });
+  if (!name) return;
+  const path = uniquePath(dir, fileName(name), '.scene');
+  const rootType = kind === '3d' ? 'Node3D' : kind === 'ui' ? 'Node' : 'Node2D';
+  const doc = SceneDoc.empty(path, rootType, name.replace(/^\w/, (c) => c.toUpperCase()).replace(/\s+/g, ''));
+  if (kind === '3d') {
+    doc.root.children.push(
+      { ...doc.createNode('Environment3D'), name: 'Environment', parent: doc.root },
+      { ...doc.createNode('DirectionalLight3D', { rotationX: -0.9, rotationY: 0.5 }), name: 'Sun', parent: doc.root },
+      { ...doc.createNode('Camera3D', { y: 2, z: 6, rotationX: -0.25 }), name: 'Camera', parent: doc.root },
+    );
+  } else if (kind === 'ui') {
+    doc.root.children.push(
+      { ...doc.createNode('Panel', { anchor: 'full', color: [0.08, 0.09, 0.12, 1], cornerRadius: 0, borderWidth: 0 }), name: 'Background', parent: doc.root },
+      { ...doc.createNode('Label', { anchor: 'top', y: 80, width: 600, height: 60, text: name, size: 44, align: 'center' }), name: 'Title', parent: doc.root },
+      { ...doc.createNode('Button', { anchor: 'center', width: 200, height: 48, text: 'Play' }), name: 'Play', parent: doc.root },
+    );
+  }
+  ed.project.write(path, doc.toText());
+  if (!ed.project.settings().main) ed.project.updateSettings({ main: path });
+  await openFile(path);
+}
+
+const SCRIPT_TEMPLATE = (name, type) => {
+  const cls = name.replace(/[^\w]/g, '').replace(/^\d+/, '').replace(/^\w/, (c) => c.toUpperCase()) || 'Script';
+  const extra = isA(type || 'Node', 'CharacterBody2D') ? `
+-- moveAndSlide() moves by vx, vy and stops at walls. (A Platformer or
+-- TopDown child does this for you.)
+` : isA(type || 'Node', 'Button') ? `
+-- Called when the button is clicked.
+function ${cls}:pressed()
+end
+` : isA(type || 'Node', 'Area2D') || isA(type || 'Node', 'Area3D') ? `
+-- Called when a body or area comes in.
+function ${cls}:entered(other)
+end
+` : '';
+  return `-- ${cls}${type ? `: a script for a ${type}` : ''}.
+local ${cls} = {}
+
+-- Variables like this one appear in the Inspector, so each node can have its own value.
+${cls}.speed = 200
+
+-- Called once, when the node enters the scene.
+function ${cls}:ready()
+end
+
+-- Called every frame. dt is the time since the last frame, in seconds.
+function ${cls}:update(dt)
+end
+${extra}
+return ${cls}
+`;
+};
+
+async function newScript(node = null, dir = 'scripts') {
+  const name = await promptDialog({ title: 'New script', label: 'Name', value: node ? node.name.toLowerCase() : 'script', okLabel: 'Create' });
+  if (!name) return null;
+  const path = uniquePath(dir, fileName(name), '.lua');
+  ed.project.write(path, SCRIPT_TEMPLATE(name, node?.type));
+  if (!node) await openFile(path);
+  return path;
+}
+
+async function attachScript(node) {
+  const doc = sceneWs().doc;
+  const scripts = ed.project.paths().filter((p) => p.endsWith('.lua') && p !== 'main.lua' && p !== 'conf.lua');
+  let choice = 'new';
+  if (scripts.length) {
+    const sel = h('select', { class: 'input' }, h('option', { value: 'new' }, 'A new script'), ...scripts.map((p) => h('option', { value: p }, p)));
+    const ok = await openDialog({ title: `Attach a script to ${node.name}`, body: h('div', { class: 'settings-grid' }, h('label', {}, 'Script'), sel), actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Attach', value: true, primary: true }] });
+    if (!ok) return;
+    choice = sel.value;
+  }
+  const path = choice === 'new' ? await newScript(node) : choice;
+  if (!path) return;
+  doc.setScript(node, path);
+  if (choice === 'new') openFile(path);
+}
+
+/** Sensible starting properties and children for a new node. */
+function populate(doc, node, parent) {
+  const type = node.type;
+  const settingsD = ed.project.settings().display || {};
+  if (isA(type, 'Node2D') && parent === doc.root && isA(doc.root.type, 'Node2D') && !doc.root.children.length) {
+    node.props.x = Math.round((settingsD.width || 1280) / 2);
+    node.props.y = Math.round((settingsD.height || 720) / 2);
+  }
+  const shape2d = ['CharacterBody2D', 'StaticBody2D', 'Area2D', 'RigidBody2D'];
+  const shape3d = ['CharacterBody3D', 'StaticBody3D', 'Area3D', 'RigidBody3D'];
+  if (shape2d.includes(type)) node.children.push({ ...doc.createNode('CollisionShape2D'), name: 'Shape', parent: node });
+  if (shape3d.includes(type)) {
+    node.children.push({ ...doc.createNode('CollisionShape3D', type === 'CharacterBody3D' ? { shape: 'capsule', radius: 0.4, height: 1.8 } : {}), name: 'Shape', parent: node });
+    if (type !== 'CharacterBody3D' && type !== 'Area3D') node.children.push({ ...doc.createNode('MeshInstance3D'), name: 'Mesh', parent: node });
+  }
+}
+
+async function addNodeTo(parent) {
+  const doc = sceneWs().doc;
+  if (!doc) {
+    toast('Open or make a scene first.');
+    return;
+  }
+  const type = await addNodeDialog(parent?.type);
+  if (!type) return;
+  const node = doc.createNode(type, {}, type);
+  populate(doc, node, parent || doc.root);
+  doc.add(parent || doc.root, node, undefined, `Add ${type}`);
+  doc.select([node]);
+}
+
+async function instanceScene(parent) {
+  const doc = sceneWs().doc;
+  const scenes = ed.project.paths().filter((p) => p.endsWith('.scene') && p !== doc.path && !doc.wouldLoop(p));
+  if (!scenes.length) {
+    toast('There are no other scenes to place. Make one with Files › New › Scene, or right-click a node › Save as a scene.');
+    return;
+  }
+  const sel = h('select', { class: 'input', size: Math.min(8, scenes.length) }, ...scenes.map((p, i) => h('option', { value: p, selected: i === 0 }, p)));
+  const ok = await openDialog({
+    title: 'Place a scene', body: h('div', {}, h('p', { class: 'insp-desc', style: 'margin: 0 0 8px' }, 'The scene becomes one node here. Changing its file later changes every place it\'s used.'), sel),
+    actions: [{ label: 'Cancel', value: false, ghost: true }, { label: 'Place', value: true, primary: true }],
+  });
+  if (!ok) return;
+  const node = doc.createInstance(sel.value);
+  doc.add(parent || doc.root, node);
+  doc.select([node]);
+}
+
+async function saveBranchAsScene(node) {
+  const doc = sceneWs().doc;
+  const name = await promptDialog({ title: 'Save as a scene', label: 'Name', value: node.name.toLowerCase(), okLabel: 'Save' });
+  if (!name) return;
+  const path = uniquePath('scenes', fileName(name), '.scene');
+  const tmp = SceneDoc.empty(path, node.type, node.name);
+  tmp.root = doc.copyNode(node);
+  tmp.root.parent = null;
+  // The new scene's root sits at its own origin; its place stays on the instance.
+  const keep = ['x', 'y', 'z', 'rotation', 'rotationX', 'rotationY', 'rotationZ', 'scaleX', 'scaleY', 'scaleZ'];
+  const placed = {};
+  for (const k of keep) if (k in tmp.root.props) { placed[k] = tmp.root.props[k]; delete tmp.root.props[k]; }
+  ed.project.write(path, tmp.toText());
+  const parent = node.parent;
+  const index = parent.children.indexOf(node);
+  doc.remove([node], 'Save as a scene');
+  const inst = doc.createInstance(path);
+  inst.name = node.name;
+  inst.props = placed;
+  doc.add(parent, inst, index, 'Save as a scene');
+  doc.select([inst]);
+  toast(`Saved ${path}. Place it again anywhere with "Place a scene".`);
+}
+
+async function changeType(node) {
+  const type = await addNodeDialog(node.parent?.type);
+  if (type) sceneWs().doc.changeType(node, type);
+}
+
+function copyNodes() {
+  const doc = sceneWs().doc;
+  ed.clipboard = doc.selected().filter((n) => n !== doc.root && !n.readonly).map((n) => doc.copyNode(n));
+}
+
+function pasteNodes(parent) {
+  const doc = sceneWs().doc;
+  if (!doc || !ed.clipboard.length) return;
+  const target = parent || doc.selected()[0] || doc.root;
+  const added = ed.clipboard.map((n) => doc.add(target.readonly ? doc.root : target, doc.copyNode(n), undefined, 'Paste'));
+  doc.select(added);
+}
+
+function dropFileOnNode(path, target) {
+  const doc = sceneWs().doc;
+  if (!doc) return;
+  if (/\.lua$/.test(path)) {
+    doc.setScript(target, path);
+    return;
+  }
+  let node;
+  if (path.endsWith('.scene')) node = doc.createInstance(path);
+  else if (/\.(png|jpe?g|bmp|sprite)$/i.test(path)) node = doc.createNode(isA(target.type, 'Node3D') ? 'Sprite3D' : 'Sprite2D', { image: path }, path.split('/').pop().replace(/\..*$/, ''));
+  else if (/\.(glb|gltf)$/i.test(path)) node = doc.createNode('Model3D', { model: path }, path.split('/').pop().replace(/\..*$/, ''));
+  else if (/\.(wav|ogg|mp3|flac|sfx|song)$/i.test(path)) node = doc.createNode('AudioPlayer', { sound: path }, 'Sound');
+  else if (/\.tileset$/i.test(path)) node = doc.createNode('TileMap', { tileset: path }, 'TileMap');
+  if (!node) return;
+  doc.add(target, node);
+  doc.select([node]);
 }
 
 // ---------------------------------------------------------------------------
 // Running
 
-async function collectFiles() {
-  await saveAll({ quiet: true });
-  return store.getAllFiles(state.project.id);
-}
-
-const COMPAT_KIND = { error: 'danger', warning: 'warning', info: 'info' };
-
-/** Logs web-compatibility issues; returns how many are errors. */
-async function reportCompat(files) {
-  let issues;
-  try {
-    issues = await checkProject(files);
-  } catch (e) {
-    console.warn('Compatibility check failed', e);
-    return 0;
+async function play(scenePath = null) {
+  if (!ed) return;
+  await saveAll();
+  const project = ed.project;
+  const files = project.snapshot();
+  const main = project.settings().main;
+  if (!scenePath && !main && !project.has('main.lua')) {
+    const open = sceneWs().doc?.path;
+    if (open) {
+      if (await confirmDialog({ title: 'No main scene yet', message: `Make ${open} the main scene, the one the game starts with?`, okLabel: 'Make it the main scene' })) {
+        project.updateSettings({ main: open });
+      } else return;
+    } else {
+      toast('Make a scene first, or a main.lua.');
+      return;
+    }
   }
-  for (const i of issues) consolePanel.info(`${i.path}:${i.line}: ${i.message}`, COMPAT_KIND[i.severity]);
-  setProblems(issues);
-  return issues.filter((i) => i.severity === 'error').length;
-}
-
-/** Status bar summary of the last compatibility check. */
-function setProblems(issues) {
-  const el = $('#status-problems');
-  const errors = issues.filter((i) => i.severity === 'error').length;
-  const warnings = issues.filter((i) => i.severity === 'warning').length;
-  el.hidden = !errors && !warnings;
-  el.className = `status-item ${errors ? 'has-errors' : warnings ? 'has-warnings' : ''}`;
-  el.replaceChildren(icon('alert', 13), `${errors + warnings} web issue${errors + warnings === 1 ? '' : 's'}`);
-  state.problems = issues.filter((i) => i.severity !== 'info');
-}
-
-function showProblems() {
-  const items = (state.problems || []).map((i) => ({
-    label: `${i.path}:${i.line}`, hint: i.message, icon: i.severity === 'error' ? 'alert' : 'info',
-    run: () => openFile(i.path, { line: i.line, focus: true }),
-  }));
-  openPicker({ placeholder: 'Go to a web compatibility issue', items, emptyText: 'No issues' });
-}
-
-/** focus: give the game keyboard focus once it starts (not for auto-run). */
-async function run({ focus = settings.get('focusGameOnRun'), extraFiles = {} } = {}) {
-  if (!state.project) return;
-  const files = { ...await collectFiles(), ...extraFiles };
-  if (!files['main.lua']) {
-    consolePanel.error('There is no main.lua at the root of the project. LÖVE needs one to start the game.');
-    toast('Add a main.lua to run the game.', { type: 'error' });
-    return;
-  }
-  if ($('#app').classList.contains('right-hidden')) setGamePanelVisible(true);
-  if (settings.get('clearConsoleOnRun')) consolePanel.clear();
-  consolePanel.separator(`Run · ${new Date().toLocaleTimeString()}`);
-  state.errors.clear();
-  editor.clearErrors();
-  state.lastError = false;
-  state.hasRun = true;
-  renderTabs();
-  $('#game-title').textContent = state.project.name;
-  const query = {};
-  if (settings.get('scaleMode') !== 'fit') query.scale = settings.get('scaleMode');
-  if (!settings.get('jit')) query.jit = '0';
-  runner.run({ files }, { focus, query });
-  setProjectFlag('played', true);
-  if (settings.get('compatCheck')) reportCompat(files);
-  else setProblems([]);
+  if (scenePath) files['.smitten/start'] = scenePath;
+  ed.lastRun = scenePath;
+  if (settings.get('clearConsoleOnRun')) ed.console.clear();
+  ed.console.separator?.(scenePath ? `Playing ${scenePath}` : 'Playing');
+  ed.gameView.hidden = false;
+  ed.gameTitle.textContent = project.name;
+  ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query: { jit: settings.get('jit') ? '1' : '0' } });
 }
 
 function stop() {
-  if (runner.active) runner.stop();
+  if (!ed) return;
+  ed.runner.stop();
+  ed.gameView.hidden = true;
+  ed.workspaces[ed.ws]?.resize();
 }
 
-function togglePause() {
-  if (runner.state === 'running' || runner.state === 'paused') runner.setPaused(runner.state !== 'paused');
+function runState(s) {
+  const running = s === 'loading' || s === 'running' || s === 'paused';
+  ed.stopBtn.disabled = !running;
+  ed.playBtn.classList.toggle('primary', !running);
+  ed.playBtn.lastChild.textContent = running ? 'Restart' : 'Play';
+  if (!running && s !== 'crashed') ed.gameView.hidden = true;
 }
 
-function onRunnerState(s) {
-  const active = s === 'loading' || s === 'running' || s === 'paused' || s === 'crashed';
-  $('#btn-stop').disabled = !active;
-  $('#btn-pause').disabled = !(s === 'running' || s === 'paused');
-  $('#btn-pause').setAttribute('aria-pressed', String(s === 'paused'));
-  $('#btn-pause').title = s === 'paused' ? 'Resume (F8)' : 'Pause (F8)';
-  $('#btn-pause').setAttribute('aria-label', s === 'paused' ? 'Resume' : 'Pause');
-  $('#btn-pause').replaceChildren(icon(s === 'paused' ? 'play' : 'pause'));
-  $('#btn-run').classList.toggle('running', active);
-  $('#btn-run').title = active ? 'Restart the game (F5)' : 'Play the game (F5)';
-  $('#btn-run .label').textContent = active ? 'Restart' : 'Play';
-  $('#game-empty').hidden = active;
-  $('#game-loading').hidden = s !== 'loading';
-  $('#game-paused').hidden = s !== 'paused';
-  $('#game-empty-text').replaceChildren(...(s === 'stopped'
-    ? ['Game stopped. Press ', h('kbd', {}, 'F5'), ' to run it again']
-    : ['Press ', h('kbd', {}, 'F5'), ' to run your game']));
-  const dot = $('#game-status');
-  dot.className = `status-dot ${(state.lastError && active) || s === 'crashed' ? 'error' : s}`;
-  $('#game-state-label').textContent = {
-    loading: 'Starting…', running: state.lastError ? 'Error' : 'Running', paused: 'Paused', stopped: 'Stopped', crashed: 'Engine failed',
-  }[s] || '';
-  if (!active && s !== 'idle') $('#game-title').textContent = state.project?.name || 'Game';
-}
-
-function onGameError(text) {
-  consolePanel.error(text);
-  state.lastError = true;
-  onRunnerState(runner.state);
-  const loc = findLocation(text, (p) => state.entries.get(p)?.kind === 'file');
-  if (loc) {
-    const message = text.split('\n')[0];
-    state.errors.set(loc.path, { line: loc.line, message });
-    if (editor.has(loc.path)) editor.setError(loc.path, loc.line, message);
-    renderTabs();
-  }
-}
-
-async function popOutGame() {
-  const win = openPopup();
-  if (!win) {
-    toast('The browser blocked the new window. Allow pop-ups for this site and try again.', { type: 'error', timeout: 6000 });
-    return;
-  }
-  try {
-    const files = await collectFiles();
-    showInPopup(win, await buildLove(files), state.project.name);
-  } catch (e) {
-    win.close();
-    toast(`Could not open the game: ${e.message}`, { type: 'error' });
-  }
-}
-
-function toggleGameFullscreen() {
-  const stage = $('#game-stage');
-  if (document.fullscreenElement) document.exitFullscreen();
-  else stage.requestFullscreen?.().then(() => runner.focus()).catch(() => toast('Fullscreen is not available here.', { type: 'error' }));
+function missingModule(name) {
+  const project = ed.project;
+  const modules = { ...(project.settings().modules || {}), [name]: 'always' };
+  project.updateSettings({ modules });
+  toast(`Your game uses the ${name} module in a way Smitten didn't spot, so it's now always included. Restarting…`, { timeout: 6000 });
+  setTimeout(() => play(ed.lastRun), 300);
 }
 
 // ---------------------------------------------------------------------------
-// Export & share
+// Menus
 
-async function exportLove() {
-  try {
-    const files = await collectFiles();
-    const uses = await smittenOnlyFeatures(files);
-    if (uses.length) {
-      const list = h('ul', { class: 'dialog-list' }, ...uses.slice(0, 6).map((u) => h('li', {}, `${u.path}:${u.line}: ${u.feature}`)),
-        uses.length > 6 ? h('li', {}, `and ${uses.length - 6} more`) : null);
-      const res = await openDialog({
-        title: 'This game needs Smitten',
-        body: h('div', {},
-          h('p', { class: 'dialog-message' }, 'A .love file runs in desktop LÖVE, which doesn’t have the smitten module or Smitten’s Lua syntax, so this game won’t start there:'),
-          list,
-          h('p', { class: 'dialog-message' }, 'Export it for the web to share it, or download the project to keep a copy.')),
-        actions: [
-          { label: 'Download .love anyway', value: 'love', ghost: true, left: true },
-          { label: 'Cancel', value: null },
-          { label: 'Export for web', value: 'web', primary: true, submit: true },
-        ],
-      });
-      if (res === 'web') return exportWeb();
-      if (res !== 'love') return;
-    }
-    const bytes = await buildLove(files);
-    downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}.love`);
-    warnCompat(files);
-    toast(`Exported ${slugify(state.project.name)}.love (${formatBytes(bytes.length)})`, { type: 'success' });
-  } catch (e) {
-    toast(`Export failed: ${e.message}`, { type: 'error' });
-  }
-}
-
-async function exportWeb() {
-  flashStatus('Building web export…');
-  try {
-    const files = await collectFiles();
-    const bytes = await buildWebExport(files, state.project.name);
-    downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}-web.zip`);
-    warnCompat(files);
-    toast(`Exported ${slugify(state.project.name)}-web.zip (${formatBytes(bytes.length)}). Upload it to itch.io as an HTML game.`, { type: 'success', timeout: 6000 });
-    setProjectFlag('shared', true);
-  } catch (e) {
-    toast(`Web export failed: ${e.message}`, { type: 'error' });
-  }
-}
-
-async function exportProject() {
-  try {
-    const bytes = await zipFiles(await collectFiles());
-    downloadBlob(new Blob([bytes], { type: 'application/zip' }), `${slugify(state.project.name)}.zip`);
-    toast(`Downloaded ${slugify(state.project.name)}.zip (${formatBytes(bytes.length)}). Open it again with Projects › Open .zip.`, { type: 'success', timeout: 6000 });
-  } catch (e) {
-    toast(`Download failed: ${e.message}`, { type: 'error' });
-  }
-}
-
-async function warnCompat(files) {
-  if (!settings.get('compatCheck')) return;
-  consolePanel.separator(`Web compatibility · ${new Date().toLocaleTimeString()}`);
-  const errors = await reportCompat(files);
-  if (errors) toast(`${errors} part${errors === 1 ? '' : 's'} of this game won't work on the web. See the console.`, { type: 'error', timeout: 6000 });
-}
-
-async function share() {
-  let link;
-  try {
-    link = await createShareLink(state.project.name, await collectFiles());
-  } catch (e) {
-    await openDialog({
-      title: 'Can’t create a share link',
-      body: h('p', { class: 'dialog-message' }, e.message),
-      actions: [
-        { label: 'Export for web', value: 'love', ghost: true, left: true },
-        { label: 'OK', value: null, primary: true, submit: true },
-      ],
-    }).then((r) => r === 'love' && exportWeb());
-    return;
-  }
-  setProjectFlag('shared', true);
-  let copied = false;
-  try {
-    await navigator.clipboard.writeText(link.url);
-    copied = true;
-  } catch { /* show the dialog instead */ }
-  const input = h('input', { class: 'input', type: 'text', value: link.url, readonly: true, 'aria-label': 'Share link' });
-  const copyBtn = h('button', {
-    type: 'button', class: 'btn primary',
-    onclick: async () => {
-      input.select();
-      try { await navigator.clipboard.writeText(link.url); } catch { document.execCommand('copy'); }
-      toast('Link copied', { type: 'success' });
-    },
-  }, icon('copy'), 'Copy');
-  await openDialog({
-    title: 'Share link',
-    body: h('div', { class: 'field' },
-      h('p', { class: 'dialog-message' }, `${copied ? 'Copied to your clipboard. ' : ''}Anyone with this link gets their own copy of “${state.project.name}” (${formatBytes(link.size)} compressed, stored entirely in the link).`),
-      h('div', { class: 'share-box' }, input, copyBtn)),
-    actions: [{ label: 'Done', value: null, primary: true, submit: true }],
-    onOpen: () => input.select(),
-  });
-}
-
-function showShareMenu() {
-  showMenu($('#btn-share'), [
-    { label: 'Copy a link to this game', icon: 'link', action: share },
-    { label: 'Export for itch.io (web .zip)', icon: 'globe', action: exportWeb },
-    '-',
-    { label: 'Download the project (.zip)', icon: 'archive', action: exportProject },
-    { label: 'Download a .love for desktop LÖVE', icon: 'package', action: exportLove },
-  ]);
-}
-
-function showImportMenu() {
-  showMenu($('#btn-import'), [
-    { label: 'Import files…', icon: 'upload', action: () => importTarget('files', '') },
-    { label: 'Import folder…', icon: 'folderUp', action: () => importTarget('folder', '') },
-    { label: 'Unpack .love / .zip here…', icon: 'archive', action: () => importTarget('archive', '') },
-    '-',
-    { label: 'Open .love / .zip as new project…', icon: 'package', action: () => $('#input-open-project').click() },
-  ]);
-}
-
-// ---------------------------------------------------------------------------
-// Commands, settings, palette
-
-const alt = isMac ? '⌥' : 'Alt';
-
-/**
- * Every command the user can run: shown in the command palette and in the
- * shortcuts list. `keys` is for display; handleShortcut does the matching.
- */
-function commandList() {
-  const m = modKey;
+function projectMenu() {
   return [
-    ['Play', [
-      { id: 'run', label: 'Play game', keys: [['F5'], [m, 'Enter']], icon: 'play', run: () => run() },
-      { id: 'stop', label: 'Stop game', keys: [['Shift', 'F5']], icon: 'stop', run: stop },
-      { id: 'pause', label: 'Pause or resume game', keys: [['F8']], icon: 'pause', run: togglePause },
-      { id: 'autorun', label: () => `${settings.get('autorun') ? 'Turn off' : 'Turn on'} run after saving`, icon: 'zap', run: () => toggleSetting('autorun', 'Run after saving') },
-      { id: 'fullscreen', label: 'Game fullscreen', icon: 'maximize', run: toggleGameFullscreen },
-      { id: 'runScene', label: 'Play from the scene you are editing', keys: [['F6']], icon: 'map', run: () => runScene() },
-      { id: 'popout', label: 'Open game in a new window', icon: 'popout', run: popOutGame },
-      { id: 'compat', label: 'Check web compatibility', icon: 'alert', run: async () => { await saveAll({ quiet: true }); consolePanel.separator('Web compatibility'); const n = await reportCompat(await collectFiles()); if (!(state.problems || []).length) flashStatus('No web compatibility issues'); else if (n) showProblems(); } },
-    ]],
-    ['Files', [
-      { id: 'quickOpen', label: 'Go to file', keys: [[m, 'P']], icon: 'search', run: quickOpen },
-      { id: 'symbol', label: 'Go to function in file', keys: [[m, 'Shift', 'O']], icon: 'hash', run: goToSymbol },
-      { id: 'save', label: 'Save', keys: [[m, 'S']], icon: 'save', run: saveActive },
-      { id: 'saveAll', label: 'Save all', keys: [[m, 'Shift', 'S']], icon: 'save', run: () => saveAll() },
-      { id: 'newFile', label: 'New file', keys: [[alt, 'N']], icon: 'filePlus', run: () => newFile('') },
-      { id: 'newFolder', label: 'New folder', icon: 'folderPlus', run: () => newFolder('') },
-      { id: 'closeTab', label: 'Close tab', keys: [[alt, 'W']], icon: 'x', run: () => closeTab(state.active) },
-      { id: 'nextTab', label: 'Next tab', keys: [[alt, ']']], run: () => cycleTab(1) },
-      { id: 'prevTab', label: 'Previous tab', keys: [[alt, '[']], run: () => cycleTab(-1) },
-      { id: 'import', label: 'Import files', icon: 'upload', run: () => importTarget('files', '') },
-    ]],
-    ['Create', [
-      { id: 'newScene', label: 'New scene', icon: 'map', run: () => createAsset('Scene') },
-      { id: 'newObject', label: 'New object', icon: 'gamepad', run: () => createAsset('Object') },
-      { id: 'newSprite', label: 'New sprite', icon: 'image', run: () => createAsset('Sprite') },
-      { id: 'newTileset', label: 'New tileset', icon: 'grid', run: () => createAsset('Tileset') },
-      { id: 'newScript', label: 'New script', icon: 'code', run: () => createAsset('script') },
-      { id: 'newSound', label: 'New sound effect', icon: 'wave', run: () => createAsset('Sound effect') },
-      { id: 'newSong', label: 'New song', icon: 'music', run: () => createAsset('Song') },
-    ]],
-    ['Project', [
-      { id: 'projects', label: 'Open project', keys: [[m, 'O']], icon: 'folderOpen', run: openProjectsDialog },
-      { id: 'projectSettings', label: 'Project settings', icon: 'sliders', run: editProjectSettings },
-      { id: 'home', label: 'Go to Home', keys: [[m, 'Shift', 'H']], icon: 'home', run: showHome },
-      { id: 'share', label: 'Copy share link', icon: 'link', run: share },
-      { id: 'exportLove', label: 'Download .love', icon: 'package', run: exportLove },
-      { id: 'exportWeb', label: 'Export for web (.zip)', icon: 'globe', run: exportWeb },
-    ]],
-    ['Editor', [
-      { id: 'find', label: 'Find', keys: [[m, 'F']], icon: 'search', run: () => editor.openSearch() },
-      { id: 'replace', label: 'Find and replace', keys: [[m, 'H']], run: () => editor.openSearch() },
-      { id: 'gotoLine', label: 'Go to line', keys: [[m, 'G']], run: () => editor.openGotoLine() },
-      { id: 'wrap', label: () => `${settings.get('wordWrap') ? 'Turn off' : 'Turn on'} word wrap`, keys: [[alt, 'Z']], icon: 'wrap', run: () => toggleSetting('wordWrap', 'Word wrap') },
-      { id: 'zoomIn', label: 'Increase font size', keys: [[m, '=']], run: () => zoomEditor(1) },
-      { id: 'zoomOut', label: 'Decrease font size', keys: [[m, '-']], run: () => zoomEditor(-1) },
-      { id: 'zoomReset', label: 'Reset font size', keys: [[m, '0']], run: () => zoomEditor(0) },
-      { id: 'comment', label: 'Toggle comment', keys: [[m, '/']] },
-      { id: 'complete', label: 'Show suggestions', keys: [['Ctrl', 'Space']] },
-      { id: 'selectNext', label: 'Select next match', keys: [[m, 'D']] },
-      { id: 'indent', label: 'Indent / outdent', keys: [['Tab'], ['Shift', 'Tab']] },
-    ]],
-    ['View', [
-      { id: 'palette', label: 'Command palette', keys: [[m, 'Shift', 'P'], ['F1']], icon: 'command', run: commandPalette },
-      { id: 'settings', label: 'Settings', keys: [[m, ',']], icon: 'settings', run: () => showSettings() },
-      { id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', run: () => showSettings('shortcuts') },
-      { id: 'sidebar', label: 'Toggle side panel', keys: [[m, 'B']], icon: 'sidebar', run: () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')) },
-      { id: 'allFiles', label: () => (state.allFiles ? 'Show assets' : 'Show all files'), keys: [[m, 'Shift', 'E']], icon: 'folder', run: () => setFilesMode(!state.allFiles) },
-      { id: 'gamePanel', label: 'Show or hide the game panel', keys: [[m, 'Shift', 'G']], icon: 'gamepad', run: () => setGamePanelVisible($('#app').classList.contains('right-hidden')) },
-      { id: 'console', label: 'Show or hide the console', keys: [[m, 'J']], icon: 'terminal', run: () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')) },
-      { id: 'theme', label: () => `Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} theme`, icon: 'sun', run: () => settings.set('theme', document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark') },
-      { id: 'clearConsole', label: 'Clear console', icon: 'clear', run: () => consolePanel.clear() },
-      { id: 'copyConsole', label: 'Copy console output', icon: 'copy', run: () => consolePanel.copyAll() },
-    ]],
-    ['Help', [
-      { id: 'api', label: 'smitten cheat sheet', icon: 'book', run: showSmittenApi },
-      { id: 'docs', label: 'LÖVE documentation', icon: 'book', run: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
-      { id: 'source', label: 'Smitten on GitHub', icon: 'globe', run: () => window.open('https://github.com/Mostlime12195/smitten', '_blank', 'noopener') },
-    ]],
+    { label: 'New scene…', icon: 'box', action: () => newScene() },
+    { label: 'New script…', icon: 'code', action: () => newScript() },
+    '-',
+    { label: 'Project settings…', icon: 'settings', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
+    { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+    '-',
+    { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
 }
 
-const labelOf = (c) => (typeof c.label === 'function' ? c.label() : c.label);
-
-function commandPalette() {
-  const items = [];
-  for (const [group, cmds] of commandList()) {
-    for (const c of cmds) if (c.run) items.push({ label: labelOf(c), hint: group, keys: c.keys, icon: c.icon || 'command', run: c.run });
-  }
-  openPicker({ placeholder: 'Type a command', items });
-}
-
-function showSettings(section) {
-  const shortcutGroups = commandList().map(([group, cmds]) => [group, cmds.filter((c) => c.keys).map((c) => ({ label: labelOf(c), keys: c.keys }))]).filter(([, rows]) => rows.length);
-  openSettings({ section, shortcutGroups });
-}
-
-function showHelpMenu() {
-  showMenu($('#btn-help'), [
-    { label: 'Command palette', icon: 'command', shortcut: `${modKey} Shift P`, action: commandPalette },
-    { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => showSettings('shortcuts') },
-    { label: 'smitten cheat sheet', icon: 'book', action: showSmittenApi },
+function editMenu() {
+  const doc = ed.ws === 'scene' ? sceneWs().doc : null;
+  return [
+    { label: 'Undo', icon: 'undo', shortcut: `${modKey}+Z`, disabled: !doc?.undoStack.length, action: () => doc.undo() },
+    { label: 'Redo', icon: 'redo', shortcut: `${modKey}+Shift+Z`, disabled: !doc?.redoStack.length, action: () => doc.redo() },
     '-',
-    { label: 'LÖVE documentation', icon: 'book', action: () => window.open('https://love2d.org/wiki/Main_Page', '_blank', 'noopener') },
-    { label: 'Lua compatibility notes', icon: 'info', action: () => window.open('https://github.com/Mostlime12195/smitten#lua-compatibility', '_blank', 'noopener') },
-    { label: 'Smitten on GitHub', icon: 'globe', action: () => window.open('https://github.com/Mostlime12195/smitten', '_blank', 'noopener') },
-  ]);
-}
-
-function toggleSetting(key, label) {
-  settings.set(key, !settings.get(key));
-  flashStatus(`${label}: ${settings.get(key) ? 'on' : 'off'}`);
-}
-
-function zoomEditor(dir) {
-  const size = dir === 0 ? 13 : Math.min(28, Math.max(9, settings.get('editorFontSize') + dir));
-  settings.set('editorFontSize', size);
-  flashStatus(`Font size ${size}px`);
-}
-
-function applyAllSettings() {
-  for (const [k, v] of Object.entries(settings.all())) onSettingChanged(k, v);
-}
-
-function onSettingChanged(key, value) {
-  switch (key) {
-    case 'editorFontSize':
-      document.documentElement.style.setProperty('--editor-font-size', `${value}px`);
-      editor?.remeasure();
-      break;
-    case 'consoleTimestamps': consolePanel.setTimestamps(value); break;
-    case 'consoleWrap': consolePanel.setWrap(value); break;
-    case 'autoSave': clearTimeout(autoSaveTimer); break;
-    default: break;
-  }
-  if (['tabSize', 'insertSpaces', 'wordWrap', 'lineNumbers', 'highlightActiveLine', 'closeBrackets', 'autocomplete', 'showWhitespace'].includes(key)) {
-    editor?.applySettings(settings.all());
-  }
-  if (key === 'tabSize' || key === 'insertSpaces') updateIndentStatus();
-}
-
-function updateIndentStatus() {
-  if (!$('#status-indent')) return;
-  $('#status-indent').textContent = settings.get('insertSpaces') ? `Spaces: ${settings.get('tabSize')}` : `Tab size: ${settings.get('tabSize')}`;
-}
-
-function quickOpen() {
-  const files = [...state.entries.values()].filter((e) => e.kind === 'file').map((e) => e.path);
-  // Open tabs first (most useful when the query is empty), then the rest.
-  const ordered = [...state.tabs.filter((p) => files.includes(p) && p !== state.active), ...files.filter((p) => !state.tabs.includes(p) || p === state.active)];
-  openPicker({
-    placeholder: 'Go to file',
-    items: ordered.map((p) => ({ label: p, icon: iconFor(p, state.entries.get(p).data), run: () => openFile(p, { focus: true }) })),
-    emptyText: 'No matching files',
-  });
-}
-
-/** Functions defined in the open Lua file. */
-function goToSymbol() {
-  const path = state.active;
-  if (!path || !path.endsWith('.lua') || !editor.has(path)) {
-    flashStatus('Open a Lua file to list its functions');
-    return;
-  }
-  const items = [];
-  const re = /^\s*(?:local\s+)?function\s+([\w.:]+)\s*\(|^\s*(?:local\s+)?([\w.:]+)\s*=\s*function\s*\(/;
-  editor.getText(path).split('\n').forEach((text, i) => {
-    const m = re.exec(text);
-    if (m) items.push({ label: m[1] || m[2], hint: `line ${i + 1}`, icon: 'hash', run: () => openFile(path, { line: i + 1, focus: true }) });
-  });
-  openPicker({ placeholder: `Go to function in ${baseName(path)}`, items, emptyText: 'No functions in this file' });
-}
-
-// ---------------------------------------------------------------------------
-// Shell: sidebar, keyboard, drag & drop
-
-// ---------------------------------------------------------------------------
-// Side panel views, project settings, game focus
-
-/** The side panel shows assets grouped by kind, or (allFiles) the plain file tree. */
-function setFilesMode(allFiles) {
-  state.allFiles = allFiles;
-  LS.set('smitten-editor.allFiles', allFiles);
-  $('#sidebar-title').textContent = allFiles ? 'All files' : 'Assets';
-  $('#btn-all-files').setAttribute('aria-pressed', String(allFiles));
-  $('#btn-all-files').title = allFiles ? 'Show assets (Ctrl+Shift+E)' : 'Show all files (Ctrl+Shift+E)';
-  $('#file-tree').hidden = !allFiles;
-  $('#sidebar-actions').hidden = !allFiles;
-  $('#asset-view').hidden = allFiles;
-  assets.show(!allFiles);
-  if (allFiles) tree.render();
-}
-
-async function editProjectSettings() {
-  if (!state.project) return;
-  const result = await openProjectSettings({ name: state.project.name, manifest: manifest() });
-  if (!result) return;
-  if (result.name !== state.project.name) await renameProject(state.project.id, result.name);
-  const { format, version, engine, resolution, palette, ...rest } = result.manifest;
-  await writeProjectFile('smitten.json', manifestText({ format, version, engine, resolution, palette, ...rest }));
-  flashStatus('Project settings saved');
-}
-
-async function renameProject(id, name) {
-  await store.updateProject(id, { name });
-  if (state.project?.id === id) {
-    state.project.name = name;
-    $('#project-name').textContent = name;
-    $('#game-title').textContent = name;
-    document.title = `${name} · Smitten`;
-    if (!state.active) renderHomeView();
-  }
-}
-
-function showProjectMenu() {
-  showMenu($('#btn-project'), [
-    { label: 'All projects…', icon: 'folderOpen', shortcut: `${modKey} O`, action: openProjectsDialog },
-    { label: 'Project settings…', icon: 'sliders', action: editProjectSettings },
+    { label: 'Add node…', icon: 'plus', shortcut: `${modKey}+A`, disabled: !doc, action: () => addNodeTo(ed.panels.tree.targetParent()) },
+    { label: 'Duplicate', icon: 'copy', shortcut: `${modKey}+D`, disabled: !doc?.selection.size, action: () => doc.select(doc.duplicate(doc.selected())) },
+    { label: 'Delete', icon: 'trash', shortcut: 'Delete', disabled: !doc?.selection.size, action: () => doc.remove(doc.selected()) },
     '-',
-    {
-      label: 'Rename…', icon: 'pencil', action: async () => {
-        const name = await promptDialog({ title: 'Rename project', label: 'Name', value: state.project.name, okLabel: 'Rename', validate: validateProjectName });
-        if (name) await renameProject(state.project.id, name);
-      },
-    },
-    {
-      label: 'Duplicate', icon: 'copy', action: async () => {
-        await saveAll({ quiet: true });
-        const copy = await store.duplicateProject(state.project.id, await uniqueProjectName(`${state.project.name} copy`));
-        toast(`Duplicated “${state.project.name}”`, { type: 'success' });
-        if (copy?.id) await openProject(copy.id);
-      },
-    },
-    { label: 'Download project (.zip)', icon: 'archive', action: exportProject },
-    { label: 'Open .love / .zip as new project…', icon: 'package', action: () => $('#input-open-project').click() },
-  ]);
-}
-
-/** The smitten module at a glance: every function with its arguments and what it does. */
-function showSmittenApi() {
-  const row = (name, d) => h('div', { class: 'api-row' },
-    h('code', {}, d ? `${name}(${d[0]})` : name), h('span', {}, d ? d[1] : ''));
-  const sections = [
-    ['smitten', Object.entries(SMITTEN).filter(([n, d]) => d || n === 'version').map(([n, d]) => row(`smitten.${n}`, d))],
-    ...Object.entries(SMITTEN_NAMESPACES).map(([ns, members]) => [`smitten.${ns}`,
-      Object.entries(members).filter(([, d]) => d).map(([n, d]) => row(`smitten.${ns}.${n}`, d))]),
-    ...Object.entries(SMITTEN_TYPES).map(([type, members]) => [type,
-      Object.entries(members).filter(([, d]) => d).map(([n, d]) => row(`${type.toLowerCase()}:${n}`, d))]),
+    { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
+    { label: 'Editor settings…', icon: 'sliders', action: () => openSettings({}) },
   ];
+}
+
+function viewMenu() {
+  const panelItem = (id, label) => ({ label: `${ed.dock.isVisible(id) ? '✓ ' : '   '}${label}`, action: () => ed.dock.toggle(id) });
+  return [
+    { heading: 'Panels' },
+    panelItem('scene', 'Scene'), panelItem('files', 'Files'), panelItem('inspector', 'Inspector'), panelItem('output', 'Output'),
+    '-',
+    { label: 'Reset layout', icon: 'restart', action: () => resetLayout() },
+    '-',
+    { heading: 'Theme' },
+    ...['system', 'light', 'dark'].map((t) => ({ label: `${settings.get('theme') === t ? '✓ ' : '   '}${t[0].toUpperCase()}${t.slice(1)}`, action: () => settings.set('theme', t) })),
+  ];
+}
+
+function helpMenu() {
+  return [
+    { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
+    { label: 'Node reference…', icon: 'book', action: () => nodeDocs(null) },
+  ];
+}
+
+async function openProjectSettings(tab) {
+  await projectSettingsDialog(ed.project, { tab });
+}
+
+// ---------------------------------------------------------------------------
+// Help
+
+function nodeDocs(type) {
+  const body = h('div', { style: 'display: grid; grid-template-columns: 200px 1fr; gap: 12px; height: min(560px, 70vh)' });
+  const list = h('div', { class: 'add-node-items' });
+  const page = h('div', { class: 'add-node-help' });
+  const showType = (t) => {
+    const def = typeDef(t);
+    for (const el of list.children) el.classList?.toggle('active', el.dataset.type === t);
+    const ownMethods = methods(t);
+    const ev = events(t);
+    page.replaceChildren(
+      h('h3', {}, nodeIcon(t, 20), t),
+      h('p', {}, def.description),
+      def.extends ? h('p', { class: 'module-note' }, `Also has everything a ${def.extends} has.`) : null,
+      h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Properties'),
+      h('ul', {}, ...properties(t).filter((p) => !p.def.hidden).map((p) => h('li', {}, h('code', {}, p.name), ` — ${p.def.description}`))),
+      Object.keys(ownMethods).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Methods') : null,
+      h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `self:${m}(${d.args})`), ` — ${d.doc}`))),
+      Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
+      h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function Name:${m}(${d.args})`), ` — ${d.doc}`))),
+    );
+  };
+  import('./core/schema.js').then(({ typesByGroup }) => {
+    for (const g of typesByGroup()) {
+      list.append(h('div', { class: 'add-node-group' }, g.name));
+      for (const t of g.types) {
+        const item = h('div', { class: 'add-node-item', 'data-type': t.name }, nodeIcon(t.name), t.name);
+        item.addEventListener('click', () => showType(t.name));
+        list.append(item);
+      }
+    }
+    showType(type || 'Node');
+  });
+  body.append(list, page);
+  openDialog({ title: 'Node reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
+}
+
+const SHORTCUTS = [
+  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'],
+  ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
+  ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a node', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a node', 'F2'],
+  ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
+  ['Workspaces', 'Alt+1 … Alt+5'], ['Project settings', `${modKey}+,`], ['Export', `${modKey}+E`],
+];
+
+function shortcutsDialog() {
   openDialog({
-    title: 'smitten cheat sheet',
-    wide: true,
-    body: h('div', { class: 'api-sheet' },
-      h('p', { class: 'dialog-message' }, 'Everything the smitten module adds to LÖVE. Drag a file from the side panel into your code to get the line that loads it.'),
-      ...sections.map(([title, rows]) => h('section', {}, h('h3', {}, title), ...rows))),
-    actions: [{ label: 'Close', value: null, primary: true, submit: true }],
+    title: 'Keyboard shortcuts',
+    body: h('div', { class: 'settings-grid' }, ...SHORTCUTS.flatMap(([a, k]) => [h('label', {}, a), h('kbd', {}, k)])),
+    actions: [{ label: 'Close', value: null, primary: true }],
   });
 }
 
-function setGamePanelVisible(visible) {
-  $('#app').classList.toggle('right-hidden', !visible);
-  $('#btn-toggle-game').setAttribute('aria-pressed', String(visible));
-  LS.set('smitten-editor.gamePanel', visible);
-  editor?.remeasure?.();
+// ---------------------------------------------------------------------------
+// Command palette
+
+function commands() {
+  const doc = sceneWs()?.doc;
+  const list = [
+    { label: 'Play the game', hint: 'F5', run: () => play() },
+    { label: 'Play this scene', hint: 'F6', run: () => doc && play(doc.path) },
+    { label: 'Stop the game', hint: 'F8', run: () => stop() },
+    { label: 'Add node…', hint: `${modKey}+A`, run: () => addNodeTo(ed.panels.tree.targetParent()) },
+    { label: 'New scene…', run: () => newScene() },
+    { label: 'New script…', run: () => newScript() },
+    { label: 'Project settings', run: () => openProjectSettings() },
+    { label: 'Input actions', run: () => openProjectSettings('input') },
+    { label: 'Engine modules', run: () => openProjectSettings('modules') },
+    { label: 'Export…', run: () => exportDialog(ed.project) },
+    { label: 'Reset layout', run: () => resetLayout() },
+    { label: 'Node reference', run: () => nodeDocs(null) },
+    { label: 'Editor settings', run: () => openSettings({}) },
+    { label: 'All games', run: () => { location.hash = ''; } },
+  ];
+  for (const w of WORKSPACES) list.push({ label: `Go to ${w.label}`, run: () => switchWorkspace(w.id) });
+  for (const id of ['scene', 'files', 'inspector', 'output']) list.push({ label: `Show or hide the ${id} panel`, run: () => ed.dock.toggle(id) });
+  return list;
 }
 
-function setConsoleCollapsed(collapsed) {
-  $('#app').classList.toggle('console-collapsed', collapsed);
-  $('#console-toggle').setAttribute('aria-expanded', String(!collapsed));
-  LS.set('smitten-editor.consoleCollapsed', collapsed);
+function commandPalette(filesOnly = false) {
+  const input = h('input', { class: 'input', placeholder: filesOnly ? 'Open a file…' : 'Type a command or a file name…', 'aria-label': 'Search' });
+  const list = h('div', { class: 'add-node-items', style: 'height: 320px' });
+  let items = [];
+  let index = 0;
+  const all = () => [
+    ...(filesOnly ? [] : commands()),
+    ...ed.project.paths().map((p) => ({ label: p, hint: 'file', run: () => openFile(p) })),
+  ];
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    items = all().filter((c) => !q || c.label.toLowerCase().includes(q)).slice(0, 60);
+    index = Math.min(index, Math.max(0, items.length - 1));
+    list.replaceChildren(...items.map((c, i) => {
+      const el = h('div', { class: `add-node-item ${i === index ? 'active' : ''}` }, h('span', {}, c.label), c.hint ? h('span', { class: 'muted' }, c.hint) : null);
+      el.addEventListener('click', () => { dlg.finish(null); c.run(); });
+      return el;
+    }));
+  };
+  let dlg;
+  input.addEventListener('input', () => { index = 0; render(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      index = Math.max(0, Math.min(items.length - 1, index + (e.key === 'ArrowDown' ? 1 : -1)));
+      render();
+      list.children[index]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const c = items[index];
+      dlg.finish(null);
+      c?.run();
+    }
+  });
+  openDialog({ title: filesOnly ? 'Open a file' : 'Command palette', body: h('div', { style: 'display: flex; flex-direction: column; gap: 8px' }, input, list), onOpen: (d) => { dlg = d; render(); input.focus(); } });
 }
 
-function setSidebarVisible(visible, persist = true) {
-  $('#app').classList.toggle('sidebar-hidden', !visible);
-  $('#btn-sidebar').setAttribute('aria-pressed', String(visible));
-  if (persist) LS.set('smitten-editor.sidebar', visible);
+// ---------------------------------------------------------------------------
+// Keyboard
+
+function typing(e) {
+  const t = e.target;
+  return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.closest?.('.cm-editor'));
 }
 
-function cycleTab(dir) {
-  if (state.tabs.length < 2) return;
-  const i = state.tabs.indexOf(state.active);
-  openFile(state.tabs[(i + dir + state.tabs.length) % state.tabs.length]);
-}
-
-/** Returns true when the event was a shortcut (and has been handled). */
-function handleShortcut(e, fromGame = false) {
+function handleGlobalKey(e) {
+  if (!ed) return false;
   const mod = isMac ? e.metaKey : e.ctrlKey;
-  const key = e.key;
-  const lower = key.length === 1 ? key.toLowerCase() : key;
-  if (document.querySelector('dialog[open]')) return key === 'F5' && !fromGame; // just block reloads
-  // Tools get first pick of keys while they have focus (e.g. Ctrl+= zooms the pixel editor).
-  if (!fromGame && key !== 'F5' && tools.handleKey(e)) return true;
-
-  if (key === 'F5' && !mod) { if (e.shiftKey) stop(); else run(); return true; }
-  if (key === 'F6' && !mod) { runScene(); return true; }
-  if (mod && key === 'Enter') { run(); return true; }
-  if (key === 'F8') { togglePause(); return true; }
-  if (mod && lower === 's') { if (e.shiftKey) saveAll(); else saveActive(); return true; }
-  if (fromGame) return false;
-
-  if (key === 'F1' || (mod && e.shiftKey && lower === 'p')) { commandPalette(); return true; }
-  if (mod && !e.shiftKey && key === ',') { showSettings(); return true; }
-  if (mod && e.shiftKey && lower === 'o') { goToSymbol(); return true; }
-  if (mod && !e.altKey && (key === '=' || key === '+')) { zoomEditor(1); return true; }
-  if (mod && !e.altKey && key === '-') { zoomEditor(-1); return true; }
-  if (mod && !e.altKey && key === '0') { zoomEditor(0); return true; }
-  if (e.altKey && !mod && e.code === 'KeyZ') { toggleSetting('wordWrap', 'Word wrap'); return true; }
-  if (mod && !e.shiftKey && lower === 'p') { quickOpen(); return true; }
-  if (mod && !e.shiftKey && lower === 'o') { openProjectsDialog(); return true; }
-  if (mod && !e.shiftKey && lower === 'b') { setSidebarVisible($('#app').classList.contains('sidebar-hidden')); return true; }
-  if (mod && e.shiftKey && lower === 'e') { setFilesMode(!state.allFiles); if (!$('#app').classList.contains('sidebar-hidden')) return true; setSidebarVisible(true); return true; }
-  if (mod && !e.shiftKey && lower === 'j') { setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')); return true; }
-  if (mod && e.shiftKey && lower === 'g') { setGamePanelVisible($('#app').classList.contains('right-hidden')); return true; }
-  if (mod && e.shiftKey && lower === 'h') { showHome(); return true; }
-
-  if (e.altKey && !mod && e.code === 'KeyW') { closeTab(state.active); return true; }
-  if (e.altKey && !mod && e.code === 'KeyN') { newFile(''); return true; }
-  if (e.altKey && !mod && e.code === 'BracketRight') { cycleTab(1); return true; }
-  if (e.altKey && !mod && e.code === 'BracketLeft') { cycleTab(-1); return true; }
+  const k = e.key.toLowerCase();
+  if (e.key === 'F5') { play(e.shiftKey ? null : ed.lastRun ?? null); return true; }
+  if (e.key === 'F6') { const d = sceneWs().doc; if (d) play(d.path); return true; }
+  if (e.key === 'F8') { stop(); return true; }
+  if (mod && (k === 'k' || (e.shiftKey && k === 'p'))) { commandPalette(); return true; }
+  if (mod && k === 'p') { commandPalette(true); return true; }
+  if (mod && k === 's') { saveAll(); toast('Saved.'); return true; }
+  if (mod && k === ',') { openProjectSettings(); return true; }
+  if (mod && k === 'e') { exportDialog(ed.project); return true; }
+  if (e.altKey && /^[1-5]$/.test(e.key)) { switchWorkspace(WORKSPACES[Number(e.key) - 1].id); return true; }
   return false;
 }
 
-function wireUi() {
-  window.addEventListener('keydown', (e) => {
-    if (handleShortcut(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
-
-  $('#btn-run').addEventListener('click', () => run());
-  $('#btn-run-big').addEventListener('click', () => run());
-  $('#btn-stop').addEventListener('click', stop);
-  $('#btn-run-scene').addEventListener('click', () => runScene());
-  $('#btn-pause').addEventListener('click', togglePause);
-  $('#btn-project').addEventListener('click', showProjectMenu);
-  $('#btn-all-files').addEventListener('click', () => setFilesMode(!state.allFiles));
-  $('#console-search').addEventListener('click', () => {
-    const filter = $('#console-filter');
-    filter.hidden = !filter.hidden;
-    $('#console-search').setAttribute('aria-pressed', String(!filter.hidden));
-    if (filter.hidden) { filter.value = ''; filter.dispatchEvent(new Event('input')); } else filter.focus();
-  });
-  $('#tab-home').addEventListener('click', showHome);
-  $('.brand').addEventListener('click', (e) => { e.preventDefault(); showHome(); });
-  $('#btn-toggle-game').addEventListener('click', () => setGamePanelVisible($('#app').classList.contains('right-hidden')));
-  $('#console-toggle').addEventListener('click', () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')));
-  $('#btn-share').addEventListener('click', showShareMenu);
-  $('#btn-help').addEventListener('click', showHelpMenu);
-  $('#btn-settings').addEventListener('click', () => showSettings());
-  $('#status-cursor').addEventListener('click', () => editor.openGotoLine());
-  $('#status-problems').addEventListener('click', showProblems);
-  updateIndentStatus();
-
-  // Auto save when leaving the editor or the page.
-  const saveOnLeave = () => { if (settings.get('autoSave') === 'blur' && state.dirty.size) saveAll({ quiet: true }); };
-  $('#editor-host').addEventListener('focusout', saveOnLeave);
-  window.addEventListener('blur', saveOnLeave);
-  $('#btn-sidebar').addEventListener('click', () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')));
-  $('#btn-new-file').addEventListener('click', (e) => showNewMenu(e.currentTarget));
-  $('#btn-new-folder').addEventListener('click', () => newFolder(''));
-  $('#btn-import').addEventListener('click', showImportMenu);
-  $('#btn-game-fullscreen').addEventListener('click', toggleGameFullscreen);
-  $('#btn-popout').addEventListener('click', popOutGame);
-  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) runner.focus(); });
-
-  const pick = (input, fn) => input.addEventListener('change', async () => {
-    const files = [...input.files];
-    input.value = '';
-    if (files.length) await fn(files);
-  });
-  pick($('#input-files'), (files) => importFiles(files.map((file) => ({ path: file.name, file })), importDir));
-  pick($('#input-folder'), (files) => importFiles(files.map((file) => ({ path: file.webkitRelativePath || file.name, file })), importDir));
-  pick($('#input-archive'), (files) => importFiles(files.map((file) => ({ path: file.name, file })), importDir));
-  pick($('#input-open-project'), (files) => openArchiveAsProject(files[0]));
-
-  // Drag & drop anywhere (the file tree handles drops on itself).
-  let depth = 0;
-  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
-  const overlay = $('#drop-overlay');
-  const endDrag = () => {
-    depth = 0;
-    overlay.hidden = true;
-    document.body.classList.remove('dragging-files');
-    $('#app').classList.remove('resizing');
-  };
-  window.addEventListener('dragenter', (e) => {
-    if (!hasFiles(e)) return;
-    depth++;
-    overlay.hidden = false;
-    // Keep drops away from the game iframe and the code editor.
-    $('#app').classList.add('resizing');
-  });
-  window.addEventListener('dragleave', () => {
-    depth = Math.max(0, depth - 1);
-    if (!depth) endDrag();
-  });
-  window.addEventListener('dragover', (e) => {
-    if (!hasFiles(e)) return;
+document.addEventListener('keydown', (e) => {
+  if (!ed) return;
+  if (handleGlobalKey(e)) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  });
-  window.addEventListener('drop', async (e) => {
-    if (!hasFiles(e)) return;
-    if (e.target.closest?.('#file-tree')) { endDrag(); return; } // the tree handles it
+    return;
+  }
+  if (document.querySelector('dialog[open]')) return;
+  const ws = ed.workspaces[ed.ws];
+  if (!typing(e) && ws?.handleKey(e)) {
     e.preventDefault();
-    e.stopPropagation();
-    endDrag();
-    const items = await readDataTransfer(e.dataTransfer);
-    const archives = items.filter((i) => /\.(love|zip)$/i.test(i.path));
-    if (items.length === 1 && archives.length === 1 && e.target.closest?.('#game-panel')) {
-      await openArchiveAsProject(archives[0].file);
-      return;
-    }
-    await importFiles(items, '');
-  }, true);
+    return;
+  }
+  // Undo and redo in the scene workspace (tools and the code editor have their own).
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+  if (ed.ws === 'scene' && mod && !typing(e)) {
+    const doc = sceneWs().doc;
+    const k = e.key.toLowerCase();
+    if (doc && k === 'z') { e.preventDefault(); if (e.shiftKey) doc.redo(); else doc.undo(); }
+    else if (doc && k === 'y') { e.preventDefault(); doc.redo(); }
+    else if (doc && k === 'c') { copyNodes(); }
+    else if (doc && k === 'v') { e.preventDefault(); pasteNodes(); }
+  }
+});
 
-  window.addEventListener('beforeunload', (e) => {
-    if (state.dirty.size) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
-  // Remember open tabs when the page goes away.
-  window.addEventListener('pagehide', () => {
-    if (state.project) store.updateProject(state.project.id, { tabs: [...state.tabs], active: state.active }).catch(() => {});
+function buildOutputPanel(el) {
+  const filter = h('input', { class: 'input', type: 'search', placeholder: 'Filter output', 'aria-label': 'Filter output' });
+  const clear = h('button', { type: 'button', class: 'icon-btn', title: 'Clear', 'aria-label': 'Clear' }, icon('clear', 15));
+  const copy = h('button', { type: 'button', class: 'icon-btn', title: 'Copy everything', 'aria-label': 'Copy everything' }, icon('copy', 15));
+  const badge = h('span', { class: 'badge danger', hidden: true });
+  const out = h('div', { id: 'console-output', role: 'log' });
+  el.append(h('div', { class: 'panel' }, h('div', { class: 'panel-toolbar' }, filter, copy, clear, badge), h('div', { class: 'panel-scroll', style: 'display: flex; flex-direction: column' }, out)));
+  ed.console = new ConsolePanel(out, { filter, clear, copy, badge }, {
+    fileExists: (p) => ed.project.has(p),
+    onOpenLocation: (path, line) => {
+      switchWorkspace('script');
+      ed.workspaces.script.open(path, { line });
+    },
   });
 }
 
-// For debugging and automated checks.
-window.studio = {
-  state,
-  store,
-  get editor() { return editor; },
-  get runner() { return runner; },
-  get tools() { return tools; },
-  run, stop, openFile, openProject, saveAll, collectFiles, writeProjectFile, buildLove, buildWebExport, createShareLink, unzipToProjectFiles,
-  createFromTemplate, loadExampleIndex, importFiles,
-};
-
-init().catch((e) => {
-  console.error(e);
-  $('#app').classList.remove('booting');
-  toast(`Smitten failed to start: ${e.message}`, { type: 'error', timeout: 10000 });
-});
+boot();

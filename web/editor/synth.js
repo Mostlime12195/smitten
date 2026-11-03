@@ -134,14 +134,14 @@ export async function loadSynth() {
   return {
     sampleRate: SAMPLE_RATE,
 
-    // params: a decoded .sfx.json. -> Float32Array, 44100 Hz mono.
+    // params: a decoded .sfx. -> Float32Array, 44100 Hz mono.
     renderSfx(params) {
       const values = [];
       encodeSfx(values, params);
       return call(values, (ptr, n) => m._synth_render_sfx(ptr, n));
     },
 
-    // song: a decoded .song.json; readSfx(path) returns the params of a
+    // song: a decoded .song; readSfx(path) returns the params of a
     // sound-effect instrument's file (path as written in the song), or
     // undefined (the instrument is then silent). -> Float32Array: one pass
     // through `order`, then whatever still rings.

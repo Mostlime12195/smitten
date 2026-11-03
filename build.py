@@ -565,6 +565,8 @@ def copy_web():
         player.write_text(player.read_text().replace("__SMITTEN_BUILD__", build_id()))
     if (WEB / "examples").exists():
         shutil.copytree(WEB / "examples", DIST / "examples", dirs_exist_ok=True)
+    # The node schema, for the editor (web/editor/core/schema.js).
+    shutil.copy(MODULES / "scene" / "nodes.json", DIST / "nodes.json")
 
 
 if __name__ == "__main__":
