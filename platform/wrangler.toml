@@ -1,0 +1,60 @@
+# Smitten's game-sharing site. `npx wrangler dev` runs it locally with
+# simulated R2 and D1 (stored in .wrangler/state); see README.md for deploying.
+name = "smitten-platform"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# The gallery, the play page and Smitten's player (copied into
+# public/player/ by scripts/copy-player.sh). Every request goes through the
+# Worker first so it can route /api and /play and add security headers.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+not_found_handling = "none"
+
+# Game files: games/<id>/game.love and games/<id>/thumbnail.png.
+[[r2_buckets]]
+binding = "GAMES"
+bucket_name = "smitten-games"
+
+# Metadata, reports, play counts and rate limits (migrations/).
+[[d1_databases]]
+binding = "DB"
+database_name = "smitten-games"
+# Replace with the id that `wrangler d1 create smitten-games` prints before
+# deploying. Local development doesn't need a real one.
+database_id = "00000000-0000-4000-8000-000000000000"
+migrations_dir = "migrations"
+
+# The schema is bundled as text so the Worker can create its tables on first use.
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
+
+[vars]
+# Where "Remix" sends people: the editor opens <EDITOR_URL>#remix=<id>.
+EDITOR_URL = "http://localhost:8766/"
+# Origins (comma-separated) that may call the publish and remix endpoints:
+# the editor, and the publish harness in dev/ (served on port 8796).
+ALLOWED_ORIGINS = "http://localhost:8766,http://127.0.0.1:8766,http://localhost:8796,http://127.0.0.1:8796"
+# Open reports from different people that hide a game until it's reviewed.
+REPORT_THRESHOLD = "3"
+# Size limits in bytes: 25 MB for a game, 1 MB for a thumbnail.
+MAX_GAME_BYTES = "26214400"
+MAX_THUMBNAIL_BYTES = "1048576"
+# Per IP address and hour. Publishing an update counts as a publish.
+PUBLISH_LIMIT_PER_HOUR = "10"
+REPORT_LIMIT_PER_HOUR = "20"
+# What published games may connect to with require("https"): "self" (only
+# this site) or "https" (any https site that allows it with CORS).
+GAME_NETWORK = "self"
+
+# Secrets (`wrangler secret put NAME`; locally, in .dev.vars):
+#   ADMIN_TOKEN  bearer token for /api/admin/*. Admin endpoints are off without it.
+#   IP_SALT      salt for hashing IP addresses before they're stored.
+
+[dev]
+port = 8787
