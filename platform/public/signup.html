@@ -28,7 +28,8 @@
 
     <div id="hackclub" hidden>
       <a class="btn wide" id="hackclub-link" href="/auth/hackclub">Sign up with Hack Club</a>
-      <p class="or"><span>or</span></p>
+      <p class="fine hint-below">In Hack Club? Use that account: no new password to remember.</p>
+      <p class="or"><span>or pick a username and password</span></p>
     </div>
 
     <form class="form" id="form" novalidate>
@@ -50,17 +51,25 @@
         <span class="hint">At least 8 characters. A few words together is easy to remember and hard to guess.</span>
         <span class="field-error" data-error-for="password"></span>
       </label>
-      <p class="fine">Your username and display name are public. We don't ask for your email, and we don't want your real name, school or anything else about you.</p>
+      <label class="field" id="email-field" hidden>
+        <span>Email <em>(optional)</em></span>
+        <input class="input" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+        <span class="hint">Only for resetting your password and notes about your account. It's never shown to anyone.</span>
+        <span class="field-error" data-error-for="email"></span>
+      </label>
+      <p class="fine" id="privacy">Your username and display name are public. We don't ask for your email, and we don't want your real name, school or anything else about you.</p>
       <p class="field-error" data-error-for="form" role="alert"></p>
       <button type="submit" class="btn primary wide" id="submit">Make my account</button>
     </form>
 
     <p class="alt" id="signin-alt">Already have one? <a id="signin-link" href="/signin">Sign in</a></p>
+    <p class="fine hint-below" id="link-hint" hidden>Already have a Smitten account and want to use Hack Club with it? Sign in, then choose “Connect your Hack Club account” in your account settings.</p>
   </section>
 
   <section class="panel" id="codes" hidden>
     <h1>Save your recovery codes</h1>
-    <p class="lead">There's no email on your account, so if you forget your password, one of these codes is how you get back in. Each works once. Keep them somewhere safe, like a note on your phone or a piece of paper.</p>
+    <p class="lead" id="codes-lead">There's no email on your account, so if you forget your password, one of these codes is how you get back in. Each works once. Keep them somewhere safe, like a note on your phone or a piece of paper.</p>
+    <p class="banner" id="email-sent" role="status" hidden></p>
     <div id="codes-list"></div>
     <label class="check"><input type="checkbox" id="saved"> I've saved my codes</label>
     <a class="btn primary wide" id="continue" aria-disabled="true">Continue</a>
