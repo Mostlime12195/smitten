@@ -1,19 +1,19 @@
 {
   "name": "smitten-platform",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Smitten's game-sharing site: a Cloudflare Worker with R2 and D1.",
+  "description": "Smitten's game-sharing site: a Node server with SQLite (node:sqlite) and game files on disk. No dependencies.",
   "type": "module",
-  "scripts": {
-    "copy-player": "sh scripts/copy-player.sh",
-    "dev": "wrangler dev",
-    "seed": "node scripts/seed.mjs",
-    "test": "node ../tools/platform-tests/test.mjs",
-    "migrate:local": "wrangler d1 migrations apply smitten-games --local",
-    "migrate:remote": "wrangler d1 migrations apply smitten-games --remote",
-    "deploy": "wrangler deploy"
+  "engines": {
+    "node": ">=24"
   },
-  "devDependencies": {
-    "wrangler": "4.151.3"
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "copy-player": "sh scripts/copy-player.sh",
+    "seed": "node scripts/seed.mjs",
+    "admin": "node scripts/admin.mjs",
+    "backup": "node scripts/backup.mjs",
+    "test": "node ../tools/platform-tests/test.mjs"
   }
 }

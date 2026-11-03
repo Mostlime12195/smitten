@@ -1,8 +1,0 @@
-# Local secrets for `wrangler dev`. Copy this file to .dev.vars (which git
-# ignores). In production, set them with `wrangler secret put NAME`.
-
-# Bearer token for /api/admin/*. Admin endpoints are off without it.
-ADMIN_TOKEN=dev-admin-token
-
-# Salt for hashing IP addresses (rate limits, report and play de-duplication).
-IP_SALT=dev-ip-salt

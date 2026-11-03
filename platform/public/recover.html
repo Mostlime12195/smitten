@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forgot your password · Smitten</title>
+<meta name="smitten-editor-url" content="">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<script type="module" src="/recover.js"></script>
+</head>
+<body data-no-account-link>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="Smitten games">
+      <svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>Smitten</span>
+    </a>
+  </div>
+</header>
+
+<main class="page narrow">
+  <section class="panel" id="recover">
+    <h1 id="heading">Forgot your password?</h1>
+    <p class="lead" id="lead">Use one of the recovery codes you saved when you made your account.</p>
+
+    <form class="form" id="form" novalidate>
+      <label class="field" data-code-only>
+        <span>Username</span>
+        <input class="input" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40">
+      </label>
+      <label class="field" data-code-only>
+        <span>Recovery code</span>
+        <input class="input mono" name="code" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" placeholder="xxxx-xxxx-xxxx">
+        <span class="field-error" data-error-for="code"></span>
+      </label>
+      <label class="field">
+        <span>New password</span>
+        <input class="input" name="password" type="password" autocomplete="new-password" maxlength="200">
+        <span class="hint">At least 8 characters.</span>
+        <span class="field-error" data-error-for="password"></span>
+      </label>
+      <p class="field-error" data-error-for="form" role="alert"></p>
+      <button type="submit" class="btn primary wide">Set my new password</button>
+    </form>
+
+    <p class="fine" data-code-only>No codes? If you signed up with Hack Club, <a href="/signin">sign in with Hack Club</a>. Otherwise, ask a moderator or the person who runs this site for a reset link.</p>
+  </section>
+
+  <section class="panel" id="done" hidden>
+    <h1>Your password is changed</h1>
+    <p class="lead" id="done-text">You're signed in. Everywhere else you were signed in, including the editor, you'll need to sign in again.</p>
+    <a class="btn primary wide" href="/account">Go to your account</a>
+  </section>
+</main>
+</body>
+</html>

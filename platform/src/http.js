@@ -1,4 +1,6 @@
-// Responses, errors, security headers and CORS.
+// Responses, errors, cookies, security headers and CORS. Handlers work with
+// the web's Request and Response (as Node's fetch does); server.js converts
+// to and from Node's http module.
 
 /** An error with an HTTP status and a message that's safe to show people. */
 export class HttpError extends Error {
@@ -20,6 +22,10 @@ export function json(data, status = 200, headers = {}) {
   });
 }
 
+export function redirect(location, status = 302, headers = {}) {
+  return new Response(null, { status, headers: { Location: location, 'Cache-Control': 'no-store', ...headers } });
+}
+
 export function errorResponse(e) {
   if (e instanceof HttpError) {
     const headers = {};
@@ -30,6 +36,45 @@ export function errorResponse(e) {
   }
   console.error(e?.stack || e);
   return json({ error: 'Something went wrong on our side. Please try again.' }, 500);
+}
+
+/** The request's JSON body (at most 16 KB), or a 4xx. */
+export async function readJson(request) {
+  if (!/^application\/json/i.test(request.headers.get('Content-Type') || '')) {
+    throw new HttpError(415, 'Send JSON (Content-Type: application/json).');
+  }
+  if (Number(request.headers.get('Content-Length') || 0) > 16 * 1024) throw new HttpError(413, 'That request is too big.');
+  let text;
+  try {
+    text = await request.text();
+  } catch {
+    throw new HttpError(400, "The request couldn't be read.");
+  }
+  if (text.length > 16 * 1024) throw new HttpError(413, 'That request is too big.');
+  try {
+    const body = JSON.parse(text);
+    if (body && typeof body === 'object' && !Array.isArray(body)) return body;
+  } catch { /* below */ }
+  throw new HttpError(400, 'The request must be a JSON object.');
+}
+
+// ---------------------------------------------------------------------------
+// Cookies
+
+export function readCookie(request, name) {
+  for (const part of (request.headers.get('Cookie') || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return null;
+}
+
+/** A Set-Cookie value: HttpOnly, SameSite=Lax, Secure on https. maxAge in seconds (0 deletes it). */
+export function cookie(config, name, value, { maxAge, path = '/' } = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${path}`, 'HttpOnly', 'SameSite=Lax'];
+  if (maxAge != null) parts.push(`Max-Age=${maxAge}`);
+  if (config.secureCookies) parts.push('Secure');
+  return parts.join('; ');
 }
 
 // ---------------------------------------------------------------------------
@@ -56,8 +101,8 @@ const SITE_CSP = [
 // WebAssembly at run time, hence 'wasm-unsafe-eval'). player.html has one
 // inline handler (oncontextmenu="event.preventDefault()"), allowed by hash.
 // connect-src limits what a game can reach with require("https").
-function playerCsp(env) {
-  const connect = env.GAME_NETWORK === 'https' ? "'self' https:" : "'self'";
+function playerCsp(config) {
+  const connect = config.gameNetwork === 'https' ? "'self' https:" : "'self'";
   return [
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval' 'unsafe-hashes' 'sha256-cwPror8N/Ds4hiaerviPOQ1rJd1zjNrEPnNZvr5x7Z8='",
@@ -80,51 +125,55 @@ const FILE_CSP = "default-src 'none'; frame-ancestors 'none'; sandbox";
 // ask for the microphone).
 const PERMISSIONS = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), display-capture=()';
 
-/** Adds the headers every response gets. kind: 'site' | 'player' | 'file'. */
-export function withSecurityHeaders(res, kind, env) {
-  const out = new Response(res.body, res);
-  const h = out.headers;
+/**
+ * Adds the headers every response gets. kind: 'site' | 'auth' | 'player' | 'file'.
+ * 'auth' pages (sign-in, the editor's sign-in popup) are like 'site' pages
+ * but without Cross-Origin-Opener-Policy, which would cut the popup off from
+ * the editor that opened it.
+ */
+export function withSecurityHeaders(res, kind, config) {
+  const h = res.headers;
   h.set('X-Content-Type-Options', 'nosniff');
-  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  h.set('Referrer-Policy', kind === 'auth' ? 'no-referrer' : 'strict-origin-when-cross-origin');
   h.set('Permissions-Policy', PERMISSIONS);
   if (kind === 'player') {
-    h.set('Content-Security-Policy', playerCsp(env));
+    h.set('Content-Security-Policy', playerCsp(config));
     h.set('X-Frame-Options', 'SAMEORIGIN');
-  } else if (kind === 'site') {
+  } else if (kind === 'site' || kind === 'auth') {
     h.set('Content-Security-Policy', SITE_CSP);
     h.set('X-Frame-Options', 'DENY');
-    h.set('Cross-Origin-Opener-Policy', 'same-origin');
+    if (kind === 'site') h.set('Cross-Origin-Opener-Policy', 'same-origin');
   } else {
     h.set('Content-Security-Policy', FILE_CSP);
     h.set('X-Frame-Options', 'DENY');
   }
-  return out;
+  if (config.secureCookies) h.set('Strict-Transport-Security', 'max-age=31536000');
+  return res;
 }
 
 // ---------------------------------------------------------------------------
 // CORS: the editor runs on another origin and publishes, updates, deletes
-// and remixes games. Only the origins in ALLOWED_ORIGINS get CORS headers.
+// and remixes games with an editor token (never cookies: no
+// Access-Control-Allow-Credentials). Only EDITOR_ORIGINS get CORS headers.
 
-export function allowedOrigin(request, env) {
+export function allowedOrigin(request, config) {
   const origin = request.headers.get('Origin');
   if (!origin) return null;
-  const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return allowed.includes(origin) || allowed.includes('*') ? origin : null;
+  return config.editorOrigins.includes(origin) || config.editorOrigins.includes('*') ? origin : null;
 }
 
-export function withCors(res, request, env) {
-  const origin = allowedOrigin(request, env);
-  const out = new Response(res.body, res);
-  out.headers.append('Vary', 'Origin');
+export function withCors(res, request, config) {
+  const origin = allowedOrigin(request, config);
+  res.headers.append('Vary', 'Origin');
   if (origin) {
-    out.headers.set('Access-Control-Allow-Origin', origin);
-    out.headers.set('Access-Control-Expose-Headers', 'Retry-After');
+    res.headers.set('Access-Control-Allow-Origin', origin);
+    res.headers.set('Access-Control-Expose-Headers', 'Retry-After');
   }
-  return out;
+  return res;
 }
 
-export function preflight(request, env) {
-  const origin = allowedOrigin(request, env);
+export function preflight(request, config) {
+  const origin = allowedOrigin(request, config);
   if (!origin) return new Response(null, { status: 403, headers: { Vary: 'Origin' } });
   return new Response(null, {
     status: 204,

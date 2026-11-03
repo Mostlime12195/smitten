@@ -1,0 +1,17 @@
+# Only if you put Caddy in front of the site yourself: on a server without a
+# reverse proxy, or on the older Nest setup where each person had their own
+# Caddyfile. On today's Nest, the dashboard's Domains tab is the reverse proxy
+# (it sends a domain to a port), and you don't need this.
+#
+# Caddy gets the certificate, compresses responses and passes the client's
+# address in X-Forwarded-For (set TRUST_PROXY=1). Then the server can listen
+# on 127.0.0.1 only (HOST=127.0.0.1).
+
+games.example.com {
+	encode zstd gzip
+	# The largest upload: a 25 MB game, a 1 MB thumbnail, and the form around them.
+	request_body {
+		max_size 27MB
+	}
+	reverse_proxy 127.0.0.1:8787
+}

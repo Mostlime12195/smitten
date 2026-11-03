@@ -3,12 +3,19 @@
 //
 //   publishDialog(project, { files, modules, platformUrl })
 //     The Publish dialog: title, description and an optional thumbnail (a PNG
-//     from the project), then uploads the game as a .love. The site answers
-//     with the game's id and an edit token, kept in localStorage under
-//     "smitten-editor.published" ({[gameId]: {projectId, token, ...}}), so
-//     publishing the same project again updates the game (same link), and
-//     the dialog can remove it from the site. Resolves with
-//     {id, url, version}, {deleted: id}, or null if cancelled.
+//     from the project), then uploads the game as a .love. Games belong to
+//     accounts on the site, so it asks you to sign in first (account.js)
+//     and says who's publishing. Which game a project was published as is
+//     kept in localStorage under "smitten-editor.published"
+//     ({[gameId]: {projectId, owner, ...}}), so publishing the same project
+//     again updates the game (same link), and the dialog can remove it from
+//     the site. Resolves with {id, url, version}, {deleted: id}, or null if
+//     cancelled.
+//
+//   claimLocalGames(platformUrl)
+//     Games published from this browser before accounts have an edit token
+//     in "smitten-editor.published". Signing in claims them for the account
+//     (it runs on its own whenever the account changes).
 //
 //   fetchRemix(platformUrl, gameId) -> {name, files, remixOf}
 //     A published game's files, to open as a new project (for
@@ -20,6 +27,7 @@
 
 import { h, openDialog, confirmDialog, toast, formatBytes } from './ui.js';
 import { buildLove, unzipToProjectFiles } from './exporter.js';
+import { account, accountToken, clearAccount, onChange, refreshAccount, signIn, signOut } from './account.js';
 
 const PUBLISHED_KEY = 'smitten-editor.published';
 const REMIXES_KEY = 'smitten-editor.remixes';
@@ -30,7 +38,7 @@ export const DEFAULT_PLATFORM_URL = 'http://localhost:8787';
 // each game; publishDialog's engineVersion option overrides it.
 const SMITTEN_VERSION = '0.2.0';
 
-// The site's limits (it checks them too: platform/wrangler.toml).
+// The site's limits (it checks them too: platform/deploy/env.example).
 const MAX_GAME_BYTES = 25 * 1024 * 1024;
 const MAX_THUMBNAIL_BYTES = 1024 * 1024;
 const MAX_TITLE = 60;
@@ -60,7 +68,7 @@ function writeJSON(key, value) {
 
 const baseUrl = (url) => String(url || DEFAULT_PLATFORM_URL).replace(/\/+$/, '');
 
-/** Every game published from this browser: {[gameId]: {projectId, token, title, url, platformUrl, ...}}. */
+/** Every game published from this browser: {[gameId]: {projectId, owner, title, url, platformUrl, ...}}. */
 export function publishedGames() {
   return readJSON(PUBLISHED_KEY, {});
 }
@@ -83,6 +91,61 @@ function forgetPublished(id) {
   delete all[id];
   writeJSON(PUBLISHED_KEY, all);
 }
+
+/**
+ * Claims the games this browser published before accounts (the ones it has
+ * edit tokens for) for the signed-in account. Resolves with the number
+ * claimed.
+ */
+const claiming = new Map();
+
+export function claimLocalGames(platformUrl = DEFAULT_PLATFORM_URL) {
+  const base = baseUrl(platformUrl);
+  if (!claiming.has(base)) claiming.set(base, claim(base).finally(() => claiming.delete(base)));
+  return claiming.get(base);
+}
+
+async function claim(base) {
+  const user = account(base);
+  const token = accountToken(base);
+  const all = publishedGames();
+  const games = Object.entries(all)
+    .filter(([, e]) => e.token && !e.claimFailed && baseUrl(e.platformUrl) === base)
+    .map(([id, e]) => ({ id, token: e.token }));
+  if (!user || !token || !games.length) return 0;
+  let res;
+  try {
+    res = await request(`${base}/api/account/claim`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ games: games.slice(0, 100) }),
+    });
+  } catch (e) {
+    if (e.status === 401) clearAccount(base);
+    return 0;
+  }
+  const now = publishedGames();
+  for (const id of [...res.claimed, ...res.owned]) {
+    if (!now[id]) continue;
+    const { token: _, ...rest } = now[id];
+    now[id] = { ...rest, owner: user.username };
+  }
+  for (const { id, reason } of res.failed) {
+    if (!now[id]) continue;
+    if (reason === 'missing') delete now[id];
+    else now[id] = { ...now[id], claimFailed: reason };
+  }
+  writeJSON(PUBLISHED_KEY, now);
+  return res.claimed.length;
+}
+
+// Signing in claims this browser's old games.
+onChange((user, platformUrl) => {
+  if (!user) return;
+  claimLocalGames(platformUrl).then((n) => {
+    if (n) toast(`Added ${n} game${n === 1 ? '' : 's'} you published from this browser to your account.`, { type: 'success', timeout: 5000 });
+  });
+});
 
 /** Records that a project is a remix of a published game. */
 export function rememberRemix(projectId, gameId) {
@@ -158,21 +221,68 @@ function isPng(bytes) {
 // ---------------------------------------------------------------------------
 // The Publish dialog
 
+/**
+ * Asks the person to sign in before publishing. Resolves with the user, or
+ * null if they'd rather not.
+ */
+async function askToSignIn(base, host, reason) {
+  let pending = null;
+  await openDialog({
+    title: 'Sign in to publish',
+    body: h('div', {},
+      reason ? h('p', { class: 'dialog-message', style: { margin: '0 0 12px' } }, reason) : null,
+      h('p', { class: 'dialog-message', style: { margin: '0 0 12px' } },
+        `Games on ${host} belong to accounts, so you can update them from any computer. Sign in, or make an account: it takes a minute and doesn't need an email.`)),
+    actions: [
+      { label: 'Cancel', value: null, ghost: true },
+      // The popup opens inside the click (browsers block popups otherwise).
+      { label: 'Sign in', value: 'sign-in', primary: true, submit: true, validate: () => { pending = signIn({ platformUrl: base }); return true; } },
+    ],
+  });
+  if (!pending) return null;
+  try {
+    return await pending;
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+    return null;
+  }
+}
+
 export async function publishDialog(project, { files, modules = [], platformUrl = DEFAULT_PLATFORM_URL, engineVersion, remixOf } = {}) {
   files = files || project.snapshot();
   const base = baseUrl(platformUrl);
   const host = new URL(base).host;
+
+  // Signed in? (The site may have signed this editor out since.)
+  const hadAccount = Boolean(account(base));
+  let user = hadAccount ? await refreshAccount(base) : null;
+  if (!user) {
+    user = await askToSignIn(base, host, hadAccount ? `${host} signed this editor out (a new password, or signed out from its settings).` : null);
+    if (!user) return null;
+  }
+  await claimLocalGames(base);
+  const auth = () => ({ Authorization: `Bearer ${accountToken(base)}` });
+
   let existing = publishedGameFor(project.id, base);
   let notice = null;
+  if (existing && existing.owner && existing.owner !== user.username) {
+    notice = `This project was published by @${existing.owner}. You're signed in as @${user.username}, so publishing makes a new game.`;
+    existing = null;
+  } else if (existing && !existing.owner && existing.claimFailed) {
+    notice = existing.claimFailed === 'owned'
+      ? 'The game this project was published as belongs to another account now, so publishing makes a new game.'
+      : "The game this project was published as couldn't be added to your account, so publishing makes a new game.";
+    existing = null;
+  }
 
   // What the site has now (the title and description may have been changed
   // from another browser), or whether the game is gone.
   let current = null;
   if (existing) {
     try {
-      current = (await request(`${base}/api/games/${existing.id}`, { headers: { Authorization: `Bearer ${existing.token}` } })).game;
+      current = (await request(`${base}/api/games/${existing.id}`, { headers: auth() })).game;
     } catch (e) {
-      if (e.status === 404 || e.status === 403) {
+      if (e.status === 404) {
         forgetPublished(existing.id);
         existing = null;
         notice = "The game you published from this project isn't on the site anymore, so this publishes it as a new game.";
@@ -256,7 +366,42 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
     }).catch(() => {});
   }
 
+  // Who's publishing, and a way to switch.
+  const who = h('strong', {});
+  const showWho = () => { who.textContent = `${user.displayName} (@${user.username})`; };
+  showWho();
+  const switchAccount = h('a', { href: '#' }, 'Switch account');
+  switchAccount.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const next = await signIn({ platformUrl: base }).catch((err) => { status.textContent = err.message; return null; });
+    if (!next) return;
+    if (next.username !== user.username && existing) {
+      // The game belongs to the other account.
+      finishDialog(null);
+      publishDialog(project, { files, modules, platformUrl, engineVersion, remixOf });
+      return;
+    }
+    user = next;
+    showWho();
+  });
+  const signOutLink = h('a', { href: '#' }, 'Sign out');
+  signOutLink.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    await signOut({ platformUrl: base });
+    toast(`Signed out of ${host}.`);
+    finishDialog(null);
+  });
+  const whoLine = h('div', {
+    style: {
+      display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '0 0 12px', padding: '8px 10px',
+      borderRadius: '6px', background: 'var(--panel-2)', fontSize: '12px', color: 'var(--fg-muted)',
+    },
+  }, h('span', { style: { flex: '1', minWidth: '0' } }, 'Publishing as ', who), switchAccount, h('span', { 'aria-hidden': 'true' }, '·'), signOutLink);
+
   const form = h('div', {},
+    whoLine,
     notice ? p(notice) : null,
     intro,
     remixNote,
@@ -333,18 +478,18 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
       let res;
       if (existing) {
         try {
-          res = await upload('PUT', `${base}/api/games/${existing.id}`, body, existing.token, onProgress);
+          res = await upload('PUT', `${base}/api/games/${existing.id}`, body, accountToken(base), onProgress);
         } catch (e) {
           if (e.status !== 404 && e.status !== 403) throw e;
-          // Deleted from the site, or this browser's token is stale.
+          // Deleted from the site, or it belongs to another account.
           forgetPublished(existing.id);
           existing = null;
           throw new Error(e.status === 404
             ? "That game isn't on the site anymore. Press Publish to publish it as a new game."
-            : "This browser's edit token doesn't match that game anymore. Press Publish to publish it as a new game.");
+            : `That game belongs to another account. Press Publish to publish it as a new game for @${user.username}.`);
         }
       } else {
-        res = await upload('POST', `${base}/api/games`, body, null, onProgress);
+        res = await upload('POST', `${base}/api/games`, body, accountToken(base), onProgress);
       }
 
       const game = res.game;
@@ -353,7 +498,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
       const previous = publishedGames()[id];
       savePublished(id, {
         projectId: project.id,
-        token: res.token || previous?.token || existing?.token,
+        owner: user.username,
         title: game.title,
         description: game.description,
         url: game.playUrl,
@@ -367,6 +512,13 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
       showDone(game, Boolean(existing));
     } catch (e) {
       hideProgress();
+      if (e.status === 401) {
+        // Signed out on the site (a new password, or signed out in its settings).
+        clearAccount(base);
+        status.replaceChildren(`${e.message} `, signInAgainLink());
+        setBusy(false);
+        return;
+      }
       if (!e.aborted) {
         const field = e.data?.field;
         (field === 'title' ? titleError : field === 'description' ? descError : field === 'thumbnail' ? thumbError : status).textContent = e.message;
@@ -394,7 +546,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
           : `${game.title} is live. Share this link, or find it in the gallery:`),
       h('div', { class: 'share-box', style: { display: 'flex', gap: '8px' } }, link),
       h('p', { style: { margin: '12px 0 0', fontSize: '12px', color: 'var(--fg-muted)', lineHeight: '1.5' } },
-        'Publish again from this project to update it. This browser keeps the key that lets you change or remove it, so publish updates from here.')));
+        `It's in your account, @${user.username}. Publish again from this project to update it; you can also remove it from your account page on ${host}.`)));
     const copy = h('button', { type: 'button', class: 'btn' }, 'Copy link');
     copy.addEventListener('click', async () => {
       try {
@@ -423,7 +575,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
     setBusy(true);
     status.textContent = '';
     try {
-      await request(`${base}/api/games/${existing.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${existing.token}` } });
+      await request(`${base}/api/games/${existing.id}`, { method: 'DELETE', headers: auth() });
       forgetPublished(existing.id);
       result = { deleted: existing.id };
       toast('Removed from the site.', { type: 'success' });
@@ -435,9 +587,32 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
         finishDialog('deleted');
         return;
       }
-      status.textContent = e.message;
+      if (e.status === 401) {
+        clearAccount(base);
+        status.replaceChildren(`${e.message} `, signInAgainLink());
+      } else {
+        status.textContent = e.message;
+      }
       setBusy(false);
     }
+  }
+
+  function signInAgainLink() {
+    const link = h('a', { href: '#' }, 'Sign in again');
+    link.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const next = await signIn({ platformUrl: base }).catch(() => null);
+      if (!next) return;
+      status.textContent = next.username === user.username ? 'Signed in. Press Publish again.' : `Signed in as @${next.username}.`;
+      if (next.username !== user.username && existing) {
+        finishDialog(null);
+        publishDialog(project, { files, modules, platformUrl, engineVersion, remixOf });
+        return;
+      }
+      user = next;
+      showWho();
+    });
+    return link;
   }
 
   const actions = [

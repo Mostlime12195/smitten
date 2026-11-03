@@ -1,11 +1,15 @@
-// Checks for what people publish: titles, descriptions, the word filter,
-// thumbnails, engine modules and report reasons.
+// Checks for what people publish and sign up with: titles, descriptions,
+// usernames, display names, passwords, the word filter, thumbnails, engine
+// modules and report reasons.
 
-import blocked from '../config/blocked-words.json';
+import blocked from '../config/blocked-words.json' with { type: 'json' };
 import { HttpError } from './http.js';
 
 export const LIMITS = {
   title: 60,
+  displayName: 40,
+  passwordMin: 8,
+  passwordMax: 200,
   description: 1000,
   note: 500,
   thumbnailSide: 4096,
@@ -106,6 +110,60 @@ function checkWords(field, text) {
   if (findBlockedWord(text)) {
     throw invalid(field, `The ${field} has a word that isn't allowed on Smitten. Please change it.`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Accounts
+
+// Names that would look official, or clash with the site's own pages.
+const RESERVED = new Set([
+  'admin', 'administrator', 'mod', 'moderator', 'moderators', 'staff', 'support', 'help', 'smitten', 'official',
+  'hackclub', 'hack-club', 'hack_club', 'root', 'system', 'api', 'play', 'player', 'account', 'settings',
+  'signin', 'signup', 'signout', 'login', 'logout', 'register', 'recover', 'reset', 'auth', 'editor', 'u',
+  'user', 'users', 'games', 'game', 'new', 'null', 'undefined', 'anonymous', 'everyone', 'nobody',
+]);
+
+// A few passwords too common to allow.
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', '12345678', '123456789', '1234567890', '87654321', 'qwertyuiop',
+  'qwerty123', 'iloveyou', 'abcdefgh', 'abc12345', '11111111', '00000000', 'letmein1', 'welcome1',
+  'sunshine', 'football', 'baseball', 'princess', 'whatever', 'superman', 'trustno1', 'minecraft',
+  'roblox123', 'smitten1', 'smitten123',
+]);
+
+export const USERNAME_RULES = '3 to 20 characters: lower-case letters, numbers, - and _, starting with a letter or number.';
+
+export function cleanUsername(value) {
+  if (typeof value !== 'string' || !value.trim()) throw invalid('username', 'Pick a username.');
+  const name = value.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{2,19}$/.test(name)) throw invalid('username', `Usernames are ${USERNAME_RULES}`);
+  if (RESERVED.has(name)) throw invalid('username', 'That username is taken. Try another one.');
+  if (findBlockedWord(name.replace(/[_-]/g, ' ')) || findBlockedWord(name)) {
+    throw invalid('username', "That username has a word that isn't allowed on Smitten. Try another one.");
+  }
+  return name;
+}
+
+export function cleanDisplayName(value, fallback) {
+  if (value == null || (typeof value === 'string' && !value.trim())) return fallback;
+  if (typeof value !== 'string') throw invalid('displayName', 'The display name must be text.');
+  const name = value.normalize('NFC').replace(CONTROL, '').replace(/\s+/g, ' ').trim();
+  if ([...name].length > LIMITS.displayName) throw invalid('displayName', `Display names are ${LIMITS.displayName} characters at most.`);
+  if (!/[\p{L}\p{N}]/u.test(name)) throw invalid('displayName', 'The display name needs at least one letter or number.');
+  if (findBlockedWord(name)) throw invalid('displayName', "The display name has a word that isn't allowed on Smitten. Please change it.");
+  return name;
+}
+
+export function checkPassword(value, username, field = 'password') {
+  if (typeof value !== 'string' || !value) throw invalid(field, 'Choose a password.');
+  const length = [...value].length;
+  if (length < LIMITS.passwordMin) throw invalid(field, `Passwords need at least ${LIMITS.passwordMin} characters.`);
+  if (length > LIMITS.passwordMax) throw invalid(field, `Passwords can be ${LIMITS.passwordMax} characters at most.`);
+  const lower = value.toLowerCase();
+  if (COMMON_PASSWORDS.has(lower) || (username && lower.includes(username.toLowerCase())) || /^(.)\1+$/.test(value)) {
+    throw invalid(field, 'That password is too easy to guess. Try a few words together, like a short sentence.');
+  }
+  return value;
 }
 
 // ---------------------------------------------------------------------------

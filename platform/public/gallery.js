@@ -1,6 +1,6 @@
 // The gallery: newest or most played games, and search.
 
-import { $, h, icon, plays, thumbnail, api } from './site.js';
+import { $, h, api, card, skeletons } from './site.js';
 
 const PAGE = 24;
 const grid = $('#grid');
@@ -17,20 +17,6 @@ const state = {
   request: 0,
 };
 search.value = state.q;
-
-function card(game) {
-  return h('a', { class: 'card', href: `/play/${game.id}` },
-    thumbnail(game),
-    h('div', { class: 'card-body' },
-      h('h3', { class: 'card-title', title: game.title }, game.title),
-      h('p', { class: 'card-meta' }, icon('play', 13), plays(game.plays))));
-}
-
-function skeletons(n) {
-  return Array.from({ length: n }, () => h('div', { class: 'card skeleton', 'aria-hidden': 'true' },
-    h('div', { class: 'thumb' }),
-    h('div', { class: 'card-body' }, h('div', { class: 'line wide' }), h('div', { class: 'line' }))));
-}
 
 function syncUrl() {
   const p = new URLSearchParams();

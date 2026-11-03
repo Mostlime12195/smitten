@@ -27,6 +27,7 @@ const ICONS = {
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
   eyeOff: '<path d="M10.7 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
 };
 
 export function icon(name, size = 16) {
@@ -37,7 +38,7 @@ export function icon(name, size = 16) {
   return span;
 }
 
-/** The editor's URL, which the Worker writes into <meta name="smitten-editor-url">. */
+/** The editor's URL, which the server writes into <meta name="smitten-editor-url">. */
 export function editorUrl() {
   return document.querySelector('meta[name="smitten-editor-url"]')?.content || 'http://localhost:8766/';
 }
@@ -81,6 +82,23 @@ export function thumbnail(game) {
   return h('div', { class: `thumb placeholder shade-${hash % 4}` }, h('span', {}, letter));
 }
 
+/** A game's card in a grid. */
+export function card(game, { showOwner = true } = {}) {
+  const meta = [icon('play', 13), plays(game.plays)];
+  if (showOwner && game.owner) meta.unshift(h('span', { class: 'card-owner' }, game.owner.displayName), h('span', { class: 'dot', 'aria-hidden': 'true' }, '·'));
+  return h('a', { class: 'card', href: `/play/${game.id}` },
+    thumbnail(game),
+    h('div', { class: 'card-body' },
+      h('h3', { class: 'card-title', title: game.title }, game.title),
+      h('p', { class: 'card-meta' }, meta)));
+}
+
+export function skeletons(n) {
+  return Array.from({ length: n }, () => h('div', { class: 'card skeleton', 'aria-hidden': 'true' },
+    h('div', { class: 'thumb' }),
+    h('div', { class: 'card-body' }, h('div', { class: 'line wide' }), h('div', { class: 'line' }))));
+}
+
 let toastTimer = 0;
 export function toast(message) {
   let el = $('#toast');
@@ -109,5 +127,80 @@ export async function api(path, options = {}) {
   return data;
 }
 
-// The header: "Make a game" opens the editor.
+/** JSON requests from the site's pages. */
+export function send(path, body, method = 'POST') {
+  return api(path, {
+    method,
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+let accountPromise = null;
+/** /api/account: {user, recoveryCodesLeft} (user is null when signed out). */
+export function accountDetails() {
+  accountPromise ??= api('/api/account').catch(() => ({ user: null }));
+  return accountPromise;
+}
+/** The signed-in account ({username, displayName, ...}) or null. */
+export const account = () => accountDetails().then((d) => d.user);
+
+let configPromise = null;
+export function siteConfig() {
+  configPromise ??= api('/api/config');
+  return configPromise;
+}
+
+/** A local path from ?next= to go back to (never another site). */
+export function nextPath(fallback = '/') {
+  const next = new URLSearchParams(location.search).get('next') || '';
+  return /^\/(?![/\\])\S*$/.test(next) ? next : fallback;
+}
+
+/** Shows an API error next to its field ([data-error-for="field"]), or in the form's general one. */
+export function showError(form, err) {
+  clearErrors(form);
+  const field = err?.data?.field;
+  const target = (field && form.querySelector(`[data-error-for="${field}"]`)) || form.querySelector('[data-error-for="form"]');
+  if (target) target.textContent = err?.message || String(err);
+  const input = field && form.querySelector(`[name="${field}"]`);
+  if (input) input.focus();
+}
+
+export function clearErrors(form) {
+  for (const el of form.querySelectorAll('[data-error-for]')) el.textContent = '';
+}
+
+/** Recovery codes, with Copy and Download. */
+export function codesBlock(codes) {
+  const text = `Smitten recovery codes for ${location.host}\nEach one resets your password once.\n\n${codes.join('\n')}\n`;
+  const copy = h('button', { type: 'button', class: 'btn' }, 'Copy');
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Copied.');
+    } catch {
+      toast("Couldn't copy. Select the codes and copy them yourself.");
+    }
+  });
+  const download = h('a', { class: 'btn', download: 'smitten-recovery-codes.txt' }, 'Download');
+  download.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  return h('div', { class: 'codes-block' },
+    h('ol', { class: 'codes' }, codes.map((c) => h('li', {}, c))),
+    h('div', { class: 'row-actions' }, copy, download));
+}
+
+// The header: "Make a game" opens the editor; Sign in, or the account.
 for (const a of document.querySelectorAll('[data-editor-link]')) a.href = editorUrl();
+
+const topbar = document.querySelector('.topbar-inner');
+if (topbar && !('noAccountLink' in document.body.dataset)) {
+  account().then((user) => {
+    const link = user
+      ? h('a', { class: 'btn ghost account-link', href: '/account', title: `Signed in as @${user.username}` }, icon('user'), h('span', {}, user.displayName))
+      : h('a', { class: 'btn ghost account-link', href: `/signin?next=${encodeURIComponent(location.pathname + location.search)}` }, 'Sign in');
+    const make = topbar.querySelector('.make');
+    if (make) make.before(link);
+    else topbar.append(link);
+  });
+}

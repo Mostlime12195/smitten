@@ -1,0 +1,46 @@
+# Smitten's game-sharing site as a systemd service, for a Hack Club Nest
+# container (or any Linux server). See README.md, "Deploying on Hack Club Nest".
+#
+#   cp deploy/smitten.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now smitten
+#   journalctl -eu smitten          # its log
+#
+# It runs as the unprivileged user "smitten" (useradd --system --home /var/lib/smitten smitten),
+# from /opt/smitten (a checkout of the repository), with its settings in
+# /etc/smitten/env (deploy/env.example) and its data in /var/lib/smitten.
+
+[Unit]
+Description=Smitten games (the game-sharing site)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=smitten
+Group=smitten
+WorkingDirectory=/opt/smitten/platform
+# Settings (deploy/env.example), readable by the smitten user:
+#   chown root:smitten /etc/smitten/env && chmod 640 /etc/smitten/env
+Environment=ENV_FILE=/etc/smitten/env
+ExecStart=/usr/bin/node src/server.js
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the server only writes to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/smitten
+StateDirectory=smitten
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target
