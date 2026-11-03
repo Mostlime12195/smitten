@@ -760,6 +760,9 @@ static void base_open (lua_State *L) {
   lua_setglobal(L, "_G");
   /* open lib into global table */
   luaL_register(L, "_G", base_funcs);
+  /* Smitten: string interpolation calls this one even if the global changes */
+  lua_getfield(L, -1, "tostring");
+  lua_setfield(L, LUA_REGISTRYINDEX, LUA_TOSTRINGKEY);
   lua_pushliteral(L, LUA_VERSION);
   lua_setglobal(L, "_VERSION");  /* set global _VERSION */
   /* `ipairs' and `pairs' need auxiliary functions as upvalues */

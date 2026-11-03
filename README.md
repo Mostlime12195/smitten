@@ -220,6 +220,25 @@ a generic error:
   as `table.sort`'s comparator: the error says that yielding works inside
   `pcall` but not there. (LuaJIT allows the first two.)
 
+### Smitten syntax
+
+Smitten's parser also accepts four pieces of Luau syntax. Each compiles to
+the bytecode Lua 5.1 already has (no new opcodes), so the JIT, debug hooks,
+coroutines and error messages work as for any other code, and line numbers
+are the source's. Every program that ran before still compiles to the same
+bytecode.
+
+| Syntax | Example | Notes |
+| --- | --- | --- |
+| Compound assignment | `score += 10`, `name ..= "!"`, also `-= *= /= %= ^=` | One variable (local, upvalue, global, field or index); in `t[f()] += 1`, `t` and `f()` are evaluated once |
+| `continue` | `for i = 1, n do if skip(i) then continue end ... end` | Jumps to the end of the loop body (the condition in `repeat ... until`, which can't use a local the `continue` skipped). Like `break`, it ends its block. Only a keyword when it stands alone: `continue = 1`, `t.continue`, `::continue::` and `goto continue` still work |
+| String interpolation | `` `HP: {hp}/{maxHp}` `` | Each `{expression}` is converted by the original `tostring` (replacing the global doesn't change it). `\{` writes a brace; the usual escapes work. A backtick string can't be a call's argument without parentheses (`` print(`x`) ``) |
+| If-expressions | `local speed = if running then 200 else 100` | `elseif` allowed, `else` required; only the chosen branch is evaluated |
+
+Code that uses them won't run on desktop LÖVE. `findSmittenSyntax` in
+`web/editor/smitten-syntax.js` lists where a file uses each of them
+(`node tools/smitten-syntax/test.mjs` tests it).
+
 ### Compatibility check
 
 The editor checks a project's Lua files each time it runs or exports, and

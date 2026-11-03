@@ -41,6 +41,9 @@ const char *const luaX_tokens [] = {
     "return", "then", "true", "until", "while",
     "..", "...", "==", ">=", "<=", "~=", "::",
     "<number>", "<name>", "<string>", "<eof>",
+    "+=", "-=", "*=", "/=", "%=", "^=", "..=",  /* Smitten */
+    "<interpolated string>", "<interpolated string>",
+    "<interpolated string>", "<interpolated string>",
     NULL
 };
 
@@ -326,6 +329,59 @@ static void read_utf8esc (LexState *ls) {
 }
 
 
+/* reads the escape sequence at the current `\' (shared by all strings) */
+static void read_escape (LexState *ls) {
+  int c;
+  next(ls);  /* do not save the `\' */
+  switch (ls->current) {
+    case 'a': c = '\a'; break;
+    case 'b': c = '\b'; break;
+    case 'f': c = '\f'; break;
+    case 'n': c = '\n'; break;
+    case 'r': c = '\r'; break;
+    case 't': c = '\t'; break;
+    case 'v': c = '\v'; break;
+    case 'x': {  /* \xXX (LuaJIT, Lua 5.2) */
+      next(ls);
+      c = hexvalue(ls) << 4;
+      c += hexvalue(ls);
+      save(ls, c);
+      return;
+    }
+    case 'z': {  /* \z skips the following whitespace (LuaJIT, Lua 5.2) */
+      next(ls);
+      while (isspace(ls->current)) {
+        if (currIsNewline(ls)) inclinenumber(ls);
+        else next(ls);
+      }
+      return;
+    }
+    case 'u': read_utf8esc(ls); return;
+    case '\n':  /* go through */
+    case '\r': save(ls, '\n'); inclinenumber(ls); return;
+    case EOZ: return;  /* will raise an error next loop */
+    default: {
+      if (!isdigit(ls->current))
+        save_and_next(ls);  /* handles \\, \", \', \? (and \`, \{, \}) */
+      else {  /* \xxx */
+        int i = 0;
+        c = 0;
+        do {
+          c = 10*c + (ls->current-'0');
+          next(ls);
+        } while (++i<3 && isdigit(ls->current));
+        if (c > UCHAR_MAX)
+          luaX_lexerror(ls, "escape sequence too large", TK_STRING);
+        save(ls, c);
+      }
+      return;
+    }
+  }
+  save(ls, c);
+  next(ls);
+}
+
+
 static void read_string (LexState *ls, int del, SemInfo *seminfo) {
   save_and_next(ls);
   while (ls->current != del) {
@@ -337,57 +393,9 @@ static void read_string (LexState *ls, int del, SemInfo *seminfo) {
       case '\r':
         luaX_lexerror(ls, "unfinished string", TK_STRING);
         continue;  /* to avoid warnings */
-      case '\\': {
-        int c;
-        next(ls);  /* do not save the `\' */
-        switch (ls->current) {
-          case 'a': c = '\a'; break;
-          case 'b': c = '\b'; break;
-          case 'f': c = '\f'; break;
-          case 'n': c = '\n'; break;
-          case 'r': c = '\r'; break;
-          case 't': c = '\t'; break;
-          case 'v': c = '\v'; break;
-          case 'x': {  /* \xXX (LuaJIT, Lua 5.2) */
-            next(ls);
-            c = hexvalue(ls) << 4;
-            c += hexvalue(ls);
-            save(ls, c);
-            continue;
-          }
-          case 'z': {  /* \z skips the following whitespace (LuaJIT, Lua 5.2) */
-            next(ls);
-            while (isspace(ls->current)) {
-              if (currIsNewline(ls)) inclinenumber(ls);
-              else next(ls);
-            }
-            continue;
-          }
-          case 'u': read_utf8esc(ls); continue;
-          case '\n':  /* go through */
-          case '\r': save(ls, '\n'); inclinenumber(ls); continue;
-          case EOZ: continue;  /* will raise an error next loop */
-          default: {
-            if (!isdigit(ls->current))
-              save_and_next(ls);  /* handles \\, \", \', and \? */
-            else {  /* \xxx */
-              int i = 0;
-              c = 0;
-              do {
-                c = 10*c + (ls->current-'0');
-                next(ls);
-              } while (++i<3 && isdigit(ls->current));
-              if (c > UCHAR_MAX)
-                luaX_lexerror(ls, "escape sequence too large", TK_STRING);
-              save(ls, c);
-            }
-            continue;
-          }
-        }
-        save(ls, c);
-        next(ls);
+      case '\\':
+        read_escape(ls);
         continue;
-      }
       default:
         save_and_next(ls);
     }
@@ -395,6 +403,50 @@ static void read_string (LexState *ls, int del, SemInfo *seminfo) {
   save_and_next(ls);  /* skip delimiter */
   seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + 1,
                                    luaZ_bufflen(ls->buff) - 2);
+}
+
+
+/*
+** Smitten: reads the text of a backtick string up to its end or to the next
+** `{' (string interpolation, as in Luau). The buffer already holds the
+** opening ` (start of the string) or } (end of an expression). The parser
+** reads the expression between { and }, then calls luaX_interpnext.
+*/
+static int read_interp (LexState *ls, SemInfo *seminfo) {
+  int first = luaZ_buffer(ls->buff)[0];
+  int token;
+  for (;;) {
+    switch (ls->current) {
+      case EOZ:
+        luaX_lexerror(ls, "unfinished string", TK_EOS);
+        continue;  /* to avoid warnings */
+      case '\n':
+      case '\r':
+        luaX_lexerror(ls, "unfinished string", TK_STRING);
+        continue;  /* to avoid warnings */
+      case '\\':
+        read_escape(ls);
+        continue;
+      case '`':
+        save_and_next(ls);
+        token = (first == '`') ? TK_INTERPSIMPLE : TK_INTERPEND;
+        break;
+      case '{':
+        save_and_next(ls);
+        if (ls->current == '{')
+          luaX_lexerror(ls, "double braces aren't allowed in an interpolated "
+                            "string (use \\{ for a brace)", TK_STRING);
+        token = (first == '`') ? TK_INTERPBEGIN : TK_INTERPMID;
+        break;
+      default:
+        save_and_next(ls);
+        continue;
+    }
+    break;
+  }
+  seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + 1,
+                                   luaZ_bufflen(ls->buff) - 2);
+  return token;
 }
 
 
@@ -409,6 +461,7 @@ static int llex (LexState *ls, SemInfo *seminfo) {
       }
       case '-': {
         next(ls);
+        if (ls->current == '=') { next(ls); return TK_SUBEQ; }  /* Smitten */
         if (ls->current != '-') return '-';
         /* else is a comment */
         next(ls);
@@ -465,11 +518,33 @@ static int llex (LexState *ls, SemInfo *seminfo) {
         read_string(ls, ls->current, seminfo);
         return TK_STRING;
       }
+      case '`': {  /* Smitten: interpolated string */
+        save_and_next(ls);
+        return read_interp(ls, seminfo);
+      }
+      case '+': case '*': case '/': case '%': case '^': {
+        /* Smitten: compound assignment (never valid in Lua 5.1 before) */
+        int c = ls->current;
+        next(ls);
+        if (ls->current != '=') return c;
+        next(ls);
+        switch (c) {
+          case '+': return TK_ADDEQ;
+          case '*': return TK_MULEQ;
+          case '/': return TK_DIVEQ;
+          case '%': return TK_MODEQ;
+          default: return TK_POWEQ;
+        }
+      }
       case '.': {
         save_and_next(ls);
         if (check_next(ls, ".")) {
           if (check_next(ls, "."))
             return TK_DOTS;   /* ... */
+          else if (ls->current == '=') {  /* ..= (Smitten) */
+            next(ls);
+            return TK_CONCATEQ;
+          }
           else return TK_CONCAT;   /* .. */
         }
         else if (!isdigit(ls->current)) return '.';
@@ -525,6 +600,17 @@ void luaX_next (LexState *ls) {
   }
   else
     ls->t.token = llex(ls, &ls->t.seminfo);  /* read next token */
+}
+
+
+/* Smitten: after the `}' that ends an expression in a backtick string,
+   reads the string's next part (TK_INTERPMID or TK_INTERPEND) */
+void luaX_interpnext (LexState *ls) {
+  lua_assert(ls->t.token == '}' && ls->lookahead.token == TK_EOS);
+  ls->lastline = ls->linenumber;
+  luaZ_resetbuffer(ls->buff);
+  save(ls, '}');
+  ls->t.token = read_interp(ls, &ls->t.seminfo);
 }
 
 

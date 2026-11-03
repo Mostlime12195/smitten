@@ -29,7 +29,14 @@ enum RESERVED {
   TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
   /* other terminal symbols */
   TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE, TK_DBCOLON, TK_NUMBER,
-  TK_NAME, TK_STRING, TK_EOS
+  TK_NAME, TK_STRING, TK_EOS,
+  /* Smitten: compound assignment (`+=' ... `..=', same order as the
+     operators in getbinopr) and the parts of a `backtick' string */
+  TK_ADDEQ, TK_SUBEQ, TK_MULEQ, TK_DIVEQ, TK_MODEQ, TK_POWEQ, TK_CONCATEQ,
+  TK_INTERPSIMPLE,  /* `text` without {}: a plain constant */
+  TK_INTERPBEGIN,  /* `text{ */
+  TK_INTERPMID,  /* }text{ */
+  TK_INTERPEND  /* }text` */
 };
 
 /* number of reserved words */
@@ -77,6 +84,7 @@ LUAI_FUNC void luaX_lookahead (LexState *ls);
 LUAI_FUNC void luaX_lexerror (LexState *ls, const char *msg, int token);
 LUAI_FUNC void luaX_syntaxerror (LexState *ls, const char *s);
 LUAI_FUNC const char *luaX_token2str (LexState *ls, int token);
+LUAI_FUNC void luaX_interpnext (LexState *ls);
 
 
 #endif

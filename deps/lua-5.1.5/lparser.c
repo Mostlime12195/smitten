@@ -5,6 +5,7 @@
 */
 
 
+#include <stdio.h>
 #include <string.h>
 
 #define lparser_c
@@ -55,6 +56,7 @@ typedef struct BlockCnt {
 static void chunk (LexState *ls);
 static int statement (LexState *ls);
 static void expr (LexState *ls, expdesc *v);
+static int cond (LexState *ls);
 
 
 static void anchor_token (LexState *ls) {
@@ -232,6 +234,12 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
   else {
     int v = searchvar(fs, n);  /* look up at current level */
     if (v >= 0) {
+      if (v >= fs->untilskip) {  /* Smitten: see repeatstat */
+        const char *msg = luaO_pushfstring(fs->L,
+            "local '%s' used in 'until' is undefined when 'continue' at line %d "
+            "jumps over its declaration", getstr(n), fs->untilline);
+        luaX_lexerror(fs->ls, msg, 0);
+      }
       init_exp(var, VLOCAL, v);
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
@@ -367,6 +375,8 @@ static void open_func (LexState *ls, FuncState *fs) {
   fs->nactvar = 0;
   fs->firstlabel = ls->dyd->label.n;
   fs->firstgoto = ls->dyd->gt.n;
+  fs->untilskip = LUAI_MAXVARS;  /* Smitten: not in an `until' (repeatstat) */
+  fs->untilline = 0;
   fs->bl = NULL;
   f->source = ls->source;
   f->maxstacksize = 2;  /* registers 0/1 are always valid */
@@ -754,16 +764,163 @@ static void primaryexp (LexState *ls, expdesc *v) {
         funcargs(ls, v);
         break;
       }
+      case TK_INTERPSIMPLE: case TK_INTERPBEGIN: {  /* Smitten, as in Luau */
+        luaX_syntaxerror(ls, "an interpolated string can't be a function's "
+                             "argument without parentheses");
+        return;
+      }
       default: return;
     }
   }
 }
 
 
+/*
+** {======================================================================
+** Smitten: string interpolation and if-expressions (Luau syntax)
+** =======================================================================
+*/
+
+
+/*
+** Sets `o' to the original `tostring', which luaopen_base keeps in the
+** registry. Returns 0 if it isn't there.
+*/
+int luaY_tostring (lua_State *L, TValue *o) {
+  const TValue *f = luaH_getstr(hvalue(registry(L)),
+                                luaS_newliteral(L, LUA_TOSTRINGKEY));
+  if (!ttisfunction(f)) return 0;
+  setobj(L, o, f);
+  return 1;
+}
+
+
+/*
+** interpexp -> INTERPBEGIN expr { INTERPMID expr } INTERPEND
+** `a{x}b{y}' compiles to "a" .. tostring(x) .. "b" .. tostring(y): the parts
+** go to consecutive registers and one OP_CONCAT joins them. The `tostring'
+** called must be the original one even if the game replaces the global, and
+** there must be no new opcode, so the function itself is a constant of the
+** function being compiled (the VM's constants are TValues and can hold any
+** value; OP_LOADK copies it, the GC marks it, ldump/lundump save it as a
+** reference to the registry's copy). The game can't reach it without the
+** debug library, and calling it needs no global lookup. Constant strings and
+** numbers skip the call (numbers are converted here as tostring would).
+*/
+static void interpexp (LexState *ls, expdesc *v) {
+  FuncState *fs = ls->fs;
+  int base = fs->freereg;
+  int n = 0;  /* parts in registers base .. base+n-1 */
+  int calls = 0;  /* parts converted by calling tostring */
+  for (;;) {
+    int token = ls->t.token;  /* INTERPBEGIN, INTERPMID or INTERPEND */
+    TString *text = ls->t.seminfo.ts;
+    expdesc e;
+    int func;
+    if (text->tsv.len > 0) {
+      codestring(ls, &e, text);
+      luaK_exp2nextreg(fs, &e);
+      n++;
+    }
+    if (token == TK_INTERPEND) break;
+    luaX_next(ls);  /* skip text and `{' */
+    if (ls->t.token == '}')
+      luaX_syntaxerror(ls, "expression expected inside '{}' of an "
+                           "interpolated string");
+    func = fs->freereg;
+    luaK_reserveregs(fs, 1);  /* for `tostring' */
+    expr(ls, &e);
+    if (e.k == VKNUM && e.t == NO_JUMP && e.f == NO_JUMP) {
+      char s[LUAI_MAXNUMBER2STR];  /* converted as tostring would */
+      lua_number2str(s, e.u.nval);
+      codestring(ls, &e, luaX_newstring(ls, s, strlen(s)));
+    }
+    if (e.k == VK && e.t == NO_JUMP && e.f == NO_JUMP) {
+      fs->freereg = func;  /* a constant string: no call */
+      luaK_exp2nextreg(fs, &e);
+    }
+    else {
+      TValue f;
+      luaK_exp2nextreg(fs, &e);  /* argument */
+      if (!luaY_tostring(ls->L, &f))
+        luaX_syntaxerror(ls, "string interpolation needs the base library");
+      luaK_codeABx(fs, OP_LOADK, func, luaK_valueK(fs, &f));
+      luaK_codeABC(fs, OP_CALL, func, 2, 2);
+      fs->freereg = func + 1;
+      calls++;
+    }
+    n++;
+    if (ls->t.token != '}')
+      error_expected(ls, '}');
+    luaX_interpnext(ls);  /* read the text after `}' */
+  }
+  luaX_next(ls);  /* skip the end */
+  if (n == 1 && calls == 0)
+    init_exp(v, VNONRELOC, base);  /* a constant string */
+  else {
+    expdesc e;
+    if (n == 1) {  /* `{x}' is tostring(x) .. "", so always a string */
+      codestring(ls, &e, luaX_newstring(ls, "", 0));
+      luaK_exp2nextreg(fs, &e);
+      n++;
+    }
+    fs->freereg = base;
+    init_exp(v, VRELOCABLE, luaK_codeABC(fs, OP_CONCAT, 0, base, base + n - 1));
+  }
+}
+
+
+static void ifexp (LexState *ls, expdesc *v) {
+  /* ifexp -> IF cond THEN expr {ELSEIF cond THEN expr} ELSE expr
+     Each branch puts its value in the same register; only the chosen
+     branch is evaluated. `else' is required, as in Luau. */
+  FuncState *fs = ls->fs;
+  int reg = fs->freereg;
+  int escapelist = NO_JUMP;
+  int condexit;
+  expdesc e;
+  do {
+    luaX_next(ls);  /* skip IF or ELSEIF */
+    condexit = cond(ls);
+    checknext(ls, TK_THEN);
+    expr(ls, &e);
+    luaK_exp2nextreg(fs, &e);
+    lua_assert(e.u.s.info == reg);
+    luaK_concat(fs, &escapelist, luaK_jump(fs));
+    luaK_patchtohere(fs, condexit);
+    fs->freereg = reg;  /* the next branch uses the same register */
+  } while (ls->t.token == TK_ELSEIF);
+  if (ls->t.token != TK_ELSE)
+    luaX_syntaxerror(ls, LUA_QL("else") " expected (an if-expression needs an "
+                         LUA_QL("else") " branch)");
+  luaX_next(ls);  /* skip ELSE */
+  expr(ls, &e);
+  luaK_exp2nextreg(fs, &e);
+  lua_assert(e.u.s.info == reg);
+  luaK_patchtohere(fs, escapelist);
+  init_exp(v, VNONRELOC, reg);
+}
+
+/* }====================================================================== */
+
+
 static void simpleexp (LexState *ls, expdesc *v) {
   /* simpleexp -> NUMBER | STRING | NIL | true | false | ... |
-                  constructor | FUNCTION body | primaryexp */
+                  constructor | FUNCTION body | primaryexp |
+                  interpexp | ifexp (Smitten) */
   switch (ls->t.token) {
+    case TK_INTERPSIMPLE: {  /* Smitten: `text` without {} is a constant */
+      codestring(ls, v, ls->t.seminfo.ts);
+      break;
+    }
+    case TK_INTERPBEGIN: {  /* Smitten */
+      interpexp(ls, v);
+      return;
+    }
+    case TK_IF: {  /* Smitten */
+      ifexp(ls, v);
+      return;
+    }
     case TK_NUMBER: {
       init_exp(v, VKNUM, 0);
       v->u.nval = ls->t.seminfo.r;
@@ -926,6 +1083,100 @@ static void block (LexState *ls) {
 
 
 /*
+** {======================================================================
+** Smitten: `continue' (Luau syntax), built on the goto machinery: each
+** `continue' is a pending goto to a label no source can name, which the
+** loop resolves where its body ends (patchcontinues). Gotos leaving blocks
+** whose locals became upvalues are marked by movegotosout, as for goto.
+** =======================================================================
+*/
+
+
+static TString *continuename (LexState *ls) {
+  return luaX_newstring(ls, "(continue)", 10);  /* not a valid label name */
+}
+
+
+/*
+** Makes the pending `continue's of the loop whose body is block `bl' jump
+** here. If `fallthrough' (a repeat's condition follows), code that reaches
+** this point normally skips the OP_CLOSE that `continue's may need. Returns
+** the lowest local level one of them jumps from (`continue' skips the locals
+** above it) and sets *line to its line.
+*/
+static int patchcontinues (LexState *ls, BlockCnt *bl, int fallthrough,
+                           int *line) {
+  FuncState *fs = ls->fs;
+  Labellist *gl = &ls->dyd->gt;
+  TString *name = continuename(ls);
+  int list = NO_JUMP;
+  int level = fs->nactvar;
+  int close = -1;  /* lowest level whose upvalues must be closed */
+  int i = bl->firstgoto;
+  while (i < gl->n) {
+    Labeldesc *gt = &gl->arr[i];
+    if (gt->name == name) {
+      if (gt->nactvar < level) {
+        level = gt->nactvar;
+        if (line) *line = gt->line;
+      }
+      if (gt->close && (close < 0 || gt->nactvar < close))
+        close = gt->nactvar;
+      luaK_concat(fs, &list, gt->pc);
+      for (; i < gl->n - 1; i++)  /* remove it from the pending list */
+        gl->arr[i] = gl->arr[i + 1];
+      gl->n--;
+      i = bl->firstgoto;
+    }
+    else i++;
+  }
+  if (list == NO_JUMP) return level;  /* no `continue': same code as Lua */
+  if (close >= 0) {
+    int skip = fallthrough ? luaK_jump(fs) : NO_JUMP;
+    luaK_patchtohere(fs, list);
+    luaK_codeABC(fs, OP_CLOSE, close, 0, 0);
+    if (skip != NO_JUMP) luaK_patchtohere(fs, skip);
+  }
+  else
+    luaK_patchtohere(fs, list);
+  return level;
+}
+
+
+static void loopbody (LexState *ls) {
+  /* loopbody -> block (`continue' jumps to its end) */
+  FuncState *fs = ls->fs;
+  BlockCnt bl;
+  enterblock(fs, &bl, 0);
+  chunk(ls);
+  lua_assert(bl.breaklist == NO_JUMP);
+  patchcontinues(ls, &bl, 0, NULL);
+  leaveblock(fs);
+}
+
+
+/* `continue' is a statement unless it starts an expression statement
+   (`continue = 1', `continue.x = 1', `continue()' ...), as in Luau */
+static int iscontinue (LexState *ls) {
+  TString *ts = ls->t.seminfo.ts;
+  if (ts->tsv.len != 8 || strcmp(getstr(ts), "continue") != 0)
+    return 0;
+  luaX_lookahead(ls);
+  switch (ls->lookahead.token) {
+    case '.': case '[': case ':': case '(': case '{': case TK_STRING:
+    case '=': case ',':
+    case TK_ADDEQ: case TK_SUBEQ: case TK_MULEQ: case TK_DIVEQ:
+    case TK_MODEQ: case TK_POWEQ: case TK_CONCATEQ:
+      return 0;
+    default:
+      return 1;
+  }
+}
+
+/* }====================================================================== */
+
+
+/*
 ** structure to chain all variables in the left-hand side of an
 ** assignment
 */
@@ -964,10 +1215,55 @@ static void check_conflict (LexState *ls, struct LHS_assign *lh, expdesc *v) {
 }
 
 
+/* Smitten: the operator of a compound assignment token */
+static BinOpr compoundopr (int token) {
+  switch (token) {
+    case TK_ADDEQ: return OPR_ADD;
+    case TK_SUBEQ: return OPR_SUB;
+    case TK_MULEQ: return OPR_MUL;
+    case TK_DIVEQ: return OPR_DIV;
+    case TK_MODEQ: return OPR_MOD;
+    case TK_POWEQ: return OPR_POW;
+    case TK_CONCATEQ: return OPR_CONCAT;
+    default: return OPR_NOBINOPR;
+  }
+}
+
+
+/*
+** Smitten: compound assignment, as in Luau: one target, and `v op= e' is
+** `v = v op (e)' with the table and key of `t[k] op= e' evaluated once
+** (they stay in their registers for the store).
+*/
+static void compoundassign (LexState *ls, expdesc *v, BinOpr op) {
+  /* stat -> primaryexp (`+=' | `-=' | `*=' | `/=' | `%=' | `^=' | `..=') expr */
+  FuncState *fs = ls->fs;
+  const char *opname = luaX_token2str(ls, ls->t.token);
+  expdesc e, e2;
+  check_condition(ls, VLOCAL <= v->k && v->k <= VINDEXED, "syntax error");
+  luaX_next(ls);  /* skip the operator */
+  if (block_follow(ls->t.token) || ls->t.token == ';')
+    luaX_syntaxerror(ls, luaO_pushfstring(ls->L, "expression expected after "
+                                          LUA_QS, opname));
+  e = *v;
+  if (v->k == VINDEXED) {  /* read t[k] without freeing t's and k's registers */
+    luaK_reserveregs(fs, 1);
+    luaK_codeABC(fs, OP_GETTABLE, fs->freereg - 1, v->u.s.info, v->u.s.aux);
+    init_exp(&e, VNONRELOC, fs->freereg - 1);
+  }
+  luaK_infix(fs, op, &e);
+  expr(ls, &e2);
+  luaK_posfix(fs, op, &e, &e2);
+  luaK_storevar(fs, v, &e);
+}
+
+
 static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
   expdesc e;
   check_condition(ls, VLOCAL <= lh->v.k && lh->v.k <= VINDEXED,
                       "syntax error");
+  if (compoundopr(ls->t.token) != OPR_NOBINOPR)  /* Smitten: `a, b += 1' */
+    luaX_syntaxerror(ls, "compound assignment takes a single variable");
   if (testnext(ls, ',')) {  /* assignment -> `,' primaryexp assignment */
     struct LHS_assign nv;
     nv.prev = lh;
@@ -1035,7 +1331,7 @@ static void whilestat (LexState *ls, int line) {
   condexit = cond(ls);
   enterblock(fs, &bl, 1);
   checknext(ls, TK_DO);
-  block(ls);
+  loopbody(ls);  /* Smitten: was block */
   luaK_patchlist(fs, luaK_jump(fs), whileinit);
   check_match(ls, TK_END, TK_WHILE, line);
   leaveblock(fs);
@@ -1054,7 +1350,12 @@ static void repeatstat (LexState *ls, int line) {
   luaX_next(ls);  /* skip REPEAT */
   chunk(ls);
   check_match(ls, TK_UNTIL, TK_REPEAT, line);
+  /* Smitten: `continue' jumps to the condition. As in Luau, the condition
+     can't use a local that a `continue' jumps over (singlevaraux). */
+  fs->untilskip = patchcontinues(ls, &bl2, 1, &fs->untilline);
+  if (fs->untilskip == fs->nactvar) fs->untilskip = LUAI_MAXVARS;
   condexit = cond(ls);  /* read condition (inside scope block) */
+  fs->untilskip = LUAI_MAXVARS;
   if (!bl2.upval) {  /* no upvalues? */
     leaveblock(fs);  /* finish scope */
     luaK_patchlist(ls->fs, condexit, repeat_init);  /* close the loop */
@@ -1090,7 +1391,7 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
   enterblock(fs, &bl, 0);  /* scope for declared variables */
   adjustlocalvars(ls, nvars);
   luaK_reserveregs(fs, nvars);
-  block(ls);
+  loopbody(ls);  /* Smitten: was block */
   leaveblock(fs);  /* end of scope for declared variables */
   luaK_patchtohere(fs, prep);
   endfor = (isnum) ? luaK_codeAsBx(fs, OP_FORLOOP, base, NO_JUMP) :
@@ -1262,7 +1563,9 @@ static void exprstat (LexState *ls) {
   FuncState *fs = ls->fs;
   struct LHS_assign v;
   primaryexp(ls, &v.v);
-  if (v.v.k == VCALL)  /* stat -> func */
+  if (compoundopr(ls->t.token) != OPR_NOBINOPR)  /* Smitten */
+    compoundassign(ls, &v.v, compoundopr(ls->t.token));
+  else if (v.v.k == VCALL)  /* stat -> func */
     SETARG_C(getcode(fs, &v.v), 1);  /* call statement uses no results */
   else {  /* stat -> assignment */
     v.prev = NULL;
@@ -1393,6 +1696,20 @@ static void labelstat (LexState *ls, TString *name, int line) {
 }
 
 
+/* Smitten: stat -> CONTINUE (a pending goto that the loop resolves) */
+static void continuestat (LexState *ls, int line) {
+  FuncState *fs = ls->fs;
+  BlockCnt *bl = fs->bl;
+  while (bl && !bl->isbreakable)
+    bl = bl->previous;
+  if (!bl) {
+    ls->linenumber = line;  /* the error is about `continue', not what follows */
+    luaX_lexerror(ls, LUA_QL("continue") " outside a loop", 0);
+  }
+  newlabelentry(ls, &ls->dyd->gt, continuename(ls), line, luaK_jump(fs));
+}
+
+
 static int statement (LexState *ls) {
   int line = ls->linenumber;  /* may be needed for error messages */
   switch (ls->t.token) {
@@ -1447,6 +1764,15 @@ static int statement (LexState *ls) {
     case TK_DBCOLON: {  /* stat -> '::' NAME '::' */
       luaX_next(ls);
       labelstat(ls, str_checkname(ls), line);
+      return 0;
+    }
+    case TK_NAME: {  /* Smitten: stat -> CONTINUE */
+      if (iscontinue(ls)) {
+        luaX_next(ls);  /* skip CONTINUE */
+        continuestat(ls, line);
+        return 1;  /* must be last statement, like `break' */
+      }
+      exprstat(ls);
       return 0;
     }
     default: {

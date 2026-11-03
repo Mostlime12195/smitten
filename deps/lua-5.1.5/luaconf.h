@@ -211,6 +211,13 @@
 
 
 /*
+@@ LUA_TOSTRINGKEY is the registry field where luaopen_base keeps the
+@* original `tostring', which Smitten's string interpolation calls.
+*/
+#define LUA_TOSTRINGKEY	"SMITTEN_TOSTRING"
+
+
+/*
 ** {==================================================================
 ** Stand-alone configuration
 ** ===================================================================
