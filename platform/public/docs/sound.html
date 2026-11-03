@@ -30,11 +30,11 @@
     <article class="prose">
 <h1>Sound and music</h1>
 <p>Plays <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> and <code>.flac</code> files, and <code>.sfx</code> and <code>.song</code> files made in the Sound and Music workspaces.</p>
-<pre><code class="lang-lua">sfx(&quot;coin&quot;)                              -- coin.sfx, coin.wav, ... anywhere
-sfx(&quot;hit&quot;, { volume = 0.5, pitch = 0.9 + rnd(0.2) })
-music(&quot;theme&quot;)                           -- loops across scenes
-music(&quot;boss&quot;, { fade = 1 })              -- crossfades
-stopMusic(2)</code></pre>
+<pre><code class="lang-lua"><span class="tk-f">sfx</span>(<span class="tk-s">&quot;coin&quot;</span>)                              <span class="tk-c">-- coin.sfx, coin.wav, ... anywhere</span>
+<span class="tk-f">sfx</span>(<span class="tk-s">&quot;hit&quot;</span>, { volume = <span class="tk-n">0.5</span>, pitch = <span class="tk-n">0.9</span> + <span class="tk-f">rnd</span>(<span class="tk-n">0.2</span>) })
+<span class="tk-f">music</span>(<span class="tk-s">&quot;theme&quot;</span>)                           <span class="tk-c">-- loops across scenes</span>
+<span class="tk-f">music</span>(<span class="tk-s">&quot;boss&quot;</span>, { fade = <span class="tk-n">1</span> })              <span class="tk-c">-- crossfades</span>
+<span class="tk-f">stopMusic</span>(<span class="tk-n">2</span>)</code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
@@ -49,7 +49,7 @@ stopMusic(2)</code></pre>
 <p><code>music</code> with the music already playing keeps it playing. Music continues across scenes and isn't affected by <code>pauseGame()</code> or <code>timeScale()</code>.</p>
 <h2 id="the-sound-piece"><a class="anchor" href="#the-sound-piece" aria-hidden="true">#</a>The Sound piece</h2>
 <p>Plays one file, set in the Inspector. <code>volume</code> and <code>pitch</code> apply while playing, so they can be tweened. It stops when it leaves the scene.</p>
-<pre><code class="lang-lua">function ready() fadeIn(2) end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>() <span class="tk-f">fadeIn</span>(<span class="tk-n">2</span>) <span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>sound</code></td><td>resource</td><td>&quot;&quot;</td><td>The sound file.</td></tr>

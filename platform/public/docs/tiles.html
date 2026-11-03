@@ -51,15 +51,15 @@
 <tr><td><code>getTileSize()</code></td><td>One cell's size</td></tr>
 <tr><td><code>getBounds()</code></td><td>The painted area: x, y, width, height</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua">for _, c in ipairs(Level:cellsWith(7)) do
-  local cx, cy = Level:cellCenter(c.column, c.row)
-  spawn(&quot;scenes/coin.scene&quot;, { x = cx, y = cy })
-  Level:setTile(c.column, c.row, -1)
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">for</span> _, c <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(Level:<span class="tk-f">cellsWith</span>(<span class="tk-n">7</span>)) <span class="tk-k">do</span>
+  <span class="tk-k">local</span> cx, cy = Level:<span class="tk-f">cellCenter</span>(c.column, c.row)
+  <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/coin.scene&quot;</span>, { x = cx, y = cy })
+  Level:<span class="tk-f">setTile</span>(c.column, c.row, -<span class="tk-n">1</span>)
+<span class="tk-k">end</span></code></pre>
 <h2 id="collisions"><a class="anchor" href="#collisions" aria-hidden="true">#</a>Collisions</h2>
 <p>A Body's <code>hit(other)</code> receives the Tiles piece. <code>touchingTile(setting)</code> returns the settings of a touched tile that has <code>setting</code>:</p>
-<pre><code class="lang-lua">local t = touchingTile(&quot;damage&quot;)
-if t then hurt(t.damage) end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">local</span> t = <span class="tk-f">touchingTile</span>(<span class="tk-s">&quot;damage&quot;</span>)
+<span class="tk-k">if</span> t <span class="tk-k">then</span> <span class="tk-f">hurt</span>(t.damage) <span class="tk-k">end</span></code></pre>
 <p>Tileset files: <a href="formats#tilesets">File formats</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>

@@ -30,28 +30,28 @@
     <article class="prose">
 <h1>Scripts</h1>
 <p>A script is a Lua file attached to a piece. Names in it refer to the piece: no <code>self.</code>, no table to return.</p>
-<pre><code class="lang-lua">-- scripts/enemy.lua, on a Body
-speed = 80           -- script variable: editable per piece in the Inspector
-local hp = 3         -- private to this piece
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/enemy.lua, on a Body</span>
+speed = <span class="tk-n">80</span>           <span class="tk-c">-- script variable: editable per piece in the Inspector</span>
+<span class="tk-k">local</span> hp = <span class="tk-n">3</span>         <span class="tk-c">-- private to this piece</span>
 
-function ready()
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
   vx = speed
-end
+<span class="tk-k">end</span>
 
-function physicsUpdate(dt)
-  vy += 1800 * dt
-  move()
-  if onWall() then vx = -vx end
-end
+<span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
+  vy += <span class="tk-n">1800</span> * dt
+  <span class="tk-f">move</span>()
+  <span class="tk-k">if</span> <span class="tk-f">onWall</span>() <span class="tk-k">then</span> vx = -vx <span class="tk-k">end</span>
+<span class="tk-k">end</span>
 
-function hurt(damage)          -- other scripts call other:hurt(1)
+<span class="tk-k">function</span> <span class="tk-f">hurt</span>(damage)          <span class="tk-c">-- other scripts call other:hurt(1)</span>
   hp -= damage
-  if hp &lt;= 0 then destroy() end
-end
+  <span class="tk-k">if</span> hp &lt;= <span class="tk-n">0</span> <span class="tk-k">then</span> <span class="tk-f">destroy</span>() <span class="tk-k">end</span>
+<span class="tk-k">end</span>
 
-function hit(other)
-  if other:is(&quot;player&quot;) then other:hurt(1) end
-end</code></pre>
+<span class="tk-k">function</span> <span class="tk-f">hit</span>(other)
+  <span class="tk-k">if</span> other:<span class="tk-f">is</span>(<span class="tk-s">&quot;player&quot;</span>) <span class="tk-k">then</span> other:<span class="tk-f">hurt</span>(<span class="tk-n">1</span>) <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <h2 id="names"><a class="anchor" href="#names" aria-hidden="true">#</a>Names</h2>
 <p>A name is looked up in this order:</p>
 <ol><li>the script's functions;</li><li>the piece's properties, script variables and methods (<code>x</code>, <code>vx</code>, <code>move()</code>);</li><li>children, for capitalized names (<code>Look.color</code>, <code>Camera.zoom</code>);</li><li>the <a href="api">Script API</a> (<code>pressed</code>, <code>spawn</code>, <code>sfx</code>);</li><li>Lua globals (<code>math</code>, <code>print</code>, <code>smitten</code>).</li></ol>
@@ -70,16 +70,16 @@ end</code></pre>
 <p>Pieces also call <strong>events</strong>, such as <code>hit(other)</code>, <code>entered(other)</code>, <code>pressed()</code>, <code>finished()</code> and <code>tick()</code>. Each piece's events are listed in <a href="pieces">Pieces</a>.</p>
 <h2 id="your-own-events"><a class="anchor" href="#your-own-events" aria-hidden="true">#</a>Your own events</h2>
 <p><code>emit(name, ...)</code> calls the piece's function of that name and its listeners. <code>piece:on(name, fn)</code> listens and returns a handle with <code>:off()</code>.</p>
-<pre><code class="lang-lua">first(&quot;player&quot;):on(&quot;landed&quot;, function() shake(4, 0.2) end)</code></pre>
+<pre><code class="lang-lua"><span class="tk-f">first</span>(<span class="tk-s">&quot;player&quot;</span>):<span class="tk-f">on</span>(<span class="tk-s">&quot;landed&quot;</span>, <span class="tk-k">function</span>() <span class="tk-f">shake</span>(<span class="tk-n">4</span>, <span class="tk-n">0.2</span>) <span class="tk-k">end</span>)</code></pre>
 <h2 id="waiting"><a class="anchor" href="#waiting" aria-hidden="true">#</a>Waiting</h2>
 <p><code>ready()</code>, <code>removed()</code> and events can <code>wait(seconds)</code>. <code>update()</code>, <code>physicsUpdate()</code> and <code>draw()</code> can't; start a <code>task</code> from them instead.</p>
-<pre><code class="lang-lua">function hit(other)
-  if other:is(&quot;spikes&quot;) then
-    visible = false
-    wait(1)
-    x, y, visible = 100, 100, true
-  end
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">hit</span>(other)
+  <span class="tk-k">if</span> other:<span class="tk-f">is</span>(<span class="tk-s">&quot;spikes&quot;</span>) <span class="tk-k">then</span>
+    visible = <span class="tk-k">false</span>
+    <span class="tk-f">wait</span>(<span class="tk-n">1</span>)
+    x, y, visible = <span class="tk-n">100</span>, <span class="tk-n">100</span>, <span class="tk-k">true</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
@@ -91,7 +91,7 @@ end</code></pre>
 </table></div>
 <p>A piece's waits, timers and tweens stop when it's destroyed or the scene changes, and pause with the game. <code>after</code>, <code>every</code> and <code>tween</code> return a handle with <code>:cancel()</code>; a tween's <code>:after(fn)</code> runs when it ends.</p>
 <p>Easings: <code>linear</code>, <code>outQuad</code> (default), <code>inQuad</code>, <code>inOutQuad</code>, <code>inCubic</code>, <code>outCubic</code>, <code>inOutCubic</code>, <code>inSine</code>, <code>outSine</code>, <code>inOutSine</code>, <code>inExpo</code>, <code>outExpo</code>, <code>inBack</code>, <code>outBack</code>, <code>inOutBack</code>, <code>outBounce</code>, <code>outElastic</code>.</p>
-<pre><code class="lang-lua">tween(self, 0.4, { y = y - 40 }, &quot;outBack&quot;)</code></pre>
+<pre><code class="lang-lua"><span class="tk-f">tween</span>(self, <span class="tk-n">0.4</span>, { y = y - <span class="tk-n">40</span> }, <span class="tk-s">&quot;outBack&quot;</span>)</code></pre>
 <h2 id="math"><a class="anchor" href="#math" aria-hidden="true">#</a>Math</h2>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>

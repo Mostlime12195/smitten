@@ -30,12 +30,12 @@
     <article class="prose">
 <h1>Drawing</h1>
 <p>A piece's <code>draw()</code> runs after the piece draws, in its own coordinates: (0, 0) is its position, and it turns and scales with it. UI pieces draw in screen pixels from their top-left corner.</p>
-<pre><code class="lang-lua">function draw()
-  pen(&quot;#ff5050&quot;)
-  penSize(3)
-  line(-16, -28, -16 + 32 * hp / maxHp, -28)
-  write(name, 0, 24, { size = 10, align = &quot;center&quot; })
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">draw</span>()
+  <span class="tk-f">pen</span>(<span class="tk-s">&quot;#ff5050&quot;</span>)
+  <span class="tk-f">penSize</span>(<span class="tk-n">3</span>)
+  <span class="tk-f">line</span>(-<span class="tk-n">16</span>, -<span class="tk-n">28</span>, -<span class="tk-n">16</span> + <span class="tk-n">32</span> * hp / maxHp, -<span class="tk-n">28</span>)
+  <span class="tk-f">write</span>(name, <span class="tk-n">0</span>, <span class="tk-n">24</span>, { size = <span class="tk-n">10</span>, align = <span class="tk-s">&quot;center&quot;</span> })
+<span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>pen(r, g, b, a)</code></td><td>The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
@@ -64,7 +64,7 @@ end</code></pre>
 <tr><td><code>flipX</code>, <code>flipY</code></td><td></td></tr>
 <tr><td><code>centered</code></td><td>Center on x, y</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua">sprite(&quot;art/tiles.png&quot;, 32, 0, { columns = 8, rows = 8, frame = 12 })</code></pre>
+<pre><code class="lang-lua"><span class="tk-f">sprite</span>(<span class="tk-s">&quot;art/tiles.png&quot;</span>, <span class="tk-n">32</span>, <span class="tk-n">0</span>, { columns = <span class="tk-n">8</span>, rows = <span class="tk-n">8</span>, frame = <span class="tk-n">12</span> })</code></pre>
 <p>All of <a href="https://love2d.org/wiki/love.graphics" rel="noopener"><code>smitten.graphics</code></a> also works in <code>draw()</code>; <code>pen</code> is <code>smitten.graphics.setColor</code>.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="saving"><span>Previous</span>Saving</a><a class="next" href="settings"><span>Next</span>Project settings</a></nav>

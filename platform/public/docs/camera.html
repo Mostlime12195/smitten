@@ -32,7 +32,7 @@
 <p>A Camera sets which part of the scene is on screen. Without one, the scene's (0, 0) is the top-left corner. Cameras don't move UI.</p>
 <h2 id="following"><a class="anchor" href="#following" aria-hidden="true">#</a>Following</h2>
 <p>Put the Camera inside the player, or set its <code>target</code> (or call <code>Camera:follow(piece)</code>). <code>smoothing</code> glides (0 sticks); <code>offsetX</code> and <code>offsetY</code> shift the view; <code>snap()</code> jumps to the target.</p>
-<pre><code class="lang-lua">Camera.offsetX = approach(Camera.offsetX, sign(vx) * 60, 120 * dt)</code></pre>
+<pre><code class="lang-lua">Camera.offsetX = <span class="tk-f">approach</span>(Camera.offsetX, <span class="tk-f">sign</span>(vx) * <span class="tk-n">60</span>, <span class="tk-n">120</span> * dt)</code></pre>
 <h2 id="limits"><a class="anchor" href="#limits" aria-hidden="true">#</a>Limits</h2>
 <p><code>left</code>, <code>top</code>, <code>right</code> and <code>bottom</code> stop the view at those edges. <code>setLimits(l, t, r, b)</code> sets all four; <code>limitTo(tiles)</code> uses a Tiles piece's painted area. A limited area smaller than the screen is centered.</p>
 <h2 id="zoom-and-shake"><a class="anchor" href="#zoom-and-shake" aria-hidden="true">#</a>Zoom and shake</h2>
@@ -46,8 +46,8 @@
 <tr><td><code>Camera:screenToWorld(x, y)</code>, <code>worldToScreen(x, y)</code></td><td>Convert between screen and scene</td></tr>
 <tr><td><code>Camera:getView()</code></td><td>The visible area: x, y, width, height</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua">local vx, vy, vw, vh = camera():getView()
-spawn(&quot;scenes/bat.scene&quot;, { x = vx + vw + 32, y = vy + rnd(vh) })</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">local</span> vx, vy, vw, vh = <span class="tk-f">camera</span>():<span class="tk-f">getView</span>()
+<span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/bat.scene&quot;</span>, { x = vx + vw + <span class="tk-n">32</span>, y = vy + <span class="tk-f">rnd</span>(vh) })</code></pre>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>Use this camera. When several are active, the first in the scene wins.</td></tr>

@@ -30,8 +30,8 @@
     <article class="prose">
 <h1>Saving</h1>
 <p><code>save(key, value)</code> stores a value between plays; <code>load(key, default)</code> reads it.</p>
-<pre><code class="lang-lua">best = load(&quot;best&quot;, 0)
-if score &gt; best then save(&quot;best&quot;, score) end</code></pre>
+<pre><code class="lang-lua">best = <span class="tk-f">load</span>(<span class="tk-s">&quot;best&quot;</span>, <span class="tk-n">0</span>)
+<span class="tk-k">if</span> score &gt; best <span class="tk-k">then</span> <span class="tk-f">save</span>(<span class="tk-s">&quot;best&quot;</span>, score) <span class="tk-k">end</span></code></pre>
 <p>Values can be numbers, strings, booleans and tables of them.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>

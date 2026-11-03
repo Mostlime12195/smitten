@@ -30,10 +30,10 @@
     <article class="prose">
 <h1>Input</h1>
 <p>Read input through <strong>actions</strong>: named groups of keys and buttons, set in <strong>Project settings › Input</strong>.</p>
-<pre><code class="lang-lua">function physicsUpdate(dt)
-  vx = axis(&quot;left&quot;, &quot;right&quot;) * speed
-  if pressed(&quot;jump&quot;) and onGround() then vy = -jumpSpeed(96) end
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
+  vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * speed
+  <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>pressed(action)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button.</td></tr>
@@ -72,22 +72,22 @@ end</code></pre>
 </table></div>
 <h2 id="rebinding"><a class="anchor" href="#rebinding" aria-hidden="true">#</a>Rebinding</h2>
 <p><code>smitten.input.bind(action, inputs)</code> replaces an action's inputs. <code>lastPressed()</code> returns the input pressed this frame.</p>
-<pre><code class="lang-lua">local key = smitten.input.lastPressed()
-if key then
-  smitten.input.bind(&quot;jump&quot;, { key })
-  save(&quot;jumpKey&quot;, key)
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">local</span> key = smitten.input.<span class="tk-f">lastPressed</span>()
+<span class="tk-k">if</span> key <span class="tk-k">then</span>
+  smitten.input.<span class="tk-f">bind</span>(<span class="tk-s">&quot;jump&quot;</span>, { key })
+  <span class="tk-f">save</span>(<span class="tk-s">&quot;jumpKey&quot;</span>, key)
+<span class="tk-k">end</span></code></pre>
 <h2 id="mouse"><a class="anchor" href="#mouse" aria-hidden="true">#</a>Mouse</h2>
 <p><code>mouse()</code> is the pointer in the scene; <code>mouseScreen()</code> is on the screen, for UI. <code>smitten.mouse.isOverUI()</code> is true over a button or panel.</p>
-<pre><code class="lang-lua">if pressed(&quot;mouse:1&quot;) and not smitten.mouse.isOverUI() then shoot() end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;mouse:1&quot;</span>) <span class="tk-k">and</span> <span class="tk-k">not</span> smitten.mouse.<span class="tk-f">isOverUI</span>() <span class="tk-k">then</span> <span class="tk-f">shoot</span>() <span class="tk-k">end</span></code></pre>
 <h2 id="touch"><a class="anchor" href="#touch" aria-hidden="true">#</a>Touch</h2>
 <p><code>touches()</code> returns each finger: <code>id</code>, <code>x</code>, <code>y</code> (screen) and <code>worldX</code>, <code>worldY</code> (scene).</p>
 <h2 id="gamepads"><a class="anchor" href="#gamepads" aria-hidden="true">#</a>Gamepads</h2>
 <p><code>stick(side, player)</code>, <code>trigger(side, player)</code> and <code>vibrate(strength, seconds, player)</code>. <code>smitten.input.gamepads()</code> is the number connected.</p>
 <h2 id="typing"><a class="anchor" href="#typing" aria-hidden="true">#</a>Typing</h2>
 <p><code>typed()</code> returns the text typed this frame and turns text input on (the on-screen keyboard on phones).</p>
-<pre><code class="lang-lua">name ..= typed()
-if pressed(&quot;backspace&quot;) then name = name:sub(1, -2) end</code></pre>
+<pre><code class="lang-lua">name ..= <span class="tk-f">typed</span>()
+<span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;backspace&quot;</span>) <span class="tk-k">then</span> name = name:<span class="tk-f">sub</span>(<span class="tk-n">1</span>, -<span class="tk-n">2</span>) <span class="tk-k">end</span></code></pre>
 <h2 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>

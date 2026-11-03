@@ -30,9 +30,13 @@
     <article class="prose">
 <h1>Getting started</h1>
 <p>A platformer with a player, a floor and coins.</p>
-<ol><li>In the editor, make a project from <strong>Empty</strong>.</li><li>Press <strong>Ctrl+A</strong> (⌘A) and add a <strong>Body</strong> named <code>Player</code>. Put a <strong>Shape</strong> inside it; the Body takes its size from the Shape. Give the Player the tag <code>player</code> in the Inspector.</li><li>Add another Body for the floor. Set its <strong>Motion</strong> to <code>still</code> and put a wide Shape inside it.</li><li>Select the Player, choose <strong>Attach a script › Platformer player</strong>, and press <strong>F5</strong> to play. The script is copied to <code>scripts/platformer.lua</code>.</li><li>Add a <strong>Zone</strong> with a small circle Shape inside, and attach <strong>Pickup</strong>. Give the scene's root piece this script:</li></ol>
-<p>```lua coins = 0</p>
-<p>function collected(coin) coins += 1 print(coins) end ```</p>
+<ol><li>In the editor, make a project from <strong>Empty</strong>.</li><li>Press <strong>Ctrl+A</strong> (⌘A) and add a <strong>Body</strong> named <code>Player</code>. Put a <strong>Shape</strong> inside it; the Body takes its size from the Shape. Give the Player the tag <code>player</code> in the Inspector.</li><li>Add another Body for the floor. Set its <strong>Motion</strong> to <code>still</code> and put a wide Shape inside it.</li><li>Select the Player, choose <strong>Attach a script › Platformer player</strong>, and press <strong>F5</strong> to play. The script is copied to <code>scripts/platformer.lua</code>.</li><li>Add a <strong>Zone</strong> with a small circle Shape inside, and attach <strong>Pickup</strong>. Give the scene's root piece this script:
+<pre><code class="lang-lua">coins = <span class="tk-n">0</span>
+
+<span class="tk-k">function</span> <span class="tk-f">collected</span>(coin)
+  coins += <span class="tk-n">1</span>
+  <span class="tk-f">print</span>(coins)
+<span class="tk-k">end</span></code></pre></li></ol>
 <p>While the game runs, editing a piece in the Inspector changes the running game only; stopping it restores the scene.</p>
 <p><strong>Project › Publish</strong> puts the game online.</p>
 <p>Next: <a href="scripts">Scripts</a>.</p>

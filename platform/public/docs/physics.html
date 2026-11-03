@@ -50,12 +50,12 @@
 </table></div>
 <p>Shapes move, turn and scale with the piece. A <strong>Hitbox</strong> inside a Body or Zone adds a shape; <code>off = true</code> disables it.</p>
 <h2 id="scripted-bodies"><a class="anchor" href="#scripted-bodies" aria-hidden="true">#</a>Scripted bodies</h2>
-<pre><code class="lang-lua">function physicsUpdate(dt)
-  vx = axis(&quot;left&quot;, &quot;right&quot;) * 220
-  vy = math.min(vy + 1800 * dt, 1000)
-  if pressed(&quot;jump&quot;) and onGround() then vy = -jumpSpeed(96) end
-  move()
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
+  vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * <span class="tk-n">220</span>
+  vy = math.<span class="tk-f">min</span>(vy + <span class="tk-n">1800</span> * dt, <span class="tk-n">1000</span>)
+  <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
+  <span class="tk-f">move</span>()
+<span class="tk-k">end</span></code></pre>
 <p><code>move()</code> moves by <code>vx * dt</code>, <code>vy * dt</code>. It slides along surfaces, climbs slopes up to <code>slope</code> (45°), stays grounded over small steps, rides moving platforms, pushes physics bodies according to <code>mass</code>, passes up through one-way tiles, and turns by <code>spin</code>.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
@@ -84,13 +84,13 @@ end</code></pre>
 <tr><td><code>asleep</code></td><td>Start at rest</td></tr></tbody>
 </table></div>
 <p>Setting <code>x</code>, <code>y</code> or <code>rotation</code> teleports and keeps velocity.</p>
-<pre><code class="lang-lua">for _, p in ipairs(overlap(&quot;circle&quot;, x, y, 150)) do
-  if p.motion == &quot;physics&quot; then
-    local dx, dy = p.x - x, p.y - y
-    local d = math.max(dist(0, 0, dx, dy), 1)
-    p:applyImpulse(dx / d * 600 * p.mass, dy / d * 600 * p.mass)
-  end
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">for</span> _, p <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">overlap</span>(<span class="tk-s">&quot;circle&quot;</span>, x, y, <span class="tk-n">150</span>)) <span class="tk-k">do</span>
+  <span class="tk-k">if</span> p.motion == <span class="tk-s">&quot;physics&quot;</span> <span class="tk-k">then</span>
+    <span class="tk-k">local</span> dx, dy = p.x - x, p.y - y
+    <span class="tk-k">local</span> d = math.<span class="tk-f">max</span>(<span class="tk-f">dist</span>(<span class="tk-n">0</span>, <span class="tk-n">0</span>, dx, dy), <span class="tk-n">1</span>)
+    p:<span class="tk-f">applyImpulse</span>(dx / d * <span class="tk-n">600</span> * p.mass, dy / d * <span class="tk-n">600</span> * p.mass)
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <h2 id="collisions"><a class="anchor" href="#collisions" aria-hidden="true">#</a>Collisions</h2>
 <p><code>hit(other, contact)</code> runs on both bodies when they start touching.</p>
 <div class="table"><table>
@@ -122,8 +122,8 @@ end</code></pre>
 <tr><td><code>getGravity()</code></td><td>The scene's gravity: x, y in pixels per second per second.</td></tr>
 <tr><td><code>setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats everything.</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua">local hit = raycast(x, y, player.x, player.y)
-local sees = hit and hit.piece == player</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">local</span> hit = <span class="tk-f">raycast</span>(x, y, player.x, player.y)
+<span class="tk-k">local</span> sees = hit <span class="tk-k">and</span> hit.piece == player</code></pre>
 <p>Raycasts ignore Zones and the backs of tiles.</p>
 <h2 id="gravity"><a class="anchor" href="#gravity" aria-hidden="true">#</a>Gravity</h2>
 <p>Set in <strong>Project settings › Physics</strong> (<code>physics.gravity</code>, default <code>[0, 980]</code>). <code>setGravity(x, y)</code> and <code>getGravity()</code> change it at run time. Scripted bodies apply their own gravity.</p>

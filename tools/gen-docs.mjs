@@ -210,8 +210,9 @@ for (const f of readdirSync(docsDir).filter((f) => f.endsWith('.md'))) {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown to HTML (the subset the docs use: headings, paragraphs, lists,
-// tables, fenced code, blockquotes, inline code, links, bold, italics)
+// Markdown to HTML (the subset the docs use: headings, paragraphs, lists
+// whose items can hold more blocks, tables, fenced code at any indent,
+// images with captions, tips (> **Tip:**), inline code, links, bold, italics)
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const slug = (s) => s.toLowerCase().replace(/`/g, '').replace(/<[^>]+>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -223,11 +224,31 @@ function href(h) {
   return h;
 }
 
+// Lua in code blocks: comments, strings, numbers and keywords.
+const LUA_KEYWORDS = new Set('and break continue do else elseif end false for function if in local nil not or repeat return then true until while'.split(' '));
+function highlightLua(code) {
+  let out = '';
+  const re = /(--\[\[[\s\S]*?\]\]|--[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`[^`]*`)|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)\b/g;
+  let last = 0;
+  for (const m of code.matchAll(re)) {
+    out += esc(code.slice(last, m.index));
+    if (m[1]) out += `<span class="tk-c">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="tk-s">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="tk-n">${esc(m[3])}</span>`;
+    else if (LUA_KEYWORDS.has(m[4])) out += `<span class="tk-k">${m[4]}</span>`;
+    else if (code[m.index + m[0].length] === '(') out += `<span class="tk-f">${m[4]}</span>`;
+    else out += m[4];
+    last = m.index + m[0].length;
+  }
+  return out + esc(code.slice(last));
+}
+
 function inline(s) {
   const codes = [];
   const keep = (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; };
   s = s.replace(/``\s?(.+?)\s?``/g, keep).replace(/`([^`]+)`/g, keep);
   s = esc(s).replace(/\\\|/g, '|');
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) => `<img src="${esc(src)}" alt="${alt}" loading="lazy">`);
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, h) => {
     const ext = /^https?:/.test(h);
     return `<a href="${esc(href(h))}"${ext ? ' rel="noopener"' : ''}>${t}</a>`;
@@ -254,7 +275,7 @@ function cells(row) {
   return out;
 }
 
-const BLOCK = /^(#{1,4} |```|\||\s*[-*] |\d+\. |> |<!--|---+\s*$)/;
+const BLOCK = /^(#{1,4} |\s*```|\||\s*[-*] |\d+\. |> |<!--|---+\s*$|!\[)/;
 
 function render(md) {
   const lines = md.split('\n');
@@ -272,13 +293,20 @@ function render(md) {
   };
   while (i < lines.length) {
     const line = lines[i];
-    if (/^```/.test(line)) {
-      const lang = line.slice(3).trim();
+    if (/^\s*```/.test(line)) {
+      const indent = /^\s*/.exec(line)[0].length;
+      const lang = line.trim().slice(3).trim();
       const code = [];
       i++;
-      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) code.push(lines[i++].slice(Math.min(indent, /^\s*/.exec(lines[i - 1])[0].length)));
       i++;
-      html.push(`<pre><code${lang ? ` class="lang-${esc(lang)}"` : ''}>${esc(code.join('\n'))}</code></pre>`);
+      const body = lang === 'lua' ? highlightLua(code.join('\n')) : esc(code.join('\n'));
+      html.push(`<pre><code${lang ? ` class="lang-${esc(lang)}"` : ''}>${body}</code></pre>`);
+    } else if (/^!\[[^\]]*\]\([^)]+\)\s*$/.test(line)) {
+      // An image on its own line: a figure, captioned by its alt text.
+      const [, alt, src] = /^!\[([^\]]*)\]\(([^)\s]+)\)/.exec(line);
+      html.push(`<figure><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">${alt ? `<figcaption>${inline(alt)}</figcaption>` : ''}</figure>`);
+      i++;
     } else if (/^<!--/.test(line)) {
       while (i < lines.length && !lines[i].includes('-->')) i++;
       i++;
@@ -304,21 +332,38 @@ function render(md) {
         `<tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('\n')}</tbody>`,
         '</table></div>');
     } else if (/^\s*[-*] /.test(line) || /^\d+\. /.test(line)) {
+      // Items hold everything indented under them (more paragraphs, code,
+      // images), rendered as blocks of their own.
       const ordered = /^\d+\. /.test(line);
+      const marker = ordered ? /^\d+\. / : /^\s*[-*] /;
       const items = [];
+      let width = 2; // how far an item's own lines are indented: under its text
       while (i < lines.length) {
         const l = lines[i];
-        if ((ordered ? /^\d+\. / : /^\s*[-*] /).test(l)) items.push(l.replace(/^\s*(?:[-*]|\d+\.) /, ''));
-        else if (/^\s{2,}\S/.test(l) && items.length) items[items.length - 1] += ` ${l.trim()}`;
-        else break;
+        if (marker.test(l)) {
+          width = /^\s*(?:[-*]|\d+\.) /.exec(l)[0].length;
+          items.push([l.slice(width)]);
+        } else if (items.length && /^\s{2,}\S/.test(l)) {
+          items[items.length - 1].push(l.slice(Math.min(width, /^\s*/.exec(l)[0].length)));
+        } else if (items.length && !l.trim() && i + 1 < lines.length && (/^\s{2,}\S/.test(lines[i + 1]))) {
+          items[items.length - 1].push('');
+        } else break;
         i++;
       }
       const tag = ordered ? 'ol' : 'ul';
-      html.push(`<${tag}>${items.map((it) => `<li>${inline(it)}</li>`).join('')}</${tag}>`);
+      const li = (it) => {
+        if (it.length === 1 || !it.slice(1).some((x) => x.trim())) return `<li>${inline(it.join(' ').trim())}</li>`;
+        const inner = render(it.join('\n')).html.replace(/^<p>([\s\S]*?)<\/p>/, '$1');
+        return `<li>${inner}</li>`;
+      };
+      html.push(`<${tag}>${items.map(li).join('')}</${tag}>`);
     } else if (/^> /.test(line)) {
       const q = [];
       while (i < lines.length && /^> ?/.test(lines[i]) && lines[i].trim()) q.push(lines[i++].replace(/^> ?/, ''));
-      html.push(`<blockquote><p>${inline(q.join(' '))}</p></blockquote>`);
+      const text = q.join(' ');
+      const tip = /^\*\*(Tip|Note|Careful):\*\*\s*/.exec(text);
+      if (tip) html.push(`<div class="callout ${tip[1].toLowerCase()}"><strong>${tip[1]}</strong><p>${inline(text.slice(tip[0].length))}</p></div>`);
+      else html.push(`<blockquote><p>${inline(text)}</p></blockquote>`);
     } else if (/^---+\s*$/.test(line)) {
       html.push('<hr>');
       i++;
@@ -455,6 +500,23 @@ const CSS = `/* Smitten docs: the sharing site's look (site.css) with a sidebar.
 .prose pre code { padding: 0; background: none; font-size: 13.5px; line-height: 1.55; overflow-wrap: normal; white-space: pre; }
 .prose blockquote { margin: 0 0 16px; padding: 10px 14px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--surface); color: var(--fg-muted); }
 .prose blockquote p { margin: 0; }
+.prose li > p { margin: 6px 0; }
+.prose li > pre, .prose li > figure { margin: 10px 0 14px; }
+.prose figure { margin: 20px 0 24px; }
+.prose figure img { display: block; max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
+.prose figcaption { margin-top: 8px; color: var(--fg-muted); font-size: 13.5px; }
+.prose p img { max-width: 100%; vertical-align: middle; border-radius: 6px; }
+.callout { margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+.callout strong { display: block; margin-bottom: 2px; font-size: 13px; }
+.callout p { margin: 0; color: var(--fg-muted); }
+.callout.tip strong { color: var(--accent); }
+.callout.careful strong { color: #e5a03c; }
+.tk-c { color: var(--fg-muted); font-style: italic; }
+.tk-s { color: #4fae74; }
+.tk-n { color: #c98a3a; }
+.tk-k { color: #a476e0; }
+.tk-f { color: #4f8ae8; }
+@media (prefers-color-scheme: dark) { .tk-s { color: #8bd5a2; } .tk-n { color: #f2b56b; } .tk-k { color: #c8a2ff; } .tk-f { color: #82b0ff; } }
 .prose hr { margin: 28px 0; border: 0; border-top: 1px solid var(--border); }
 .prose .table { margin: 0 0 18px; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .prose table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
@@ -637,6 +699,12 @@ for (const [name, navTitle] of NAV.flatMap((s) => s.pages)) {
       search.push({ k: 'api', p: `${navTitle}${h ? ` › ${h.text}` : ''}`, t: sig, u: h ? `${url}#${h.id}` : url, x: plain(c[c.length - 1]).slice(0, 160) });
     }
   }
+}
+// Screenshots and other images (docs/images, made by tools/docs-shots.mjs).
+const imagesDir = join(docsDir, 'images');
+if (existsSync(imagesDir)) {
+  mkdirSync(join(outDir, 'images'), { recursive: true });
+  for (const f of readdirSync(imagesDir)) writeFileSync(join(outDir, 'images', f), readFileSync(join(imagesDir, f)));
 }
 writeFileSync(join(outDir, 'search.json'), JSON.stringify(search));
 writeFileSync(join(outDir, 'docs.css'), CSS);

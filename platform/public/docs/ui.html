@@ -32,11 +32,11 @@
 <p>UI pieces draw on top of the game in screen pixels and ignore cameras: <strong>Label</strong>, <strong>Button</strong>, <strong>Bar</strong>, <strong>Panel</strong> and <strong>Picture</strong>. A UI piece inside another is laid out inside it.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
 <p>Each UI piece is placed from an <strong>anchor</strong> (a corner, an edge, <code>center</code> or <code>fill</code>); <code>x</code> and <code>y</code> are the distance in from it. <code>getRect()</code> returns the current screen rectangle. <code>visible</code> and <code>opacity</code> apply to children too.</p>
-<pre><code class="lang-lua">Message.text = &quot;Level complete&quot;
-tween(Message, 0.3, { opacity = 1 })</code></pre>
+<pre><code class="lang-lua">Message.text = <span class="tk-s">&quot;Level complete&quot;</span>
+<span class="tk-f">tween</span>(Message, <span class="tk-n">0.3</span>, { opacity = <span class="tk-n">1</span> })</code></pre>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
 <p>A Button's script gets <code>pressed()</code> when clicked or tapped (Pictures and Panels too). In a Button's script, read input with <code>smitten.input.pressed</code>, since <code>pressed</code> is the event.</p>
-<pre><code class="lang-lua">function pressed() go(&quot;scenes/level1.scene&quot;) end</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">pressed</span>() <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>) <span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>disabled</code></td><td>Can't be pressed; drawn faded</td></tr>

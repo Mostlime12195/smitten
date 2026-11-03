@@ -44,12 +44,12 @@
 <h2 id="tags"><a class="anchor" href="#tags" aria-hidden="true">#</a>Tags</h2>
 <p>Set tags in the Inspector or with <code>tag(name)</code> and <code>untag(name)</code>. <code>other:is(&quot;enemy&quot;)</code> checks a tag or a type (<code>other:is(&quot;Body&quot;)</code>). <code>hasAnyTag(&quot;enemy, spikes&quot;)</code> checks several.</p>
 <h2 id="making-and-removing-pieces"><a class="anchor" href="#making-and-removing-pieces" aria-hidden="true">#</a>Making and removing pieces</h2>
-<pre><code class="lang-lua">spawn(&quot;scenes/bullet.scene&quot;, { x = x, y = y, rotation = rotation })
-spawn(&quot;Text&quot;, { text = &quot;+10&quot;, x = x, y = y - 20 })
-self:spawn(&quot;scenes/hat.scene&quot;)            -- inside this piece
-local enemy = make(&quot;scenes/enemy.scene&quot;)  -- not in the scene yet
-Enemies:add(enemy)
-destroy()                                 -- at the end of the frame</code></pre>
+<pre><code class="lang-lua"><span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/bullet.scene&quot;</span>, { x = x, y = y, rotation = rotation })
+<span class="tk-f">spawn</span>(<span class="tk-s">&quot;Text&quot;</span>, { text = <span class="tk-s">&quot;+10&quot;</span>, x = x, y = y - <span class="tk-n">20</span> })
+self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/hat.scene&quot;</span>)            <span class="tk-c">-- inside this piece</span>
+<span class="tk-k">local</span> enemy = <span class="tk-f">make</span>(<span class="tk-s">&quot;scenes/enemy.scene&quot;</span>)  <span class="tk-c">-- not in the scene yet</span>
+Enemies:<span class="tk-f">add</span>(enemy)
+<span class="tk-f">destroy</span>()                                 <span class="tk-c">-- at the end of the frame</span></code></pre>
 <p><code>destroy()</code> removes a piece and its children at the end of the frame. <code>remove()</code> takes it out immediately, to <code>add</code> it elsewhere.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
@@ -70,26 +70,26 @@ destroy()                                 -- at the end of the frame</code></pre
 </table></div>
 <h2 id="changing-scenes"><a class="anchor" href="#changing-scenes" aria-hidden="true">#</a>Changing scenes</h2>
 <p><code>go(path, ...)</code> changes scene at the end of the frame. The extra values go to the new root's <code>ready(...)</code>.</p>
-<pre><code class="lang-lua">go(&quot;scenes/gameover.scene&quot;, score)
+<pre><code class="lang-lua"><span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/gameover.scene&quot;</span>, score)
 
--- on the game over scene's root
-function ready(score)
-  find(&quot;Score&quot;).text = `Score: {score}`
-end</code></pre>
+<span class="tk-c">-- on the game over scene's root</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>(score)
+  <span class="tk-f">find</span>(<span class="tk-s">&quot;Score&quot;</span>).text = <span class="tk-s">`Score: {score}`</span>
+<span class="tk-k">end</span></code></pre>
 <p><code>reload()</code> restarts the scene with the same values. <code>transition(&quot;fade&quot;, 0.4[, color])</code> makes later scene changes fade; <code>transition(&quot;none&quot;)</code> turns it off.</p>
 <h2 id="the-game-table"><a class="anchor" href="#the-game-table" aria-hidden="true">#</a>The game table</h2>
 <p><code>game</code> is shared by every script and survives scene changes:</p>
-<pre><code class="lang-lua">game.lives = (game.lives or 3) - 1</code></pre>
+<pre><code class="lang-lua">game.lives = (game.lives <span class="tk-k">or</span> <span class="tk-n">3</span>) - <span class="tk-n">1</span></code></pre>
 <p>To keep values between plays, use <a href="saving">Saving</a>.</p>
 <h2 id="pausing"><a class="anchor" href="#pausing" aria-hidden="true">#</a>Pausing</h2>
 <p><code>pauseGame()</code> stops <code>update</code>, <code>physicsUpdate</code>, physics, animations, timers and tweens. Drawing and UI input continue. Pieces with <code>pausable</code> off, and their children, keep running: put the pause menu in one.</p>
-<pre><code class="lang-lua">-- on a Group with pausable off
-function update(dt)
-  if pressed(&quot;pause&quot;) then
-    if isPaused() then resumeGame() else pauseGame() end
-    visible = isPaused()
-  end
-end</code></pre>
+<pre><code class="lang-lua"><span class="tk-c">-- on a Group with pausable off</span>
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;pause&quot;</span>) <span class="tk-k">then</span>
+    <span class="tk-k">if</span> <span class="tk-f">isPaused</span>() <span class="tk-k">then</span> <span class="tk-f">resumeGame</span>() <span class="tk-k">else</span> <span class="tk-f">pauseGame</span>() <span class="tk-k">end</span>
+    visible = <span class="tk-f">isPaused</span>()
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
 <p><code>timeScale(0.5)</code> runs the game at half speed; <code>timeScale(0)</code> freezes it. Music isn't affected by either.</p>
 <h2 id="every-piece"><a class="anchor" href="#every-piece" aria-hidden="true">#</a>Every piece</h2>
 <div class="table"><table>
