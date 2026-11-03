@@ -34,6 +34,7 @@ import { createLoveCompletions } from './completions.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
+import { startHackatime, hackatimeKey } from './hackatime.js';
 
 const app = document.getElementById('app');
 
@@ -128,6 +129,8 @@ function closeEditor() {
   ed.runner?.destroy();
   ed.dock?.dispose();
   ed.offAccount?.();
+  ed.hackatime?.stop();
+  ed.offHackatimeKey?.();
   window.removeEventListener('resize', moveWorkspaceIndicator);
   ed = null;
 }
@@ -183,7 +186,9 @@ async function openProject(id) {
   const shell = h('main', { class: 'shell' });
   ed.status = { left: h('span', {}, 'Saved'), modules: h('button', { type: 'button', title: 'Engine modules this game uses (Project settings › Modules)' }), right: h('span', {}) };
   ed.status.modules.addEventListener('click', () => openProjectSettings('modules'));
-  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.modules);
+  ed.status.hackatime = h('button', { type: 'button', title: 'Time logged on Hackatime today (Settings › Hackatime)', hidden: true });
+  ed.status.hackatime.addEventListener('click', () => openSettings({ section: 'hackatime' }));
+  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.hackatime, ed.status.modules);
   app.replaceChildren(h('div', { id: 'editor' }, titlebar, shell, statusbar));
 
   // Panels
@@ -340,6 +345,25 @@ async function openProject(id) {
   watchDoc();
   window.addEventListener('resize', moveWorkspaceIndicator);
   requestAnimationFrame(moveWorkspaceIndicator);
+
+  // Hackatime: time spent working on the open file (hackatime.js).
+  const showToday = (text) => {
+    ed.status.hackatime.replaceChildren(icon('timer', 13), ` ${text} today`);
+    ed.status.hackatime.hidden = false;
+  };
+  ed.hackatime = startHackatime({
+    project,
+    root: app,
+    current: () => {
+      if (!ed || !ed.ws) return null;
+      const ws = ed.workspaces[ed.ws];
+      return ed.ws === 'scene' ? ws.active?.path || null : ws.active || null;
+    },
+    onToday: showToday,
+  });
+  ed.offHackatimeKey = settings.onChange((key) => {
+    if (key === 'hackatimeKey' && !hackatimeKey()) ed.status.hackatime.hidden = true;
+  });
 }
 
 let apiPromise = null;
@@ -749,7 +773,7 @@ async function instanceScene(parent) {
   const doc = sceneWs().doc;
   const scenes = ed.project.paths().filter((p) => p.endsWith('.scene') && p !== doc.path && !doc.wouldLoop(p));
   if (!scenes.length) {
-    toast('There are no other scenes to place. Make one with Files › New › Scene, or right-click a node › Save as a scene.');
+    toast('There are no other scenes to place. Make one with Files › New › Scene, or right-click a piece › Save as a scene.');
     return;
   }
   const sel = h('select', { class: 'input', size: Math.min(8, scenes.length) }, ...scenes.map((p, i) => h('option', { value: p, selected: i === 0 }, p)));

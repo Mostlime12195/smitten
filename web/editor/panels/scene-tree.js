@@ -250,7 +250,7 @@ export class SceneTreePanel {
     const a = this.actions;
     const items = [];
     const parent = n && !n.readonly ? n : doc.root;
-    items.push({ label: 'Add node…', icon: 'plus', shortcut: `${modKey}+A`, action: () => a.addNode(parent) });
+    items.push({ label: 'Add a piece…', icon: 'plus', shortcut: `${modKey}+A`, action: () => a.addNode(parent) });
     items.push({ label: 'Place a scene…', icon: 'link', action: () => a.instanceScene(parent) });
     if (n && !n.readonly) {
       items.push('-');

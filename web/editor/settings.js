@@ -32,6 +32,11 @@ export const DEFAULTS = {
   // Publishing
   // The game-sharing site (platform/); a hosted editor's config.js names its own.
   platformUrl: globalThis.SMITTEN_CONFIG?.platformUrl || 'http://localhost:8787',
+  // Hackatime (hackatime.js)
+  hackatimeKey: '',
+  hackatimeLevels: true,     // scenes and tiles count as coding
+  hackatimeArt: false,       // paint, sound and music count as designing
+  hackatimeUrl: 'https://hackatime.hackclub.com/api/hackatime/v1',
 };
 
 let values = load();

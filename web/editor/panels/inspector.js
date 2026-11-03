@@ -163,7 +163,7 @@ export class InspectorPanel {
       const vars = scriptVariables(this.ctx.project.readText(script));
       if (vars.length) {
         out.push(this.section(`script:${script}`, 'Script variables', vars.flatMap((v) => {
-          const def = { type: v.type, default: v.value, description: v.description || `Set in ${script}; change it here for this node only.` };
+          const def = { type: v.type, default: v.value, description: v.description || `Set in ${script}; change it here for this piece only.` };
           return this.row(node, v.name, def, v.value);
         })));
       } else {

@@ -259,7 +259,7 @@ function describe(doc, n) {
 }
 
 async function main() {
-  const schema = await (await fetch('/love/src/modules/scene/nodes.json')).json();
+  const schema = await (await fetch('/love/src/modules/scene/pieces.json')).json();
   setSchema(schema);
   const project = new FakeProject(await makeFiles());
   const readScene = (path) => {

@@ -372,6 +372,7 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
 .statusbar .spacer { flex: 1; }
 .statusbar button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 1px 6px; border-radius: 4px; transition: background-color var(--fast), color var(--fast); }
 .statusbar button:hover { color: var(--fg); background: var(--hover); }
+.statusbar button .icon { margin-right: 2px; }
 
 /* Project settings and export ----------------------------------------------- */
 .settings-grid { display: grid; grid-template-columns: 160px 1fr; gap: 10px 14px; align-items: center; padding-top: 14px; }

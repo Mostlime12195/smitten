@@ -18,7 +18,7 @@ export class ScriptWorkspace extends EventTarget {
     this.host = h('div', { class: 'viewport-host code-host' });
     this.emptyEl = h('div', { class: 'empty' },
       h('h3', {}, 'No script open'),
-      h('p', {}, 'Scripts give nodes behavior. Attach one from the Inspector, or open a .lua file from Files.'),
+      h('p', {}, 'Scripts give pieces their behavior. Attach one from the Inspector, or open a .lua file from Files.'),
       h('div', { class: 'btn-row' }, h('button', { type: 'button', class: 'btn primary', onclick: () => app.newScript() }, 'New script')));
     el.append(this.tabs, h('div', { style: 'flex: 1; position: relative; min-height: 0' }, this.host, this.emptyEl));
     this.ready = createEditor(this.host, {

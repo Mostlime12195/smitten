@@ -3,6 +3,7 @@
 
 import { h, icon, openDialog, confirmDialog } from './ui.js';
 import { settings } from './settings.js';
+import { checkKey } from './hackatime.js';
 
 function switchControl(key) {
   const btn = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(settings.get(key)) });
@@ -36,6 +37,28 @@ function textControl(key, placeholder = '') {
   input.value = settings.get(key);
   input.addEventListener('change', () => settings.set(key, input.value.trim() || placeholder));
   return { el: input, sync: () => { if (document.activeElement !== input) input.value = settings.get(key); } };
+}
+
+// The Hackatime API key: hidden while you're not typing it, checked with Hackatime.
+function hackatimeKeyControl() {
+  const input = h('input', { type: 'password', class: 'input', spellcheck: 'false', autocomplete: 'off', placeholder: 'Paste your API key', style: 'width: 220px' });
+  input.value = settings.get('hackatimeKey');
+  const status = h('div', { class: 'setting-desc', role: 'status', style: 'min-height: 1.4em' });
+  const check = async () => {
+    status.textContent = 'Checking…';
+    const r = await checkKey(input.value.trim());
+    status.textContent = r.ok ? `Connected · ${r.text} today` : r.error;
+    status.style.color = r.ok ? 'var(--success)' : 'var(--danger)';
+  };
+  input.addEventListener('focus', () => { input.type = 'text'; });
+  input.addEventListener('blur', () => { input.type = 'password'; });
+  input.addEventListener('change', () => {
+    settings.set('hackatimeKey', input.value.trim());
+    if (input.value.trim()) check(); else status.textContent = '';
+  });
+  if (input.value) check();
+  const el = h('div', { style: 'display: flex; flex-direction: column; align-items: flex-end; gap: 2px' }, input, status);
+  return { el, sync: () => { if (document.activeElement !== input) input.value = settings.get('hackatimeKey'); } };
 }
 
 function stepperControl(key, { min, max, step = 1, unit = '' }) {
@@ -103,6 +126,13 @@ function buildSections(shortcutGroups) {
       ],
     },
     {
+      id: 'hackatime', label: 'Hackatime', icon: 'timer', rows: [
+        { key: 'hackatimeKey', label: 'API key', desc: h('span', {}, 'Logs your time on ', h('a', { href: 'https://hackatime.hackclub.com', target: '_blank', rel: 'noopener' }, 'Hackatime'), ' while you work, like the editor plugins do. Copy your key from ', h('a', { href: 'https://hackatime.hackclub.com/my/settings', target: '_blank', rel: 'noopener' }, 'Hackatime settings'), '. It stays in this browser.'), keywords: 'wakatime time tracking hack club', control: () => hackatimeKeyControl() },
+        { key: 'hackatimeLevels', label: 'Count level design', desc: 'Editing scenes and tiles counts as coding, as with Godot and Unity.', control: () => switchControl('hackatimeLevels') },
+        { key: 'hackatimeArt', label: 'Count art and music', desc: 'Paint, Sound and Music count as designing. Hack Club programs usually log art and music with a journal or a Lapse timelapse instead, often capped at about 40% of a project\'s hours; check your program\'s rules.', control: () => switchControl('hackatimeArt') },
+      ],
+    },
+    {
       id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', searchable: false,
       render: () => {
         const body = h('div', { class: 'shortcuts' });
@@ -152,7 +182,8 @@ export function openSettings({ section = 'appearance', shortcutGroups = [] } = {
       let any = false;
       for (const s of sections) {
         if (s.searchable === false) continue;
-        const rows = s.rows.filter((r) => `${r.label} ${r.desc || ''} ${s.label}`.toLowerCase().includes(q));
+        const text = (r) => `${r.label} ${typeof r.desc === 'string' ? r.desc : r.desc?.textContent || ''} ${r.keywords || ''} ${s.label}`;
+        const rows = s.rows.filter((r) => text(r).toLowerCase().includes(q));
         if (!rows.length) continue;
         any = true;
         children.push(h('div', { class: 'settings-section' }, h('h3', {}, s.label), ...rows.map(row)));
