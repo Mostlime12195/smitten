@@ -1,0 +1,270 @@
+/**
+ * Smitten: Lua bindings of the sound synthesizer (Synth.h).
+ *
+ * Not part of upstream LÖVE. Native functions behind smitten.sfx,
+ * smitten.song and smitten.synth (lua/audio.lua):
+ *
+ *   synthRenderSfx(params) -> SoundData, checksum
+ *   synthRenderSong(song, loopLayout) -> SoundData, loopPoint|nil, passSeconds, checksum
+ *   synthNewLoopDecoder(soundData, loopPoint) -> Decoder
+ *
+ * params and song are decoded .sfx.json / .song.json tables; in a song,
+ * each sound-effect instrument's `sfx` must already be a params table (the
+ * Lua side loads the files). Missing or non-numeric fields take the
+ * documented defaults. SoundData is 44100 Hz, 16-bit, mono. checksum is of
+ * the float samples before conversion to 16 bits (Synth.h, checksum), to
+ * compare with the editor's synth.mjs. loopPoint is in samples.
+ *
+ * Licensed under the zlib license, like LÖVE (see love/license.txt).
+ **/
+
+#include "wrap_Smitten.h"
+#include "Synth.h"
+#include "LoopDecoder.h"
+
+#include "common/Module.h"
+#include "sound/SoundData.h"
+
+#include <cmath>
+#include <cstring>
+#include <limits>
+
+namespace love
+{
+namespace smitten
+{
+
+using namespace love::smitten::synth;
+
+static int absIndex(lua_State *L, int idx)
+{
+	return idx < 0 && idx > LUA_REGISTRYINDEX ? lua_gettop(L) + idx + 1 : idx;
+}
+
+static const double MISSING = std::numeric_limits<double>::quiet_NaN();
+
+// t[key] as a number, or NaN (= "use the default") if it isn't one.
+static double getNumber(lua_State *L, int table, const char *key)
+{
+	lua_getfield(L, table, key);
+	double v = lua_type(L, -1) == LUA_TNUMBER ? lua_tonumber(L, -1) : MISSING;
+	lua_pop(L, 1);
+	return v;
+}
+
+static int getInt(lua_State *L, int table, const char *key, int fallback)
+{
+	double v = getNumber(L, table, key);
+	if (!std::isfinite(v) || std::fabs(v) > 1e9)
+		return fallback;
+	return (int) std::floor(v);
+}
+
+static bool getBool(lua_State *L, int table, const char *key, bool fallback)
+{
+	lua_getfield(L, table, key);
+	bool v = lua_isboolean(L, -1) ? lua_toboolean(L, -1) != 0 : fallback;
+	lua_pop(L, 1);
+	return v;
+}
+
+static Wave getWaveField(lua_State *L, int table, Wave fallback)
+{
+	lua_getfield(L, table, "wave");
+	Wave wave = fallback;
+	if (lua_type(L, -1) == LUA_TSTRING && !getWave(lua_tostring(L, -1), wave))
+		wave = fallback;
+	lua_pop(L, 1);
+	return wave;
+}
+
+static SfxParams readSfx(lua_State *L, int table)
+{
+	table = absIndex(L, table);
+	SfxParams p;
+	p.wave = getWaveField(L, table, p.wave);
+	for (int i = 0; i < SFX_FIELD_COUNT; i++)
+		p.*SFX_FIELDS[i].member = getNumber(L, table, SFX_FIELDS[i].name);
+	return p;
+}
+
+// Calls fn(index) for each element of the sequence t[key], with that
+// element on top of the stack.
+template <typename F>
+static void forEachTable(lua_State *L, int table, const char *key, F fn)
+{
+	lua_getfield(L, table, key);
+	if (lua_istable(L, -1))
+	{
+		int n = (int) lua_objlen(L, -1);
+		for (int i = 1; i <= n; i++)
+		{
+			// Entries that aren't tables count as empty ones, so later
+			// entries keep their indices (as in the editor's encoding).
+			lua_rawgeti(L, -1, i);
+			if (!lua_istable(L, -1))
+			{
+				lua_pop(L, 1);
+				lua_newtable(L);
+			}
+			fn(i - 1);
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+}
+
+static Song readSong(lua_State *L, int table)
+{
+	table = absIndex(L, table);
+	Song song;
+	song.bpm = getNumber(L, table, "bpm");
+	song.stepsPerBeat = getNumber(L, table, "stepsPerBeat");
+	song.patternLength = getInt(L, table, "patternLength", song.patternLength);
+	song.loop = getBool(L, table, "loop", song.loop);
+	song.loopStart = getInt(L, table, "loopStart", song.loopStart);
+
+	forEachTable(L, table, "channels", [&](int index)
+	{
+		int t = lua_gettop(L);
+		Channel c;
+		c.instrument = getInt(L, t, "instrument", index);
+		c.volume = getNumber(L, t, "volume");
+		song.channels.push_back(c);
+	});
+
+	forEachTable(L, table, "instruments", [&](int)
+	{
+		int t = lua_gettop(L);
+		Instrument inst;
+		lua_getfield(L, t, "type");
+		bool isSfx = lua_type(L, -1) == LUA_TSTRING && strcmp(lua_tostring(L, -1), "sfx") == 0;
+		lua_pop(L, 1);
+		for (int i = 0; i < INSTRUMENT_FIELD_COUNT; i++)
+			inst.*INSTRUMENT_FIELDS[i].member = getNumber(L, t, INSTRUMENT_FIELDS[i].name);
+		if (isSfx)
+		{
+			inst.type = INSTRUMENT_SFX;
+			inst.pitched = getBool(L, t, "pitched", false);
+			lua_getfield(L, t, "sfx");
+			if (lua_istable(L, -1))
+			{
+				inst.hasSfx = true;
+				inst.sfx = readSfx(L, -1);
+			}
+			lua_pop(L, 1);
+		}
+		else
+			inst.wave = getWaveField(L, t, inst.wave);
+		song.instruments.push_back(inst);
+	});
+
+	forEachTable(L, table, "patterns", [&](int)
+	{
+		Pattern pattern;
+		forEachTable(L, lua_gettop(L), "notes", [&](int)
+		{
+			int t = lua_gettop(L);
+			Note note;
+			note.channel = getInt(L, t, "channel", note.channel);
+			note.step = getNumber(L, t, "step");
+			note.length = getNumber(L, t, "length");
+			note.note = getNumber(L, t, "note");
+			note.volume = getNumber(L, t, "volume");
+			pattern.notes.push_back(note);
+		});
+		song.patterns.push_back(std::move(pattern));
+	});
+
+	lua_getfield(L, table, "order");
+	if (lua_istable(L, -1))
+	{
+		int n = (int) lua_objlen(L, -1);
+		for (int i = 1; i <= n; i++)
+		{
+			lua_rawgeti(L, -1, i);
+			double v = lua_type(L, -1) == LUA_TNUMBER ? lua_tonumber(L, -1) : -1.0;
+			song.order.push_back(std::isfinite(v) && std::fabs(v) < 1e9 ? (int) std::floor(v) : -1);
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	return song;
+}
+
+static love::sound::SoundData *newSoundData(const std::vector<float> &samples)
+{
+	auto *data = new love::sound::SoundData((int) samples.size(), SAMPLE_RATE, 16, 1);
+	int16 *out = (int16 *) data->getData();
+	for (size_t i = 0; i < samples.size(); i++)
+	{
+		double v = samples[i];
+		v = v < -1.0 ? -1.0 : (v > 1.0 ? 1.0 : v);
+		out[i] = (int16) std::floor(v * 32767.0 + 0.5);
+	}
+	return data;
+}
+
+int w_synthRenderSfx(lua_State *L)
+{
+	luaL_checktype(L, 1, LUA_TTABLE);
+	SfxParams params = readSfx(L, 1);
+
+	love::sound::SoundData *data = nullptr;
+	uint32_t sum = 0;
+	luax_catchexcept(L, [&]()
+	{
+		std::vector<float> samples = renderSfx(params);
+		sum = checksum(samples.data(), samples.size());
+		data = newSoundData(samples);
+	});
+
+	luax_pushtype(L, data);
+	data->release();
+	lua_pushnumber(L, (lua_Number) sum);
+	return 2;
+}
+
+int w_synthRenderSong(lua_State *L)
+{
+	luaL_checktype(L, 1, LUA_TTABLE);
+	bool loopLayout = lua_toboolean(L, 2) != 0;
+	Song song = readSong(L, 1);
+
+	love::sound::SoundData *data = nullptr;
+	SongRender render;
+	uint32_t sum = 0;
+	luax_catchexcept(L, [&]()
+	{
+		render = renderSong(song, loopLayout);
+		sum = checksum(render.samples.data(), render.samples.size());
+		data = newSoundData(render.samples);
+	});
+
+	luax_pushtype(L, data);
+	data->release();
+	if (render.loopPoint >= 0)
+		lua_pushnumber(L, (lua_Number) render.loopPoint);
+	else
+		lua_pushnil(L);
+	lua_pushnumber(L, (lua_Number) render.passLength / SAMPLE_RATE);
+	lua_pushnumber(L, (lua_Number) sum);
+	return 4;
+}
+
+int w_synthNewLoopDecoder(lua_State *L)
+{
+	love::sound::SoundData *data = luax_checktype<love::sound::SoundData>(L, 1);
+	double loopPoint = luaL_checknumber(L, 2);
+
+	LoopDecoder *decoder = nullptr;
+	luax_catchexcept(L, [&]() { decoder = new LoopDecoder(data, (int64) loopPoint); });
+
+	luax_pushtype(L, love::sound::Decoder::type, decoder);
+	decoder->release();
+	return 1;
+}
+
+} // smitten
+} // love

@@ -1,0 +1,15 @@
+{
+  "format": "smitten.sfx",
+  "version": 1,
+  "wave": "square",
+  "volume": 0.45,
+  "attack": 0,
+  "sustain": 0.05,
+  "punch": 0.5,
+  "decay": 0.25,
+  "frequency": 988,
+  "slide": 0,
+  "arpeggio": 5,
+  "arpeggioTime": 0.06,
+  "duty": 0.5
+}

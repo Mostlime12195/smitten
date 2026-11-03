@@ -13,6 +13,11 @@ namespace smitten
 
 const luaL_Reg native_functions[] =
 {
+	// wrap_Synth.cpp
+	{ "synthRenderSfx", w_synthRenderSfx },
+	{ "synthRenderSong", w_synthRenderSong },
+	{ "synthNewLoopDecoder", w_synthNewLoopDecoder },
+
 	{ nullptr, nullptr }
 };
 

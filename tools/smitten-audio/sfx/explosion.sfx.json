@@ -1,0 +1,15 @@
+{
+  "format": "smitten.sfx",
+  "version": 1,
+  "wave": "noise",
+  "volume": 0.6,
+  "attack": 0,
+  "sustain": 0.12,
+  "punch": 0.6,
+  "decay": 0.6,
+  "frequency": 900,
+  "minFrequency": 0,
+  "slide": -1.2,
+  "lowpass": 0.75,
+  "bitcrush": 0.2
+}
