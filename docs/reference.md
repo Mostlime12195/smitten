@@ -1,7 +1,7 @@
 # Smitten reference
 
-The engine's API and file formats. Every node type is in
-[nodes.md](nodes.md); the reasons behind them are in
+The engine's API and file formats. Every piece is in
+[pieces.md](pieces.md); the reasons behind them are in
 [../DESIGN.md](../DESIGN.md).
 
 `smitten` is the engine table, and `love` is the same table: everything in
@@ -21,7 +21,7 @@ Smitten adds.
   "main": "scenes/level.scene",
   "display": { "width": 1280, "height": 720, "stretch": "fit", "filter": "smooth", "background": [0.11, 0.12, 0.15, 1] },
   "input": { "dash": ["lshift", "pad:rightshoulder"] },
-  "modules": { "physics3d": "always" }
+  "modules": { "physics2d": "always" }
 }
 ```
 
@@ -31,7 +31,7 @@ Smitten adds.
 | `display.width`, `height` | The resolution the game is designed for |
 | `display.stretch` | `fit` (letterbox), `expand` (show more of the world), `stretch`, or `pixel` (whole-number scaling) |
 | `display.filter` | `smooth` or `pixel` (nearest-neighbor for images and fonts) |
-| `input` | Input actions on top of the defaults (`left`, `right`, `up`, `down`, `jump`, `fire`, `accept`, `cancel`, `pause`) |
+| `input` | Input actions on top of the defaults (`left`, `right`, `up`, `down`, `jump` (space), `fire`, `accept`, `cancel`, `pause`) |
 | `modules` | Overrides for engine modules: `"always"` or `"never"`; others are worked out from the project |
 
 A game with a `smitten.json` but no `main.lua` runs its main scene. A game
@@ -43,99 +43,106 @@ with a `main.lua` and no scenes runs as in LÖVE. Both together work too:
 
 | Module | Loaded when a game uses |
 | --- | --- |
-| `physics2d` | `RigidBody2D`, `Joint2D`, `smitten.physics` |
-| `3d` | any 3D node, `smitten.graphics3d` |
-| `physics3d` | 3D bodies, areas and collision shapes, `FirstPerson`, `smitten.physics3d` |
+| `physics2d` | a Body whose motion is `physics`, a `Joint`, `smitten.physics` |
 | `video` | `smitten.video` |
 | `synth` | `.sfx` and `.song` files, `smitten.synth` |
 
-Using a module that wasn't loaded raises: *This game uses 3D physics, but
-the 'physics3d' module isn't included. Turn it on in Project settings >
+Using a module that wasn't loaded raises: *This game uses physics, but the
+'physics2d' module isn't included. Turn it on in Project settings >
 Modules.*
 
 ## Scenes
 
-A scene is a tree of nodes in a `.scene` file (JSON):
+A scene is a tree of pieces in a `.scene` file (JSON):
 
 ```json
 {
   "format": "smitten.scene",
   "version": 2,
   "root": {
-    "name": "Level", "type": "Node2D", "script": "scripts/level.lua",
+    "name": "Level", "type": "Group", "script": "scripts/level.lua",
     "children": [
       { "name": "Player", "scene": "scenes/player.scene", "properties": { "x": 120, "y": 540 } },
-      { "name": "Ground", "type": "TileMap", "properties": { "tileset": "art/tiles.tileset",
+      { "name": "Ground", "type": "Tiles", "properties": { "tileset": "art/tiles.tileset",
         "cells": { "x": 0, "y": 10, "w": 4, "h": 1, "data": "3*4" } } },
-      { "name": "Coin", "type": "Area2D", "groups": ["coins"] }
+      { "name": "Coin", "type": "Zone", "script": "scripts/pickup.lua", "tags": ["coin"] }
     ]
   }
 }
 ```
 
-- An entry has `name`, then `type` (a node type) or `scene` (another scene
-  placed here, an *instance*), and optionally `script`, `properties` (only
-  values that differ from the defaults), `groups` and `children`.
-- An instance's `properties` override its scene's root; its `children` are
-  added to the ones its scene has.
+- An entry has `name`, then `type` (a piece type) or `scene` (another scene
+  placed here), and optionally `script`, `properties` (only values that
+  differ from the defaults, plus script variables), `tags` and `children`.
+- A placed scene's `properties` override its scene's root; its `children`
+  are added to the ones its scene has.
 - Paths are relative to the project's folder.
-- TileMap `cells` are one rectangle of tile numbers, row by row; `-1` is
+- Tiles `cells` are one rectangle of tile numbers, row by row; `-1` is
   empty and `n*k` repeats `n` `k` times.
 
 ### `smitten.scene`
 
 | Function | |
 | --- | --- |
-| `change(path, ...)` | Goes to another scene at the end of the frame; extra values are kept in `smitten.scene.args` |
+| `go(path, ...)` | Goes to another scene at the end of the frame; extra values are kept in `smitten.scene.args` |
 | `reload()` | Starts the running scene again from its file |
-| `instance(path, properties?)` | A node made from a scene file; add it with `node:add(...)` |
-| `create(type, properties?, script?)` | A node of a type; `script` is a table or a `.lua` path |
-| `group(name)` | The nodes in a group (a new list) |
-| `first(name)` | The first node in a group, or nil |
-| `find(path)` | A node of the running scene by path from the root |
-| `setCurrent(root)` | Runs a node built in code as the scene |
+| `make(sceneOrType, properties?, script?)` | A piece from a scene file (`"scenes/coin.scene"`) or a type (`"Sprite"`), not yet in the scene |
+| `spawn(sceneOrType, properties?, parent?)` | Like `make`, and adds it to the running scene (or to `parent`) |
+| `tagged(tag)` | The pieces with a tag (a new list) |
+| `first(tag)` | The first piece with a tag, or nil |
+| `find(path)` | A piece of the running scene by path from the root |
+| `screenToWorld(x, y)`, `worldToScreen(x, y)` | Between screen (game) coordinates and the scene's, through the camera |
+| `setCurrent(root)` | Runs a piece built in code as the scene |
 | `getDelta()` | The frame time in `update`, the fixed step in `physicsUpdate` |
-| `raycast3d(x, y, z, dx, dy, dz, mask?)` | node, x, y, z, nx, ny, nz of the first 3D body hit |
-| `current`, `path`, `args` | The root node, its file, and `change`'s extra values |
-| `paused` | While true, nodes don't update and physics stops (drawing goes on) |
-| `showCollisions` | Draw collision shapes while the game runs |
+| `current`, `path`, `args` | The root piece, its file, and `go`'s extra values |
+| `paused` | While true, pieces don't update and physics stops (drawing goes on) |
+| `showShapes` | Draw Body and Zone shapes while the game runs |
 
 ## Scripts
 
-A script is a Lua file that returns a table; attach it to a node in the
-inspector (or with `"script"` in the scene file). `self` is the node.
+A script is a Lua file that returns a table; attach it to a piece in the
+inspector (or with `"script"` in the scene file). `self` is the piece.
 
 ```lua
 local Enemy = {}
 
 Enemy.speed = 80          -- script variables: shown in the inspector,
-Enemy.hurtsPlayer = true  -- changeable per node
+Enemy.hurtsPlayer = true  -- changeable per piece
 
 function Enemy:ready() end
 function Enemy:update(dt) end
-function Enemy:collided(other) end
+function Enemy:hit(other) end
 
 return Enemy
 ```
 
-- **Lifecycle**: `ready()` once when the node and its children are in the
+- **Lifecycle**: `ready()` once when the piece and its children are in the
   scene (children first), `update(dt)` every frame (parents first),
-  `physicsUpdate(dt)` 60 times a second, `draw()` (2D) in the node's own
+  `physicsUpdate(dt)` 60 times a second, `draw()` in the piece's own
   coordinates on top of it, `removed()` when it leaves.
-- **Events**, called by name when they happen: `entered(other)`,
-  `exited(other)`, `collided(other)`, `pressed()`, `finished(...)`,
-  `timeout()`, `jumped()`, `landed()`, `dragStarted()`, `dragEnded()`. Any
-  node can `emit(name, ...)` its own.
-- **Listening from elsewhere**: `node:on("pressed", fn)` returns a handle with
-  `:off()`.
+- **Events**, called by name when they happen: `hit(other)` (a Body bumped
+  into something), `entered(other)` / `exited(other)` (Zones, and Bodies
+  going in and out of them), `pressed()` (Buttons), `finished(...)`
+  (animations, sounds), `tick()` (Timers). Any piece can `emit(name, ...)`
+  its own.
+- **Listening from elsewhere**: `piece:on("pressed", fn)` returns a handle
+  with `:off()`.
 - **Script variables**: top-level `Name.field = value` lines with a number,
   string, boolean or color (`{r, g, b, a}`) value; names starting with `_`
   are hidden.
-- **Every node** has `name`, `type`, `parent`, `children`, `script`, and
-  `find(path)`, `findDeep(name)`, `findChildOfType(type)`, `add(node)`,
-  `remove()`, `destroy()`, `isA(type)`, `getPath()`, `addToGroup(name)`,
-  `removeFromGroup(name)`, `inGroup(name)`, `on(event, fn)`,
-  `emit(event, ...)`, `isInside()`.
+- **Every piece** has `name`, `type`, `parent`, `children`, `script`, and
+  `find(path)`, `findDeep(name)`, `findChildOfType(type)`, `add(piece)`,
+  `spawn(sceneOrType, properties?)`, `remove()`, `destroy()`, `isA(type)`,
+  `getPath()`, `tag(name)`, `untag(name)`, `hasTag(name)`,
+  `on(event, fn)`, `emit(event, ...)`, `isAlive()`.
+
+## Ready-made scripts
+
+Attaching one in the editor copies it into the project's `scripts/` folder,
+to change like any other script: `platformer.lua` (run and jump, for a
+scripted Body), `topdown.lua`, `patrol.lua`, `chase.lua` (towards the first
+piece with a tag), `fly.lua` (bullets), `pickup.lua` (for a Zone; tells the
+scene `collected`), `spin.lua`, `bob.lua`, `drag.lua`.
 
 ## Input: `smitten.input`
 
@@ -176,16 +183,16 @@ blink:cancel()
 Easings: `linear`, `inQuad`, `outQuad`, `inOutQuad`, `inCubic`,
 `outCubic`, `inOutCubic`, `inSine`, `outSine`, `inOutSine`, `inExpo`,
 `outExpo`, `inBack`, `outBack`, `inOutBack`, `outBounce`, `outElastic`.
-Tweens and timers end when the scene changes; a tween of a node ends when
-the node is destroyed.
+Tweens and timers end when the scene changes; a tween of a piece ends when
+the piece is destroyed.
 
 ## Assets: `smitten.assets`
 
 Loads and caches files: `image(path)`, `sprite(path)`, `tileset(path)`,
 `font(path, size)` (`""` for the default font, `"pixel"` for the built-in
-pixel font), `audio(path)` (`:newSource()` per play), `model(path)` (glTF,
-3D games), `scene(path)`, `script(path)`, `readJSON(path)`, `load(path)`
-(by extension), `clear(path?)`.
+pixel font), `audio(path)` (`:newSource()` per play), `scene(path)`,
+`script(path)`, `readJSON(path)`, `load(path)` (by extension),
+`clear(path?)`.
 
 ## Saving: `smitten.storage`
 
@@ -211,36 +218,6 @@ next to LÖVE's `random`, `noise` and the rest.
 
 `decode(text)`, `encode(value, indent?)`, `null`.
 
-## 3D: `smitten.graphics3d`
-
-The renderer the 3D nodes use, for code-first games:
-
-```lua
-local g3d = smitten.graphics3d
-local cam = g3d.newCamera{ fov = 70 }
-cam:lookAt(0, 0, 0)
-local box = g3d.newBox(1, 1, 1)
-local red = g3d.newMaterial{ color = {0.9, 0.2, 0.2, 1}, roughness = 0.4 }
-function smitten.draw()
-  g3d.begin(cam, nil, { { type = "directional", dx = -0.5, dy = -1, dz = -0.3, shadows = true } })
-  g3d.draw(box, g3d.mat4.fromTRS(nil, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1), red)
-  g3d.finish()
-end
-```
-
-`newCamera`, `newBox`, `newSphere`, `newCylinder`, `newCapsule`,
-`newPlane`, `newMesh{positions, normals?, uvs?, colors?, indices?}`,
-`newMaterial`, `newEnvironment`, `loadModel(path)`, `begin(camera,
-environment?, lights)`, `draw(meshOrModel, matrix, material?)`, `finish()`,
-`stats()`, and `mat4` and `quat` helpers (quaternions are passed as four
-numbers).
-
-## 3D physics: `smitten.physics3d`
-
-Jolt, as used by the 3D physics nodes; documented in
-`love/src/modules/physics3d/README.md` (`newWorld`, `newBody`,
-`newCharacter`, shapes, raycasts and contact callbacks).
-
 ## Sprites
 
 A `.sprite` file describes an image's frames and animations:
@@ -261,9 +238,9 @@ A `.sprite` file describes an image's frames and animations:
 ```
 
 Frames are numbered from 0, left to right and top to bottom. `image` is
-relative to the `.sprite` file. A `Sprite2D` whose `image` is a `.sprite`
-plays its animations; behaviors play `idle`, `run`/`walk`, `jump` and `fall`
-when they exist.
+relative to the `.sprite` file. A `Sprite` whose `image` is a `.sprite`
+plays its animations; the ready-made player scripts play `idle`, `run` or
+`walk`, `jump` and `fall` when they exist (`sprite:hasAnimation(name)`).
 
 ## Tilesets
 
@@ -278,10 +255,10 @@ when they exist.
 }
 ```
 
-`solid` tiles block bodies, `oneWay` ones only from above. Other
-properties are for scripts: `body:touchingTile("damage")` returns the
-properties of a touching tile that has one, and `TileMap:getTileProperties`
-returns any tile's.
+`solid` tiles block Bodies, `oneWay` ones only from above (a Body with
+`tiles` in its `passThrough` ignores them). Other settings are for scripts:
+`body:touchingTile("damage")` returns the settings of a touching tile that
+has one, and `tiles:tileInfo(tile)` returns any tile's.
 
 ## Sound effects
 

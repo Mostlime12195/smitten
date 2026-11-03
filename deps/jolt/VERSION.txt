@@ -1,5 +1,0 @@
-v5.6.0
-https://github.com/jrouwe/JoltPhysics/archive/refs/tags/v5.6.0.tar.gz
-Only Jolt/ and LICENSE are vendored, unmodified.
-This file is VERSION.txt, not VERSION: deps/jolt is an include directory and
-on case-insensitive file systems a file named VERSION shadows C++20 <version>.

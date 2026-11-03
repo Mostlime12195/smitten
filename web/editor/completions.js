@@ -99,7 +99,6 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
   const engineMembers = [
     ...loveMembers,
     ...Object.keys(SMITTEN_MODULES).map((m) => ({ label: m, type: 'namespace', detail: 'module', boost: 2 })),
-    ...['graphics3d', 'physics3d'].map((m) => ({ label: m, type: 'namespace', detail: 'module (3D)', boost: 1 })),
     { label: 'version', type: 'property', detail: 'Smitten\'s version' },
   ];
   const callbackSnippetsFor = (ns) => CALLBACKS.map(([name, args, doc]) => snippetCompletion(
@@ -107,7 +106,7 @@ export function createLoveCompletions(api, cm, getProjectFiles = () => []) {
     { label: `${ns}.${name}`, type: 'function', detail: `(${args})`, info: doc },
   ));
 
-  // Nodes: self:method() and the functions a script can define.
+  // Pieces: self:method() and the functions a script can define.
   const schema = (() => { try { return getSchema(); } catch { return { types: {} }; } })();
   const nodeMethodMap = new Map();
   const scriptEvents = new Map();

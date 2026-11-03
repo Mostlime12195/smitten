@@ -1,9 +1,8 @@
--- smitten.scene: the running scene tree (DESIGN.md, section 4).
+-- smitten.scene: the running scene (DESIGN.md, section 4).
 --
---   smitten.scene.change("levels/level2.scene")
---   local coin = smitten.scene.instance("coin.scene", { x = 100, y = 40 })
---   smitten.scene.current:add(coin)
---   for _, e in ipairs(smitten.scene.group("enemies")) do e:destroy() end
+--   smitten.scene.go("scenes/level2.scene")
+--   local coin = smitten.scene.spawn("scenes/coin.scene", { x = 100, y = 40 })
+--   for _, e in ipairs(smitten.scene.tagged("enemy")) do e:destroy() end
 --
 -- love.run calls update() and draw() through love.engine, so a project
 -- only needs a main scene in smitten.json; main.lua is optional.
@@ -20,7 +19,7 @@ package.loaded["love.scene"] = scene
 scene.current = nil
 ---The path of the running scene's file, or nil.
 scene.path = nil
----What the last change() passed after the path.
+---What the last go() passed after the path.
 scene.args = {}
 ---While true, nodes don't update and physics doesn't run (drawing goes on).
 scene.paused = false
@@ -28,10 +27,10 @@ scene.paused = false
 local STEP = 1 / 60
 local MAX_STEPS = 4
 
--- The running tree: groups, nodes to free, systems (collisions, physics).
+-- The running tree: tags, pieces to free, systems (collisions, physics).
 local tree = {
 	root = nil,
-	groups = {},
+	tags = {},
 	toFree = {},
 	systems = {},  -- name -> {step = fn(h), reset = fn(), order = n}
 	systemList = {},
@@ -42,24 +41,24 @@ local tree = {
 nodeLib.tree = tree
 scene._tree = tree
 
-function tree:groupAdd(name, n)
-	local g = self.groups[name]
+function tree:tagAdd(name, n)
+	local g = self.tags[name]
 	if not g then
 		g = {}
-		self.groups[name] = g
+		self.tags[name] = g
 	end
 	g[#g + 1] = n
 end
 
-function tree:groupRemove(name, n)
-	local g = self.groups[name]
+function tree:tagRemove(name, n)
+	local g = self.tags[name]
 	if not g then return end
 	for i = #g, 1, -1 do
 		if g[i] == n then table.remove(g, i) end
 	end
 end
 
----Adds a system that runs every physics step (used by the node modules).
+---Adds a system that runs every physics step (used by the piece files).
 function scene._addSystem(name, system)
 	if tree.systems[name] then return tree.systems[name] end
 	system.order = system.order or 50
@@ -74,41 +73,21 @@ function scene._getSystem(name)
 end
 
 ---------------------------------------------------------------------------
--- Node types (each file extends the classes made from nodes.json)
+-- Piece types (each file extends the classes made from pieces.json). Bodies
+-- that use physics and joints load rigid2d.lua (and with it the physics2d
+-- module) when the first one joins a scene.
 
-local loaded = {}
-local TYPE_FILES = {
-	"love.scene.basic", "love.scene.nodes2d", "love.scene.tilemap", "love.scene.physics2d",
-	"love.scene.ui", "love.scene.audio", "love.scene.behaviors",
-}
-for _, f in ipairs(TYPE_FILES) do require(f) end
-
--- Types whose implementation lives in an optional module are loaded the
--- first time a node of that type is made.
-local LAZY_TYPE_FILES = {
-	RigidBody2D = "love.scene.rigid2d", Joint2D = "love.scene.rigid2d",
-}
-local THREE_D = "love.scene.nodes3d"
-local PHYSICS_3D = "love.scene.physics3d"
+for _, f in ipairs({ "love.scene.basic", "love.scene.nodes2d", "love.scene.tilemap", "love.scene.physics2d",
+	"love.scene.ui", "love.scene.audio" }) do
+	require(f)
+end
 
 local function ensureType(typeName)
-	if loaded[typeName] then return end
-	loaded[typeName] = true
-	local file = LAZY_TYPE_FILES[typeName]
-	local def = require("love.scene.schema").types[typeName]
-	if not file and def then
-		if def.group == "physics3d" or typeName == "FirstPerson" then
-			file = PHYSICS_3D
-		elseif def.module == "3d" then
-			file = THREE_D
-		end
-	end
-	if file == PHYSICS_3D then require(THREE_D) end
-	if file then require(file) end
+	if typeName == "Joint" then require("love.scene.rigid2d") end
 end
 
 ---------------------------------------------------------------------------
--- Making nodes and loading scenes
+-- Making pieces and loading scenes
 
 local function decode(v)
 	if v == json.null then return nil end
@@ -122,7 +101,7 @@ local function build(entry, file)
 	if entry.scene then
 		n = scene._instance(entry.scene, entry.script)
 	else
-		local typeName = entry.type or "Node"
+		local typeName = entry.type or "Group"
 		ensureType(typeName)
 		local script = entry.script and assets.script(entry.script) or nil
 		n = nodeLib.new(typeName, script)
@@ -132,8 +111,8 @@ local function build(entry, file)
 	if entry.properties then
 		for k, v in pairs(entry.properties) do n[k] = decode(v) end
 	end
-	if entry.groups then
-		for _, g in ipairs(entry.groups) do n:addToGroup(g) end
+	if entry.tags then
+		for _, g in ipairs(entry.tags) do n:tag(g) end
 	end
 	if entry.children then
 		for _, c in ipairs(entry.children) do n:add(build(c, file)) end
@@ -162,11 +141,22 @@ function scene._instance(path, scriptOverride)
 	return root
 end
 
----Makes a node from a scene file (an instance), with optional property
----overrides. Add it to the tree with node:add() to bring it to life.
-function scene.instance(path, props)
-	if type(path) ~= "string" then error("instance() needs the path of a .scene file", 2) end
-	local ok, n = pcall(scene._instance, path)
+---Makes a piece without adding it to the scene: from a scene file
+---(make("scenes/coin.scene")) or a piece type (make("Sprite", { image =
+---"art/coin.png" })), with optional properties and, for a type, a script (a
+---table or the path of a .lua file).
+function scene.make(what, props, script)
+	if type(what) ~= "string" then error("make() needs a .scene file or a piece type, like \"Sprite\"", 2) end
+	local ok, n
+	if what:match("%.scene$") then
+		ok, n = pcall(scene._instance, what)
+	else
+		ensureType(what)
+		local scriptTable = script
+		if type(script) == "string" then scriptTable = assets.script(script) end
+		ok, n = pcall(nodeLib.new, what, scriptTable)
+		if ok and type(script) == "string" then n.script = script end
+	end
 	if not ok then error(n, 2) end
 	if props then
 		for k, v in pairs(props) do n[k] = v end
@@ -174,22 +164,18 @@ function scene.instance(path, props)
 	return n
 end
 
----Makes a node of a type ("Sprite2D", "Label", ...) with optional properties
----and an optional script (a table or the path of a .lua file).
-function scene.create(typeName, props, script)
-	if type(typeName) ~= "string" then error("create() needs a node type, like \"Sprite2D\"", 2) end
-	ensureType(typeName)
-	local scriptTable = script
-	if type(script) == "string" then scriptTable = assets.script(script) end
-	local ok, n = pcall(nodeLib.new, typeName, scriptTable, props)
+---Makes a piece (like make) and adds it to the running scene, or to parent.
+function scene.spawn(what, props, parent)
+	local ok, n = pcall(scene.make, what, props)
 	if not ok then error(n, 2) end
-	if type(script) == "string" then n.script = script end
-	return n
+	parent = parent or tree.root
+	if not parent then error("spawn() needs a running scene (or a parent to add to)", 2) end
+	return parent:add(n)
 end
 
----The nodes in a group (a new list, safe to change while looping).
-function scene.group(name)
-	local g = tree.groups[name]
+---The pieces with a tag (a new list, safe to change while looping).
+function scene.tagged(name)
+	local g = tree.tags[name]
 	if not g then return {} end
 	local out = {}
 	for i = 1, #g do
@@ -198,9 +184,9 @@ function scene.group(name)
 	return out
 end
 
----The first node in a group, or nil.
+---The first piece with a tag, or nil.
 function scene.first(name)
-	local g = tree.groups[name]
+	local g = tree.tags[name]
 	if g then
 		for i = 1, #g do
 			if not g[i]._dead then return g[i] end
@@ -209,7 +195,18 @@ function scene.first(name)
 	return nil
 end
 
----A node of the running scene by path from the root ("Player/Sword").
+---A point on the screen (game coordinates, like smitten.mouse.x, y) as a
+---point in the scene, through the active Camera.
+function scene.screenToWorld(x, y)
+	return require("love.scene.nodes2d").toWorld(x, y)
+end
+
+---A point in the scene as a point on the screen.
+function scene.worldToScreen(x, y)
+	return require("love.scene.nodes2d").toScreen(x, y)
+end
+
+---A piece of the running scene by path from the root ("Player/Sword").
 function scene.find(path)
 	if not tree.root then return nil end
 	if path == tree.root.name then return tree.root end
@@ -226,7 +223,7 @@ local function setRoot(root, path)
 		if sys.reset then sys.reset() end
 	end
 	if tree.root then nodeLib.exitTree(tree.root) end
-	tree.groups = {}
+	tree.tags = {}
 	tree.toFree = {}
 	tree.accumulator = 0
 	require("love.tween")._sceneChanged()
@@ -244,8 +241,8 @@ end
 
 ---Goes to another scene at the end of this frame. Extra arguments are kept
 ---in smitten.scene.args for the new scene's scripts.
-function scene.change(path, ...)
-	if type(path) ~= "string" then error("change() needs the path of a .scene file", 2) end
+function scene.go(path, ...)
+	if type(path) ~= "string" then error("go() needs the path of a .scene file", 2) end
 	local args = { ... }
 	path = assets.normalize(path)
 	if not tree.root then
@@ -254,7 +251,7 @@ function scene.change(path, ...)
 		if not ok then error(err, 2) end
 		return
 	end
-	-- Load now, so a missing file is reported where change() was called.
+	-- Load now, so a missing file is reported where go() was called.
 	local ok, root = pcall(load, path)
 	if not ok then error(root, 2) end
 	pending = { root = root, path = path, args = args }
@@ -262,10 +259,10 @@ end
 
 ---Starts the running scene again from its file.
 function scene.reload()
-	if scene.path then scene.change(scene.path, unpack(scene.args)) end
+	if scene.path then scene.go(scene.path, unpack(scene.args)) end
 end
 
----Makes a node the running scene's root (a scene built in code).
+---Makes a piece the running scene's root (a scene built in code).
 function scene.setCurrent(root)
 	if tree.root then
 		pending = { root = root, path = nil, args = {} }
@@ -355,15 +352,10 @@ function scene.getDelta()
 	return tree.dt
 end
 
--- Drawing: 3D first (if the scene has a 3D camera), then the 2D world, the
--- game's own smitten.draw, then UI on top.
+-- Drawing: the world, the game's own smitten.draw, then UI on top.
 function scene._draw(userDraw)
 	local root = tree.root
-	if root then
-		local r3 = package.loaded[THREE_D]
-		if r3 then r3.render(root) end
-		require("love.scene.nodes2d").render(root)
-	end
+	if root then require("love.scene.nodes2d").render(root) end
 	if userDraw then userDraw() end
 	if root then require("love.scene.ui").render(root) end
 end

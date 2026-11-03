@@ -1,5 +1,5 @@
 -- smitten.synth: sound effects and music made with Smitten's Sound and Music
--- workspaces (.sfx and .song files). AudioPlayer nodes use it; code can too:
+-- workspaces (.sfx and .song files). Sound pieces use it; code can too:
 -- smitten.synth.sfx("sounds/jump.sfx"):play().
 --
 -- Both are rendered by the C++ synthesizer (Synth.cpp) into a SoundData and

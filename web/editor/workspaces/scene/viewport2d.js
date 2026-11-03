@@ -160,20 +160,18 @@ function segDist(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
-/** The kind of drawing a 2D node type gets. */
+/** The kind of drawing a piece type gets. */
 function kindOf(type) {
-  if (isA(type, 'Sprite2D')) return 'sprite';
-  if (isA(type, 'Shape2D')) return 'shape';
-  if (isA(type, 'Text2D')) return 'text';
-  if (isA(type, 'TileMap')) return 'tilemap';
-  if (isA(type, 'Particles2D')) return 'particles';
-  if (isA(type, 'CollisionShape2D')) return 'collision';
-  if (isA(type, 'Camera2D')) return 'camera';
-  if (isA(type, 'Area2D')) return 'area';
-  if (isA(type, 'CharacterBody2D')) return 'character';
-  if (isA(type, 'StaticBody2D')) return 'static';
-  if (isA(type, 'RigidBody2D')) return 'rigid';
-  if (isA(type, 'Joint2D')) return 'joint';
+  if (isA(type, 'Sprite')) return 'sprite';
+  if (isA(type, 'Shape')) return 'shape';
+  if (isA(type, 'Text')) return 'text';
+  if (isA(type, 'Tiles')) return 'tilemap';
+  if (isA(type, 'Particles')) return 'particles';
+  if (isA(type, 'Hitbox')) return 'collision';
+  if (isA(type, 'Camera')) return 'camera';
+  if (isA(type, 'Zone')) return 'area';
+  if (isA(type, 'Body')) return 'body';
+  if (isA(type, 'Joint')) return 'joint';
   return 'node2d';
 }
 
@@ -325,7 +323,7 @@ export class AssetCache extends EventTarget {
     return value;
   }
 
-  /** assets.sheet: a plain image cut into hframes x vframes. */
+  /** assets.sheet: a plain image cut into columns x rows. */
   sheet(path, hframes = 1, vframes = 1) {
     const img = this.image(path);
     if (!img) return null;
@@ -988,7 +986,7 @@ export class Viewport2D {
       const type = node.type;
       const e = {
         node, parent, children: [], type,
-        is2d: isA(type, 'Node2D'), isUI: isA(type, 'Control'), is3d: isA(type, 'Node3D'),
+        is2d: isA(type, 'Group'), isUI: isA(type, 'UI'), is3d: false,
       };
       e.kind = e.is2d ? kindOf(type) : null;
       entries.set(node, e);
@@ -1017,7 +1015,7 @@ export class Viewport2D {
         m = mul(m, trs(num(this.get(n, 'x')), num(this.get(n, 'y')), num(this.get(n, 'rotation')), num(this.get(n, 'scaleX'), 1), num(this.get(n, 'scaleY'), 1)));
         const t = colorOf(this.get(n, 'tint'));
         tint = [tint[0] * t[0], tint[1] * t[1], tint[2] * t[2], tint[3] * t[3]];
-        z += Math.trunc(num(this.get(n, 'z')));
+        z += Math.trunc(num(this.get(n, 'layer')));
         e.m = m;
         e.tint = tint;
         e.z = z;
@@ -1059,7 +1057,7 @@ export class Viewport2D {
     const x = num(this.get(n, 'x'));
     const y = num(this.get(n, 'y'));
     const anchor = this.get(n, 'anchor');
-    if (anchor === 'full') return [px + x, py + y, Math.max(0, pw - 2 * x), Math.max(0, ph - 2 * y)];
+    if (anchor === 'fill') return [px + x, py + y, Math.max(0, pw - 2 * x), Math.max(0, ph - 2 * y)];
     const a = ANCHORS[anchor] || ANCHORS.topLeft;
     const w = num(this.get(n, 'width'));
     const h = num(this.get(n, 'height'));
@@ -1071,7 +1069,7 @@ export class Viewport2D {
     const n = e.node;
     const [px, py, pw, ph] = e.parentRect;
     const anchor = this.get(n, 'anchor');
-    if (anchor === 'full') return { x: rect[0] - px, y: rect[1] - py };
+    if (anchor === 'fill') return { x: rect[0] - px, y: rect[1] - py };
     const a = ANCHORS[anchor] || ANCHORS.topLeft;
     const [x, y, w, h] = rect;
     return {
@@ -1110,7 +1108,7 @@ export class Viewport2D {
     const path = this.get(n, 'image');
     if (!path) return null;
     if (/\.sprite$/i.test(path)) return this.assets.sprite(path);
-    return this.assets.sheet(path, this.get(n, 'hframes'), this.get(n, 'vframes'));
+    return this.assets.sheet(path, this.get(n, 'columns'), this.get(n, 'rows'));
   }
 
   spriteRect(n, sheet) {
@@ -1410,6 +1408,9 @@ export class Viewport2D {
       case 'collision':
         if (!this.settings.showCollisions) return undefined;
         return this.drawCollision(g, e);
+      case 'body': case 'area':
+        if (!this.settings.showCollisions) return undefined;
+        return this.drawOwnShape(g, e);
       default:
         return undefined;
     }
@@ -1592,14 +1593,77 @@ export class Viewport2D {
     } else {
       const w = num(this.get(n, 'width'));
       const h = num(this.get(n, 'height'));
-      roundRectPath(g, -w / 2, -h / 2, w, h, shape === 'capsule' ? Math.min(w, h) / 2 : 0);
+      roundRectPath(g, -w / 2, -h / 2, w, h, 0);
     }
     g.fillStyle = COLLISION_FILL;
-    g.globalAlpha = this.get(n, 'disabled') ? 0.4 : 1;
+    g.globalAlpha = this.get(n, 'off') ? 0.4 : 1;
     g.fill();
     g.lineWidth = 1 / k;
     g.strokeStyle = COLLISION_LINE;
-    if (this.get(n, 'disabled')) g.setLineDash([4 / k, 3 / k]);
+    if (this.get(n, 'off')) g.setLineDash([4 / k, 3 / k]);
+    g.stroke();
+  }
+
+  /**
+   * A Body's or Zone's own shape, in its coordinates, as body.lua works it
+   * out: auto fits the Sprites and Shapes inside it (a lone circle Shape
+   * gives a circle), or a set rectangle or circle. null for none.
+   */
+  ownShape(e) {
+    const n = e.node;
+    const kind = this.get(n, 'shape');
+    if (kind === 'rectangle') {
+      const w = num(this.get(n, 'width'));
+      const h = num(this.get(n, 'height'));
+      return { rect: [-w / 2, -h / 2, w, h] };
+    }
+    if (kind === 'circle') return { circle: [0, 0, num(this.get(n, 'radius'))] };
+    if (kind !== 'auto') return null;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    let circle = null;
+    let count = 0;
+    for (const c of e.children) {
+      if (c.kind !== 'sprite' && c.kind !== 'shape') continue;
+      if (!this.get(c.node, 'visible')) continue;
+      const r = this.localRect(c);
+      if (!r || !(r[2] > 0) || !(r[3] > 0)) continue;
+      count++;
+      const cx = num(this.get(c.node, 'x'));
+      const cy = num(this.get(c.node, 'y'));
+      const sx = num(this.get(c.node, 'scaleX'), 1);
+      const sy = num(this.get(c.node, 'scaleY'), 1);
+      const ax = cx + r[0] * sx;
+      const bx = cx + (r[0] + r[2]) * sx;
+      const ay = cy + r[1] * sy;
+      const by = cy + (r[1] + r[3]) * sy;
+      x0 = Math.min(x0, ax, bx);
+      x1 = Math.max(x1, ax, bx);
+      y0 = Math.min(y0, ay, by);
+      y1 = Math.max(y1, ay, by);
+      if (c.kind === 'shape' && this.get(c.node, 'shape') === 'circle') circle = { e: c, x: cx, y: cy, r: num(this.get(c.node, 'radius')) * Math.abs(sx) };
+    }
+    if (!count) return null;
+    if (count === 1 && circle) return { circle: [circle.x, circle.y, circle.r] };
+    return { rect: [x0, y0, x1 - x0, y1 - y0] };
+  }
+
+  drawOwnShape(g, e) {
+    const s = this.ownShape(e);
+    if (!s) return;
+    this.setWorld(g, e.m);
+    const k = Math.sqrt(Math.abs(e.m[0] * e.m[3] - e.m[1] * e.m[2])) * this.view.zoom || 1;
+    g.beginPath();
+    if (s.circle) g.arc(s.circle[0], s.circle[1], Math.max(0, s.circle[2]), 0, Math.PI * 2);
+    else g.rect(...s.rect);
+    g.fillStyle = COLLISION_FILL;
+    g.globalAlpha = e.kind === 'area' ? 0.6 : 1;
+    g.fill();
+    g.lineWidth = 1 / k;
+    g.strokeStyle = COLLISION_LINE;
+    if (e.kind === 'area') g.setLineDash([4 / k, 3 / k]);
     g.stroke();
   }
 
@@ -1659,7 +1723,7 @@ export class Viewport2D {
         }
         break;
       }
-      case 'ImageRect': {
+      case 'Picture': {
         const path = this.get(n, 'image');
         const img = path ? this.assets.image(path) : null;
         if (!img || img.status !== 'ready') break;
@@ -1689,7 +1753,7 @@ export class Viewport2D {
         }
         break;
       }
-      case 'ProgressBar': {
+      case 'Bar': {
         const r = num(this.get(n, 'cornerRadius'));
         g.fillStyle = fill(this.get(n, 'background'));
         g.beginPath();
@@ -1729,7 +1793,12 @@ export class Viewport2D {
       const n = e.node;
       let icon = null;
       switch (e.kind) {
-        case 'area': case 'character': case 'static': case 'rigid': case 'joint': case 'particles': case 'camera':
+        case 'body': {
+          const motion = this.get(n, 'motion');
+          icon = motion === 'still' ? 'static' : motion === 'physics' ? 'rigid' : 'character';
+          break;
+        }
+        case 'area': case 'joint': case 'particles': case 'camera':
           icon = e.kind;
           break;
         case 'sprite':
@@ -1767,7 +1836,7 @@ export class Viewport2D {
         const [x1, y1] = this.toScreen(e.m[4] + hw, e.m[5] + hh);
         g.setLineDash([6, 4]);
         g.lineWidth = 1;
-        g.strokeStyle = rgba(this.colors.accent, this.get(e.node, 'current') ? 0.8 : 0.4);
+        g.strokeStyle = rgba(this.colors.accent, this.get(e.node, 'active') ? 0.8 : 0.4);
         g.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5, Math.round(x1 - x0), Math.round(y1 - y0));
         g.setLineDash([]);
       } else if (e.kind === 'particles' && !e.node.readonly) {
@@ -2686,7 +2755,7 @@ export class Viewport2D {
   placeFile(path, wx, wy) {
     const doc = this.doc;
     const ext = extOf(path);
-    const base = path.split('/').pop().replace(/\.[^.]*$/, '') || 'Node';
+    const base = path.split('/').pop().replace(/\.[^.]*$/, '') || 'Piece';
     const name = base.replace(/^\w/, (c) => c.toUpperCase());
     // Local coordinates under the root.
     const sc = this.sceneData();
@@ -2696,17 +2765,17 @@ export class Viewport2D {
     lx = roundTo(lx, 0.001);
     ly = roundTo(ly, 0.001);
     let node = null;
-    if (IMAGE_MIME[ext] || ext === 'sprite') node = doc.createNode('Sprite2D', { image: path, x: lx, y: ly }, name);
-    else if (ext === 'tileset') node = doc.createNode('TileMap', { tileset: path, x: lx, y: ly }, name);
-    else if (FONT_EXT.has(ext)) node = doc.createNode('Text2D', { font: path, x: lx, y: ly }, name);
-    else if (AUDIO_EXT.has(ext)) node = doc.createNode('AudioPlayer', { sound: path }, name);
+    if (IMAGE_MIME[ext] || ext === 'sprite') node = doc.createNode('Sprite', { image: path, x: lx, y: ly }, name);
+    else if (ext === 'tileset') node = doc.createNode('Tiles', { tileset: path, x: lx, y: ly }, name);
+    else if (FONT_EXT.has(ext)) node = doc.createNode('Text', { font: path, x: lx, y: ly }, name);
+    else if (AUDIO_EXT.has(ext)) node = doc.createNode('Sound', { sound: path }, name);
     else if (ext === 'scene') {
       if (doc.wouldLoop?.(path)) {
         this.flash(`${path} contains this scene, so it can't be placed inside it.`);
         return null;
       }
       node = doc.createInstance(path);
-      if (isA(node.type, 'Node2D')) node.props = { ...node.props, x: lx, y: ly };
+      if (isA(node.type, 'Group')) node.props = { ...node.props, x: lx, y: ly };
     } else {
       this.flash(`A .${ext || 'file'} file can't be placed in the scene.`);
       return null;

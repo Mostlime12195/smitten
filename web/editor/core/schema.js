@@ -1,14 +1,14 @@
-// The node schema (love/src/modules/scene/nodes.json, copied next to the
-// editor by build.py): every node type, its properties, methods and events.
-// The inspector, the Add node dialog, the viewports, completions and module
+// The piece schema (love/src/modules/scene/pieces.json, copied next to the
+// editor by build.py): every piece type, its properties, methods and events.
+// The inspector, the Add piece dialog, the scene view, completions and module
 // detection all read it, so they always agree with the engine.
 
 let schema = null;
 
 export async function loadSchema() {
   if (schema) return schema;
-  const res = await fetch(new URL('../nodes.json', import.meta.url));
-  if (!res.ok) throw new Error(`nodes.json: ${res.status}`);
+  const res = await fetch(new URL('../pieces.json', import.meta.url));
+  if (!res.ok) throw new Error(`pieces.json: ${res.status}`);
   schema = await res.json();
   return schema;
 }
@@ -31,7 +31,7 @@ export function typeNames({ includeAbstract = false } = {}) {
   return Object.keys(getSchema().types).filter((t) => includeAbstract || !getSchema().types[t].abstract);
 }
 
-/** Type and its ancestors, base first: ['Node', 'Node2D', 'Sprite2D']. */
+/** Type and its ancestors, base first: ['Piece', 'Group', 'Sprite']. */
 export function lineage(type) {
   const out = [];
   let t = type;
@@ -88,16 +88,21 @@ export function events(type) {
   return out;
 }
 
-/** '2d', '3d', 'ui' or 'other' (behaviors, sound, timers). */
+/** 'world' (has a position in the scene), 'ui' (on the screen) or 'other' (timers, sounds). */
 export function space(type) {
   const l = lineage(type);
-  if (l.includes('Node2D')) return '2d';
-  if (l.includes('Node3D')) return '3d';
-  if (l.includes('Control')) return 'ui';
+  if (l.includes('Group')) return 'world';
+  if (l.includes('UI')) return 'ui';
   return 'other';
 }
 
-/** The optional engine module a type needs, or null. */
+/** The optional engine module a piece needs (a Body moved by physics needs physics2d), or null. */
+export function moduleOfPiece(type, props = {}) {
+  if (type === 'Body' && props.motion === 'physics') return 'physics2d';
+  return moduleOf(type);
+}
+
+/** The optional engine module a type always needs, or null. */
 export function moduleOf(type) {
   for (const t of lineage(type).reverse()) {
     const m = getSchema().types[t].module;

@@ -1,9 +1,10 @@
--- RigidBody2D and Joint2D on Box2D (smitten.physics, the physics2d module).
+-- Bodies whose motion is "physics", and Joints, on Box2D (smitten.physics, the
+-- physics2d module, loaded the first time one joins a scene).
 --
--- Rigid bodies live in a Box2D world made when the first one enters the
--- scene. So that they land on and bump into everything else, static bodies,
--- characters and solid tiles are mirrored into that world as kinematic
--- bodies, moved each step to wherever the scene put them.
+-- They live in a Box2D world. So that they land on and bump into everything
+-- else, still and scripted bodies and solid tiles are mirrored into that
+-- world as kinematic bodies, moved each step to wherever the scene put them.
+-- Tags filter contacts the same way as everywhere else (passThrough).
 
 local nodeLib = require("love.scene.node")
 local scene = require("love.scene")
@@ -15,42 +16,52 @@ local physics = love.physics -- loads the physics2d module (or explains it's mis
 local M = {}
 
 local world = nil
-local mirrors = {}     -- node -> {body, shapesKey}
-local rigids = {}      -- list of RigidBody2D
-local joints = {}      -- list of Joint2D
-local tileBodies = {}  -- tilemap -> {body, version}
+local mirrors = {}     -- piece -> {body, key}
+local rigids = {}      -- Bodies with physics motion
+local joints = {}
+local tileBodies = {}  -- Tiles piece -> {body, version}
 local contacts = {}
 
 local GRAVITY = 980
 
 local function shapeKey(shapes)
 	local parts = {}
-	for i, s in ipairs(shapes) do
-		parts[i] = ("%s:%.2f:%.2f"):format(s.kind, s.hw, s.hh)
-	end
+	for i, s in ipairs(shapes) do parts[i] = ("%s:%.2f:%.2f:%.2f:%.2f"):format(s.kind, s.hw, s.hh, s.x, s.y) end
 	return table.concat(parts, ";")
 end
 
--- Adds a node's collision shapes to a body, relative to the body's position.
-local function addShapes(body, n, cx, cy, props)
+-- Where a shape sits on a body at (cx, cy) turned by angle.
+local function offset(s, cx, cy, angle)
+	local dx, dy = s.x - cx, s.y - cy
+	local c, si = math.cos(angle), math.sin(angle)
+	return dx * c + dy * si, dy * c - dx * si
+end
+
+-- The angle a piece is turned to in the scene.
+local function angleOf(n)
+	local a, b = nodes2d.globalMatrix(n)
+	return math.atan2(b, a)
+end
+
+-- Adds a piece's shapes to a Box2D body at (cx, cy) turned by angle. The
+-- shapes (physics2d.shapesOf) are measured unturned, so they turn with it.
+local function addShapes(body, n, cx, cy, angle, props)
 	for _, s in ipairs(physics2d.shapesOf(n)) do
 		local shape
+		local ox, oy = offset(s, cx, cy, angle)
 		if s.kind == "circle" then
-			shape = physics.newCircleShape(body, s.x - cx, s.y - cy, s.r)
+			shape = physics.newCircleShape(body, ox, oy, s.r)
 		else
-			shape = physics.newRectangleShape(body, s.x - cx, s.y - cy, s.hw * 2, s.hh * 2, 0)
+			shape = physics.newRectangleShape(body, ox, oy, s.hw * 2, s.hh * 2, 0)
 		end
 		shape:setUserData(n)
-		shape:setFilterData(n.layer or 1, n.mask or 1, 0)
-		if props then
-			shape:setFriction(props.friction or 0.3)
-			shape:setRestitution(props.bounce or 0)
-			if props.density then shape:setDensity(props.density) end
-		end
+		shape:setFriction(props.friction or 0.3)
+		shape:setRestitution(props.bounce or 0)
+		if props.density then shape:setDensity(props.density) end
 	end
 end
 
-local function totalArea(n)
+local function area(n)
 	local a = 0
 	for _, s in ipairs(physics2d.shapesOf(n)) do
 		a = a + (s.kind == "circle" and math.pi * s.r * s.r or s.hw * s.hh * 4)
@@ -65,18 +76,45 @@ local function ensureWorld()
 	world:setCallbacks(function(a, b)
 		contacts[#contacts + 1] = { a:getUserData(), b:getUserData() }
 	end)
+	world:setContactFilter(function(a, b)
+		local pa, pb = a:getUserData(), b:getUserData()
+		if type(pa) ~= "table" or type(pb) ~= "table" then return true end
+		if pa.type == "Tiles" then pa, pb = pb, pa end
+		if pb.type == "Tiles" then return not (pa.passThrough and pa.passThrough:find("tiles", 1, true)) end
+		return physics2d.collides(pa, pb)
+	end)
 	scene._addSystem("rigid2d", { order = 60, step = M.step, reset = M.reset })
 	return world
 end
 
+function M.add(n)
+	ensureWorld()
+	rigids[#rigids + 1] = n
+end
+
+function M.remove(n)
+	for i = #rigids, 1, -1 do
+		if rigids[i] == n then table.remove(rigids, i) end
+	end
+	if n._rigid and not n._rigid:isDestroyed() then n._rigid:destroy() end
+	n._rigid = nil
+end
+
 ---------------------------------------------------------------------------
--- Mirrors of everything that isn't a rigid body
+-- Mirrors of everything that isn't moved by physics
 
 local function syncMirror(n, h)
 	local m = mirrors[n]
+	local x, y = n:worldPosition()
+	local angle = angleOf(n)
 	local shapes = physics2d.shapesOf(n)
-	local key = shapeKey(shapes)
-	local x, y = n:getGlobalPosition()
+	-- Shapes measured from the piece, so moving or turning it doesn't change the key.
+	local local_ = {}
+	for i, s in ipairs(shapes) do
+		local ox, oy = offset(s, x, y, angle)
+		local_[i] = { kind = s.kind, hw = s.hw, hh = s.hh, x = ox, y = oy }
+	end
+	local key = shapeKey(local_)
 	if m and m.key ~= key then
 		m.body:destroy()
 		m = nil
@@ -84,29 +122,32 @@ local function syncMirror(n, h)
 	if not m then
 		if #shapes == 0 then return end
 		local body = physics.newBody(world, x, y, "kinematic")
-		addShapes(body, n, x, y, { friction = n.friction, bounce = n.bounce })
+		body:setAngle(angle)
+		addShapes(body, n, x, y, angle, { friction = n.friction, bounce = n.bounce })
 		body:setUserData(n)
-		m = { body = body, key = key }
-		mirrors[n] = m
+		mirrors[n] = { body = body, key = key }
 		return
 	end
 	local bx, by = m.body:getPosition()
 	local dx, dy = x - bx, y - by
-	if dx * dx + dy * dy > 64 * 64 then
+	local da = (angle - m.body:getAngle() + math.pi) % (2 * math.pi) - math.pi
+	if dx * dx + dy * dy > 64 * 64 or math.abs(da) > 1 then
 		m.body:setPosition(x, y)
+		m.body:setAngle(angle)
 		m.body:setLinearVelocity(0, 0)
+		m.body:setAngularVelocity(0)
 	else
 		m.body:setLinearVelocity(dx / h, dy / h)
+		m.body:setAngularVelocity(da / h)
 	end
 end
 
 local function syncTiles(map)
 	local t = tileBodies[map]
-	local version = tostring(map._grid) .. tostring(map._ts)
+	local version = tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid)
 	if t and t.version == version and not map._dirty then return end
 	if t then t.body:destroy() end
-	local ts = map._ts
-	if not ts or not map.collision then
+	if not map._ts or not map.solid then
 		tileBodies[map] = nil
 		return
 	end
@@ -126,7 +167,6 @@ local function syncTiles(map)
 			local w = (cols[j] - cols[i] + 1) * tw
 			local shape = physics.newRectangleShape(body, cols[i] * tw + w / 2, cy * th + th / 2, w, th, 0)
 			shape:setUserData(map)
-			shape:setFilterData(map.layer or 1, 0xFFFF, 0)
 			shape:setFriction(0.4)
 			i = j + 1
 		end
@@ -135,75 +175,41 @@ local function syncTiles(map)
 end
 
 ---------------------------------------------------------------------------
--- RigidBody2D
+-- Physics bodies
 
-local RigidBody2D = nodeLib.classes.RigidBody2D
-
-function RigidBody2D:_enter()
-	ensureWorld()
-	rigids[#rigids + 1] = self
-	self._body = nil
-	physics2d.bodies[#physics2d.bodies + 1] = self
-end
-
-function RigidBody2D:_exit()
-	for i = #rigids, 1, -1 do
-		if rigids[i] == self then table.remove(rigids, i) end
-	end
-	for i = #physics2d.bodies, 1, -1 do
-		if physics2d.bodies[i] == self then table.remove(physics2d.bodies, i) end
-	end
-	if self._body and not self._body:isDestroyed() then self._body:destroy() end
-	self._body = nil
-end
-
-local function createBody(self)
-	local x, y = self:getGlobalPosition()
-	local a, b = nodes2d.globalMatrix(self)
+local function create(n)
+	local x, y = n:worldPosition()
+	local angle = angleOf(n)
 	local body = physics.newBody(world, x, y, "dynamic")
-	body:setAngle(math.atan2(b, a))
-	local area = totalArea(self)
-	addShapes(body, self, x, y, {
-		friction = self.friction, bounce = self.bounce,
-		density = area > 0 and self.mass / (area / (64 * 64)) or 1,
+	body:setAngle(angle)
+	local size = area(n)
+	addShapes(body, n, x, y, angle, {
+		friction = n.friction, bounce = n.bounce,
+		density = size > 0 and n.mass / (size / (64 * 64)) or 1,
 	})
 	body:resetMassData()
-	body:setGravityScale(self.gravityScale)
-	body:setLinearDamping(self.linearDamping)
-	body:setAngularDamping(self.angularDamping)
-	body:setFixedRotation(self.lockRotation)
-	body:setLinearVelocity(self.vx, self.vy)
-	body:setAngularVelocity(self.spin)
-	body:setUserData(self)
-	self._body = body
-	self._lastX, self._lastY = x, y
-	self._lastVx, self._lastVy, self._lastSpin = self.vx, self.vy, self.spin
-end
-
-function RigidBody2D:applyForce(fx, fy)
-	if self._body then self._body:applyForce(fx, fy) end
-end
-
-function RigidBody2D:applyImpulse(ix, iy)
-	if self._body then self._body:applyLinearImpulse(ix, iy) end
-end
-
-function RigidBody2D:applyTorque(t)
-	if self._body then self._body:applyTorque(t) end
+	body:setGravityScale(n.gravity)
+	body:setLinearDamping(n.drag)
+	body:setFixedRotation(n.fixedRotation)
+	body:setLinearVelocity(n.vx, n.vy)
+	body:setUserData(n)
+	n._rigid = body
+	n._lastX, n._lastY = x, y
+	n._lastVx, n._lastVy = n.vx, n.vy
 end
 
 ---------------------------------------------------------------------------
--- Joint2D
+-- Joints
 
-local Joint2D = nodeLib.classes.Joint2D
+local Joint = nodeLib.classes.Joint
 
-function Joint2D:_enter()
+function Joint:_enter()
 	ensureWorld()
 	joints[#joints + 1] = self
 	self._joint = nil
 end
 
-function Joint2D:_exit()
+function Joint:_exit()
 	for i = #joints, 1, -1 do
 		if joints[i] == self then table.remove(joints, i) end
 	end
@@ -214,24 +220,22 @@ end
 local function bodyOf(self, path)
 	if path == nil or path == "" then return nil end
 	local n = self.parent and self.parent:find(path) or scene.find(path)
-	return n and (n._body or (mirrors[n] and mirrors[n].body))
+	return n and (n._rigid or (mirrors[n] and mirrors[n].body))
 end
 
 local function makeJoint(self)
-	local a = bodyOf(self, self.nodeA)
+	local a = bodyOf(self, self.a)
 	if not a then return end
-	local b = bodyOf(self, self.nodeB)
+	local x, y = self:worldPosition()
+	local b = bodyOf(self, self.b)
 	if not b then
-		-- Pinned to the world: an anchor body where the joint is.
-		local x, y = self:getGlobalPosition()
+		-- Pinned in place: an anchor where the joint is.
 		b = physics.newBody(world, x, y, "static")
 		self._anchor = b
 	end
-	local x, y = self:getGlobalPosition()
 	local ax, ay = a:getPosition()
 	local bx, by = b:getPosition()
-	local kind = self.kind
-	local j
+	local kind, j = self.kind, nil
 	if kind == "pin" then
 		j = physics.newRevoluteJoint(a, b, x, y, false)
 	elseif kind == "weld" then
@@ -256,7 +260,7 @@ function M.step(h)
 	if not world then return end
 	local seen = {}
 	for _, n in ipairs(physics2d.bodies) do
-		if n.type ~= "RigidBody2D" and not n._dead then
+		if n.motion ~= "physics" and not n._dead then
 			seen[n] = true
 			syncMirror(n, h)
 		end
@@ -275,17 +279,16 @@ function M.step(h)
 		end
 	end
 
-	-- Scripts may have moved bodies or set velocities since the last step.
+	-- Scripts may have moved bodies or changed their speed since the last step.
 	for _, r in ipairs(rigids) do
-		if not r._body then
-			createBody(r)
+		if not r._rigid then
+			create(r)
 		else
-			local body = r._body
-			local x, y = r:getGlobalPosition()
+			local body = r._rigid
+			local x, y = r:worldPosition()
 			if x ~= r._lastX or y ~= r._lastY then body:setPosition(x, y) end
 			if r.vx ~= r._lastVx or r.vy ~= r._lastVy then body:setLinearVelocity(r.vx, r.vy) end
-			if r.spin ~= r._lastSpin then body:setAngularVelocity(r.spin) end
-			body:setGravityScale(r.gravityScale)
+			body:setGravityScale(r.gravity)
 		end
 	end
 	for _, j in ipairs(joints) do
@@ -295,21 +298,20 @@ function M.step(h)
 	world:update(h)
 
 	for _, r in ipairs(rigids) do
-		local body = r._body
+		local body = r._rigid
 		if body and not r._dead then
 			local x, y = body:getPosition()
-			r:setGlobalPosition(x, y)
+			r:setWorldPosition(x, y)
 			local parentAngle = 0
 			local p = r.parent
-			if p and nodes2d.isNode2D(p) then
+			if p and nodes2d.hasPosition(p) then
 				local a, b = nodes2d.globalMatrix(p)
 				parentAngle = math.atan2(b, a)
 			end
 			r.rotation = body:getAngle() - parentAngle
 			r.vx, r.vy = body:getLinearVelocity()
-			r.spin = body:getAngularVelocity()
-			r._lastX, r._lastY = r:getGlobalPosition()
-			r._lastVx, r._lastVy, r._lastSpin = r.vx, r.vy, r.spin
+			r._lastX, r._lastY = r:worldPosition()
+			r._lastVx, r._lastVy = r.vx, r.vy
 		end
 	end
 
@@ -318,8 +320,8 @@ function M.step(h)
 	for _, c in ipairs(list) do
 		local a, b = c[1], c[2]
 		if type(a) == "table" and type(b) == "table" and a.emit and b.emit then
-			if not a._dead then a:emit("collided", b) end
-			if not b._dead then b:emit("collided", a) end
+			if not a._dead then a:emit("hit", b) end
+			if not b._dead then b:emit("hit", a) end
 		end
 	end
 end
@@ -328,15 +330,16 @@ function M.reset()
 	if world and not world:isDestroyed() then world:destroy() end
 	world = nil
 	mirrors, rigids, joints, tileBodies, contacts = {}, {}, {}, {}, {}
-	if scene._tree.systems.rigid2d then
-		scene._tree.systems.rigid2d = nil
-		for i = #scene._tree.systemList, 1, -1 do
-			if scene._tree.systemList[i].step == M.step then table.remove(scene._tree.systemList, i) end
+	local tree = scene._tree
+	if tree.systems.rigid2d then
+		tree.systems.rigid2d = nil
+		for i = #tree.systemList, 1, -1 do
+			if tree.systemList[i].step == M.step then table.remove(tree.systemList, i) end
 		end
 	end
 end
 
----The Box2D world, for code that wants to use smitten.physics directly.
+---The Box2D world, for code that uses smitten.physics directly with pieces.
 function M.getWorld()
 	return ensureWorld()
 end

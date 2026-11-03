@@ -1,6 +1,7 @@
-// The Scene panel: the open scene's node tree. Click to select, F2 or
-// double-click to rename, drag to reparent or reorder, right-click for more.
-// An instance shows the nodes its scene brings (in italics, read-only).
+// The Scene panel: the open scene's pieces as a tree. Click to select, F2 or
+// double-click to rename, drag to move into another piece or reorder,
+// right-click for more. A placed scene shows the pieces it brings (in
+// italics, read-only).
 
 import { h, icon, showMenu, modKey } from '../ui.js';
 import { nodeIcon } from '../shell/node-icons.js';
@@ -13,24 +14,27 @@ export class SceneTreePanel {
     this.actions = actions;
     this.doc = null;
     this.collapsed = new Set();
-    this.openInstances = new Set(); // placed scenes start closed, like Godot
+    this.openInstances = new Set(); // placed scenes start closed
     this.filter = '';
 
-    const add = h('button', { type: 'button', class: 'icon-btn', title: `Add a node (${modKey}+A)`, 'aria-label': 'Add a node' }, icon('plus', 16));
+    const add = h('button', { type: 'button', class: 'icon-btn', title: `Add a piece (${modKey}+A)`, 'aria-label': 'Add a piece' }, icon('plus', 16));
     add.addEventListener('click', () => this.doc && actions.addNode(this.targetParent()));
     const inst = h('button', { type: 'button', class: 'icon-btn', title: 'Place a scene in this one', 'aria-label': 'Place a scene' }, icon('link', 15));
     inst.addEventListener('click', () => this.doc && actions.instanceScene(this.targetParent()));
-    this.search = h('input', { class: 'input', type: 'search', placeholder: 'Filter nodes', 'aria-label': 'Filter nodes' });
+    this.search = h('input', { class: 'input', type: 'search', placeholder: 'Filter pieces', 'aria-label': 'Filter pieces' });
     this.search.addEventListener('input', () => {
       this.filter = this.search.value.trim().toLowerCase();
       this.render();
     });
     this.list = h('div', { class: 'scene-tree', tabindex: '0', role: 'tree', 'aria-label': 'Scene tree' });
+    this.liveBanner = h('div', { class: 'live-banner', hidden: true }, icon('live', 14),
+      h('span', {}, 'The running game, live. It goes back to the saved scene when you stop.'));
     this.empty = h('div', { class: 'empty' },
       h('h3', {}, 'No scene open'),
-      h('p', {}, 'Open a scene from Files, or make one: scenes hold everything in a level, a menu or a character.'));
+      h('p', {}, 'Open a scene from Files, or make one. A scene is a level, a menu or a character, made of pieces.'));
     el.append(h('div', { class: 'panel' },
       h('div', { class: 'panel-toolbar' }, add, inst, this.search),
+      this.liveBanner,
       h('div', { class: 'panel-scroll' }, this.list, this.empty)));
 
     this.list.addEventListener('keydown', (e) => this.onKey(e));
@@ -66,6 +70,7 @@ export class SceneTreePanel {
 
   render() {
     const doc = this.doc;
+    this.liveBanner.hidden = !doc?.live;
     this.empty.hidden = !!doc;
     this.list.hidden = !doc;
     this.list.replaceChildren();
@@ -79,7 +84,8 @@ export class SceneTreePanel {
       const kids = doc.effectiveChildren(n);
       if (kids.length && (this.filter || this.isOpen(n))) for (const c of kids) visit(c, depth + 1);
     };
-    visit(doc.root, 0);
+    // A live game's tree arrives a moment after it starts.
+    if (doc.root) visit(doc.root, 0);
     this.list.append(...rows);
   }
 
@@ -116,7 +122,7 @@ export class SceneTreePanel {
     }
     const warn = this.warning(n);
     if (warn) badges.append(h('span', { class: 'node-badge', title: warn, style: 'color: var(--warning)' }, icon('alert', 14)));
-    if (!n.readonly && (isA(n.type, 'Node2D') || isA(n.type, 'Node3D') || isA(n.type, 'Control'))) {
+    if (!n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI'))) {
       const visible = doc.get(n, 'visible') !== false;
       const b = h('button', { type: 'button', class: `node-badge ${visible ? '' : 'off'}`, title: visible ? 'Hide' : 'Show' }, icon(visible ? 'eye' : 'eyeOff', 14));
       b.addEventListener('click', (e) => { e.stopPropagation(); doc.setProp(n, 'visible', !visible, { label: visible ? 'Hide' : 'Show' }); });
@@ -126,7 +132,7 @@ export class SceneTreePanel {
       class: `node-row ${doc.selection.has(n.id) ? 'selected' : ''} ${n.readonly ? 'readonly' : ''}`,
       role: 'treeitem', 'data-id': n.id, draggable: n.readonly || n === doc.root ? 'false' : 'true',
       style: `padding-left: ${4 + depth * 16}px`, title: n.readonly ? `Part of ${this.instanceOwner(n)?.instance || 'an instance'}` : typeDef(n.type)?.description || '',
-    }, twisty, nodeIcon(n.type), h('span', { class: 'node-name' }, n.name), badges);
+    }, twisty, nodeIcon(n.type, 16, n.type === 'Body' ? doc.get(n, 'motion') : null), h('span', { class: 'node-name' }, n.name), badges);
     row.addEventListener('click', (e) => this.click(n, e));
     row.addEventListener('dblclick', () => !n.readonly && this.rename(n));
     row.addEventListener('contextmenu', (e) => {
@@ -144,27 +150,21 @@ export class SceneTreePanel {
     return p;
   }
 
-  /** Common mistakes, explained (like Godot's node warnings). */
+  /** Common mistakes, explained. */
   warning(n) {
     const doc = this.doc;
     const kids = doc.effectiveChildren(n);
-    const bodies2d = ['CharacterBody2D', 'StaticBody2D', 'Area2D', 'RigidBody2D'];
-    const bodies3d = ['CharacterBody3D', 'StaticBody3D', 'Area3D', 'RigidBody3D'];
-    if (bodies2d.includes(n.type) && !kids.some((c) => c.type === 'CollisionShape2D')) {
-      return 'Add a CollisionShape2D inside it, or it has no shape and touches nothing.';
-    }
-    if (bodies3d.includes(n.type) && !kids.some((c) => c.type === 'CollisionShape3D')) {
-      return 'Add a CollisionShape3D inside it, or it has no shape and touches nothing.';
+    if (n.type === 'Body' || n.type === 'Zone') {
+      const shape = doc.get(n, 'shape');
+      const hasHitbox = kids.some((c) => c.type === 'Hitbox');
+      const hasVisual = kids.some((c) => c.type === 'Sprite' || c.type === 'Shape');
+      if ((shape === 'auto' && !hasVisual && !hasHitbox) || (shape === 'none' && !hasHitbox)) {
+        return `It has no shape yet, so nothing touches it: put a Sprite or Shape inside it, or set its shape to rectangle or circle.`;
+      }
     }
     const def = typeDef(n.type);
     if (def?.parent && n.parent && !def.parent.some((t) => isA(n.parent.type, t))) {
-      return `${n.type} works on its parent, which should be a ${def.parent.join(' or ')}.`;
-    }
-    if (n.type === 'CollisionShape2D' && n.parent && !bodies2d.includes(n.parent.type)) {
-      return 'A CollisionShape2D gives its parent a shape: put it inside a body or an area.';
-    }
-    if (n.type === 'CollisionShape3D' && n.parent && !bodies3d.includes(n.parent.type)) {
-      return 'A CollisionShape3D gives its parent a shape: put it inside a 3D body or area.';
+      return `A ${n.type} goes inside a ${def.parent.join(' or ')}.`;
     }
     return null;
   }
@@ -265,7 +265,7 @@ export class SceneTreePanel {
         : { label: 'Attach a script…', icon: 'code', action: () => a.attachScript(n) });
       if (n.script) items.push({ label: 'Detach script', action: () => doc.setScript(n, null) });
       if (!n.instance) items.push({ label: 'Change type…', action: () => a.changeType(n) });
-      if (n !== doc.root && !n.instance) items.push({ label: 'Save as a scene…', icon: 'save', action: () => a.saveBranchAsScene(n) });
+      if (n !== doc.root && !n.instance) items.push({ label: 'Save as its own scene…', icon: 'save', action: () => a.saveBranchAsScene(n) });
       if (n.instance) items.push({ label: `Open ${n.instance.split('/').pop()}`, icon: 'link', action: () => a.openScene(n.instance) });
       if (n !== doc.root) {
         items.push('-');

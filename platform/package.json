@@ -1,0 +1,19 @@
+{
+  "name": "smitten-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Smitten's game-sharing site: a Cloudflare Worker with R2 and D1.",
+  "type": "module",
+  "scripts": {
+    "copy-player": "sh scripts/copy-player.sh",
+    "dev": "wrangler dev",
+    "seed": "node scripts/seed.mjs",
+    "test": "node ../tools/platform-tests/test.mjs",
+    "migrate:local": "wrangler d1 migrations apply smitten-games --local",
+    "migrate:remote": "wrangler d1 migrations apply smitten-games --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.3"
+  }
+}

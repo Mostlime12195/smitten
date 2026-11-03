@@ -601,6 +601,10 @@ static void preloadEngineLua(lua_State *L)
 }
 #endif
 
+#ifdef LOVE_EMSCRIPTEN
+extern "C" int loveweb_live_poll(lua_State *L); // web/native/web_main.cpp
+#endif
+
 #ifdef LOVE_OPTIONAL_MODULES
 // Smitten: modules a game only downloads when it uses them. Each is a
 // WebAssembly side module that the player loads before main() runs (see
@@ -615,10 +619,8 @@ struct OptionalModule
 
 static const OptionalModule optionalModules[] =
 {
-	{ "love.physics", "physics2d", "luaopen_love_physics", "2D physics (RigidBody2D, smitten.physics)" },
+	{ "love.physics", "physics2d", "luaopen_love_physics", "physics (Bodies whose motion is physics, Joints, smitten.physics)" },
 	{ "love.video", "video", "luaopen_love_video", "video (smitten.video)" },
-	{ "love.graphics3d", "3d", "luaopen_love_graphics3d", "3D graphics" },
-	{ "love.physics3d", "physics3d", "luaopen_love_physics3d", "3D physics" },
 	{ "love.synth", "synth", "luaopen_love_synth", "generated sounds and music (.sfx and .song files)" },
 	{ nullptr, nullptr, nullptr, nullptr }
 };
@@ -679,6 +681,11 @@ int luaopen_love(lua_State *L)
 #endif
 #ifdef LOVE_OPTIONAL_MODULES
 	preloadOptionalModules(L);
+#endif
+#ifdef LOVE_EMSCRIPTEN
+	// Smitten: messages from the editor for live tweaking (web/native/web_main.cpp).
+	lua_pushcfunction(L, loveweb_live_poll);
+	lua_setfield(L, -2, "_livePoll");
 #endif
 
 	// Set version information.

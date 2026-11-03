@@ -1,7 +1,7 @@
 -- What makes LÖVE into Smitten at run time (DESIGN.md, section 2):
 --
 -- * Smitten's own modules (smitten.scene, smitten.input, ...) and the
---   optional ones (smitten.physics, smitten.graphics3d, ...) load the first
+--   optional ones (smitten.physics, smitten.video, ...) load the first
 --   time a game uses them.
 -- * Helpers join the LÖVE module they belong to: smitten.math.chance,
 --   smitten.timer.after, smitten.mouse.pressed, smitten.keyboard.pressed.
@@ -13,7 +13,7 @@ local engine = {}
 -- Modules loaded on first use, as love.<name>.
 local LAZY = {
 	scene = true, input = true, tween = true, json = true, assets = true, storage = true, display = true,
-	synth = true, graphics3d = true, physics3d = true, physics = true, video = true,
+	synth = true, physics = true, video = true,
 }
 
 engine.project = nil   -- smitten.json, decoded, or nil for a plain LÖVE game
@@ -178,11 +178,12 @@ end
 function engine.start()
 	local path = startScene()
 	if path and not (scene() and scene().current) then
-		love.scene.change(path)
+		love.scene.go(path)
 	end
 end
 
 function engine.update(dt)
+	if love._livePoll then require("love.engine.live").poll() end
 	local tween = package.loaded["love.tween"]
 	if tween then tween._update(dt) end
 	local s = scene()

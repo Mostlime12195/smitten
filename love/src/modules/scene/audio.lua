@@ -1,5 +1,4 @@
--- AudioPlayer: plays sound files and Smitten's .sfx and .song files.
--- (AudioPlayer3D, which needs 3D positions, is in nodes3d.lua.)
+-- Sound: plays sound files and Smitten's .sfx and .song files.
 
 local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
@@ -18,18 +17,18 @@ local function soundOf(self)
 end
 M.soundOf = soundOf
 
-local AudioPlayer = nodeLib.classes.AudioPlayer
+local Sound = nodeLib.classes.Sound
 
-function AudioPlayer:_enter()
+function Sound:_enter()
 	self._sources = {}
 	if self.autoplay then self:play() end
 end
 
-function AudioPlayer:_exit()
+function Sound:_exit()
 	self:stop()
 end
 
-function AudioPlayer:play()
+function Sound:play()
 	local snd = soundOf(self)
 	if not snd then return end
 	if snd.song then
@@ -49,7 +48,7 @@ function AudioPlayer:play()
 	return src
 end
 
-function AudioPlayer:stop()
+function Sound:stop()
 	local snd = self._snd
 	if snd and snd.song and self._playingSong then snd.song:stop() end
 	self._playingSong = false
@@ -57,19 +56,19 @@ function AudioPlayer:stop()
 	self._sources = {}
 end
 
-function AudioPlayer:pause()
+function Sound:pause()
 	local snd = self._snd
 	if snd and snd.song then snd.song:pause() end
 	for _, s in ipairs(self._sources or {}) do s:pause() end
 end
 
-function AudioPlayer:resume()
+function Sound:resume()
 	local snd = self._snd
 	if snd and snd.song and self._playingSong then snd.song:resume() end
 	for _, s in ipairs(self._sources or {}) do s:play() end
 end
 
-function AudioPlayer:isPlaying()
+function Sound:isPlaying()
 	local snd = self._snd
 	if snd and snd.song then return snd.song:isPlaying() end
 	for _, s in ipairs(self._sources or {}) do
@@ -78,7 +77,7 @@ function AudioPlayer:isPlaying()
 	return false
 end
 
-function AudioPlayer:_process()
+function Sound:_process()
 	local list = self._sources
 	if not list or #list == 0 then return end
 	local finished = false

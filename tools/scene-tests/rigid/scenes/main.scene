@@ -3,28 +3,21 @@
  "version": 2,
  "root": {
   "name": "Main",
-  "type": "Node2D",
+  "type": "Group",
   "script": "scenes/main.lua",
   "children": [
    {
     "name": "Floor",
-    "type": "StaticBody2D",
+    "type": "Body",
     "properties": {
      "x": 320,
-     "y": 340
+     "y": 340,
+     "motion": "still"
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 640,
-       "height": 20
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 640,
        "height": 20,
@@ -40,11 +33,12 @@
    },
    {
     "name": "Box0",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 200,
      "y": 40,
      "rotation": 0.0,
@@ -52,16 +46,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -77,11 +63,12 @@
    },
    {
     "name": "Box1",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 230,
      "y": 35,
      "rotation": 0.2,
@@ -89,16 +76,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -114,11 +93,12 @@
    },
    {
     "name": "Box2",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 260,
      "y": 40,
      "rotation": 0.4,
@@ -126,16 +106,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -151,11 +123,12 @@
    },
    {
     "name": "Box3",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 290,
      "y": 35,
      "rotation": 0.6000000000000001,
@@ -163,16 +136,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -188,11 +153,12 @@
    },
    {
     "name": "Box4",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 200,
      "y": 80,
      "rotation": 0.8,
@@ -200,16 +166,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -225,11 +183,12 @@
    },
    {
     "name": "Box5",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 230,
      "y": 75,
      "rotation": 1.0,
@@ -237,16 +196,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -262,11 +213,12 @@
    },
    {
     "name": "Box6",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 260,
      "y": 80,
      "rotation": 1.2000000000000002,
@@ -274,16 +226,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -299,11 +243,12 @@
    },
    {
     "name": "Box7",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 290,
      "y": 75,
      "rotation": 1.4000000000000001,
@@ -311,16 +256,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -336,11 +273,12 @@
    },
    {
     "name": "Box8",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 200,
      "y": 120,
      "rotation": 1.6,
@@ -348,16 +286,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -373,11 +303,12 @@
    },
    {
     "name": "Box9",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 230,
      "y": 115,
      "rotation": 1.8,
@@ -385,16 +316,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -410,11 +333,12 @@
    },
    {
     "name": "Box10",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 260,
      "y": 120,
      "rotation": 2.0,
@@ -422,16 +346,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -447,11 +363,12 @@
    },
    {
     "name": "Box11",
-    "type": "RigidBody2D",
-    "groups": [
-     "boxes"
+    "type": "Body",
+    "tags": [
+     "box"
     ],
     "properties": {
+     "motion": "physics",
      "x": 290,
      "y": 115,
      "rotation": 2.2,
@@ -459,16 +376,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "width": 28,
-       "height": 28
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "width": 28,
        "height": 28,
@@ -484,8 +393,9 @@
    },
    {
     "name": "Ball",
-    "type": "RigidBody2D",
+    "type": "Body",
     "properties": {
+     "motion": "physics",
      "x": 420,
      "y": 20,
      "bounce": 0.7,
@@ -493,16 +403,8 @@
     },
     "children": [
      {
-      "name": "Shape",
-      "type": "CollisionShape2D",
-      "properties": {
-       "shape": "circle",
-       "radius": 14
-      }
-     },
-     {
       "name": "Look",
-      "type": "Shape2D",
+      "type": "Shape",
       "properties": {
        "shape": "circle",
        "radius": 14,
@@ -511,6 +413,35 @@
         0.8,
         1,
         1
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "name": "Ghost",
+    "type": "Body",
+    "tags": [
+     "ghost"
+    ],
+    "properties": {
+     "motion": "physics",
+     "x": 560,
+     "y": 20,
+     "passThrough": "box"
+    },
+    "children": [
+     {
+      "name": "Look",
+      "type": "Shape",
+      "properties": {
+       "width": 20,
+       "height": 20,
+       "color": [
+        1,
+        1,
+        1,
+        0.5
        ]
       }
      }

@@ -1,10 +1,8 @@
-// The Scene workspace: open scenes as tabs, a toolbar, and the 2D or 3D
-// viewport (loaded when first needed, so a 2D game never downloads three.js).
+// The Scene workspace: open scenes as tabs, a toolbar, and the scene view.
 // Scenes save themselves shortly after each change.
 
 import { h, icon, toast, modKey } from '../../ui.js';
 import { SceneDoc } from '../../core/scene-doc.js';
-import { isA } from '../../core/schema.js';
 
 const TOOLS = [
   { id: 'select', icon: 'pointer', label: 'Select', key: 'Q' },
@@ -23,8 +21,7 @@ export class SceneWorkspace extends EventTarget {
     this.docs = new Map(); // path -> SceneDoc
     this.order = [];
     this.active = null;
-    this.mode = null; // '2d' | '3d'
-    this.viewports = {};
+    this.view = null;
     this.tool = 'select';
     this.snap = localStorage.getItem('smitten-editor.snap') !== '0';
     this.saveTimers = new Map();
@@ -36,11 +33,10 @@ export class SceneWorkspace extends EventTarget {
     this.selectionPanelHost = h('div', { class: 'selection-panel-host', hidden: true });
     this.emptyEl = h('div', { class: 'empty', hidden: true },
       h('h3', {}, 'No scene open'),
-      h('p', {}, 'Scenes hold the things in your game: a level, a menu, a player. Open one from Files, or make a new one.'),
+      h('p', {}, 'Scenes hold the pieces of your game: a level, a menu, a player. Open one from Files, or make a new one.'),
       h('div', { class: 'btn-row' },
-        h('button', { type: 'button', class: 'btn primary', onclick: () => app.newScene('2d') }, 'New 2D scene'),
-        h('button', { type: 'button', class: 'btn', onclick: () => app.newScene('3d') }, 'New 3D scene'),
-        h('button', { type: 'button', class: 'btn', onclick: () => app.newScene('ui') }, 'New menu (UI)')));
+        h('button', { type: 'button', class: 'btn primary', onclick: () => app.newScene('level') }, 'New level'),
+        h('button', { type: 'button', class: 'btn', onclick: () => app.newScene('ui') }, 'New menu')));
     el.append(this.tabs, this.toolbar, h('div', { style: 'flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0' }, this.host, this.status, this.emptyEl), this.selectionPanelHost);
 
     this.host.addEventListener('viewport-status', (e) => { this.status.textContent = e.detail.text; });
@@ -79,22 +75,13 @@ export class SceneWorkspace extends EventTarget {
     this.collisionsBtn.addEventListener('click', () => {
       const on = this.collisionsBtn.getAttribute('aria-pressed') !== 'true';
       this.collisionsBtn.setAttribute('aria-pressed', String(on));
-      this.viewports['2d']?.setShowCollisions?.(on);
+      this.view?.setShowCollisions?.(on);
     });
     bar.append(this.collisionsBtn);
     const frame = h('button', { type: 'button', class: 'tool-btn', title: 'Frame the selection (F)' }, icon('focus', 15));
     frame.addEventListener('click', () => this.viewport()?.frameSelection());
     bar.append(frame);
     bar.append(h('span', { class: 'spacer' }));
-    this.modeSwitch = h('div', { class: 'segmented', role: 'group', 'aria-label': 'View' });
-    this.modeButtons = {};
-    for (const m of ['2d', '3d']) {
-      const b = h('button', { type: 'button', class: 'seg', 'aria-pressed': 'false', title: m === '2d' ? '2D view: 2D nodes and UI' : '3D view: 3D nodes' }, m.toUpperCase());
-      b.addEventListener('click', () => this.setMode(m));
-      this.modeButtons[m] = b;
-      this.modeSwitch.append(b);
-    }
-    bar.append(this.modeSwitch);
     const play = h('button', { type: 'button', class: 'tool-btn', title: 'Play this scene (F6)' }, icon('play', 14), 'Play scene');
     play.addEventListener('click', () => this.active && this.app.playScene(this.active.path));
     bar.append(play);
@@ -111,11 +98,11 @@ export class SceneWorkspace extends EventTarget {
     this.snap = on;
     localStorage.setItem('smitten-editor.snap', on ? '1' : '0');
     this.snapBtn.setAttribute('aria-pressed', String(on));
-    for (const vp of Object.values(this.viewports)) vp.setSnap(on);
+    this.view?.setSnap(on);
   }
 
   viewport() {
-    return this.mode ? this.viewports[this.mode] : null;
+    return this.view || null;
   }
 
   readScene(path) {
@@ -152,52 +139,39 @@ export class SceneWorkspace extends EventTarget {
     this.app.panels.tree.setDoc(doc);
     this.app.panels.inspector.setDoc(doc);
     this.render();
-    if (doc) {
-      const dim = doc.dimension() === '3d' ? '3d' : '2d';
-      await this.setMode(doc.viewMode || dim);
-    } else {
-      for (const vp of Object.values(this.viewports)) vp.el.hidden = true;
-    }
+    if (doc) await this.showView();
+    else if (this.view) this.view.el.hidden = true;
     this.updateSelectionPanel();
     this.dispatchEvent(new Event('activate'));
   }
 
-  async setMode(mode) {
-    this.mode = mode;
-    if (this.active) this.active.viewMode = mode;
-    for (const [m, b] of Object.entries(this.modeButtons)) b.setAttribute('aria-pressed', String(m === mode));
-    let vp = this.viewports[mode];
-    if (!vp) {
+  /** The scene view, made the first time a scene opens. */
+  async showView() {
+    if (!this.view) {
       const el = h('div', { class: 'viewport' });
       this.host.append(el);
+      let vp;
       try {
-        const ctx = { doc: this.active, project: this.project, settings: { snap: this.snap, grid: 16, snapStep: 0.25, angleSnap: 15, showCollisions: this.collisionsBtn.getAttribute('aria-pressed') === 'true' } };
-        if (mode === '2d') {
-          const { Viewport2D } = await import('./viewport2d.js');
-          vp = new Viewport2D(el, ctx);
-        } else {
-          this.status.textContent = 'Loading the 3D view…';
-          const { Viewport3D } = await import('./viewport3d.js');
-          vp = new Viewport3D(el, ctx);
-        }
+        const { Viewport2D } = await import('./viewport2d.js');
+        vp = new Viewport2D(el, { doc: this.active, project: this.project, settings: { snap: this.snap, grid: 16, angleSnap: 15, showCollisions: this.collisionsBtn.getAttribute('aria-pressed') === 'true' } });
       } catch (e) {
         console.error(e);
-        el.replaceChildren(h('div', { class: 'empty' }, h('h3', {}, `The ${mode.toUpperCase()} view couldn't load`), h('p', {}, String(e.message || e))));
-        vp = { el, ctx: {}, setDoc() {}, setTool() {}, setSnap() {}, frameSelection() {}, resize() {}, dispose() {} };
+        el.replaceChildren(h('div', { class: 'empty' }, h('h3', {}, 'The scene view couldn\'t load'), h('p', {}, String(e.message || e))));
+        vp = { setDoc() {}, setTool() {}, setSnap() {}, frameSelection() {}, resize() {}, dispose() {} };
       }
       vp.el = el;
-      this.viewports[mode] = vp;
+      this.view = vp;
       vp.setTool(this.tool);
     }
-    for (const [m, v] of Object.entries(this.viewports)) v.el.hidden = m !== mode;
-    if (this.active) vp.setDoc(this.active);
-    vp.resize();
+    this.view.el.hidden = false;
+    this.view.setDoc(this.active);
+    this.view.resize();
   }
 
-  /** The TileMap panel below the view while a TileMap is selected. */
+  /** The tile panel below the view while a Tiles piece is selected. */
   async updateSelectionPanel() {
     const sel = this.active?.selected() || [];
-    const tilemap = sel.length === 1 && sel[0].type === 'TileMap' && !sel[0].readonly ? sel[0] : null;
+    const tilemap = sel.length === 1 && sel[0].type === 'Tiles' && !sel[0].readonly ? sel[0] : null;
     if (!tilemap) {
       this.selectionPanelHost.hidden = true;
       this.tilemapPanel?.setNode(null);
@@ -208,14 +182,14 @@ export class SceneWorkspace extends EventTarget {
     if (!this.tilemapPanel) {
       try {
         const { TileMapPanel } = await import('./tilemap-panel.js');
-        this.tilemapPanel = new TileMapPanel(this.selectionPanelHost, { doc: this.active, project: this.project, viewport: this.viewports['2d'] });
+        this.tilemapPanel = new TileMapPanel(this.selectionPanelHost, { doc: this.active, project: this.project, viewport: this.view });
       } catch (e) {
         this.selectionPanelHost.replaceChildren(h('p', { class: 'insp-hint' }, `The tile panel couldn't load: ${e.message}`));
         return;
       }
     }
     this.tilemapPanel.doc = this.active;
-    this.tilemapPanel.viewport = this.viewports['2d'];
+    this.tilemapPanel.viewport = this.view;
     this.tilemapPanel.setNode(tilemap);
     this.viewport()?.resize();
   }
@@ -227,7 +201,7 @@ export class SceneWorkspace extends EventTarget {
       const name = path.split('/').pop();
       const close = h('span', { class: 'doc-close', title: 'Close', role: 'button' }, icon('x', 12));
       const tab = h('button', { type: 'button', class: 'doc-tab', role: 'tab', 'aria-selected': String(doc === this.active), title: path },
-        icon(doc.dimension() === '3d' ? 'box' : 'square', 13), h('span', { class: 'doc-name' }, name), close);
+        icon('scene', 13), h('span', { class: 'doc-name' }, name), close);
       tab.addEventListener('click', (e) => {
         if (e.target.closest('.doc-close')) this.close(path);
         else this.activate(doc);
@@ -341,4 +315,3 @@ export class SceneWorkspace extends EventTarget {
   }
 }
 
-export { isA };

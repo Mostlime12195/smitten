@@ -28,6 +28,8 @@ export const DEFAULTS = {
   // Console
   consoleTimestamps: false,
   consoleWrap: true,
+  // Publishing
+  platformUrl: 'http://localhost:8787', // the game-sharing site (platform/)
 };
 
 let values = load();
