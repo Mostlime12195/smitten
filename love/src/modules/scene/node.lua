@@ -14,9 +14,11 @@
 --   _physics(dt)      every physics step, before physicsUpdate(dt)
 --   _draw()           draws the piece in its own coordinates
 --
--- A script is a table of functions and variables. A piece with a script gets
--- a class made of the script's fields over the type's class, so `self:foo()`
--- finds the script's function first, then the type's method.
+-- A script is the piece's own code (script.lua): it runs once per piece in
+-- an environment of its own. Old-style scripts are a table of functions and
+-- variables: a piece with one gets a class made of the script's fields over
+-- the type's class, so `self:foo()` finds the script's function first, then
+-- the type's method.
 
 local schema = require("love.scene.schema")
 
@@ -138,9 +140,12 @@ function node.new(typeName, script, props)
 	if cls._def.abstract then
 		error(("%s is the base of other piece types and can't be made itself"):format(typeName), 3)
 	end
-	local c = script and scriptClass(script, cls) or cls
+	local newStyle = script ~= nil and rawget(script, "__smitten") ~= nil
+	local c = (script and not newStyle) and scriptClass(script, cls) or cls
 	local n = setmetatable({ name = typeName, type = typeName, children = {}, parent = nil, script = nil }, c.__mt)
 	for k, v in pairs(tableDefaults[c]) do n[k] = deepCopyValue(v) end
+	-- The script's top level sets its defaults; then the given properties.
+	if newStyle then require("love.scene.script").instantiate(n, script) end
 	if props then
 		for k, v in pairs(props) do n[k] = v end
 	end
