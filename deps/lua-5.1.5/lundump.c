@@ -16,6 +16,7 @@
 #include "lfunc.h"
 #include "lmem.h"
 #include "lobject.h"
+#include "lparser.h"
 #include "lstring.h"
 #include "lundump.h"
 #include "lzio.h"
@@ -121,6 +122,9 @@ static void LoadConstants(LoadState* S, Proto* f)
 	break;
    case LUA_TSTRING:
 	setsvalue2n(S->L,o,LoadString(S));
+	break;
+   case LUA_TFUNCTION:		/* Smitten: the original tostring (lparser.c) */
+	if (!luaY_tostring(S->L,o)) error(S,"bad constant");
 	break;
    default:
 	error(S,"bad constant");

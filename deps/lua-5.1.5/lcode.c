@@ -247,6 +247,12 @@ static int addk (FuncState *fs, TValue *k, TValue *v) {
 }
 
 
+/* Smitten: any value as a constant (for the original tostring, lparser.c) */
+int luaK_valueK (FuncState *fs, TValue *v) {
+  return addk(fs, v, v);
+}
+
+
 int luaK_stringK (FuncState *fs, TString *s) {
   TValue o;
   setsvalue(fs->L, &o, s);

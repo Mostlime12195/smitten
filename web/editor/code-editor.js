@@ -44,17 +44,53 @@ export async function createEditor(parent, opts) {
 // ---------------------------------------------------------------------------
 // CodeMirror
 
-/** Lua highlighting tweaks: object fields/methods and `love`/`self` stand out. */
+/**
+ * Lua highlighting tweaks: object fields/methods and `love`/`self` stand out.
+ * Smitten syntax: `continue` is a keyword where it's a statement, and
+ * backtick strings are strings with code inside `{}`. `state.interp` is a
+ * stack, one entry per open backtick string: -1 while in its text, else the
+ * depth of `{` inside its current expression.
+ */
 function luaMode(base) {
+  const normal = base.startState().cur;  // the base tokenizer outside strings/comments
+  // the text of a backtick string, up to its end or to a `{`
+  function interpText(stream, interp) {
+    let escaped = false;
+    while (!stream.eol()) {
+      const ch = stream.next();
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '`') { interp.pop(); return 'string'; }
+      else if (ch === '{') { interp[interp.length - 1] = 0; return 'string'; }
+    }
+    if (!escaped) interp.length = 0;  // unfinished at the end of the line
+    return 'string';
+  }
   return {
     ...base,
     name: 'lua',
+    startState: (...args) => ({ ...base.startState(...args), interp: [] }),
     token(stream, state) {
+      const interp = state.interp;
+      const top = interp.length - 1;
+      if (interp[top] === -1) return interpText(stream, interp);
+      if (state.cur === normal) {
+        if (stream.eatSpace()) return null;
+        const ch = stream.peek();
+        if (ch === '`') { stream.next(); interp.push(-1); return interpText(stream, interp); }
+        if (top >= 0 && ch === '{') interp[top]++;
+        if (top >= 0 && ch === '}' && interp[top]-- === 0) {  // end of the expression
+          stream.next();
+          interp[top] = -1;
+          return interpText(stream, interp);
+        }
+      }
       const style = base.token(stream, state);
       if (style === 'variable') {
         const word = stream.current();
         if (word === 'love') return 'builtin';
         if (word === 'self') return 'variable-2';
+        if (word === 'continue' && isContinueStatement(stream)) return 'keyword';
         const prev = stream.string.charAt(stream.start - 1);
         const prev2 = stream.string.charAt(stream.start - 2);
         if ((prev === '.' && prev2 !== '.') || prev === ':') return 'property';
@@ -63,6 +99,17 @@ function luaMode(base) {
       return style;
     },
   };
+}
+
+/**
+ * `continue` as a statement, which ends its block like `break`, rather than
+ * a name (`continue = 1`, `t.continue`, `goto continue`, `local continue`).
+ */
+function isContinueStatement(stream) {
+  const before = stream.string.slice(0, stream.start);
+  const after = stream.string.slice(stream.pos);
+  return !/(\.|:|\b(goto|local|function|for)\s+)$/.test(before) &&
+    /^\s*(;|--|$|(end|else|elseif|until)\b)/.test(after);
 }
 
 class CMEditor {

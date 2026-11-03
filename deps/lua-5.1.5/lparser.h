@@ -94,6 +94,8 @@ typedef struct FuncState {
   lu_byte nactvar;  /* number of active local variables */
   int firstlabel;  /* first label of this function in ls->dyd->label */
   int firstgoto;  /* first pending goto of this function in ls->dyd->gt */
+  int untilskip;  /* Smitten: first local a `continue' skips (in `until') */
+  int untilline;  /* Smitten: line of that `continue' */
   upvaldesc upvalues[LUAI_MAXUPVALUES];  /* upvalues */
   unsigned short actvar[LUAI_MAXVARS];  /* declared-variable stack */
 } FuncState;
@@ -101,6 +103,7 @@ typedef struct FuncState {
 
 LUAI_FUNC Proto *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                 Dyndata *dyd, const char *name);
+LUAI_FUNC int luaY_tostring (lua_State *L, TValue *o);
 
 
 #endif
