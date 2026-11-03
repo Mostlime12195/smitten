@@ -440,6 +440,23 @@ address, list it in `TRUST_PROXY` instead. If there's no `X-Forwarded-For`
 at all, rate limits for signed-out people are shared by everyone (account
 limits still work).
 
+### Hosting the editor too
+
+The editor is static files (`dist/` from `python3 build.py`). Copy them up,
+tell this copy of the editor where the site is, and serve them with
+`serve.py` on its own port and domain:
+
+```bash
+rsync -a dist/ serve.py <you>@hackclub.app:/opt/smitten/        # dist/ → /opt/smitten/dist
+# on Nest:
+echo 'globalThis.SMITTEN_CONFIG = { platformUrl: "https://games.<you>.hackclub.app" };' > /opt/smitten/dist/config.js
+cp /opt/smitten/platform/deploy/smitten-editor.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now smitten-editor
+```
+
+Then add a second domain (e.g. `smitten.<you>.hackclub.app`) with target
+port `8790`, and list it in `EDITOR_URL` and `EDITOR_ORIGINS`.
+
 Finally, point the editor at it: `EDITOR_ORIGINS` must list the editor's
 origin, and in the editor, **Settings › Publishing** is the site's URL.
 

@@ -1,0 +1,19 @@
+[Unit]
+Description=Smitten editor (static files)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=smitten
+Group=smitten
+ExecStart=/usr/bin/python3 /opt/smitten/serve.py 8790 --host :: --dir /opt/smitten/dist
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
