@@ -347,14 +347,51 @@ Kept small and code-first:
 
 ## 6. Editor
 
-- Cupid's editor renamed and extended. Plain ES modules with no build
-  step, as in Cupid. Tools open as tabs beside code: `hero.png` opens the
-  pixel editor, `level1.map.json` the map editor.
-- Canvas 2D for the art tools. Audio previews play through `synth.mjs`,
-  the engine's synthesizer built on its own, so they match the game.
-- Same keyboard model, command palette and settings as Cupid's editor,
-  with Smitten's own visual identity (which can be playful and
-  pixel-styled; section 7).
+### What other engines taught us
+
+| Engine | What it does well | What Smitten takes |
+| --- | --- | --- |
+| Godot | Scenes as the unit of a game; play the project (F5) or just the current scene (F6); an inspector for the selected thing | Scenes, F5/F6, the scene editor's inspector |
+| Unity, Unreal | Play controls in the middle of the top bar; one asset browser with previews | Centered play controls; one assets panel with thumbnails and map previews |
+| GameMaker | Objects placed in rooms; one asset tree grouped by kind (sprites, sounds, objects, rooms) | Objects and scenes; assets grouped by kind, not by folder |
+| GDevelop, Construct | Behaviors: a platformer character without code | `behaviors = { "platformer" }` |
+| MakeCode Arcade | Tiny, obvious APIs (`controller.moveSprite`, `sprites.onOverlap`); controls work with no setup | Default input actions; `touch(other)`; `smitten.mouse`, `after`, `tween`, `camera.follow` |
+| Scratch | Every thing on stage owns its costume and scripts | An object is a sprite plus its script, shown together |
+| PICO-8, TIC-80 | One palette everywhere, including the editor itself; tools that are simple on purpose | The editor is themed from the default palette; tools show the essentials first |
+| GB Studio, Bitsy | A project reads as a world of scenes and actors, not files | The assets panel and Home talk about scenes, objects, art and sound |
+
+### Rules for the editor
+
+- **Everything on screen has a reason, and the first thing a beginner sees
+  is what they need now.** Rarely used options live in menus, settings or
+  "more" sections. Contextual controls appear only in context (Play scene
+  shows only while a scene is open).
+- **One way to find things**: the assets panel, grouped by kind, with
+  "All files" as the escape hatch.
+- **Every empty state says what to do next**, with a button that does it.
+- **Standard conventions**: tabs, a command palette, menus, tooltips with
+  shortcuts, Ctrl+P to find a file.
+- **The engine wears its own palette** (Sweetie 16): the editor's colors are
+  the default palette's, mixed only between neighboring colors.
+
+### Layout
+
+- Top bar: project menu; Play (F5), Play scene (F6, while a scene is open),
+  Pause, Stop in the middle; Share (link, itch.io, downloads), Help and
+  Settings on the right.
+- Left: the assets panel (Scenes, Objects, Art, Sounds, Music, Scripts),
+  with search, a "+" per group, sound previews, sprite and scene previews.
+- Middle: Home and the open files, each in the editor made for it.
+- Right: the running game and its console; both can be hidden.
+
+### Ideas for later
+
+- A world view of all scenes and how they connect (GB Studio).
+- Behaviors with settings in the inspector instead of code (GDevelop).
+- Live editing while the game runs: move an object in the scene editor and
+  see it move in the game (needs the editor ↔ game bridge, section 3).
+- Prefab-style object variants (a "red coin" based on "coin").
+- A tutorial mode that builds the first game step by step with the player.
 
 ## 7. Aesthetic
 
