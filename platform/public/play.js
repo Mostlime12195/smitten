@@ -41,6 +41,7 @@ function mountPlayer() {
 
 function renderMeta() {
   const parts = [];
+  if (game.owner) parts.push(h('span', {}, 'by ', h('a', { href: `/u/${game.owner.username}` }, game.owner.displayName)));
   if (game.remixOf) parts.push(h('span', {}, 'Remix of ', h('a', { href: `/play/${game.remixOf.id}` }, game.remixOf.title)));
   parts.push(h('span', { id: 'plays' }, plays(game.plays)));
   if (game.remixes) parts.push(h('span', {}, `${game.remixes} remix${game.remixes === 1 ? '' : 'es'}`));

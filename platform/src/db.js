@@ -1,99 +1,137 @@
-// D1 helpers: the schema, rate limits, ids, tokens and hashing.
+// SQLite (node:sqlite), the schema, ids, tokens, hashing and rate limits.
 
-import schema from '../migrations/0001_init.sql';
+import { DatabaseSync } from 'node:sqlite';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { ROOT } from './config.js';
 import { HttpError } from './http.js';
 
-// Creates the tables on first use in each isolate, so `wrangler dev` works
-// without running the migration first. Every statement is IF NOT EXISTS.
-let schemaReady = null;
+/** The open database: db.get/all/run(sql, ...params) and db.tx(fn). */
+export let db = null;
 
-export function ensureSchema(env) {
-  if (!schemaReady) {
-    const statements = schema.replace(/--.*$/gm, '').split(';').map((s) => s.trim()).filter(Boolean);
-    schemaReady = env.DB.batch(statements.map((s) => env.DB.prepare(s))).catch((e) => {
-      schemaReady = null;
-      throw e;
-    });
+export function openDb(file) {
+  const raw = new DatabaseSync(file);
+  raw.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+  migrate(raw);
+  const statements = new Map();
+  const stmt = (sql) => {
+    let s = statements.get(sql);
+    if (!s) {
+      s = raw.prepare(sql);
+      statements.set(sql, s);
+    }
+    return s;
+  };
+  db = {
+    raw,
+    get: (sql, ...params) => stmt(sql).get(...params) ?? null,
+    all: (sql, ...params) => stmt(sql).all(...params),
+    run: (sql, ...params) => stmt(sql).run(...params),
+    /** Runs fn in a transaction (fn must be synchronous). */
+    tx(fn) {
+      raw.exec('BEGIN IMMEDIATE');
+      try {
+        const result = fn();
+        raw.exec('COMMIT');
+        return result;
+      } catch (e) {
+        raw.exec('ROLLBACK');
+        throw e;
+      }
+    },
+    close: () => raw.close(),
+  };
+  return db;
+}
+
+// migrations/NNNN_name.sql, applied in order; PRAGMA user_version is the
+// number of the last one applied.
+function migrate(raw) {
+  const dir = join(ROOT, 'migrations');
+  const files = readdirSync(dir).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+  let current = raw.prepare('PRAGMA user_version').get().user_version;
+  for (const file of files) {
+    const n = Number.parseInt(file, 10);
+    if (n <= current) continue;
+    raw.exec('BEGIN');
+    try {
+      raw.exec(readFileSync(join(dir, file), 'utf8'));
+      raw.exec(`PRAGMA user_version = ${n}`);
+      raw.exec('COMMIT');
+    } catch (e) {
+      raw.exec('ROLLBACK');
+      throw new Error(`Migration ${file} failed: ${e.message}`);
+    }
+    current = n;
   }
-  return schemaReady;
 }
 
 // ---------------------------------------------------------------------------
 // Hashing and random values
 
-const encoder = new TextEncoder();
+export const sha256 = (text) => createHash('sha256').update(String(text)).digest('hex');
+export const hmac = (secret, text) => createHmac('sha256', secret).update(String(text)).digest('hex');
 
-export async function sha256Hex(text) {
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+/** Constant-time comparison of two strings. */
+export function safeEqual(a, b) {
+  const x = createHash('sha256').update(String(a)).digest();
+  const y = createHash('sha256').update(String(b)).digest();
+  return timingSafeEqual(x, y);
 }
 
-/** Constant-time comparison of two strings (via their SHA-256 digests). */
-export async function safeEqual(a, b) {
-  const [da, db] = await Promise.all([a, b].map((s) => crypto.subtle.digest('SHA-256', encoder.encode(String(s)))));
-  if (crypto.subtle.timingSafeEqual) return crypto.subtle.timingSafeEqual(da, db);
-  const x = new Uint8Array(da);
-  const y = new Uint8Array(db);
-  let diff = 0;
-  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
-  return diff === 0;
-}
-
-// Game ids: 10 characters of lower-case Crockford base32 (no i, l, o, u),
-// about 50 bits, short enough for links and hard to guess.
-const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
+// Ids: lower-case Crockford base32 (no i, l, o, u). Game ids are 10
+// characters, about 50 bits: short enough for links, hard to guess.
+const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
 export const ID_PATTERN = '[0-9a-hjkmnp-tv-z]{10}';
 
-export function newId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(10));
-  return [...bytes].map((b) => ID_ALPHABET[b & 31]).join('');
+export function randomCode(length) {
+  return [...randomBytes(length)].map((b) => ALPHABET[b & 31]).join('');
 }
 
-/** An edit token: 32 random bytes, base64url. Only its SHA-256 is stored. */
-export function newToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+export const newId = () => randomCode(10);
 
-// ---------------------------------------------------------------------------
-// Client identity. There are no accounts yet, so rate limits, report
-// de-duplication and play counts go by IP address, stored only as a salted
-// hash. On Cloudflare, CF-Connecting-IP is set by the edge.
-
-export function clientIp(request) {
-  return request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-}
-
-export async function ipHash(request, env) {
-  return (await sha256Hex(`${env.IP_SALT || 'smitten-dev-salt'}|${clientIp(request)}`)).slice(0, 32);
-}
+/** A secret token: 32 random bytes, base64url. Only its SHA-256 is stored. */
+export const newToken = () => randomBytes(32).toString('base64url');
 
 // ---------------------------------------------------------------------------
 // Rate limits: a counter per key and fixed window (an hour by default). A
 // burst can reach twice the limit across a window boundary, which is fine
 // for this purpose.
 
-export async function rateLimit(env, key, limit, what, windowMs = 3600_000) {
-  if (!(limit > 0)) return;
+function windowOf(windowMs) {
   const now = Date.now();
-  const windowStart = now - (now % windowMs);
-  const row = await env.DB.prepare(
-    `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
-     ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1
-     RETURNING count`,
-  ).bind(key, windowStart).first();
-  // Old windows are cleaned up now and then.
-  if (Math.random() < 0.05) {
-    await env.DB.prepare('DELETE FROM rate_limits WHERE window_start < ?1').bind(windowStart - windowMs).run();
-  }
-  if (row.count > limit) {
-    const retryAfter = Math.ceil((windowStart + windowMs - now) / 1000);
-    const minutes = Math.max(1, Math.round(retryAfter / 60));
-    throw new HttpError(429, `You've ${what} a lot in the last hour. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`, { retryAfter });
-  }
+  return { now, start: now - (now % windowMs) };
 }
 
-export function intVar(env, name, fallback) {
-  const n = Number.parseInt(env[name], 10);
-  return Number.isFinite(n) ? n : fallback;
+function tooMany(what, retryAfter) {
+  const minutes = Math.max(1, Math.round(retryAfter / 60));
+  return new HttpError(429, `You've ${what} a lot in the last hour. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`, { retryAfter });
+}
+
+/** Counts one more for key, and throws a 429 once the count passes limit. */
+export function rateLimit(key, limit, what, windowMs = 3600_000) {
+  if (!(limit > 0)) return;
+  const { now, start } = windowOf(windowMs);
+  const row = db.get(
+    `INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+     ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1
+     RETURNING count`, key, start);
+  if (Math.random() < 0.02) db.run('DELETE FROM rate_limits WHERE window_start < ?', start - windowMs);
+  if (row.count > limit) throw tooMany(what, Math.ceil((start + windowMs - now) / 1000));
+}
+
+/** Throws a 429 if key has already reached limit, without counting. */
+export function checkLimit(key, limit, what, windowMs = 3600_000) {
+  if (!(limit > 0)) return;
+  const { now, start } = windowOf(windowMs);
+  const row = db.get('SELECT count FROM rate_limits WHERE key = ? AND window_start = ?', key, start);
+  if (row && row.count >= limit) throw tooMany(what, Math.ceil((start + windowMs - now) / 1000));
+}
+
+/** Counts one more for key without checking (e.g. a failed sign-in). */
+export function countHit(key, windowMs = 3600_000) {
+  const { start } = windowOf(windowMs);
+  db.run(`INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+          ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`, key, start);
 }

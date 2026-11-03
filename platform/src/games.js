@@ -1,36 +1,42 @@
-// The public API: publishing, updating, deleting, listing, playing,
-// remixing and reporting games.
+// The public API for games: publishing, updating, deleting, listing,
+// playing, remixing and reporting. Handlers take a request context
+// (server.js) and the path's parameters.
 
 import { HttpError, json } from './http.js';
-import { ensureSchema, sha256Hex, safeEqual, newId, newToken, ipHash, rateLimit, intVar, ID_PATTERN } from './db.js';
+import { db, newId, rateLimit, ID_PATTERN } from './db.js';
+import { actorKey, currentUser, ipHash, isAdmin, requireUser } from './auth.js';
+import { GAME_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFiles } from './storage.js';
 import { inspectZip } from './zip.js';
 import {
-  LIMITS, MODULES, REPORT_REASONS,
+  LIMITS, MODULES, REPORT_REASONS, USERNAME_RULES,
   cleanTitle, cleanDescription, cleanNote, cleanModules, cleanEngineVersion, inspectPng,
 } from './validate.js';
 
 const ID_RE = new RegExp(`^${ID_PATTERN}$`);
-const gameKey = (id) => `games/${id}/game.love`;
-const thumbKey = (id) => `games/${id}/thumbnail.png`;
+const mb = (n) => `${Math.round((n / 1024 / 1024) * 10) / 10} MB`;
 
-export function limits(env) {
+export function limits(config) {
   return {
-    gameBytes: intVar(env, 'MAX_GAME_BYTES', 25 * 1024 * 1024),
-    thumbnailBytes: intVar(env, 'MAX_THUMBNAIL_BYTES', 1024 * 1024),
+    gameBytes: config.maxGameBytes,
+    thumbnailBytes: config.maxThumbnailBytes,
     title: LIMITS.title,
     description: LIMITS.description,
     note: LIMITS.note,
   };
 }
 
-const mb = (n) => `${Math.round((n / 1024 / 1024) * 10) / 10} MB`;
+/** The most an upload's body can be (server.js cuts off longer ones). */
+export const uploadLimit = (config) => config.maxGameBytes + config.maxThumbnailBytes + 64 * 1024;
 
 // ---------------------------------------------------------------------------
 // Rows and what the API shows of them
 
-async function getRow(env, id) {
+const SELECT_GAME = `SELECT g.*, u.username AS owner_username, u.display_name AS owner_name, u.status AS owner_status
+  FROM games g LEFT JOIN users u ON u.id = g.owner_id`;
+
+export function getRow(id) {
   if (!ID_RE.test(id)) return null;
-  return env.DB.prepare('SELECT * FROM games WHERE id = ?1').bind(id).first();
+  return db.get(`${SELECT_GAME} WHERE g.id = ?`, id);
 }
 
 /** The public view of a game. URLs are absolute so the editor can use them. */
@@ -40,6 +46,7 @@ export function publicGame(row, origin) {
     id: row.id,
     title: row.title,
     description: row.description,
+    owner: row.owner_username && row.owner_status === 'active' ? { username: row.owner_username, displayName: row.owner_name } : null,
     modules: JSON.parse(row.modules || '[]'),
     engineVersion: row.engine_version,
     version: row.version,
@@ -54,38 +61,32 @@ export function publicGame(row, origin) {
   };
 }
 
-function bearer(request) {
-  const m = /^Bearer\s+(\S+)$/i.exec(request.headers.get('Authorization') || '');
-  return m ? m[1] : null;
-}
-
-export async function isAdmin(request, env) {
-  const token = bearer(request);
-  return Boolean(token && env.ADMIN_TOKEN && await safeEqual(token, env.ADMIN_TOKEN));
-}
-
-async function isOwner(request, row) {
-  const token = bearer(request);
-  return Boolean(token && await safeEqual(await sha256Hex(token), row.token_hash));
-}
+const isOwner = (ctx, row) => {
+  const user = currentUser(ctx);
+  return Boolean(user && row.owner_id === user.id);
+};
 
 /** The row, if the game exists and this request may see it (hidden games: only the owner and admins). */
-async function visibleRow(request, env, id) {
-  const row = await getRow(env, id);
+function visibleRow(ctx, id) {
+  const row = getRow(id);
   if (!row) throw new HttpError(404, "This game doesn't exist, or it was deleted.");
-  if (row.status !== 'public' && !(await isOwner(request, row)) && !(await isAdmin(request, env))) {
+  if (row.status !== 'public' && !isOwner(ctx, row) && !isAdmin(ctx)) {
     throw new HttpError(404, 'This game is hidden while a moderator reviews it.', { hidden: true });
   }
   return row;
 }
 
-/** The row, if the request carries the game's edit token. */
-async function ownedRow(request, env, id) {
-  const row = await getRow(env, id);
+/** The row, if the signed-in user owns the game. */
+function ownedRow(ctx, id) {
+  const user = requireUser(ctx, { editor: true });
+  const row = getRow(id);
   if (!row) throw new HttpError(404, "This game doesn't exist, or it was deleted.");
-  if (!bearer(request)) throw new HttpError(401, 'Updating or deleting a game needs its edit token (Authorization: Bearer <token>).');
-  if (!(await isOwner(request, row))) throw new HttpError(403, "That edit token isn't for this game.");
-  return row;
+  if (row.owner_id !== user.id) {
+    throw new HttpError(403, row.owner_id
+      ? 'This game belongs to another account.'
+      : 'This game was published before accounts. Sign in from the browser you published it from to add it to your account.');
+  }
+  return { user, row };
 }
 
 // ---------------------------------------------------------------------------
@@ -94,12 +95,12 @@ async function ownedRow(request, env, id) {
 //   game       the .love (a zip), at most MAX_GAME_BYTES
 //   thumbnail  optional PNG, at most MAX_THUMBNAIL_BYTES
 
-async function readUpload(request, env) {
-  const lim = limits(env);
-  const length = Number(request.headers.get('Content-Length') || 0);
-  if (length > lim.gameBytes + lim.thumbnailBytes + 64 * 1024) {
-    throw new HttpError(413, `The upload is too big. A game can be at most ${mb(lim.gameBytes)}.`, { field: 'game' });
-  }
+async function readUpload(ctx) {
+  const { request, config } = ctx;
+  const lim = limits(config);
+  const maxBody = uploadLimit(config);
+  const tooBig = () => new HttpError(413, `The upload is too big. A game can be at most ${mb(lim.gameBytes)}.`, { field: 'game' });
+  if (Number(request.headers.get('Content-Length') || 0) > maxBody) throw tooBig();
   if (!/^multipart\/form-data/i.test(request.headers.get('Content-Type') || '')) {
     throw new HttpError(415, 'Send the game as multipart/form-data with "meta" and "game" parts.');
   }
@@ -107,6 +108,7 @@ async function readUpload(request, env) {
   try {
     form = await request.formData();
   } catch {
+    if (ctx.bodyTooBig) throw tooBig();
     throw new HttpError(400, "The upload couldn't be read. Send multipart/form-data with \"meta\" and \"game\" parts.");
   }
 
@@ -129,7 +131,7 @@ async function readUpload(request, env) {
   if (meta.remixOf != null && meta.remixOf !== '') {
     if (typeof meta.remixOf !== 'string' || !ID_RE.test(meta.remixOf)) throw new HttpError(422, 'remixOf must be a game id.', { field: 'remixOf' });
     // A remix of a game that has since been deleted is just a game.
-    if (await getRow(env, meta.remixOf)) fields.remixOf = meta.remixOf;
+    if (getRow(meta.remixOf)) fields.remixOf = meta.remixOf;
   }
 
   const game = form.get('game');
@@ -148,132 +150,119 @@ async function readUpload(request, env) {
   return { fields, gameBytes, thumbnail };
 }
 
-async function storeFiles(env, id, gameBytes, thumbnail, version) {
-  await env.GAMES.put(gameKey(id), gameBytes, {
-    httpMetadata: { contentType: 'application/zip' },
-    customMetadata: { version: String(version) },
-  });
-  if (thumbnail) {
-    await env.GAMES.put(thumbKey(id), thumbnail, { httpMetadata: { contentType: 'image/png' } });
-  } else {
-    await env.GAMES.delete(thumbKey(id));
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Handlers
 
-export async function getConfig(request, env) {
+export function getConfig(ctx) {
+  const { config } = ctx;
   return json({
-    editorUrl: env.EDITOR_URL || 'http://localhost:8766/',
+    editorUrl: config.editorUrl,
+    editorOrigins: config.editorOrigins,
     reportReasons: REPORT_REASONS,
     modules: MODULES,
-    limits: limits(env),
+    limits: limits(config),
+    accounts: { hackclub: Boolean(config.hackclub), usernameRules: USERNAME_RULES },
   });
 }
 
-export async function publishGame(request, env, origin) {
-  await ensureSchema(env);
-  await rateLimit(env, `publish:${await ipHash(request, env)}`, intVar(env, 'PUBLISH_LIMIT_PER_HOUR', 10), 'published');
-  const { fields, gameBytes, thumbnail } = await readUpload(request, env);
+export async function publishGame(ctx) {
+  const user = requireUser(ctx, { editor: true });
+  rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
+  const { fields, gameBytes, thumbnail } = await readUpload(ctx);
 
   const id = newId();
-  const token = newToken();
   const now = Date.now();
-  await storeFiles(env, id, gameBytes, thumbnail, 1);
+  await storeGameFiles(id, gameBytes, thumbnail);
   try {
-    await env.DB.prepare(
-      `INSERT INTO games (id, title, description, modules, engine_version, remix_of, token_hash,
+    db.run(
+      `INSERT INTO games (id, owner_id, title, description, modules, engine_version, remix_of,
          has_thumbnail, game_size, version, plays, status, created_at, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1, 0, 'public', ?10, ?10)`,
-    ).bind(id, fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
-      fields.remixOf, await sha256Hex(token), thumbnail ? 1 : 0, gameBytes.length, now).run();
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'public', ?, ?)`,
+      id, user.id, fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
+      fields.remixOf, thumbnail ? 1 : 0, gameBytes.length, now, now);
   } catch (e) {
-    await env.GAMES.delete([gameKey(id), thumbKey(id)]);
+    await removeGameFiles(id);
     throw e;
   }
-  const row = await getRow(env, id);
-  return json({ id, token, game: publicGame(row, origin) }, 201);
+  return json({ id, game: publicGame(getRow(id), ctx.origin) }, 201);
 }
 
-export async function updateGame(request, env, origin, id) {
-  await ensureSchema(env);
-  const row = await ownedRow(request, env, id);
-  await rateLimit(env, `publish:${await ipHash(request, env)}`, intVar(env, 'PUBLISH_LIMIT_PER_HOUR', 10), 'published');
-  const { fields, gameBytes, thumbnail } = await readUpload(request, env);
+export async function updateGame(ctx, id) {
+  const { user, row } = ownedRow(ctx, id);
+  rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
+  const { fields, gameBytes, thumbnail } = await readUpload(ctx);
 
   const version = row.version + 1;
-  await storeFiles(env, id, gameBytes, thumbnail, version);
+  await storeGameFiles(id, gameBytes, thumbnail);
   // remixOf is fixed when a game is first published. A hidden game stays
   // hidden until a moderator restores it.
-  await env.DB.prepare(
-    `UPDATE games SET title = ?2, description = ?3, modules = ?4, engine_version = ?5,
-       has_thumbnail = ?6, game_size = ?7, version = ?8, updated_at = ?9
-     WHERE id = ?1`,
-  ).bind(id, fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
-    thumbnail ? 1 : 0, gameBytes.length, version, Date.now()).run();
-  const updated = await getRow(env, id);
-  return json({ id, game: { ...publicGame(updated, origin), status: updated.status } });
+  db.run(
+    `UPDATE games SET title = ?, description = ?, modules = ?, engine_version = ?,
+       has_thumbnail = ?, game_size = ?, version = ?, updated_at = ?
+     WHERE id = ?`,
+    fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
+    thumbnail ? 1 : 0, gameBytes.length, version, Date.now(), id);
+  const updated = getRow(id);
+  return json({ id, game: { ...publicGame(updated, ctx.origin), status: updated.status } });
 }
 
-export async function deleteGame(request, env, origin, id) {
-  await ensureSchema(env);
-  await ownedRow(request, env, id);
-  await removeGame(env, id);
+export async function deleteGame(ctx, id) {
+  ownedRow(ctx, id);
+  await removeGame(id);
   return json({ id, deleted: true });
 }
 
-export async function removeGame(env, id) {
-  await env.GAMES.delete([gameKey(id), thumbKey(id)]);
-  await env.DB.batch([
-    env.DB.prepare('DELETE FROM games WHERE id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM reports WHERE game_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM plays WHERE game_id = ?1').bind(id),
-  ]);
+export async function removeGame(id) {
+  db.tx(() => {
+    db.run('DELETE FROM games WHERE id = ?', id);
+    db.run('DELETE FROM reports WHERE game_id = ?', id);
+    db.run('DELETE FROM plays WHERE game_id = ?', id);
+  });
+  await removeGameFiles(id);
 }
 
-export async function listGames(request, env, origin) {
-  await ensureSchema(env);
-  const url = new URL(request.url);
+export function listGames(ctx) {
+  const { url } = ctx;
   const sort = url.searchParams.get('sort') === 'popular' ? 'popular' : 'new';
   const q = (url.searchParams.get('q') || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+  const username = (url.searchParams.get('user') || '').trim().slice(0, 40);
   const limit = Math.min(48, Math.max(1, Number.parseInt(url.searchParams.get('limit'), 10) || 24));
   const offset = Math.min(10000, Math.max(0, Number.parseInt(url.searchParams.get('cursor'), 10) || 0));
 
-  const where = ["status = 'public'"];
+  const where = ["g.status = 'public'"];
   const binds = [];
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    binds.push(like);
-    where.push(`(title LIKE ?${binds.length} ESCAPE '\\' OR description LIKE ?${binds.length} ESCAPE '\\')`);
+    where.push("(g.title LIKE ? ESCAPE '\\' OR g.description LIKE ? ESCAPE '\\')");
+    binds.push(like, like);
   }
-  const order = sort === 'popular' ? 'plays DESC, created_at DESC' : 'created_at DESC';
-  binds.push(limit + 1, offset);
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM games WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ?${binds.length - 1} OFFSET ?${binds.length}`,
-  ).bind(...binds).all();
+  if (username) {
+    where.push("u.username = ? AND u.status = 'active'");
+    binds.push(username);
+  }
+  const order = sort === 'popular' ? 'g.plays DESC, g.created_at DESC' : 'g.created_at DESC';
+  const results = db.all(`${SELECT_GAME} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ? OFFSET ?`, ...binds, limit + 1, offset);
   const more = results.length > limit;
   return json({
     sort,
     q,
-    games: results.slice(0, limit).map((r) => publicGame(r, origin)),
+    games: results.slice(0, limit).map((r) => publicGame(r, ctx.origin)),
     next: more ? String(offset + limit) : null,
   });
 }
 
-export async function getGame(request, env, origin, id) {
-  await ensureSchema(env);
-  const row = await visibleRow(request, env, id);
-  const game = publicGame(row, origin);
+export function getGame(ctx, id) {
+  const row = visibleRow(ctx, id);
+  const game = publicGame(row, ctx.origin);
   if (row.remix_of) {
-    const original = await getRow(env, row.remix_of);
+    const original = getRow(row.remix_of);
     game.remixOf = original && original.status === 'public'
-      ? { id: original.id, title: original.title, playUrl: `${origin}/play/${original.id}` }
+      ? { id: original.id, title: original.title, playUrl: `${ctx.origin}/play/${original.id}` }
       : null;
   }
-  const remixes = await env.DB.prepare("SELECT COUNT(*) AS n FROM games WHERE remix_of = ?1 AND status = 'public'").bind(id).first();
-  game.remixes = remixes?.n || 0;
+  game.remixes = db.get("SELECT COUNT(*) AS n FROM games WHERE remix_of = ? AND status = 'public'", id).n;
   if (row.status !== 'public') game.status = row.status;
+  if (isOwner(ctx, row)) game.yours = true;
   return json({ game });
 }
 
@@ -281,69 +270,65 @@ function slug(title) {
   return (title || 'game').normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 60) || 'game';
 }
 
+async function fileResponse(ctx, row, name, headers) {
+  const file = await readGameFile(row.id, name, ctx.request);
+  if (!file) return null;
+  const h = new Headers({ ...headers, ETag: file.etag });
+  if (file.notModified) return new Response(null, { status: 304, headers: h });
+  h.set('Content-Length', String(file.size));
+  return new Response(file.body, { headers: h });
+}
+
 /** The .love, at /api/games/<id>/game.love (or /<any name>.love: the player shows that name). */
-export async function getGameFile(request, env, origin, id) {
-  await ensureSchema(env);
-  const row = await visibleRow(request, env, id);
-  const object = await env.GAMES.get(gameKey(id), { onlyIf: request.headers });
-  if (!object) throw new HttpError(404, "This game's file is missing.");
-  const headers = new Headers({
+export async function getGameFile(ctx, id) {
+  const row = visibleRow(ctx, id);
+  const res = await fileResponse(ctx, row, GAME_FILE, {
     'Content-Type': 'application/zip',
     'Content-Disposition': `attachment; filename="${slug(row.title)}.love"`,
-    ETag: object.httpEtag,
     'Cache-Control': row.status === 'public' ? 'public, max-age=0, must-revalidate' : 'private, no-store',
   });
-  if (!('body' in object) || !object.body) return new Response(null, { status: 304, headers });
-  headers.set('Content-Length', String(object.size));
-  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
+  if (!res) throw new HttpError(404, "This game's file is missing.");
+  return res;
 }
 
-export async function getThumbnail(request, env, origin, id) {
-  await ensureSchema(env);
-  const row = await visibleRow(request, env, id);
-  const object = row.has_thumbnail ? await env.GAMES.get(thumbKey(id), { onlyIf: request.headers }) : null;
-  if (!object) throw new HttpError(404, 'This game has no thumbnail.');
-  const headers = new Headers({
+export async function getThumbnail(ctx, id) {
+  const row = visibleRow(ctx, id);
+  const res = row.has_thumbnail ? await fileResponse(ctx, row, THUMBNAIL_FILE, {
     'Content-Type': 'image/png',
-    ETag: object.httpEtag,
     'Cache-Control': row.status === 'public' ? 'public, max-age=86400' : 'private, no-store',
-  });
-  if (!('body' in object) || !object.body) return new Response(null, { status: 304, headers });
-  headers.set('Content-Length', String(object.size));
-  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
+  }) : null;
+  if (!res) throw new HttpError(404, 'This game has no thumbnail.');
+  return res;
 }
 
-/** Counts a play: one per person (IP address) per game per day. */
-export async function countPlay(request, env, origin, id) {
-  await ensureSchema(env);
-  const row = await getRow(env, id);
+/** Counts a play: one per person (account, or IP address) per game per day. */
+export function countPlay(ctx, id) {
+  const row = getRow(id);
   if (!row || row.status !== 'public') throw new HttpError(404, "This game doesn't exist, or it was deleted.");
   const day = Math.floor(Date.now() / 86400_000);
-  const inserted = await env.DB.prepare('INSERT OR IGNORE INTO plays (game_id, ip_hash, day) VALUES (?1, ?2, ?3)')
-    .bind(id, await ipHash(request, env), day).run();
+  const inserted = db.run('INSERT OR IGNORE INTO plays (game_id, viewer, day) VALUES (?, ?, ?)', id, actorKey(ctx), day);
   let plays = row.plays;
-  if (inserted.meta.changes > 0) {
-    const updated = await env.DB.prepare('UPDATE games SET plays = plays + 1 WHERE id = ?1 RETURNING plays').bind(id).first();
-    plays = updated.plays;
+  if (inserted.changes > 0) {
+    plays = db.get('UPDATE games SET plays = plays + 1 WHERE id = ? RETURNING plays', id).plays;
     // Only today's rows are needed for de-duplication.
-    if (Math.random() < 0.02) await env.DB.prepare('DELETE FROM plays WHERE day < ?1').bind(day - 1).run();
+    if (Math.random() < 0.02) db.run('DELETE FROM plays WHERE day < ?', day - 1);
   }
-  return json({ id, plays, counted: inserted.meta.changes > 0 });
+  return json({ id, plays, counted: inserted.changes > 0 });
 }
 
 /**
- * Reports a game. Each person (IP address) has one open report per game;
- * REPORT_THRESHOLD open reports from different people hide the game until a
- * moderator restores it.
+ * Reports a game. Each reporter (an account, or an IP address for people
+ * who aren't signed in) has one open report per game; REPORT_THRESHOLD open
+ * reports from different reporters hide the game until a moderator restores it.
  */
-export async function reportGame(request, env, origin, id) {
-  await ensureSchema(env);
+export async function reportGame(ctx, id) {
+  const { request, config } = ctx;
   if (!/^application\/json/i.test(request.headers.get('Content-Type') || '')) {
     throw new HttpError(415, 'Send the report as JSON: {"reason": ..., "note": ...}.');
   }
   let body;
   try {
-    body = await request.json();
+    body = JSON.parse(await request.text());
   } catch {
     throw new HttpError(400, 'The report must be JSON: {"reason": ..., "note": ...}.');
   }
@@ -351,24 +336,23 @@ export async function reportGame(request, env, origin, id) {
   if (!reason) throw new HttpError(422, `Pick a reason: ${REPORT_REASONS.map((r) => r.id).join(', ')}.`, { field: 'reason' });
   const note = cleanNote(body.note);
 
-  const row = await getRow(env, id);
+  const row = getRow(id);
   if (!row) throw new HttpError(404, "This game doesn't exist, or it was deleted.");
   if (row.status !== 'public') return json({ ok: true, hidden: true });
 
-  const who = await ipHash(request, env);
-  await rateLimit(env, `report:${who}`, intVar(env, 'REPORT_LIMIT_PER_HOUR', 20), 'sent reports');
-  const existing = await env.DB.prepare('SELECT id FROM reports WHERE game_id = ?1 AND ip_hash = ?2 AND resolved = 0')
-    .bind(id, who).first();
-  if (existing) return json({ ok: true, hidden: false, alreadyReported: true });
+  const who = actorKey(ctx);
+  // Signed-in or not, each address has the same hourly limit.
+  rateLimit(`report:ip:${ipHash(ctx)}`, config.reportLimit, 'sent reports');
+  if (who.startsWith('u:')) rateLimit(`report:${who}`, config.reportLimit, 'sent reports');
+  if (db.get('SELECT id FROM reports WHERE game_id = ? AND reporter = ? AND resolved = 0', id, who)) {
+    return json({ ok: true, hidden: false, alreadyReported: true });
+  }
 
-  await env.DB.prepare('INSERT INTO reports (game_id, reason, note, ip_hash, created_at) VALUES (?1, ?2, ?3, ?4, ?5)')
-    .bind(id, reason.id, note, who, Date.now()).run();
-  const open = await env.DB.prepare('SELECT COUNT(DISTINCT ip_hash) AS n FROM reports WHERE game_id = ?1 AND resolved = 0')
-    .bind(id).first();
-  const threshold = Math.max(1, intVar(env, 'REPORT_THRESHOLD', 3));
+  db.run('INSERT INTO reports (game_id, reason, note, reporter, created_at) VALUES (?, ?, ?, ?, ?)', id, reason.id, note, who, Date.now());
+  const open = db.get('SELECT COUNT(DISTINCT reporter) AS n FROM reports WHERE game_id = ? AND resolved = 0', id).n;
   let hidden = false;
-  if (open.n >= threshold) {
-    await env.DB.prepare("UPDATE games SET status = 'hidden', hidden_by = 'reports' WHERE id = ?1 AND status = 'public'").bind(id).run();
+  if (open >= config.reportThreshold) {
+    db.run("UPDATE games SET status = 'hidden', hidden_by = 'reports' WHERE id = ? AND status = 'public'", id);
     hidden = true;
   }
   return json({ ok: true, hidden });
