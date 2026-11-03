@@ -38,7 +38,7 @@ export const DEFAULT_PLATFORM_URL = 'http://localhost:8787';
 // each game; publishDialog's engineVersion option overrides it.
 const SMITTEN_VERSION = '0.2.0';
 
-// The site's limits (it checks them too: platform/wrangler.toml).
+// The site's limits (it checks them too: platform/deploy/env.example).
 const MAX_GAME_BYTES = 25 * 1024 * 1024;
 const MAX_THUMBNAIL_BYTES = 1024 * 1024;
 const MAX_TITLE = 60;

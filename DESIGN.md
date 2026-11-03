@@ -211,14 +211,14 @@ in place; standard conventions; neutral looks with icons from
 ## 7. Sharing site
 
 A Scratch/Roblox-style site where people publish games from the editor and
-anyone plays them in the browser, with remixing. The prototype is in
-`platform/` (a Cloudflare Worker with R2 for game files and D1 for
-metadata; it runs locally with `wrangler dev`): publish and update with an
-edit token, a gallery, a play page running Smitten's player, remix into the
-editor, reporting that hides a game after several reports, admin review,
-size and content checks, rate limits. Accounts (likely Hack Club sign-in),
-moderation tools and hosting costs are the next decisions;
-`platform/README.md` has them.
+anyone plays them in the browser, with remixing. It's in `platform/`: a
+plain Node server with SQLite and game files on disk, made to run on Hack
+Club Nest. Accounts (username and password with recovery codes, or Hack
+Club's sign-in; no email), games owned by accounts, the editor signing in
+through a popup for a revocable token, a gallery, profiles, a play page
+running Smitten's player, remix into the editor, reporting that hides a
+game after several reports, moderation with bans, size and content checks,
+rate limits. `platform/README.md` has the details and the next steps.
 
 ## 8. Language
 
