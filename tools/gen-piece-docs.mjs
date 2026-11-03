@@ -1,12 +1,12 @@
-// Writes docs/nodes.md from the node schema (love/src/modules/scene/nodes.json):
-//   node tools/gen-node-docs.mjs
+// Writes docs/pieces.md from the piece schema (love/src/modules/scene/pieces.json):
+//   node tools/gen-piece-docs.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/nodes.json'), 'utf8'));
-const MODULES = { physics2d: 'physics2d (Box2D)', '3d': '3d', physics3d: 'physics3d (Jolt)' };
+const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/pieces.json'), 'utf8'));
+const MODULES = { physics2d: 'physics2d (Box2D)' };
 
 const fmt = (v, p) => {
   if (v === null || v === undefined) return 'none';
@@ -18,12 +18,13 @@ const fmt = (v, p) => {
 };
 
 const out = [
-  '# Nodes',
+  '# Pieces',
   '',
-  'Every node type, generated from `love/src/modules/scene/nodes.json` by',
-  '`tools/gen-node-docs.mjs`. A node has its own properties and everything its',
-  'parent type has ("extends"). Properties are fields: `self.x = 10`. Angles',
-  'are radians in code and degrees in the inspector.',
+  'Every piece type, generated from `love/src/modules/scene/pieces.json` by',
+  '`tools/gen-piece-docs.mjs`. A piece has its own properties and everything its',
+  'base type has ("extends"). Properties are fields: `self.x = 10`. Angles',
+  'are radians in code and degrees in the inspector. A Body whose motion is',
+  '"physics" uses the physics2d module (Box2D).',
   '',
 ];
 for (const g of schema.groups) {
@@ -57,5 +58,5 @@ for (const g of schema.groups) {
     }
   }
 }
-writeFileSync(join(root, 'docs/nodes.md'), out.join('\n'));
-console.log(`docs/nodes.md: ${Object.keys(schema.types).length} node types`);
+writeFileSync(join(root, 'docs/pieces.md'), out.join('\n'));
+console.log(`docs/pieces.md: ${Object.keys(schema.types).length} piece types`);
