@@ -6,7 +6,8 @@
 
 import { h, icon, showMenu } from '../ui.js';
 import { nodeIcon } from '../shell/node-icons.js';
-import { properties, typeDef, isShown, moduleOf, clone, equal } from '../core/schema.js';
+import { properties, typeDef, isShown, moduleOf, equal } from '../core/schema.js';
+import { scriptVariables } from '../core/script-vars.js';
 
 const RESOURCE_EXT = {
   image: /\.(png|jpe?g|bmp|tga)$/i,
@@ -19,30 +20,6 @@ const RESOURCE_EXT = {
 };
 
 const MODULE_NAMES = { physics2d: '2D physics', '3d': '3D', physics3d: '3D physics', video: 'video', synth: 'sound generator' };
-
-/** Script variables: top-level `Name.field = literal` lines of a script. */
-export function scriptVariables(source) {
-  const out = [];
-  if (!source) return out;
-  const table = source.match(/^\s*local\s+([A-Za-z_]\w*)\s*=\s*\{\s*\}/m)?.[1];
-  if (!table) return out;
-  const re = new RegExp(`^${table}\\.([A-Za-z]\\w*)\\s*=\\s*(.+?)\\s*(?:--\\s*(.*))?$`, 'gm');
-  for (const m of source.matchAll(re)) {
-    const [, name, raw, comment] = m;
-    let value;
-    let type;
-    if (/^-?\d+(\.\d+)?$/.test(raw)) { value = Number(raw); type = 'number'; }
-    else if (/^(true|false)$/.test(raw)) { value = raw === 'true'; type = 'bool'; }
-    else if (/^(["']).*\1$/.test(raw)) { value = raw.slice(1, -1); type = 'string'; }
-    else if (/^\{\s*-?[\d.]+\s*,\s*-?[\d.]+\s*,\s*-?[\d.]+\s*(,\s*-?[\d.]+\s*)?\}$/.test(raw)) {
-      value = raw.slice(1, -1).split(',').map(Number);
-      if (value.length === 3) value.push(1);
-      type = 'color';
-    } else continue;
-    out.push({ name, type, value, description: comment || '' });
-  }
-  return out;
-}
 
 export class InspectorPanel {
   /** ctx: { project, inputActions(), openScript(node), attachScript(node), openScene(path), openDocs(type) } */

@@ -159,7 +159,7 @@ code completion and the docs all read.
 | Group | Nodes |
 | --- | --- |
 | Basic | `Node` (groups others, runs a script), `Timer` |
-| 2D | `Node2D`, `Sprite2D` (an image or an animated sprite sheet), `Shape2D` (a rectangle, circle, polygon or line to draw), `Text2D`, `TileMap`, `Camera2D`, `Particles2D`, `Path2D` |
+| 2D | `Node2D`, `Sprite2D` (an image or an animated sprite sheet), `Shape2D` (a rectangle, circle, polygon or line to draw), `Text2D`, `TileMap`, `Camera2D`, `Particles2D` |
 | 2D physics | `CharacterBody2D`, `StaticBody2D`, `Area2D`, `CollisionShape2D`; with the physics2d module: `RigidBody2D`, `Joint2D` |
 | 3D | `Node3D`, `MeshInstance3D` (a box, sphere, cylinder, capsule or plane), `Model3D` (a glTF/GLB file), `Camera3D`, `DirectionalLight3D`, `PointLight3D`, `SpotLight3D`, `Environment3D` (sky, ambient light, fog), `Sprite3D` |
 | 3D physics (physics3d) | `CharacterBody3D`, `RigidBody3D`, `StaticBody3D`, `Area3D`, `CollisionShape3D` |
@@ -253,7 +253,7 @@ return Player
 
 | | Module | Bodies |
 | --- | --- | --- |
-| 2D collisions | core | `CharacterBody2D` (`moveAndSlide`, `isOnFloor`), `StaticBody2D`, `Area2D`, `TileMap` tiles marked solid; shapes are rectangles, circles and capsules |
+| 2D collisions | core | `CharacterBody2D` (`moveAndSlide`, `isOnFloor`), `StaticBody2D` (moving ones carry characters), `Area2D`, `TileMap` tiles marked solid or one-way; shapes are axis-aligned rectangles and circles |
 | 2D rigid bodies | physics2d (Box2D) | `RigidBody2D`, `Joint2D`; static bodies and tiles are mirrored into Box2D so rigid bodies land on them |
 | 3D | physics3d (Jolt) | `CharacterBody3D` (Jolt's virtual character), `RigidBody3D`, `StaticBody3D`, `Area3D`; shapes are boxes, spheres, capsules, cylinders and meshes from models |
 
@@ -386,3 +386,32 @@ smitten/
 Smitten started from Cupid's code (the LÖVE web port, the JIT and its
 editor), imported with its history. Cupid stays a separate product and is
 not part of Smitten.
+
+## 12. What's built (2026-11-03)
+
+Everything above, in one pass. Where each part is and how it's tested:
+
+| Part | Where | Tests |
+| --- | --- | --- |
+| One engine table, Smitten's modules loaded on first use | `love.cpp`, `boot.lua`, `love/src/modules/engine/` | `tools/scene-tests` |
+| Optional side modules and the player's module loading | `build.py`, `love.cpp`, `web/player/player.js`, `package.py` | the build checks every module links; `tools/scene-tests/rigid`, `world3d` |
+| Scene tree, 2D nodes, collisions, tile maps, UI, audio, behaviors | `love/src/modules/scene/` | `tools/scene-tests/smoke` |
+| Box2D rigid bodies and joints | `scene/rigid2d.lua` | `tools/scene-tests/rigid` |
+| 3D renderer and glTF | `love/src/modules/graphics3d/` | `tools/graphics3d` (91 checks) |
+| Jolt 3D physics | `love/src/modules/physics3d/`, `deps/jolt/` | `tools/physics3d` (119 checks) |
+| 3D nodes and physics nodes | `scene/nodes3d.lua`, `scene/physics3d.lua` | `tools/scene-tests/world3d` |
+| Editor core: schema, scene documents, modules, templates | `web/editor/core/` | `tools/editor-tests` (1083 checks) |
+| Editor shell, panels, workspaces, dialogs | `web/editor/shell/`, `panels/`, `workspaces/`, `dialogs/` | in the browser |
+| 2D and 3D views, tile painting | `web/editor/workspaces/scene/` | their harness pages |
+| Image editor (any size, smooth or pixel brushes) | `web/editor/tools/sprite/` | its harness page |
+
+### Next
+
+- Triangle-mesh collision from glTF models (3D bodies use the model's
+  bounding box for now); joints in 3D; shadows from point and spot lights.
+- Rotated 2D collision shapes and capsules; slopes in tile maps.
+- Skinned and animated glTF models; an animation timeline for any property.
+- The editor running scripts in the viewport (tool scripts), and inspecting
+  the running game's tree (Godot's "Remote" view).
+- Hosted sharing and a gallery (accounts and moderation for a teenage
+  audience), desktop export.

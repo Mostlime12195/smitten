@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image editor harness</title>
+<!-- The editor's theme variables and its dialog, menu and toast styles. -->
+<link rel="stylesheet" href="../../editor.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px var(--font-ui);
+  }
+  .hx-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 12px; border-right: 1px solid var(--border); background: var(--panel); }
+  .hx-side h1 { margin: 0; font-size: 13px; font-weight: 600; }
+  .hx-side p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--fg-muted); }
+  .hx-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hx-actions button {
+    height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: transparent; color: var(--fg); font: 500 12px var(--font-ui); cursor: pointer;
+  }
+  .hx-actions button:hover { background: var(--hover); }
+  .hx-files { flex: 1; min-height: 0; margin: 0; padding: 0; overflow: auto; list-style: none; }
+  .hx-files button {
+    display: flex; justify-content: space-between; gap: 6px; width: 100%; padding: 5px 8px; border: 0;
+    border-radius: var(--radius-sm); background: transparent; color: var(--fg); font: 12px var(--font-mono); text-align: left; cursor: pointer;
+  }
+  .hx-files button:hover { background: var(--hover); }
+  .hx-files button.active { background: var(--accent-soft); color: var(--accent-text); }
+  .hx-files .size { color: var(--fg-subtle); }
+  .hx-files .dirty::after { content: " •"; color: var(--warning); }
+  .hx-log { max-height: 30%; margin: 0; overflow: auto; font: 11px/1.5 var(--font-mono); color: var(--fg-subtle); white-space: pre-wrap; }
+  .hx-main { position: relative; min-width: 0; min-height: 0; }
+  .hx-main > .tool-root { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+  <aside class="hx-side">
+    <h1>Image editor harness</h1>
+    <p>Mounts web/editor/tools/sprite the way tool-host.js does, on an in-memory file map. Ctrl+S saves.</p>
+    <div class="hx-actions">
+      <button type="button" id="save">Save</button>
+      <button type="button" id="reopen">Reopen</button>
+      <button type="button" id="theme">Theme</button>
+    </div>
+    <ul class="hx-files" id="files"></ul>
+    <pre class="hx-log" id="log"></pre>
+  </aside>
+  <main class="hx-main" id="tools"></main>
+  <div id="toasts" aria-live="polite"></div>
+  <script type="module" src="harness.js"></script>
+</body>
+</html>

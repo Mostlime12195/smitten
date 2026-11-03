@@ -1,10 +1,10 @@
 # Smitten
 
-A game engine in your browser. Write Lua, draw pixel art, paint tile maps,
-make sound effects and music, and publish the game, all in one tab with
-nothing to install. Underneath it's the real [LÖVE](https://love2d.org) 12
-engine, compiled to WebAssembly, so everything LÖVE can do, a Smitten game
-can do too.
+A 2D and 3D game engine in your browser. Build scenes from nodes, write
+Lua, paint images, make sound effects and music, and publish the game, all
+in one tab with nothing to install. Underneath it's a fork of
+[LÖVE](https://love2d.org) 12 compiled to WebAssembly, so everything LÖVE
+can do, a Smitten game can do too.
 
 Smitten's engine and editor started from the code of
 [Cupid](https://github.com/Mostlime12195/cupid), which brings LÖVE 12 to the
@@ -13,57 +13,70 @@ that code, and neither is affiliated with the LÖVE team.
 
 ## What you get
 
-- **An editor** with code, a file panel, the running game and a console side
-  by side. Projects live in your browser.
-- **Built-in tools** that open the files they make:
-  - a **pixel editor** for sprites and animations (`.png` + `.sprite.json`)
-  - a **map editor** for tile maps and objects (`.map.json`), and a tileset
-    editor for tile properties such as `solid` (`.tileset.json`)
-  - a **sound effect editor** in the style of sfxr (`.sfx.json`)
-  - a **music editor** with a piano roll, instruments, patterns and an
-    arrangement (`.song.json`)
-- **The `smitten` module**, a global like `love`, which loads what the tools
-  make and adds what most games need:
-  ```lua
-  local hero = smitten.sprite("sprites/hero"):animation("run")
-  local level = smitten.map("maps/level1")
-  smitten.sfx("sfx/jump"):play()
-  smitten.song("music/theme"):play()
-  smitten.input.bind("jump", { "space", "pad:a" })
-  smitten.scene.switch(Title)
-  local hit = smitten.collide.move(level, player, dx, dy)
-  ```
+- **Scenes made of nodes**, like Godot: a `Sprite2D` draws an image, a
+  `CharacterBody2D` moves and collides, a `Platformer` child makes it run
+  and jump, a `Camera3D` looks at a 3D world. Scenes nest: a player scene is
+  placed in every level, a coin scene twenty times. One script per node.
+  Every node is listed in [docs/nodes.md](docs/nodes.md).
+- **2D and 3D**: sprites, tile maps, particles, UI, 2D collisions and Box2D
+  rigid bodies; meshes, glTF models, lights with shadows, sky and fog, and
+  Jolt 3D physics with a first-person controller.
+- **An editor** with a scene tree, an inspector, 2D and 3D views, a code
+  editor and workspaces for painting images, sound effects and music.
+  Panels move between docks, and every tool opens ready to use.
+- **One engine table**: `smitten` and `love` are the same, so LÖVE games,
+  tutorials and libraries work as they are, and Smitten's modules sit next
+  to LÖVE's (`smitten.scene`, `smitten.input`, `smitten.tween`,
+  `smitten.graphics3d`, ...).
+- **Only what a game uses**: Box2D, Jolt, the 3D renderer, video and the
+  synthesizer are separate downloads, included when a game uses them.
 - **A friendlier Lua**: `score += 10`, `continue`, `` `HP: {hp}` `` and
   `if a then b else c` expressions, compiled by the engine's own parser (see
   "Smitten syntax").
-- **Pixel-first defaults**: the templates draw at 320×180 scaled up by whole
-  numbers, with a 16-color palette, but any image, resolution or sound file
-  works.
 - **Publishing**: a web build ready for itch.io, a project zip, share links
-  for small games, and a `.love` for games that don't use Smitten's
-  additions.
+  for small games, and a `.love` for games that only use LÖVE's API.
 
-`docs/reference.md` documents the file formats, the `smitten` module and the
-interface the editor's tools implement. `DESIGN.md` explains the decisions
-behind Smitten.
+[docs/reference.md](docs/reference.md) documents the engine's API and file
+formats. [DESIGN.md](DESIGN.md) explains the decisions behind Smitten.
+
+```lua
+-- scripts/player.lua, attached to a CharacterBody2D with a Platformer child
+local Player = {}
+
+Player.coinSound = "sounds/coin.sfx"   -- shown in the inspector
+
+function Player:entered(area)          -- touched an Area2D
+  if area:inGroup("coins") then
+    area:destroy()
+    smitten.synth.sfx(self.coinSound):play()
+  end
+end
+
+return Player
+```
 
 ## What's here
 
 | Path | What it is |
 | --- | --- |
-| `dist/` | Build output: `index.html` (editor), `player.html`, `love.mjs` + `love.wasm` (engine), `synth.mjs` (the synthesizer, for the editor), `examples/` |
-| `love/` | LÖVE source (upstream commit `ef388d4`) with Cupid's web patches |
-| `love/src/modules/smitten/` | The `smitten` module: C++ (the synthesizer) and Lua (`lua/*.lua`, embedded by `build.py`) |
+| `dist/` | Build output: `index.html` (editor), `player.html`, `smitten.mjs` + `smitten.wasm` (the engine core), `modules/*.wasm` (optional engine modules), `synth.mjs` (the synthesizer, for the editor), `nodes.json`, `examples/` |
+| `love/` | The engine: LÖVE (upstream commit `ef388d4`) with Cupid's web patches and Smitten's modules |
+| `love/src/modules/scene/` | The scene tree and every node type; `nodes.json` describes them all |
+| `love/src/modules/{engine,input,tween,assets,storage,display,json}/` | Smitten's modules, in Lua, embedded by `build.py` |
+| `love/src/modules/graphics3d/` | The 3D renderer and glTF loader (the `3d` module) |
+| `love/src/modules/physics3d/` | Jolt's Lua binding (the `physics3d` module) |
+| `love/src/modules/synth/` | The sound synthesizer (the `synth` module) |
 | `deps/lua-5.1.5/` | PUC Lua 5.1.5 with LuaJIT's extensions, the JIT and Smitten's syntax |
+| `deps/jolt/` | Jolt Physics v5.6.0 |
 | `deps/theora/` | libtheora 1.2.0 decoder, for `love.video` |
 | `web/native/` | Web entry point (`web_main.cpp`) replacing LÖVE's blocking `main()` |
-| `web/player/` | The player page (standalone and embeddable) |
-| `web/editor/` | The editor; its tools are in `web/editor/tools/` |
-| `web/examples/` | Example projects |
+| `web/player/` | The player page (standalone and embeddable); loads the modules a game needs |
+| `web/editor/` | The editor: `core/` (project, scene documents, schema), `shell/`, `panels/`, `workspaces/`, `dialogs/`, and the tools in `tools/` |
+| `web/examples/` | Examples written in code |
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a game folder or `.love` |
-| `tools/` | Test games (`smitten-sprite`, `smitten-map`, `smitten-audio`, and Cupid's `bench`, `smoke`, `threads`, ...), the JIT's test suite and `test_server.py` |
+| `tools/` | Tests: `editor-tests`, `scene-tests`, `physics3d`, `graphics3d`, `smitten-audio`, the JIT's suite, and Cupid's test games |
 
 ## Performance
 
@@ -149,10 +162,10 @@ Code that uses them won't run on desktop LÖVE. `findSmittenSyntax` in
 
 ### Compatibility check
 
-The editor checks a project's Lua files each time it runs or exports, and
-`package.py` does the same when packaging. Problems appear in the console
-(or on stderr) with the file and line: LuaJIT-only and networking modules
-required without `pcall`, 64-bit literals, compute shaders, `io.popen` and
+The editor checks a project's Lua files each time it plays, and `package.py`
+does the same when packaging. Problems appear in the Output panel (or on
+stderr) with the file and line: LuaJIT-only and networking modules required
+without `pcall`, 64-bit literals, compute shaders, `io.popen` and
 `os.execute`, unguarded `jit.*` calls, plus notes about
 `love.system.getOS()` returning `"Web"` and threads sharing one core. The
 rules are in `web/editor/compat-rules.json`.
@@ -256,10 +269,26 @@ source /path/to/emsdk/emsdk_env.sh
 python3 build.py
 ```
 
-Builds are incremental (about 430 source files the first time). The build
-also embeds the `smitten` module's Lua files in the engine and compiles the
-synthesizer a second time, on its own, as `dist/synth.mjs` for the editor's
-previews. Other options:
+Builds are incremental (about 600 source files the first time, Jolt
+included). The engine is linked twice over: a core (`dist/smitten.wasm`, an
+Emscripten main module) and side modules in `dist/modules/` that a game only
+downloads when it uses them:
+
+| Module | What's in it | Size |
+| --- | --- | --- |
+| core | Lua and the JIT, LÖVE's modules, the scene tree, 2D nodes, UI | 6.97 MB |
+| `physics2d` | Box2D, `smitten.physics` | 0.24 MB |
+| `3d` | the 3D renderer and glTF loader | 0.11 MB |
+| `physics3d` | Jolt, `smitten.physics3d` | 0.88 MB |
+| `video` | Theora, `smitten.video` | 0.13 MB |
+| `synth` | the synthesizer, `.sfx` and `.song` files | 0.03 MB |
+
+Everything is compiled as position-independent code so the two kinds can
+link at run time; the core exports exactly the symbols the side modules
+import, and the build fails if a module needs one it doesn't export. The
+build also embeds Smitten's Lua modules (and `nodes.json`, as Lua) in the
+engine, and compiles the synthesizer a second time, on its own, as
+`dist/synth.mjs` for the editor's previews. Other options:
 
 - `python3 build.py --debug` for assertions and no optimization
 - `python3 build.py --web-only` to copy only the player, editor and examples into `dist/`
@@ -274,9 +303,19 @@ python3 serve.py
 and open http://localhost:8766/ for the editor or
 http://localhost:8766/player.html?game=examples/hello.love for the player.
 
-The `smitten` module's test games print a pass count:
-`tools/smitten-sprite`, `tools/smitten-map` and `tools/smitten-audio` (whose
-`check.mjs` confirms the engine and `synth.mjs` render identical samples).
+Tests:
+
+- `node tools/editor-tests/test.mjs`: the node schema, scene documents
+  (reading, writing, undo, instances), module detection, the templates and
+  script variables.
+- `tools/scene-tests/`: scenes run in the engine (`smoke` for 2D nodes,
+  collisions, UI and timers; `rigid` for Box2D; `world3d` for 3D rendering
+  and Jolt). Zip one and open it in the player.
+- `zsh tools/physics3d/build.sh`: Jolt's binding, statically and as a side
+  module (119 checks).
+- `tools/graphics3d/`: the 3D renderer's demo and its math and glTF tests.
+- `tools/smitten-audio` (whose `check.mjs` confirms the engine and
+  `synth.mjs` render identical samples).
 The test games in `tools/` run with `python3 tools/test_server.py 8772`,
 which zips them on request and adds the routes the `https` test needs:
 http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
@@ -287,63 +326,54 @@ http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
 `dist/index.html`. Everything is stored in the browser (IndexedDB); nothing is
 uploaded anywhere unless you share a link.
 
-The layout is a game engine's: play controls in the middle of the top bar,
-an activity bar on the left with the project's sections, tabs with the
-editors and tools in the middle, and the running game with its console on
-the right.
+- **Workspaces** across the top (Alt+1 to 5): **Scene** (the 2D or 3D view
+  of the open scene), **Script** (code), **Paint** (images and sprite
+  sheets), **Sound** (sound effects) and **Music** (songs). Each has its own
+  tabs, and each opens ready to use: Paint starts on a new image, Sound on a
+  new effect. New work becomes a file the first time you change it.
+- **Panels**: Scene (the node tree), Files, Inspector and Output. Drag a
+  panel's tab to another dock or an edge of the window to move it; hide and
+  show panels from the View menu; each workspace keeps its own layout;
+  View › Reset layout puts it back.
+- **Scene tree**: add nodes (Ctrl+A) from a searchable list that explains
+  each type, place other scenes inside this one, drag to reparent, rename
+  with F2, duplicate with Ctrl+D, save a branch as its own scene. Nodes that
+  are missing something (a body without a collision shape) say so.
+- **Inspector**: properties grouped by section with typed editors (numbers
+  you can drag, colors, asset pickers that take files dropped from Files,
+  layers, dropdowns), a reset arrow on changed values, the node's script and
+  its script variables, and its groups.
+- **2D view**: pan, zoom, grid and snapping, move/rotate/scale handles, box
+  selection, drag files in to make nodes, and tile painting with a tileset
+  panel when a TileMap is selected.
+- **3D view**: orbit, pan and fly cameras, move/rotate/scale handles on each
+  axis, snapping, perspective and orthographic views, drag models in.
+- **Play** (F5) runs the main scene and **Play scene** (F6) the open one,
+  over the workspace, with the output in the Output panel. Stop with F8.
+- **Project settings**: name, main scene, resolution and how it fits the
+  window, input actions, and engine modules (automatic, always or never,
+  with why each is included).
+- **Export**: a web zip for itch.io with only the modules the game uses, a
+  project zip, or a `.love`; share links for small projects.
+- Command palette (Ctrl+K), open a file (Ctrl+P), node reference (Help),
+  light and dark themes.
+- The code editor is CodeMirror 6 with Lua and Smitten syntax, and
+  completion for LÖVE 12, Smitten's modules, node methods after `self:`,
+  script functions after `function Name:` and file paths.
 
-- **Sections** (Alt+1 to 6): Files (the whole tree), Code (scripts grouped
-  by folder, each described by its first comment), Art (thumbnails,
-  showing a sprite's first frame), Maps (rendered previews of each level,
-  and tilesets), Sounds and Music (with play buttons). Each has search and a
-  **New** button
-- **Home** tab: the project at a glance, cards to create a script, sprite,
-  tileset, map, sound or song, a getting-started checklist, recent files,
-  and the smitten cheat sheet
-- **Project settings**: name, resolution (with presets) and palette (import a
-  Lospec `.hex` file or paste colors)
-- The game panel can be hidden (Ctrl+Shift+G) or take over the window
-  (Ctrl+Shift+F), the console folds away (Ctrl+J), and pixel-perfect
-  scaling is one click
-- Auto save is on by default
-- Projects with a file tree showing thumbnails; import files, folders,
-  `.love` and `.zip` by drag and drop. **New** (the + in the file panel)
-  makes files, folders and assets (sprite, map, tileset, sound effect, song)
-- Dragging a file into the code inserts the code that loads it
-  (`smitten.sprite("sprites/hero")`, `require("entities.player")`, ...)
-- Renaming or moving an asset fixes the paths in maps, tilesets, sprites and
-  songs that point at it, moves a PNG's `.sprite.json` along, and offers to
-  update code that loads it
-- The built-in tools open their files in tabs; **Open as text** in a file's
-  menu shows the JSON instead
-- CodeMirror 6 editor with Lua and Smitten syntax highlighting, and
-  completion for LÖVE 12 (generated by introspecting the real engine,
-  `web/editor/tools/introspect.html`), the `smitten` module and asset paths
-- Run (F5 or Ctrl+Enter), Stop, Restart, Pause, run after saving, pop-out window
-- Command palette (Ctrl+Shift+P or F1), go to file (Ctrl+P), go to function
-  (Ctrl+Shift+O), go to line from the status bar
-- Settings (Ctrl+,): theme, font size, indentation, word wrap, line numbers,
-  whitespace, bracket closing, suggestions, auto save, game scaling, the Lua
-  JIT, console options, and a list of every keyboard shortcut
-- Console with clickable `file:line` errors, filtering, and copying the output
-- Web compatibility check on every run and export
-- Export for the web (a zip for itch.io), download the project as a zip,
-  download a `.love` (with a warning when the game needs Smitten), and share
-  links for small projects (text plus small images, up to 32 KB compressed)
-- Examples: the Smitten platformer, plus Cupid's LÖVE examples (platformer,
-  particles, shaders, physics, text input, canvas and blend modes, synth)
-- Works on narrow screens
-
-The editor loads CodeMirror from esm.sh, so the first load needs an internet
-connection (it falls back to a plain text area if that fails).
+The editor loads CodeMirror (and three.js, for 3D scenes) from CDNs, so the
+first load needs an internet connection; the code editor falls back to a
+plain text area if that fails.
 
 ## Publishing a game
 
-Copy `player.html`, `player.js`, `player.css`, `love.mjs` and `love.wasm` next
-to your `game.love`, and add this to `player.html`'s `<head>`:
+Copy `player.html`, `player.js`, `player.css`, `smitten.mjs`,
+`smitten.wasm` and the `modules/*.wasm` your game uses next to your
+`game.love`, and add this to `player.html`'s `<head>`:
 
 ```html
 <meta name="love-game" content="game.love">
+<meta name="smitten-modules" content="physics2d,3d">
 ```
 
 The editor's **Export for web** does this for you, as does the command line:
@@ -360,6 +390,7 @@ Player URL options:
 | Option | Effect |
 | --- | --- |
 | `?game=url` | Load a `.love` from a URL |
+| `?modules=a,b` | Engine modules to load before the game (a game that uses a missing one reloads with it, if the server has it) |
 | `?autoplay=1` | Skip the Play button (audio may stay muted until the first click) |
 | `?scale=fit` (default) / `integer` / `none` | How a fixed-size window is scaled to the page |
 | `?pixelated=1` | Nearest-neighbour upscaling (also implied by `scale=integer`) |
@@ -459,15 +490,24 @@ can be rebased onto newer LÖVE commits:
 
 ### Smitten's additions
 
-Smitten extends LÖVE without changing what `love.*` does (DESIGN.md,
-section 3):
+Smitten is a fork: its features are part of the engine, not a module on
+top of it (DESIGN.md, section 2).
 
-- `love/src/modules/smitten/`: the `smitten` module. `wrap_Smitten.cpp`
-  registers it next to LÖVE's modules (`love.cpp`, under `LOVE_SMITTEN`) and
-  loads its Lua files, which `build.py` embeds from `lua/` as
-  `build/gen/smitten_lua.h`. Each file is loaded the first time a game uses
-  what it provides. `boot.lua` makes the module the global `smitten` once
-  LÖVE's modules are loaded.
+- `love.cpp` makes the engine table both `love` and `smitten`, registers
+  the embedded Lua modules (`build/gen/engine_lua.h`) and, under
+  `LOVE_OPTIONAL_MODULES`, gives `love.physics`, `love.video`,
+  `love.graphics3d`, `love.physics3d` and `love.synth` loaders that
+  `dlopen` the side module the player loaded, or explain which module to
+  turn on.
+- `boot.lua` calls `love.engine.init` once LÖVE's modules are loaded:
+  Smitten's modules load on first use, helpers join LÖVE's modules
+  (`smitten.math.chance`, `smitten.timer.after`, `smitten.mouse.pressed`),
+  and `smitten.json` sets up the display, input actions and the main scene.
+  `love.run` drives the scene tree through `love._engine`; a game without
+  scenes runs exactly as in LÖVE.
+- `love/src/modules/scene/`: the node tree. `nodes.json` describes every
+  node type; `build.py` turns it into Lua for the runtime and copies it next
+  to the editor for the inspector, the Add node dialog and completions.
 - `Synth.cpp` renders sound effects and songs (no LÖVE dependencies, so the
   same code is built into `synth.mjs` for the editor), and `LoopDecoder.cpp`
   plays a rendered song with a seamless loop as a streaming Source.

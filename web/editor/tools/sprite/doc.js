@@ -1,15 +1,26 @@
-// The sprite being edited: frames as straight RGBA buffers plus the
-// .sprite.json fields (docs/reference.md, "Sprites"), and reading and
-// writing those files.
+// The image being edited: frames as straight RGBA buffers plus the .sprite
+// fields (frame size, origin, animations; docs/reference.md, "Sprites"), and
+// reading and writing those files. A plain image is one frame and needs no
+// .sprite file. Older projects named the file .sprite.json; it is still read,
+// and saving writes .sprite.
 
 import { decodePNG, encodePNG } from './png.js';
+import { stamp, resample } from './draw.js';
 
 export const FORMAT_VERSION = 1;
 export const DEFAULT_FPS = 8;
+export const META_EXT = '.sprite';
+export const LEGACY_META_EXT = '.sprite.json';
+// Sheets wider than this wrap onto more rows (GPUs limit texture sizes).
+const MAX_SHEET_WIDTH = 8192;
 
-/** sprites/hero.png -> sprites/hero; also for .sprite.json. */
+/** sprites/hero.png -> sprites/hero; also for .sprite and .sprite.json. */
 export function stemOf(path) {
-  return path.replace(/\.sprite\.json$/i, '').replace(/\.png$/i, '');
+  return path.replace(/\.sprite(\.json)?$/i, '').replace(/\.png$/i, '');
+}
+
+export function isMetaPath(path) {
+  return /\.sprite(\.json)?$/i.test(path);
 }
 
 function folderOf(path) {
@@ -48,7 +59,7 @@ export class SpriteDoc {
     this.frames = frames; // Uint8ClampedArray(fw * fh * 4) each
     this.origin = null; // [x, y] or null
     this.animations = []; // [{name, frames: [], fps, loop, extra: {}}]
-    this.meta = {}; // the .sprite.json as read (unknown fields are kept)
+    this.meta = {}; // the .sprite file as read (unknown fields are kept)
     this.columns = 0; // sheet layout from the file (kept when saving if it still fits)
     this.rows = 0;
   }
@@ -93,7 +104,7 @@ export class SpriteDoc {
   layout() {
     const n = this.count;
     const keep = this.columns > 0 && this.columns * this.rows > 1 && n >= this.columns && n % this.columns === 0;
-    const columns = keep ? this.columns : n;
+    const columns = keep ? this.columns : Math.max(1, Math.min(n, Math.floor(MAX_SHEET_WIDTH / this.fw)));
     return { columns, rows: Math.ceil(n / columns) };
   }
 
@@ -112,12 +123,12 @@ export class SpriteDoc {
     return { data, width, height };
   }
 
-  /** Whether the sprite needs a .sprite.json (more than one frame, an origin or animations). */
+  /** Whether the image needs a .sprite file (more than one frame, an origin or animations). */
   needsMeta() {
     return this.count > 1 || !!this.origin || this.animations.length > 0;
   }
 
-  /** The .sprite.json text, keeping fields this editor doesn't know. */
+  /** The .sprite file's text, keeping fields this editor doesn't know. */
   metaText(metaPath, pngPath) {
     const known = ['format', 'version', 'image', 'frameWidth', 'frameHeight', 'origin', 'animations'];
     const out = {
@@ -159,6 +170,28 @@ export class SpriteDoc {
     this.animations = s.animations.map((a) => ({ ...a, frames: [...a.frames], extra: { ...a.extra } }));
     this.columns = s.columns;
     this.rows = s.rows;
+  }
+
+  /** Change the frame size, keeping the pixels where they are, moved by (dx, dy). */
+  resizeCanvas(w, h, dx, dy) {
+    const { fw, fh } = this;
+    this.frames = this.frames.map((f) => {
+      const out = new Uint8ClampedArray(w * h * 4);
+      stamp(out, w, h, f, dx, dy, fw, fh);
+      return out;
+    });
+    this.fw = w;
+    this.fh = h;
+    if (this.origin) this.origin = [this.origin[0] + dx, this.origin[1] + dy];
+  }
+
+  /** Scale every frame to w×h, smoothly or by nearest pixel. */
+  scale(w, h, smooth) {
+    const { fw, fh } = this;
+    this.frames = this.frames.map((f) => resample(f, fw, fh, w, h, smooth));
+    this.fw = w;
+    this.fh = h;
+    if (this.origin) this.origin = [Math.round((this.origin[0] * w) / fw), Math.round((this.origin[1] * h) / fh)];
   }
 
   // Frame operations keep animation frame numbers pointing at the same frames.
@@ -203,27 +236,35 @@ export function stringify(value, indent = '') {
 function isSize(n) { return Number.isInteger(n) && n > 0; }
 
 /**
- * Which files a path stands for: {pngPath, metaPath}. Opening either file of
- * a sprite edits both.
+ * Which files a path stands for. Opening the image or its .sprite edits
+ * both. Returns {pngPath, metaPath, legacyPath, readPath}: metaPath is the
+ * .sprite saving writes, legacyPath the old .sprite.json name, and readPath
+ * the one to read (.sprite if it exists, else .sprite.json if it exists).
  */
 export function spritePaths(host, path) {
-  if (/\.sprite\.json$/i.test(path)) {
-    let image = `${baseName(stemOf(path))}.png`;
-    const text = host.read(path);
+  const stem = stemOf(path);
+  const metaPath = `${stem}${META_EXT}`;
+  const legacyPath = `${stem}${LEGACY_META_EXT}`;
+  // The .sprite wins over an old .sprite.json next to it (saving wrote it).
+  let readPath = metaPath;
+  if (!host.exists(metaPath) && (path === legacyPath || host.exists(legacyPath))) readPath = legacyPath;
+  let pngPath = isMetaPath(path) ? `${stem}.png` : path;
+  if (isMetaPath(path)) {
+    const text = host.read(readPath);
     if (typeof text === 'string') {
       try {
         const m = JSON.parse(text);
-        if (m && typeof m.image === 'string' && m.image) image = m.image;
+        if (m && typeof m.image === 'string' && m.image) pngPath = joinPath(readPath, m.image);
       } catch { /* reported by loadSprite */ }
     }
-    return { pngPath: joinPath(path, image), metaPath: path };
   }
-  return { pngPath: path, metaPath: `${stemOf(path)}.sprite.json` };
+  return { pngPath, metaPath, legacyPath, readPath };
 }
 
 /**
- * Read a sprite's files. Returns {doc, warnings}. Throws if the
- * .sprite.json is from a newer version or isn't a sprite file.
+ * Read an image and its .sprite file (metaPath; may not exist). Returns
+ * {doc, warnings}. Throws if the .sprite is from a newer version or isn't a
+ * sprite file.
  */
 export async function loadSprite(host, pngPath, metaPath) {
   const warnings = [];
@@ -255,8 +296,8 @@ export async function loadSprite(host, pngPath, metaPath) {
     throw new Error(`${pngPath} isn't a PNG image`);
   }
 
-  let fw = meta && isSize(meta.frameWidth) ? meta.frameWidth : image ? image.width : 16;
-  let fh = meta && isSize(meta.frameHeight) ? meta.frameHeight : image ? image.height : 16;
+  let fw = meta && isSize(meta.frameWidth) ? meta.frameWidth : image ? image.width : 256;
+  let fh = meta && isSize(meta.frameHeight) ? meta.frameHeight : image ? image.height : 256;
   let doc;
   if (image) {
     if (fw > image.width || fh > image.height) {
@@ -294,7 +335,7 @@ export async function loadSprite(host, pngPath, metaPath) {
   return { doc, warnings };
 }
 
-/** Encode the sprite's files: {png: Uint8Array, json: string | null}. */
+/** Encode the image's files: {png: Uint8Array, json: string | null} (json is the .sprite file, if needed). */
 export async function encodeSprite(doc, pngPath, metaPath, metaExists) {
   const sheet = doc.toSheet();
   const png = await encodePNG(sheet.data, sheet.width, sheet.height);

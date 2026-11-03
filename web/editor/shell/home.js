@@ -68,6 +68,26 @@ export async function renderHome(root, ctx) {
   const importBtn = h('button', { type: 'button', class: 'btn' }, icon('upload', 15), 'Import');
   importBtn.addEventListener('click', () => importInput.click());
 
+  // Examples: small games written in code (web/examples).
+  const examples = h('div', { class: 'card-grid' });
+  fetch('examples/index.json').then((r) => r.json()).then((list) => {
+    for (const ex of list) {
+      const card = h('button', { type: 'button', class: 'card' },
+        h('span', { class: 'card-title' }, icon('code', 14), ex.name), h('span', { class: 'card-desc' }, ex.description));
+      card.addEventListener('click', async () => {
+        const files = {};
+        await Promise.all(ex.files.map(async (f) => {
+          const res = await fetch(`examples/${ex.id}/${f}`);
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          files[f] = /\.(lua|json|txt|md|glsl)$/i.test(f) ? new TextDecoder().decode(bytes) : bytes;
+        }));
+        const p = await store.createProject(ex.name, files);
+        ctx.openProject(p.id);
+      });
+      examples.append(card);
+    }
+  }).catch(() => examples.append(h('p', { class: 'insp-desc' }, 'Examples are unavailable offline.')));
+
   root.replaceChildren(h('div', { class: 'home' }, h('div', { class: 'home-inner' },
     h('div', { class: 'home-header' },
       h('h1', {}, h('span', { class: 'brand-mark' }, icon('heart', 22)), 'Smitten'),
@@ -76,5 +96,6 @@ export async function renderHome(root, ctx) {
     h('section', {}, h('h2', {}, projects.length ? 'Your games' : 'Your games will appear here'),
       projects.length ? h('div', { class: 'card-grid' }, ...projectCards)
         : h('p', { class: 'insp-desc' }, 'Projects are saved in this browser. Export them as a zip to keep a copy.')),
+    h('section', {}, h('h2', {}, 'Examples written in code'), examples),
   )));
 }

@@ -58,6 +58,103 @@ function zlibStored(data) {
   return out;
 }
 
+// A small synchronous deflate: greedy LZ77 matches coded with the fixed
+// Huffman tables. Not as tight as CompressionStream, but a blank 256×256
+// image comes out at about 1 KB instead of 256 KB stored.
+
+const LEN_BASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+const LEN_EXTRA = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+const DIST_BASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+const DIST_EXTRA = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+
+function reverseBits(code, len) {
+  let r = 0;
+  for (let i = 0; i < len; i++) { r = (r << 1) | (code & 1); code >>= 1; }
+  return r;
+}
+
+const FIXED = (() => {
+  const codes = new Uint16Array(288), lens = new Uint8Array(288);
+  for (let s = 0; s < 288; s++) {
+    let c, l;
+    if (s < 144) { c = 0x30 + s; l = 8; } else if (s < 256) { c = 0x190 + s - 144; l = 9; } else if (s < 280) { c = s - 256; l = 7; } else { c = 0xc0 + s - 280; l = 8; }
+    codes[s] = reverseBits(c, l);
+    lens[s] = l;
+  }
+  const lenCode = new Uint8Array(259);
+  for (let k = 0; k < LEN_BASE.length; k++) {
+    const end = k + 1 < LEN_BASE.length ? LEN_BASE[k + 1] : 259;
+    for (let n = LEN_BASE[k]; n < end; n++) lenCode[n] = k;
+  }
+  const distCodes = new Uint8Array(30);
+  for (let k = 0; k < 30; k++) distCodes[k] = reverseBits(k, 5);
+  return { codes, lens, lenCode, distCodes };
+})();
+
+function distCode(d) {
+  let k = 0;
+  while (k < 29 && DIST_BASE[k + 1] <= d) k++;
+  return k;
+}
+
+function zlibFixed(data) {
+  const n = data.length;
+  const out = new Uint8Array(Math.ceil(n * 1.13) + 64);
+  out[0] = 0x78; out[1] = 0x01;
+  let o = 2, bits = 0, count = 0;
+  const put = (v, len) => {
+    bits |= v << count;
+    count += len;
+    while (count >= 8) { out[o++] = bits & 0xff; bits >>>= 8; count -= 8; }
+  };
+  const { codes, lens, lenCode, distCodes } = FIXED;
+  const sym = (s) => put(codes[s], lens[s]);
+  put(1, 1); // final block
+  put(1, 2); // fixed Huffman codes
+  const HBITS = 15, HMASK = (1 << HBITS) - 1, WIN = 32768, WMASK = WIN - 1;
+  const head = new Int32Array(1 << HBITS).fill(-1);
+  const prev = new Int32Array(WIN);
+  const hash = (i) => ((data[i] << 10) ^ (data[i + 1] << 5) ^ data[i + 2]) & HMASK;
+  const insert = (i) => { const hv = hash(i); prev[i & WMASK] = head[hv]; head[hv] = i; };
+  let i = 0;
+  while (i < n) {
+    let best = 0, dist = 0;
+    if (i + 2 < n) {
+      const maxLen = Math.min(258, n - i);
+      let j = head[hash(i)];
+      let chain = 32;
+      while (j >= 0 && i - j <= WIN && chain-- > 0) {
+        if (data[j + best] === data[i + best]) {
+          let l = 0;
+          while (l < maxLen && data[j + l] === data[i + l]) l++;
+          if (l > best) { best = l; dist = i - j; if (l === maxLen) break; }
+        }
+        j = prev[j & WMASK];
+      }
+      insert(i);
+    }
+    if (best >= 3) {
+      const lk = lenCode[best];
+      sym(257 + lk);
+      if (LEN_EXTRA[lk]) put(best - LEN_BASE[lk], LEN_EXTRA[lk]);
+      const dk = distCode(dist);
+      put(distCodes[dk], 5);
+      if (DIST_EXTRA[dk]) put(dist - DIST_BASE[dk], DIST_EXTRA[dk]);
+      for (let k = 1; k < best; k++) if (i + k + 2 < n) insert(i + k);
+      i += best;
+    } else {
+      sym(data[i]);
+      i++;
+    }
+  }
+  sym(256);
+  if (count > 0) out[o++] = bits & 0xff;
+  const ad = adler32(data);
+  out[o++] = ad >>> 24; out[o++] = (ad >>> 16) & 0xff; out[o++] = (ad >>> 8) & 0xff; out[o++] = ad & 0xff;
+  // Incompressible data could overflow the estimate; stored blocks never do.
+  return o <= out.length ? out.slice(0, o) : zlibStored(data);
+}
+
 async function zlibCompress(data) {
   if (typeof CompressionStream === 'function') {
     try { return await streamThrough(data, new CompressionStream('deflate')); } catch { /* fall through */ }
@@ -153,9 +250,9 @@ export async function encodePNG(rgba, width, height) {
   return assemble(width, height, await zlibCompress(filterRows(rgba, width, height)));
 }
 
-/** Synchronous, uncompressed variant (for small files made on the spot). */
+/** Synchronous variant (for files made on the spot), with a simpler compressor. */
 export function encodePNGSync(rgba, width, height) {
-  return assemble(width, height, zlibStored(filterRows(rgba, width, height)));
+  return assemble(width, height, zlibFixed(filterRows(rgba, width, height)));
 }
 
 // ---------------------------------------------------------------------------

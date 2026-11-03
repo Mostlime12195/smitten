@@ -27,6 +27,8 @@ import { ConsolePanel } from './console.js';
 import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
+import { createLoveCompletions } from './completions.js';
+import { createShareLink, readShareHash } from './share.js';
 
 const app = document.getElementById('app');
 
@@ -66,7 +68,20 @@ async function boot() {
   route();
 }
 
-function route() {
+async function route() {
+  // A share link (#share=...) becomes a new project.
+  if (location.hash.startsWith('#share=')) {
+    try {
+      const shared = await readShareHash();
+      const p = await store.createProject(shared.name, shared.files);
+      location.replace(`#project=${p.id}`);
+      toast(`Opened "${shared.name}" as a new project. It's yours to change.`);
+    } catch (e) {
+      toast(`That share link couldn't be opened: ${e.message}`, { type: 'error' });
+      location.hash = '';
+    }
+    return;
+  }
   const id = new URLSearchParams(location.hash.slice(1)).get('project');
   if (id && ed?.project.id === id) return;
   if (ed) closeEditor();
@@ -184,6 +199,13 @@ async function openProject(id) {
     openFile: (path) => openFile(path),
     addNodeDialog: (parent) => addNodeTo(parent),
     setCursor: (text) => { ed.status.right.textContent = text; },
+    // Completions need LÖVE's API list, loaded once.
+    completions: (editor) => {
+      if (!editor.cm) return null;
+      let source = null;
+      loveApi().then((api) => { source = createLoveCompletions(api, editor.cm, () => project.paths()); });
+      return (context) => source?.(context) ?? null;
+    },
   };
   for (const w of WORKSPACES) {
     const el = h('section', { class: 'workspace', 'data-ws': w.id, hidden: true });
@@ -255,6 +277,12 @@ async function openProject(id) {
   if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
   window.addEventListener('beforeunload', saveAll);
   hydrateIcons(app);
+}
+
+let apiPromise = null;
+function loveApi() {
+  apiPromise ??= fetch('love-api.json').then((r) => r.json()).catch(() => ({}));
+  return apiPromise;
 }
 
 function sceneWs() {
@@ -698,6 +726,13 @@ async function play(scenePath = null) {
   ed.lastRun = scenePath;
   if (settings.get('clearConsoleOnRun')) ed.console.clear();
   ed.console.separator?.(scenePath ? `Playing ${scenePath}` : 'Playing');
+  // Code that can't work in a browser, explained before it fails (compat.js).
+  if (settings.get('compatCheck')) {
+    const { checkProject } = await import('./compat.js');
+    for (const issue of await checkProject(files)) {
+      if (issue.severity !== 'info') ed.console.info(`${issue.path}:${issue.line}: ${issue.message}`, issue.severity === 'error' ? 'danger' : 'warning');
+    }
+  }
   ed.gameView.hidden = false;
   ed.gameTitle.textContent = project.name;
   ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query: { jit: settings.get('jit') ? '1' : '0' } });
@@ -736,6 +771,7 @@ function projectMenu() {
     '-',
     { label: 'Project settings…', icon: 'settings', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
     { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+    { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
@@ -778,6 +814,17 @@ function helpMenu() {
 
 async function openProjectSettings(tab) {
   await projectSettingsDialog(ed.project, { tab });
+}
+
+async function shareLink() {
+  await saveAll();
+  try {
+    const { url } = await createShareLink(ed.project.name, ed.project.snapshot());
+    await navigator.clipboard.writeText(url);
+    toast('Link copied. Anyone who opens it gets their own copy of the game to play and change.', { type: 'success', timeout: 5000 });
+  } catch (e) {
+    toast(e.message, { type: 'error', timeout: 7000 });
+  }
 }
 
 // ---------------------------------------------------------------------------

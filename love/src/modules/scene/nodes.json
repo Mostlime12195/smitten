@@ -194,9 +194,9 @@
       "extends": "Node2D", "group": "physics2d", "icon": "collision",
       "description": "Gives its parent body or area a shape. A body without one doesn't collide.",
       "properties": {
-        "shape": { "type": "enum", "options": ["rectangle", "circle", "capsule"], "default": "rectangle", "group": "Shape", "description": "The shape's kind." },
-        "width": { "type": "number", "default": 32, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle and capsule width.", "when": { "shape": ["rectangle", "capsule"] } },
-        "height": { "type": "number", "default": 32, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle and capsule height.", "when": { "shape": ["rectangle", "capsule"] } },
+        "shape": { "type": "enum", "options": ["rectangle", "circle"], "default": "rectangle", "group": "Shape", "description": "The shape's kind. Shapes move and scale with their node but don't rotate." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Shape", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
         "disabled": { "type": "bool", "default": false, "group": "Shape", "description": "Turn the shape off." }
       }
@@ -217,7 +217,8 @@
         "isOnFloor": { "args": "", "doc": "True if the last move ended standing on something." },
         "isOnWall": { "args": "", "doc": "True if the last move hit a wall." },
         "isOnCeiling": { "args": "", "doc": "True if the last move hit a ceiling." },
-        "overlaps": { "args": "groupOrNode", "doc": "The first area or body of a group (or that node) touching this one, or nil." }
+        "overlaps": { "args": "groupOrNode", "doc": "The first area or body of a group (or that node) touching this one, or nil." },
+        "touchingTile": { "args": "property", "doc": "The properties of a touching tile that has this property (\"damage\"), or nil." }
       },
       "events": {
         "collided": { "args": "other", "doc": "The body ran into another body or a tile map." },
