@@ -32,6 +32,7 @@ import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
 import { createLoveCompletions } from './completions.js';
 import { createShareLink, readShareHash } from './share.js';
+import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 
 const app = document.getElementById('app');
 
@@ -81,6 +82,20 @@ async function route() {
       toast(`Opened "${shared.name}" as a new project. It's yours to change.`);
     } catch (e) {
       toast(`That share link couldn't be opened: ${e.message}`, { type: 'error' });
+      location.hash = '';
+    }
+    return;
+  }
+  // "Remix" on the sharing site (#remix=<game id>) opens a copy of that game.
+  if (location.hash.startsWith('#remix=')) {
+    try {
+      const remix = await fetchRemix(settings.get('platformUrl'), location.hash.slice('#remix='.length));
+      const p = await store.createProject(remix.name, remix.files);
+      rememberRemix(p.id, remix.remixOf);
+      location.replace(`#project=${p.id}`);
+      toast(`Opened a copy of "${remix.title}". It's yours to change, and publishing it credits the original.`, { timeout: 6000 });
+    } catch (e) {
+      toast(`That game couldn't be remixed: ${e.message}`, { type: 'error', timeout: 7000 });
       location.hash = '';
     }
     return;
@@ -851,6 +866,7 @@ function projectMenu() {
     { label: 'New script…', icon: 'code', action: () => newScript() },
     '-',
     { label: 'Project settings…', icon: 'settings', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
+    { label: 'Publish…', icon: 'publish', action: () => publish() },
     { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     '-',
@@ -895,6 +911,13 @@ function helpMenu() {
 
 async function openProjectSettings(tab) {
   await projectSettingsDialog(ed.project, { tab });
+}
+
+// Puts the game on the sharing site, with only the engine modules it uses.
+async function publish() {
+  await saveAll();
+  const modules = Object.values(detectModules(ed.project)).filter((m) => m.included).map((m) => m.id);
+  await publishDialog(ed.project, { modules, platformUrl: settings.get('platformUrl') });
 }
 
 async function shareLink() {
@@ -978,6 +1001,7 @@ function commands() {
     { label: 'Project settings', run: () => openProjectSettings() },
     { label: 'Input actions', run: () => openProjectSettings('input') },
     { label: 'Engine modules', run: () => openProjectSettings('modules') },
+    { label: 'Publish…', run: () => publish() },
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
     { label: 'Piece reference', run: () => nodeDocs(null) },

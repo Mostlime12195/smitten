@@ -40,8 +40,8 @@ npx wrangler dev
 
 Open http://localhost:8787. `wrangler dev` simulates R2 and D1 locally (in
 `.wrangler/state`), and the Worker creates its tables on first use, so
-there's no migration step. To fill the gallery with the examples from
-`web/examples`:
+there's no migration step. To fill the gallery with the editor's
+templates (platformer, top-down, physics toy, pixel art):
 
 ```bash
 node scripts/seed.mjs

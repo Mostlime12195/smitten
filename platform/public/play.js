@@ -3,9 +3,7 @@
 import { $, h, icon, plays, timeAgo, formatBytes, editorUrl, api, toast } from './site.js';
 
 const MODULE_NAMES = {
-  physics2d: '2D physics',
-  '3d': '3D graphics',
-  physics3d: '3D physics',
+  physics2d: 'physics',
   video: 'video',
   synth: 'the sound generator',
 };

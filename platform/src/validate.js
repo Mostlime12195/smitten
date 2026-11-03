@@ -13,7 +13,7 @@ export const LIMITS = {
 
 // The optional engine modules a game can ask the player to load
 // (web/editor/core/modules.js).
-export const MODULES = ['physics2d', '3d', 'physics3d', 'video', 'synth'];
+export const MODULES = ['physics2d', 'video', 'synth'];
 
 export const REPORT_REASONS = [
   { id: 'sexual', label: 'Sexual or inappropriate content' },

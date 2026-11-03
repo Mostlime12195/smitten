@@ -1,16 +1,14 @@
-// Publishes the examples in web/examples to a local site, so the gallery
-// has something in it:
+// Publishes the editor's new-game templates (web/editor/core/templates.js) to
+// a local site, so the gallery has something in it:
 //
 //   node scripts/seed.mjs [http://127.0.0.1:8787]
 //
 // Prints each game's link and edit token.
 
-import { readFileSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
-import { fileURLToPath } from 'node:url';
+import { TEMPLATES } from '../../web/editor/core/templates.js';
 
 const base = (process.argv[2] || 'http://127.0.0.1:8787').replace(/\/+$/, '');
-const examples = fileURLToPath(new URL('../../web/examples/', import.meta.url));
 
 const CRC = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -65,18 +63,16 @@ function zip(files) {
   return Buffer.concat([...parts, ...central, end]);
 }
 
-// The same detection as the editor's (web/editor/core/modules.js), for code.
+// A simpler version of the editor's detection (web/editor/core/modules.js):
+// Bodies moved by physics, or the APIs in code.
 const MODULES = [
-  ['physics2d', /\b(?:smitten|love)\.physics\./],
-  ['3d', /\b(?:smitten|love)\.graphics3d\b/],
-  ['physics3d', /\b(?:smitten|love)\.physics3d\b/],
+  ['physics2d', /"motion": "physics"|\b(?:smitten|love)\.physics\./],
   ['video', /\b(?:smitten|love)\.video\b|\bnewVideo\s*\(/],
   ['synth', /\b(?:smitten|love)\.synth\b/],
 ];
 
-const list = JSON.parse(readFileSync(`${examples}index.json`, 'utf8'));
-for (const ex of list) {
-  const files = Object.fromEntries(ex.files.map((f) => [f, readFileSync(`${examples}${ex.id}/${f}`)]));
+for (const ex of TEMPLATES.filter((t) => t.id !== 'empty')) {
+  const files = Object.fromEntries(Object.entries(ex.build(ex.name)).map(([f, text]) => [f, Buffer.from(text)]));
   const code = Object.values(files).map(String).join('\n');
   const modules = MODULES.filter(([, re]) => re.test(code)).map(([id]) => id);
   const form = new FormData();

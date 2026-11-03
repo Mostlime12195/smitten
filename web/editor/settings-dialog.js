@@ -31,6 +31,13 @@ function segmentedControl(key, options) {
   return { el: wrap, sync: () => { for (const [value, b] of buttons) b.setAttribute('aria-pressed', String(settings.get(key) === value)); } };
 }
 
+function textControl(key, placeholder = '') {
+  const input = h('input', { type: 'text', class: 'input', spellcheck: 'false', autocomplete: 'off', placeholder });
+  input.value = settings.get(key);
+  input.addEventListener('change', () => settings.set(key, input.value.trim() || placeholder));
+  return { el: input, sync: () => { if (document.activeElement !== input) input.value = settings.get(key); } };
+}
+
 function stepperControl(key, { min, max, step = 1, unit = '' }) {
   const out = h('output', {});
   const show = () => { out.textContent = `${settings.get(key)}${unit}`; };
@@ -87,6 +94,11 @@ function buildSections(shortcutGroups) {
       id: 'console', label: 'Console', icon: 'terminal', rows: [
         { key: 'consoleTimestamps', label: 'Show timestamps', control: () => switchControl('consoleTimestamps') },
         { key: 'consoleWrap', label: 'Wrap long lines', control: () => switchControl('consoleWrap') },
+      ],
+    },
+    {
+      id: 'publish', label: 'Publishing', icon: 'publish', rows: [
+        { key: 'platformUrl', label: 'Sharing site', desc: 'Where Project > Publish puts games for anyone to play in the browser, and where remix links come from.', control: () => textControl('platformUrl', 'http://localhost:8787') },
       ],
     },
     {
