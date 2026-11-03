@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smitten games</title>
+<meta name="description" content="A game made with Smitten. Play it in your browser.">
+<meta property="og:title" content="Smitten games">
+<meta property="og:description" content="A game made with Smitten. Play it in your browser.">
+<meta name="smitten-editor-url" content="">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/site.css">
+<script type="module" src="/play.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/" aria-label="Smitten games">
+      <svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>Smitten</span>
+    </a>
+    <form class="search" role="search" action="/">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" name="q" placeholder="Search games" aria-label="Search games" autocomplete="off" maxlength="100">
+    </form>
+    <a class="btn primary make" data-editor-link href="http://localhost:8766/">Make a game</a>
+  </div>
+</header>
+
+<main class="page play-page">
+  <div class="stage" id="stage"></div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="details" id="details" hidden>
+    <div class="details-head">
+      <div class="details-title">
+        <h1 id="title"></h1>
+        <p class="meta" id="meta"></p>
+      </div>
+      <div class="actions">
+        <a class="btn primary" id="remix" target="_blank" rel="noopener">Remix</a>
+        <button type="button" class="btn" id="fullscreen">Fullscreen</button>
+        <button type="button" class="btn ghost" id="report">Report</button>
+      </div>
+    </div>
+    <p class="description" id="description"></p>
+    <p class="fineprint" id="fineprint"></p>
+  </section>
+</main>
+
+<dialog class="dialog" id="report-dialog" aria-labelledby="report-title">
+  <form method="dialog" id="report-form">
+    <div class="dialog-head">
+      <h2 id="report-title">Report this game</h2>
+      <p>Reports are private. A moderator will look at the game, and if several people report it, it's hidden until then.</p>
+    </div>
+    <fieldset class="reasons" id="reasons">
+      <legend>What's wrong with it?</legend>
+    </fieldset>
+    <label class="note-label" for="report-note">Anything else we should know? <span>(optional)</span></label>
+    <textarea id="report-note" maxlength="500" rows="3"></textarea>
+    <p class="form-error" id="report-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" id="report-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="report-send">Send report</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publish harness · Smitten</title>
+<!--
+  A stand-in for the editor, to try web/editor/publish.js against the site:
+  serve the repository root on another port and open this page, e.g.
+
+    python3 -m http.server 8796 --bind 127.0.0.1      (in the repository root)
+    http://localhost:8796/platform/dev/publish-harness.html
+
+  It makes a fake project from tools/scene-tests (smoke, or rigid, which
+  needs the physics2d module), with a generated cover.png for the thumbnail.
+  window.harness exposes everything for scripted tests.
+-->
+<link rel="stylesheet" href="../../web/editor/editor.css">
+<style>
+  body { margin: 0; padding: 32px; background: var(--bg); color: var(--fg); font: 13px/1.5 var(--font-ui); }
+  main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { margin: 0; font-size: 18px; }
+  h2 { margin: 0 0 8px; font-size: 14px; }
+  section { padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row .input, .row .select { height: 32px; }
+  pre { margin: 8px 0 0; padding: 10px; max-height: 260px; overflow: auto; border-radius: 6px; background: var(--editor-bg); font: 12px/1.5 var(--font-mono); white-space: pre-wrap; word-break: break-all; }
+  p { margin: 0 0 8px; color: var(--fg-muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Publish harness</h1>
+  <p>Publishes a fake project through <code>web/editor/publish.js</code>, the module the editor uses, to the site at the URL below.</p>
+
+  <section>
+    <h2>Site</h2>
+    <div class="row">
+      <input class="input" id="platform" value="http://localhost:8787" style="flex: 1">
+      <a class="btn" id="open-site" target="_blank" rel="noopener" href="http://localhost:8787/">Open gallery</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project</h2>
+    <div class="row">
+      <select class="select" id="source">
+        <option value="smoke">Smoke test (2D nodes, no modules)</option>
+        <option value="rigid">Rigid bodies (needs physics2d)</option>
+      </select>
+      <button class="btn" id="load">Load</button>
+      <button class="btn primary" id="publish">Publish…</button>
+    </div>
+    <pre id="project-info">Loading…</pre>
+  </section>
+
+  <section>
+    <h2>Remix</h2>
+    <div class="row">
+      <input class="input" id="remix-id" placeholder="Game id" style="width: 160px">
+      <button class="btn" id="remix">Fetch remix</button>
+      <button class="btn" id="open-remix" disabled>Open it as the project</button>
+    </div>
+    <pre id="remix-info">Fetch a published game's files, as the editor does for #remix=&lt;id&gt;.</pre>
+  </section>
+
+  <section>
+    <h2>This browser's edit tokens <span style="font-weight: 400; color: var(--fg-muted)">(localStorage “smitten-editor.published”)</span></h2>
+    <div class="row"><button class="btn ghost" id="forget">Forget all</button></div>
+    <pre id="tokens"></pre>
+  </section>
+
+  <section>
+    <h2>Last result</h2>
+    <pre id="result">Nothing yet.</pre>
+  </section>
+</main>
+<div id="toasts"></div>
+
+<script type="module">
+import { publishDialog, fetchRemix, publishedGames, rememberRemix } from '../../web/editor/publish.js';
+
+const $ = (s) => document.querySelector(s);
+const show = (el, value) => { $(el).textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+const MODULES = { smoke: [], rigid: ['physics2d'] };
+
+/** A stand-in for core/project.js's Project: name, meta, settings(), snapshot(). */
+function makeProject(id, name, files, { created = Date.now(), modules = [] } = {}) {
+  return {
+    id,
+    meta: { id, name, created },
+    modules,
+    get name() { return this.settings().name || this.meta.name; },
+    settings() {
+      try { return { name: this.meta.name, ...JSON.parse(files['smitten.json']) }; } catch { return { name: this.meta.name }; }
+    },
+    snapshot() { return { ...files }; },
+  };
+}
+
+// A 640x360 cover image, so there's a PNG to pick as the thumbnail.
+async function coverPng(title, hue) {
+  const c = new OffscreenCanvas(640, 360);
+  const g = c.getContext('2d');
+  g.fillStyle = `hsl(${hue} 45% 22%)`;
+  g.fillRect(0, 0, 640, 360);
+  g.fillStyle = `hsl(${hue} 40% 32%)`;
+  g.fillRect(0, 290, 640, 70);
+  g.fillStyle = '#ffcd75';
+  g.beginPath(); g.arc(470, 200, 34, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#4b8bff';
+  g.fillRect(120, 214, 60, 76);
+  g.fillStyle = '#ffffff';
+  g.font = '600 44px system-ui, sans-serif';
+  g.fillText(title, 40, 80);
+  return new Uint8Array(await (await c.convertToBlob({ type: 'image/png' })).arrayBuffer());
+}
+
+async function loadSource(name) {
+  const base = new URL(`../../tools/scene-tests/${name}/`, location.href);
+  const files = {};
+  for (const path of ['smitten.json', 'scenes/main.scene', 'scenes/main.lua']) {
+    const res = await fetch(new URL(path, base));
+    if (!res.ok) throw new Error(`${path}: ${res.status}`);
+    files[path] = await res.text();
+  }
+  const title = JSON.parse(files['smitten.json']).name;
+  files['art/cover.png'] = await coverPng(title, name === 'smoke' ? 220 : 160);
+  return makeProject(`harness-${name}`, title, files, { modules: MODULES[name] });
+}
+
+const harness = {
+  project: null,
+  remix: null,
+  platformUrl: () => $('#platform').value.trim(),
+  async load(name = $('#source').value) {
+    harness.project = await loadSource(name);
+    harness.describe();
+    return harness.project;
+  },
+  describe() {
+    const p = harness.project;
+    show('#project-info', { id: p.id, name: p.name, modules: p.modules, files: Object.fromEntries(Object.entries(p.snapshot()).map(([k, v]) => [k, typeof v === 'string' ? `${v.length} characters` : `${v.length} bytes`])) });
+  },
+  async publish() {
+    const p = harness.project;
+    const result = await publishDialog(p, { files: p.snapshot(), modules: p.modules, platformUrl: harness.platformUrl() });
+    show('#result', result ?? 'Cancelled.');
+    showTokens();
+    return result;
+  },
+  async fetchRemix(id = $('#remix-id').value.trim()) {
+    const r = await fetchRemix(harness.platformUrl(), id);
+    harness.remix = r;
+    show('#remix-info', { name: r.name, remixOf: r.remixOf, files: Object.keys(r.files) });
+    $('#open-remix').disabled = false;
+    return r;
+  },
+  // As the editor would: a new project from the remix's files.
+  openRemix() {
+    const r = harness.remix;
+    harness.project = makeProject(`harness-remix-${Date.now()}`, r.name, r.files, { modules: harness.project?.modules || [] });
+    harness.describe();
+    return harness.project;
+  },
+  publishedGames,
+  rememberRemix,
+};
+window.harness = harness;
+
+function showTokens() {
+  const all = publishedGames();
+  show('#tokens', Object.keys(all).length ? Object.fromEntries(Object.entries(all).map(([id, e]) => [id, { ...e, token: `${e.token.slice(0, 6)}…` }])) : 'None.');
+}
+
+const run = (fn) => async () => {
+  try {
+    await fn();
+  } catch (e) {
+    show('#result', `Error: ${e.message}`);
+  }
+};
+
+$('#load').addEventListener('click', run(() => harness.load()));
+$('#publish').addEventListener('click', run(() => harness.publish()));
+$('#remix').addEventListener('click', run(() => harness.fetchRemix()));
+$('#open-remix').addEventListener('click', run(() => harness.openRemix()));
+$('#forget').addEventListener('click', () => { localStorage.removeItem('smitten-editor.published'); showTokens(); });
+$('#platform').addEventListener('change', () => { $('#open-site').href = `${harness.platformUrl()}/`; });
+
+showTokens();
+harness.load().catch((e) => show('#project-info', `Error: ${e.message}`));
+</script>
+</body>
+</html>
