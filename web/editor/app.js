@@ -17,7 +17,7 @@ import { initLayout } from './layout.js';
 import { BLANK, loadExampleIndex, loadTemplateFiles } from './templates.js';
 import { buildLove, buildWebExport, unzipToProjectFiles, slugify, zipFiles } from './exporter.js';
 import { smittenOnlyFeatures } from './portability.js';
-import { AssetPanel, VIEWS } from './asset-panel.js';
+import { AssetPanel, objectInfo } from './asset-panel.js';
 import { renderHome } from './home.js';
 import { openProjectSettings } from './project-settings.js';
 import { parseManifest, manifestText } from './project.js';
@@ -68,7 +68,7 @@ async function init() {
   setSidebarVisible(LS.get('smitten-editor.sidebar', innerWidth > 860), false);
 
   consolePanel = new ConsolePanel($('#console-output'), {
-    filter: $('#console-filter'), level: $('#console-level'), autoscroll: $('#console-autoscroll'),
+    filter: $('#console-filter'),
     clear: $('#console-clear'), copy: $('#console-copy'), badge: $('#console-badge'),
   }, {
     fileExists: (p) => state.entries.get(p)?.kind === 'file',
@@ -127,7 +127,7 @@ async function init() {
   });
 
   wireUi();
-  setView(LS.get('smitten-editor.view', 'files'));
+  setFilesMode(LS.get('smitten-editor.allFiles', false));
   setConsoleCollapsed(LS.get('smitten-editor.consoleCollapsed', false));
   setGamePanelVisible(LS.get('smitten-editor.gamePanel', true));
   loadApi();
@@ -167,7 +167,6 @@ async function loadApi() {
   try {
     const res = await fetch('love-api.json', { cache: 'no-cache' });
     state.api = await res.json();
-    $('#status-engine').textContent = `LÖVE ${state.api.version}`;
     attachCompletions();
   } catch (e) {
     console.warn('love-api.json could not be loaded', e);
@@ -228,8 +227,6 @@ async function refreshEntries() {
 /** Keep everything that summarizes the project's files up to date. */
 function onProjectFilesChanged() {
   assets?.refresh();
-  const [w, hh] = manifest().resolution;
-  $('#status-resolution').textContent = `${w} × ${hh}`;
   if (!state.active && state.project) renderHomeView();
 }
 
@@ -458,6 +455,7 @@ async function openFile(path, { line, focus = false, persist = true, asText = fa
   tree.setActive(path);
   renderTabs();
   assets.refresh();
+  updatePlayScene();
   if (persist) persistTabs();
 }
 
@@ -540,6 +538,7 @@ function showHome() {
   renderTabs();
   renderHomeView();
   assets?.refresh();
+  if (tools) updatePlayScene();
   persistTabs();
 }
 
@@ -581,7 +580,6 @@ function renderHomeView() {
     showApi: showSmittenApi,
     showShortcuts: () => showSettings('shortcuts'),
     setFlag: setProjectFlag,
-    showView: (v) => { setView(v); setSidebarVisible(true); },
   });
 }
 
@@ -801,13 +799,110 @@ async function newAsset(asset, dir = '') {
 
 /** Make something new from a view's or Home's "+" (label: 'script' or a tool's newAssets label). */
 async function createAsset(label) {
-  const view = { script: 'code', Sprite: 'art', Tileset: 'maps', Map: 'maps', 'Sound effect': 'sounds', Song: 'music' }[label];
-  const asset = tools.newAssets.find((a) => a.label === label);
-  if (label === 'script') await newFile('', 'script.lua');
-  else if (asset) await newAsset(asset, '');
-  else await newFile('');
-  // Show the new file where it belongs, unless the full file list is open.
-  if (view && state.view !== 'files') setView(view);
+  if (label === 'script') return newFile('', 'script.lua');
+  if (label === 'Object') return newObject();
+  // Older scene editors called a scene a map.
+  const asset = tools.newAssets.find((a) => a.label === label) || (label === 'Scene' && tools.newAssets.find((a) => a.label === 'Map'));
+  if (asset) return newAsset(asset, '');
+  return newFile('');
+}
+
+const OBJECT_KINDS = [
+  { id: 'platformer', title: 'Platformer', desc: 'Runs and jumps with the arrow keys or a gamepad.', icon: 'gamepad' },
+  { id: 'topdown', title: 'Top-down', desc: 'Walks in 8 directions, like an RPG character.', icon: 'expand' },
+  { id: 'none', title: 'Just a thing', desc: 'Stays where you put it: coins, doors, signs.', icon: 'image' },
+];
+
+/** New object: a name, how it moves, and a sprite (made for it unless one with its name exists). */
+async function newObject() {
+  let kind = 'platformer';
+  const nameInput = h('input', { class: 'input', type: 'text', value: '', placeholder: 'player', spellcheck: 'false', 'aria-label': 'Object name' });
+  const error = h('div', { class: 'field-error' });
+  const cards = h('div', { class: 'kind-cards', role: 'radiogroup', 'aria-label': 'How it moves' });
+  const renderCards = () => cards.replaceChildren(...OBJECT_KINDS.map((k) => h('button', {
+    type: 'button', class: 'kind-card', role: 'radio', 'aria-checked': String(k.id === kind),
+    onclick: () => { kind = k.id; renderCards(); },
+  }, icon(k.icon, 18), h('strong', {}, k.title), h('span', {}, k.desc))));
+  renderCards();
+  const slug = (v) => v.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+  const res = await openDialog({
+    title: 'New object',
+    className: 'new-object-dialog',
+    body: h('div', { class: 'project-settings' },
+      h('div', { class: 'field' }, h('label', {}, 'Name'), nameInput, error),
+      h('div', { class: 'field' }, h('label', {}, 'How it moves'), cards)),
+    actions: [
+      { label: 'Cancel', value: null },
+      {
+        label: 'Create', value: 'create', primary: true, submit: true,
+        validate: () => {
+          const name = slug(nameInput.value);
+          error.textContent = !name ? 'Give it a name, like player or coin.'
+            : state.entries.has(`objects/${name}.lua`) ? `objects/${name}.lua already exists.` : '';
+          return !error.textContent;
+        },
+      },
+    ],
+    initialFocus: 'input',
+  });
+  if (res !== 'create') return;
+  const name = slug(nameInput.value);
+  const files = {};
+  const sprite = `sprites/${name}`;
+  if (!state.entries.has(`${sprite}.png`)) {
+    const spriteAsset = tools.newAssets.find((a) => a.label === 'Sprite');
+    if (spriteAsset) Object.assign(files, spriteAsset.files(sprite, tools.createHost(`${sprite}.png`)));
+  }
+  const cls = name.split('_').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'Thing';
+  const behavior = kind === 'none' ? '' : `\n  behaviors = { "${kind}" },`;
+  const comment = {
+    platformer: `-- ${name}: runs and jumps. Change how it feels with speed, jumpSpeed and gravity.`,
+    topdown: `-- ${name}: walks in 8 directions. Change its speed below.`,
+    none: `-- ${name}: place it in a scene; touch() runs when something bumps into it.`,
+  }[kind];
+  const extra = kind === 'platformer' ? '\n  camera = true,      -- the camera follows it\n  speed = 90,\n  jumpSpeed = 260,'
+    : kind === 'topdown' ? '\n  camera = true,      -- the camera follows it\n  speed = 80,' : '';
+  files[`objects/${name}.lua`] = `${comment}
+
+local ${cls} = smitten.object {
+  sprite = "${sprite}",${behavior}${extra}
+}
+
+function ${cls}:update(dt)
+  -- Runs every frame.
+end
+
+function ${cls}:touch(other)
+  -- Runs when another object starts touching this one. other.type is its name.
+end
+
+return ${cls}
+`;
+  await store.writeFiles(state.project.id, files);
+  await refreshEntries();
+  for (const p of Object.keys(files)) tools.changed(p);
+  await openFile(`objects/${name}.lua`, { focus: true });
+  toast(`Created ${name}. Draw it in ${sprite}.png, then place it in a scene.`, { type: 'success', timeout: 5000 });
+}
+
+/** The scene file being edited, if the active tab is one. */
+function activeScene() {
+  return state.active && /\.(scene|map)\.json$/i.test(state.active) ? state.active : null;
+}
+
+function updatePlayScene() {
+  $('#btn-run-scene').hidden = !activeScene();
+}
+
+/** Play from the scene being edited (Godot's "play current scene"). */
+async function runScene() {
+  const path = activeScene();
+  if (!path) {
+    toast('Open a scene to play from it.', { timeout: 3000 });
+    return;
+  }
+  const name = path.replace(/^scenes\//i, '').replace(/\.(scene|map)\.json$/i, '');
+  return run({ extraFiles: { '.smitten/start': name } });
 }
 
 function showNewMenu(anchor) {
@@ -1111,9 +1206,9 @@ function showProblems() {
 }
 
 /** focus: give the game keyboard focus once it starts (not for auto-run). */
-async function run({ focus = settings.get('focusGameOnRun') } = {}) {
+async function run({ focus = settings.get('focusGameOnRun'), extraFiles = {} } = {}) {
   if (!state.project) return;
-  const files = await collectFiles();
+  const files = { ...await collectFiles(), ...extraFiles };
   if (!files['main.lua']) {
     consolePanel.error('There is no main.lua at the root of the project. LÖVE needs one to start the game.');
     toast('Add a main.lua to run the game.', { type: 'error' });
@@ -1148,14 +1243,14 @@ function togglePause() {
 function onRunnerState(s) {
   const active = s === 'loading' || s === 'running' || s === 'paused' || s === 'crashed';
   $('#btn-stop').disabled = !active;
-  $('#btn-restart').disabled = !active && !state.hasRun;
   $('#btn-pause').disabled = !(s === 'running' || s === 'paused');
   $('#btn-pause').setAttribute('aria-pressed', String(s === 'paused'));
   $('#btn-pause').title = s === 'paused' ? 'Resume (F8)' : 'Pause (F8)';
   $('#btn-pause').setAttribute('aria-label', s === 'paused' ? 'Resume' : 'Pause');
   $('#btn-pause').replaceChildren(icon(s === 'paused' ? 'play' : 'pause'));
   $('#btn-run').classList.toggle('running', active);
-  $('#btn-run').title = active ? 'Save and restart (F5 or Ctrl+Enter)' : 'Save and run (F5 or Ctrl+Enter)';
+  $('#btn-run').title = active ? 'Restart the game (F5)' : 'Play the game (F5)';
+  $('#btn-run .label').textContent = active ? 'Restart' : 'Play';
   $('#game-empty').hidden = active;
   $('#game-loading').hidden = s !== 'loading';
   $('#game-paused').hidden = s !== 'paused';
@@ -1309,15 +1404,13 @@ async function share() {
   });
 }
 
-function showExportMenu() {
-  showMenu($('#btn-export'), [
-    { heading: 'Export' },
-    { label: 'Export for web (.zip for itch.io)', icon: 'globe', action: exportWeb },
-    { label: 'Download project (.zip)', icon: 'archive', action: exportProject },
-    { label: 'Download .love (desktop LÖVE)', icon: 'package', action: exportLove },
+function showShareMenu() {
+  showMenu($('#btn-share'), [
+    { label: 'Copy a link to this game', icon: 'link', action: share },
+    { label: 'Export for itch.io (web .zip)', icon: 'globe', action: exportWeb },
     '-',
-    { label: 'Open game in new window', icon: 'popout', action: popOutGame },
-    { label: 'Copy share link', icon: 'link', action: share },
+    { label: 'Download the project (.zip)', icon: 'archive', action: exportProject },
+    { label: 'Download a .love for desktop LÖVE', icon: 'package', action: exportLove },
   ]);
 }
 
@@ -1349,8 +1442,7 @@ function commandList() {
       { id: 'pause', label: 'Pause or resume game', keys: [['F8']], icon: 'pause', run: togglePause },
       { id: 'autorun', label: () => `${settings.get('autorun') ? 'Turn off' : 'Turn on'} run after saving`, icon: 'zap', run: () => toggleSetting('autorun', 'Run after saving') },
       { id: 'fullscreen', label: 'Game fullscreen', icon: 'maximize', run: toggleGameFullscreen },
-      { id: 'gameFocus', label: 'Focus on the game', keys: [[m, 'Shift', 'F']], icon: 'expand', run: () => setGameFocus(!$('#app').classList.contains('game-focus')) },
-      { id: 'pixelPerfect', label: () => `${settings.get('scaleMode') === 'integer' ? 'Turn off' : 'Turn on'} pixel-perfect scaling`, icon: 'grid', run: togglePixelPerfect },
+      { id: 'runScene', label: 'Play from the scene you are editing', keys: [['F6']], icon: 'map', run: () => runScene() },
       { id: 'popout', label: 'Open game in a new window', icon: 'popout', run: popOutGame },
       { id: 'compat', label: 'Check web compatibility', icon: 'alert', run: async () => { await saveAll({ quiet: true }); consolePanel.separator('Web compatibility'); const n = await reportCompat(await collectFiles()); if (!(state.problems || []).length) flashStatus('No web compatibility issues'); else if (n) showProblems(); } },
     ]],
@@ -1367,10 +1459,11 @@ function commandList() {
       { id: 'import', label: 'Import files', icon: 'upload', run: () => importTarget('files', '') },
     ]],
     ['Create', [
-      { id: 'newScript', label: 'New script', icon: 'code', run: () => createAsset('script') },
+      { id: 'newScene', label: 'New scene', icon: 'map', run: () => createAsset('Scene') },
+      { id: 'newObject', label: 'New object', icon: 'gamepad', run: () => createAsset('Object') },
       { id: 'newSprite', label: 'New sprite', icon: 'image', run: () => createAsset('Sprite') },
       { id: 'newTileset', label: 'New tileset', icon: 'grid', run: () => createAsset('Tileset') },
-      { id: 'newMap', label: 'New map', icon: 'map', run: () => createAsset('Map') },
+      { id: 'newScript', label: 'New script', icon: 'code', run: () => createAsset('script') },
       { id: 'newSound', label: 'New sound effect', icon: 'wave', run: () => createAsset('Sound effect') },
       { id: 'newSong', label: 'New song', icon: 'music', run: () => createAsset('Song') },
     ]],
@@ -1400,9 +1493,7 @@ function commandList() {
       { id: 'settings', label: 'Settings', keys: [[m, ',']], icon: 'settings', run: () => showSettings() },
       { id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', run: () => showSettings('shortcuts') },
       { id: 'sidebar', label: 'Toggle side panel', keys: [[m, 'B']], icon: 'sidebar', run: () => setSidebarVisible($('#app').classList.contains('sidebar-hidden')) },
-      ...['files', 'code', 'art', 'maps', 'sounds', 'music'].map((v, i) => ({
-        id: `view-${v}`, label: `Show ${VIEWS[v].title.toLowerCase()}`, keys: [[alt, String(i + 1)]], icon: VIEWS[v].icon, run: () => onActivity(v),
-      })),
+      { id: 'allFiles', label: () => (state.allFiles ? 'Show assets' : 'Show all files'), keys: [[m, 'Shift', 'E']], icon: 'folder', run: () => setFilesMode(!state.allFiles) },
       { id: 'gamePanel', label: 'Show or hide the game panel', keys: [[m, 'Shift', 'G']], icon: 'gamepad', run: () => setGamePanelVisible($('#app').classList.contains('right-hidden')) },
       { id: 'console', label: 'Show or hide the console', keys: [[m, 'J']], icon: 'terminal', run: () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')) },
       { id: 'theme', label: () => `Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} theme`, icon: 'sun', run: () => settings.set('theme', document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark') },
@@ -1468,7 +1559,6 @@ function onSettingChanged(key, value) {
     case 'consoleTimestamps': consolePanel.setTimestamps(value); break;
     case 'consoleWrap': consolePanel.setWrap(value); break;
     case 'autoSave': clearTimeout(autoSaveTimer); break;
-    case 'scaleMode': $('#btn-pixel-perfect').setAttribute('aria-pressed', String(value === 'integer')); break;
     default: break;
   }
   if (['tabSize', 'insertSpaces', 'wordWrap', 'lineNumbers', 'highlightActiveLine', 'closeBrackets', 'autocomplete', 'showWhitespace'].includes(key)) {
@@ -1478,6 +1568,7 @@ function onSettingChanged(key, value) {
 }
 
 function updateIndentStatus() {
+  if (!$('#status-indent')) return;
   $('#status-indent').textContent = settings.get('insertSpaces') ? `Spaces: ${settings.get('tabSize')}` : `Tab size: ${settings.get('tabSize')}`;
 }
 
@@ -1514,30 +1605,18 @@ function goToSymbol() {
 // ---------------------------------------------------------------------------
 // Side panel views, project settings, game focus
 
-/** Show a section of the side panel: 'files' (the tree) or an asset view. */
-function setView(view) {
-  if (!VIEWS[view]) view = 'files';
-  state.view = view;
-  LS.set('smitten-editor.view', view);
-  for (const b of document.querySelectorAll('#activity-bar .activity[data-view]')) {
-    b.setAttribute('aria-pressed', String(b.dataset.view === view));
-  }
-  $('#sidebar-title').textContent = VIEWS[view].title;
-  const files = view === 'files';
-  $('#file-tree').hidden = !files;
-  $('#sidebar-actions').hidden = !files;
-  $('#asset-view').hidden = files;
-  assets.setView(view);
-}
-
-/** Activity bar: open a section, or hide the side panel when it's already showing. */
-function onActivity(view) {
-  const hidden = $('#app').classList.contains('sidebar-hidden');
-  if (state.view === view && !hidden) setSidebarVisible(false);
-  else {
-    setView(view);
-    setSidebarVisible(true);
-  }
+/** The side panel shows assets grouped by kind, or (allFiles) the plain file tree. */
+function setFilesMode(allFiles) {
+  state.allFiles = allFiles;
+  LS.set('smitten-editor.allFiles', allFiles);
+  $('#sidebar-title').textContent = allFiles ? 'All files' : 'Assets';
+  $('#btn-all-files').setAttribute('aria-pressed', String(allFiles));
+  $('#btn-all-files').title = allFiles ? 'Show assets (Ctrl+Shift+E)' : 'Show all files (Ctrl+Shift+E)';
+  $('#file-tree').hidden = !allFiles;
+  $('#sidebar-actions').hidden = !allFiles;
+  $('#asset-view').hidden = allFiles;
+  assets.show(!allFiles);
+  if (allFiles) tree.render();
 }
 
 async function editProjectSettings() {
@@ -1606,14 +1685,6 @@ function showSmittenApi() {
   });
 }
 
-function setGameFocus(on) {
-  $('#app').classList.toggle('game-focus', on);
-  $('#btn-game-focus').setAttribute('aria-pressed', String(on));
-  $('#btn-game-focus').title = on ? 'Back to the editor (Ctrl+Shift+F)' : 'Focus on the game (Ctrl+Shift+F)';
-  editor?.remeasure?.();
-  if (on) runner.focus();
-}
-
 function setGamePanelVisible(visible) {
   $('#app').classList.toggle('right-hidden', !visible);
   $('#btn-toggle-game').setAttribute('aria-pressed', String(visible));
@@ -1625,12 +1696,6 @@ function setConsoleCollapsed(collapsed) {
   $('#app').classList.toggle('console-collapsed', collapsed);
   $('#console-toggle').setAttribute('aria-expanded', String(!collapsed));
   LS.set('smitten-editor.consoleCollapsed', collapsed);
-}
-
-function togglePixelPerfect() {
-  settings.set('scaleMode', settings.get('scaleMode') === 'integer' ? 'fit' : 'integer');
-  flashStatus(`Pixel-perfect scaling: ${settings.get('scaleMode') === 'integer' ? 'on' : 'off'}`);
-  if (runner.active) run({ focus: false });
 }
 
 function setSidebarVisible(visible, persist = true) {
@@ -1655,6 +1720,7 @@ function handleShortcut(e, fromGame = false) {
   if (!fromGame && key !== 'F5' && tools.handleKey(e)) return true;
 
   if (key === 'F5' && !mod) { if (e.shiftKey) stop(); else run(); return true; }
+  if (key === 'F6' && !mod) { runScene(); return true; }
   if (mod && key === 'Enter') { run(); return true; }
   if (key === 'F8') { togglePause(); return true; }
   if (mod && lower === 's') { if (e.shiftKey) saveAll(); else saveActive(); return true; }
@@ -1670,15 +1736,11 @@ function handleShortcut(e, fromGame = false) {
   if (mod && !e.shiftKey && lower === 'p') { quickOpen(); return true; }
   if (mod && !e.shiftKey && lower === 'o') { openProjectsDialog(); return true; }
   if (mod && !e.shiftKey && lower === 'b') { setSidebarVisible($('#app').classList.contains('sidebar-hidden')); return true; }
-  if (e.altKey && !mod && !e.shiftKey && /^Digit[1-6]$/.test(e.code)) {
-    onActivity(['files', 'code', 'art', 'maps', 'sounds', 'music'][Number(e.code.slice(5)) - 1]);
-    return true;
-  }
+  if (mod && e.shiftKey && lower === 'e') { setFilesMode(!state.allFiles); if (!$('#app').classList.contains('sidebar-hidden')) return true; setSidebarVisible(true); return true; }
   if (mod && !e.shiftKey && lower === 'j') { setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')); return true; }
-  if (mod && e.shiftKey && lower === 'f') { setGameFocus(!$('#app').classList.contains('game-focus')); return true; }
   if (mod && e.shiftKey && lower === 'g') { setGamePanelVisible($('#app').classList.contains('right-hidden')); return true; }
   if (mod && e.shiftKey && lower === 'h') { showHome(); return true; }
-  if (key === 'Escape' && $('#app').classList.contains('game-focus')) { setGameFocus(false); return true; }
+
   if (e.altKey && !mod && e.code === 'KeyW') { closeTab(state.active); return true; }
   if (e.altKey && !mod && e.code === 'KeyN') { newFile(''); return true; }
   if (e.altKey && !mod && e.code === 'BracketRight') { cycleTab(1); return true; }
@@ -1697,26 +1759,24 @@ function wireUi() {
   $('#btn-run').addEventListener('click', () => run());
   $('#btn-run-big').addEventListener('click', () => run());
   $('#btn-stop').addEventListener('click', stop);
-  $('#btn-restart').addEventListener('click', () => run());
+  $('#btn-run-scene').addEventListener('click', () => runScene());
   $('#btn-pause').addEventListener('click', togglePause);
   $('#btn-project').addEventListener('click', showProjectMenu);
-  $('#btn-project-settings').addEventListener('click', editProjectSettings);
-  $('#status-resolution').addEventListener('click', editProjectSettings);
-  for (const b of document.querySelectorAll('#activity-bar .activity[data-view]')) {
-    b.addEventListener('click', () => onActivity(b.dataset.view));
-  }
+  $('#btn-all-files').addEventListener('click', () => setFilesMode(!state.allFiles));
+  $('#console-search').addEventListener('click', () => {
+    const filter = $('#console-filter');
+    filter.hidden = !filter.hidden;
+    $('#console-search').setAttribute('aria-pressed', String(!filter.hidden));
+    if (filter.hidden) { filter.value = ''; filter.dispatchEvent(new Event('input')); } else filter.focus();
+  });
   $('#tab-home').addEventListener('click', showHome);
   $('.brand').addEventListener('click', (e) => { e.preventDefault(); showHome(); });
-  $('#btn-pixel-perfect').addEventListener('click', togglePixelPerfect);
-  $('#btn-game-focus').addEventListener('click', () => setGameFocus(!$('#app').classList.contains('game-focus')));
   $('#btn-toggle-game').addEventListener('click', () => setGamePanelVisible($('#app').classList.contains('right-hidden')));
   $('#console-toggle').addEventListener('click', () => setConsoleCollapsed(!$('#app').classList.contains('console-collapsed')));
-  $('#btn-share').addEventListener('click', share);
-  $('#btn-export').addEventListener('click', showExportMenu);
+  $('#btn-share').addEventListener('click', showShareMenu);
   $('#btn-help').addEventListener('click', showHelpMenu);
   $('#btn-settings').addEventListener('click', () => showSettings());
   $('#status-cursor').addEventListener('click', () => editor.openGotoLine());
-  $('#status-indent').addEventListener('click', () => showSettings('editor'));
   $('#status-problems').addEventListener('click', showProblems);
   updateIndentStatus();
 

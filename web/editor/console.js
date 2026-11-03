@@ -36,11 +36,12 @@ export class ConsolePanel {
       this.filterText = controls.filter.value.toLowerCase();
       this.applyFilter();
     });
-    controls.level.addEventListener('change', () => {
+    controls.level?.addEventListener('change', () => {
       this.level = controls.level.value;
       this.applyFilter();
     });
-    controls.autoscroll.addEventListener('click', () => this.setAutoscroll(!this.autoscroll));
+    // Without a button, scrolling follows the output while you're at the bottom.
+    controls.autoscroll?.addEventListener('click', () => this.setAutoscroll(!this.autoscroll));
     controls.clear.addEventListener('click', () => this.clear());
     controls.copy?.addEventListener('click', () => this.copyAll());
     root.addEventListener('scroll', () => {
@@ -60,7 +61,7 @@ export class ConsolePanel {
 
   setAutoscroll(on) {
     this.autoscroll = on;
-    this.controls.autoscroll.setAttribute('aria-pressed', String(on));
+    this.controls.autoscroll?.setAttribute('aria-pressed', String(on));
     if (on) this.scrollToEnd();
   }
 
