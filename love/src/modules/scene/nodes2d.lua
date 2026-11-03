@@ -1,8 +1,8 @@
--- 2D nodes: Node2D's transform, Sprite2D, Shape2D, Text2D, Camera2D and
--- Particles2D, and the 2D renderer.
+-- The pieces you see: Group's position, Sprite, Shape, Text, Camera and
+-- Particles, and the renderer.
 --
--- Positions are relative to the parent. A node's global transform is the
--- 2D affine matrix [a c tx; b d ty] of its Node2D ancestors and itself; it's
+-- Positions are measured from the parent. A piece's world transform is the
+-- affine matrix [a c tx; b d ty] of its Group ancestors and itself; it's
 -- worked out when needed rather than kept up to date, since properties are
 -- plain fields that scripts change freely.
 
@@ -13,21 +13,22 @@ local cos, sin, atan2, sqrt, floor = math.cos, math.sin, math.atan2, math.sqrt, 
 
 local M = {}
 
-local function isNode2D(n)
-	return n.x ~= nil and n.scaleX ~= nil and n.rotation ~= nil
+-- Groups and everything made from them (not UI, timers or sounds).
+local function hasPosition(n)
+	return n.scaleX ~= nil and n.rotation ~= nil
 end
-M.isNode2D = isNode2D
+M.hasPosition = hasPosition
 
----The global transform of a node: a, b, c, d, tx, ty.
+---The world transform of a piece: a, b, c, d, tx, ty.
 local function globalMatrix(n)
 	local a, b, c, d, tx, ty = 1, 0, 0, 1, 0, 0
 	local chain = nil
 	local p = n
-	-- Collect Node2D ancestors (stopping at UI or 3D nodes).
+	-- Collect the Group ancestors.
 	local depth = 0
 	local stack = M._stack
 	while p do
-		if isNode2D(p) then
+		if hasPosition(p) then
 			depth = depth + 1
 			stack[depth] = p
 		end
@@ -48,19 +49,19 @@ end
 M._stack = {}
 M.globalMatrix = globalMatrix
 
-local Node2D = nodeLib.classes.Node2D
+local Group = nodeLib.classes.Group
 
-function Node2D:getGlobalPosition()
+function Group:worldPosition()
 	local _, _, _, _, tx, ty = globalMatrix(self)
 	return tx, ty
 end
 
-function Node2D:toGlobal(x, y)
+function Group:toWorld(x, y)
 	local a, b, c, d, tx, ty = globalMatrix(self)
 	return a * x + c * y + tx, b * x + d * y + ty
 end
 
-function Node2D:toLocal(x, y)
+function Group:fromWorld(x, y)
 	local a, b, c, d, tx, ty = globalMatrix(self)
 	local det = a * d - b * c
 	if det == 0 then return 0, 0 end
@@ -68,49 +69,49 @@ function Node2D:toLocal(x, y)
 	return (d * x - c * y) / det, (a * y - b * x) / det
 end
 
-function Node2D:setGlobalPosition(x, y)
+function Group:setWorldPosition(x, y)
 	local p = self.parent
-	if p and isNode2D(p) then
-		x, y = p:toLocal(x, y)
+	if p and hasPosition(p) then
+		x, y = p:fromWorld(x, y)
 	elseif p then
-		-- A non-2D parent (a plain Node) passes its own parent's transform on.
+		-- A parent without a position (a Timer, a Sound) passes its own parent's on.
 		local q = p
-		while q and not isNode2D(q) do q = q.parent end
-		if q then x, y = q:toLocal(x, y) end
+		while q and not hasPosition(q) do q = q.parent end
+		if q then x, y = q:fromWorld(x, y) end
 	end
 	self.x, self.y = x, y
 end
 
 local function point(a, b, c)
-	if type(a) == "table" then return a:getGlobalPosition() end
+	if type(a) == "table" then return a:worldPosition() end
 	return a, b
 end
 
-function Node2D:distanceTo(a, b)
-	local x, y = self:getGlobalPosition()
+function Group:distanceTo(a, b)
+	local x, y = self:worldPosition()
 	local px, py = point(a, b)
 	return sqrt((px - x) ^ 2 + (py - y) ^ 2)
 end
 
-function Node2D:angleTo(a, b)
-	local x, y = self:getGlobalPosition()
+function Group:angleTo(a, b)
+	local x, y = self:worldPosition()
 	local px, py = point(a, b)
 	return atan2(py - y, px - x)
 end
 
-function Node2D:lookAt(x, y)
-	local gx, gy = self:getGlobalPosition()
+function Group:lookAt(x, y)
+	local gx, gy = self:worldPosition()
 	local parentRot = 0
 	local p = self.parent
 	while p do
-		if isNode2D(p) then parentRot = parentRot + p.rotation end
+		if hasPosition(p) then parentRot = parentRot + p.rotation end
 		p = p.parent
 	end
 	self.rotation = atan2(y - gy, x - gx) - parentRot
 end
 
-function Node2D:moveToward(x, y, distance)
-	local gx, gy = self:getGlobalPosition()
+function Group:moveToward(x, y, distance)
+	local gx, gy = self:worldPosition()
 	local dx, dy = x - gx, y - gy
 	local len = sqrt(dx * dx + dy * dy)
 	if len <= distance or len == 0 then
@@ -121,35 +122,35 @@ function Node2D:moveToward(x, y, distance)
 	return false
 end
 
-function Node2D:translate(dx, dy)
+function Group:translate(dx, dy)
 	self.x, self.y = self.x + dx, self.y + dy
 end
 
 ---------------------------------------------------------------------------
--- Sprite2D
+-- Sprite
 
-local Sprite2D = nodeLib.classes.Sprite2D
+local Sprite = nodeLib.classes.Sprite
 
--- The sprite sheet behind a node's image property: a .sprite file's data,
--- or a plain image cut into hframes x vframes.
+-- The sprite sheet behind a Sprite's image: a .sprite file's data, or a
+-- plain picture cut into columns x rows.
 local function sheetOf(self)
 	local path = self.image
 	if path == nil or path == "" then return nil end
-	if self._sheetPath == path and self._sheetH == self.hframes and self._sheetV == self.vframes then
+	if self._sheetPath == path and self._sheetH == self.columns and self._sheetV == self.rows then
 		return self._sheet
 	end
 	local sheet
 	if path:match("%.sprite$") then
 		sheet = assets.sprite(path)
 	else
-		sheet = assets.sheet(path, self.hframes, self.vframes)
+		sheet = assets.sheet(path, self.columns, self.rows)
 	end
-	self._sheet, self._sheetPath, self._sheetH, self._sheetV = sheet, path, self.hframes, self.vframes
+	self._sheet, self._sheetPath, self._sheetH, self._sheetV = sheet, path, self.columns, self.rows
 	return sheet
 end
 M.sheetOf = sheetOf
 
-function Sprite2D:_enter()
+function Sprite:_enter()
 	self._time = 0
 	local sheet = sheetOf(self)
 	if sheet and (self.animation == nil or self.animation == "") and sheet.defaultAnimation then
@@ -157,7 +158,7 @@ function Sprite2D:_enter()
 	end
 end
 
-function Sprite2D:_process(dt)
+function Sprite:_process(dt)
 	if not self.playing then return end
 	local sheet = sheetOf(self)
 	if not sheet then return end
@@ -184,7 +185,7 @@ function Sprite2D:_process(dt)
 	self.frame = frames[i + 1]
 end
 
-function Sprite2D:play(name)
+function Sprite:play(name)
 	if name and name ~= self.animation then
 		local sheet = sheetOf(self)
 		if sheet and not sheet.animations[name] then
@@ -203,18 +204,24 @@ function Sprite2D:play(name)
 	self.playing = true
 end
 
-function Sprite2D:stop()
+function Sprite:stop()
 	self.playing = false
 end
 
-function Sprite2D:getSize()
+---True if the sprite's .sprite file has an animation with this name.
+function Sprite:hasAnimation(name)
+	local sheet = sheetOf(self)
+	return sheet ~= nil and sheet.animations[name] ~= nil
+end
+
+function Sprite:getSize()
 	local sheet = sheetOf(self)
 	if not sheet then return 0, 0 end
 	return sheet.frameWidth, sheet.frameHeight
 end
 
 ---The rectangle the sprite covers, in its own coordinates: x, y, w, h.
-function Sprite2D:getRect()
+function Sprite:getRect()
 	local sheet = sheetOf(self)
 	if not sheet then return 0, 0, 0, 0 end
 	local ox, oy = sheet.originX, sheet.originY
@@ -225,7 +232,7 @@ function Sprite2D:getRect()
 	return -ox, -oy, sheet.frameWidth, sheet.frameHeight
 end
 
-function Sprite2D:_draw()
+function Sprite:_draw()
 	local sheet = sheetOf(self)
 	if not sheet then return end
 	local quad = sheet.quads[(self.frame % sheet.frameCount) + 1]
@@ -235,11 +242,11 @@ function Sprite2D:_draw()
 end
 
 ---------------------------------------------------------------------------
--- Shape2D
+-- Shape
 
-local Shape2D = nodeLib.classes.Shape2D
+local Shape = nodeLib.classes.Shape
 
-function Shape2D:_draw(tr, tg, tb, ta)
+function Shape:_draw(tr, tg, tb, ta)
 	local c = self.color
 	love.graphics.setColor(c[1] * tr, c[2] * tg, c[3] * tb, (c[4] or 1) * ta)
 	local mode = self.filled and "fill" or "line"
@@ -266,7 +273,7 @@ function Shape2D:_draw(tr, tg, tb, ta)
 	end
 end
 
-function Shape2D:getRect()
+function Shape:getRect()
 	local shape = self.shape
 	if shape == "rectangle" then
 		local w, h = self.width, self.height
@@ -285,11 +292,11 @@ function Shape2D:getRect()
 end
 
 ---------------------------------------------------------------------------
--- Text2D
+-- Text
 
-local Text2D = nodeLib.classes.Text2D
+local Text = nodeLib.classes.Text
 
-function Text2D:_draw(tr, tg, tb, ta)
+function Text:_draw(tr, tg, tb, ta)
 	local font, scale = assets.font(self.font, self.size, M.textScale)
 	local c = self.color
 	love.graphics.setColor(c[1] * tr, c[2] * tg, c[3] * tb, (c[4] or 1) * ta)
@@ -308,18 +315,18 @@ function Text2D:_draw(tr, tg, tb, ta)
 end
 
 ---------------------------------------------------------------------------
--- Camera2D
+-- Camera
 
-local Camera2D = nodeLib.classes.Camera2D
+local Camera = nodeLib.classes.Camera
 local cameras = {}
 
-function Camera2D:_enter()
+function Camera:_enter()
 	cameras[#cameras + 1] = self
 	self._cx, self._cy = nil, nil
 	self._shake, self._shakeTime, self._shakeLeft = 0, 0, 0
 end
 
-function Camera2D:_exit()
+function Camera:_exit()
 	for i = #cameras, 1, -1 do
 		if cameras[i] == self then table.remove(cameras, i) end
 	end
@@ -328,14 +335,14 @@ end
 local function currentCamera()
 	for i = 1, #cameras do
 		local c = cameras[i]
-		if c.current and c._inside then return c end
+		if c.active and c._inside then return c end
 	end
 	return nil
 end
 M.currentCamera = currentCamera
 
-function Camera2D:_process(dt)
-	local x, y = self:getGlobalPosition()
+function Camera:_process(dt)
+	local x, y = self:worldPosition()
 	if self._cx == nil or self.smoothing <= 0 then
 		self._cx, self._cy = x, y
 	else
@@ -348,7 +355,7 @@ function Camera2D:_process(dt)
 	end
 end
 
-function Camera2D:shake(strength, seconds)
+function Camera:shake(strength, seconds)
 	self._shake = strength or 6
 	self._shakeTime = seconds or 0.3
 	self._shakeLeft = self._shakeTime
@@ -364,7 +371,7 @@ local function cameraMatrix()
 	local zoom = cam.zoom
 	local cx, cy = cam._cx or 0, cam._cy or 0
 	local hw, hh = vw / 2 / zoom, vh / 2 / zoom
-	local l, t, r, b = cam.limitLeft, cam.limitTop, cam.limitRight, cam.limitBottom
+	local l, t, r, b = cam.left, cam.top, cam.right, cam.bottom
 	if l and r and r - l < hw * 2 then cx = (l + r) / 2
 	else
 		if l and cx - hw < l then cx = l + hw end
@@ -398,13 +405,13 @@ function M.toScreen(x, y)
 	return a * x + c * y + tx, b * x + d * y + ty
 end
 
-function Camera2D:toWorld(sx, sy) return M.toWorld(sx, sy) end
-function Camera2D:toScreen(x, y) return M.toScreen(x, y) end
+function Camera:screenToWorld(sx, sy) return M.toWorld(sx, sy) end
+function Camera:worldToScreen(x, y) return M.toScreen(x, y) end
 
 ---------------------------------------------------------------------------
--- Particles2D
+-- Particles
 
-local Particles2D = nodeLib.classes.Particles2D
+local Particles = nodeLib.classes.Particles
 local particleImage
 
 local function softDot()
@@ -428,7 +435,7 @@ local function configure(self)
 		self._ps, self._psImage = ps, img
 	end
 	local iw = img:getWidth()
-	ps:setEmissionRate(self.oneShot and 0 or self.rate)
+	ps:setEmissionRate(self.burst and 0 or self.rate)
 	local life = math.max(0.01, self.lifetime)
 	ps:setParticleLifetime(life * 0.8, life)
 	local spr = self.speedRandom
@@ -443,42 +450,42 @@ local function configure(self)
 	return ps
 end
 
-function Particles2D:_enter()
+function Particles:_enter()
 	configure(self)
-	if self.oneShot and self.emitting then self._ps:emit(math.floor(self.rate)) end
+	if self.burst and self.emitting then self._ps:emit(math.floor(self.rate)) end
 end
 
-function Particles2D:_process(dt)
+function Particles:_process(dt)
 	local ps = configure(self)
-	if self.emitting and not self.oneShot then
+	if self.emitting and not self.burst then
 		if not ps:isActive() then ps:start() end
 	elseif ps:isActive() then
 		ps:pause()
 	end
-	if not self.localCoords then
-		-- Particles stay where they were born: emit at the node's global position.
-		local x, y = self:getGlobalPosition()
+	if not self.followPiece then
+		-- Particles stay where they were born: emit at the piece's world position.
+		local x, y = self:worldPosition()
 		ps:moveTo(x, y)
 	end
 	ps:update(dt)
 end
 
-function Particles2D:emit(count)
+function Particles:emit(count)
 	configure(self):emit(count or 1)
 end
 
-function Particles2D:restart()
+function Particles:restart()
 	configure(self):reset()
-	if self.oneShot then self._ps:emit(math.floor(self.rate)) end
+	if self.burst then self._ps:emit(math.floor(self.rate)) end
 end
 
-function Particles2D:_draw(tr, tg, tb, ta)
-	if self._ps and self.localCoords then love.graphics.draw(self._ps) end
+function Particles:_draw(tr, tg, tb, ta)
+	if self._ps and self.followPiece then love.graphics.draw(self._ps) end
 end
 
 -- Particles that stay where they were born are drawn in scene coordinates.
-function Particles2D:_drawWorld(tr, tg, tb, ta)
-	if self._ps and not self.localCoords then love.graphics.draw(self._ps) end
+function Particles:_drawWorld(tr, tg, tb, ta)
+	if self._ps and not self.followPiece then love.graphics.draw(self._ps) end
 end
 
 ---------------------------------------------------------------------------
@@ -496,7 +503,7 @@ end
 
 local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 	if n._dead then return end
-	local is2d = isNode2D(n)
+	local is2d = hasPosition(n)
 	if is2d then
 		if not n.visible then return end
 		local r = n.rotation
@@ -507,8 +514,8 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 		a, b, c, d = a * la + c * lb, b * la + d * lb, a * lc + c * ld, b * lc + d * ld
 		local t = n.tint
 		tr, tg, tb, ta = tr * t[1], tg * t[2], tb * t[3], ta * (t[4] or 1)
-		z = z + n.z
-		if n._draw or n.draw then
+		z = z + n.layer
+		if n._draw or n.draw or n._drawWorld then
 			count = count + 1
 			order = order + 1
 			local it = items[count]
@@ -519,8 +526,6 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 			it.node, it.a, it.b, it.c, it.d, it.tx, it.ty = n, a, b, c, d, tx, ty
 			it.r, it.g, it.bl, it.al, it.z, it.order = tr, tg, tb, ta, z, order
 		end
-	elseif n.x ~= nil and n.rotationX ~= nil then
-		return -- a 3D subtree
 	elseif n.anchor ~= nil then
 		return -- UI is drawn separately, on top
 	end
@@ -536,7 +541,7 @@ local function byZ(p, q)
 	return p.order < q.order
 end
 
----Draws the 2D nodes of a tree (called by love.scene).
+---Draws the pieces of a tree (called by love.scene).
 function M.render(root)
 	count, order = 0, 0
 	local ca, cb, cc, cd, ctx, cty = cameraMatrix()

@@ -1,0 +1,373 @@
+{
+  "version": 2,
+  "groups": [
+    { "id": "basic", "name": "Basic" },
+    { "id": "visual", "name": "Things you see" },
+    { "id": "physics", "name": "Bodies and zones" },
+    { "id": "ui", "name": "On-screen UI" },
+    { "id": "sound", "name": "Sound" }
+  ],
+  "types": {
+    "Piece": {
+      "group": "basic", "icon": "piece", "abstract": true,
+      "description": "Everything in a scene is a piece. Pieces nest: a piece's children belong to it.",
+      "properties": {},
+      "methods": {
+        "find": { "args": "path", "doc": "A child by name, or a deeper piece by path (\"UI/Score\"); nil if there isn't one." },
+        "findDeep": { "args": "name", "doc": "The first piece with this name anywhere inside this one." },
+        "findChildOfType": { "args": "type", "doc": "The first child of a type (\"Sprite\"), or nil." },
+        "isA": { "args": "type", "doc": "True if the piece is of a type, or a type made from it." },
+        "add": { "args": "piece", "doc": "Adds a piece as the last child; returns it." },
+        "spawn": { "args": "sceneOrType, properties?", "doc": "Makes a piece from a scene file or a piece type and adds it as a child: self:spawn(\"scenes/bullet.scene\", { x = 10 })." },
+        "destroy": { "args": "", "doc": "Removes the piece and everything inside it at the end of the frame." },
+        "tag": { "args": "name", "doc": "Gives the piece a tag, so smitten.scene.tagged(name) finds it and collisions can filter by it." },
+        "untag": { "args": "name", "doc": "Takes a tag away." },
+        "hasTag": { "args": "name", "doc": "True if the piece has the tag." },
+        "on": { "args": "event, fn", "doc": "Calls fn(...) whenever the piece's event happens (\"pressed\", \"entered\", ...). Returns a handle with :off()." },
+        "emit": { "args": "event, ...", "doc": "Fires an event: calls the script's function of that name and every listener." },
+        "getPath": { "args": "", "doc": "The piece's path from the scene's root, like \"Level/Player\"." },
+        "isAlive": { "args": "", "doc": "True while the piece is in the running scene and not destroyed." }
+      },
+      "events": {
+        "ready": { "args": "", "doc": "The piece and everything inside it have joined the scene." },
+        "update": { "args": "dt", "doc": "Every frame. dt is the time since the last frame, in seconds." },
+        "physicsUpdate": { "args": "dt", "doc": "60 times a second, before bodies move. Use it for movement." },
+        "draw": { "args": "", "doc": "Draw extra things on top of the piece, in its own coordinates." },
+        "removed": { "args": "", "doc": "The piece is leaving the scene." }
+      }
+    },
+    "Group": {
+      "extends": "Piece", "group": "basic", "icon": "group",
+      "description": "A piece with a position. Use it to hold other pieces (they move with it) or to run a script.",
+      "properties": {
+        "x": { "type": "number", "default": 0, "group": "Position", "unit": "px", "description": "Position, measured from the parent." },
+        "y": { "type": "number", "default": 0, "group": "Position", "unit": "px", "description": "Position, measured from the parent. y grows downwards." },
+        "rotation": { "type": "angle", "default": 0, "group": "Position", "description": "Turn, clockwise: radians in code, degrees in the inspector." },
+        "scaleX": { "type": "number", "default": 1, "group": "Position", "step": 0.1, "description": "Width multiplier. Negative mirrors it." },
+        "scaleY": { "type": "number", "default": 1, "group": "Position", "step": 0.1, "description": "Height multiplier. Negative flips it." },
+        "visible": { "type": "bool", "default": true, "group": "Look", "description": "Show this piece and everything inside it." },
+        "tint": { "type": "color", "default": [1, 1, 1, 1], "group": "Look", "description": "Multiplies the colors of this piece and everything inside it." },
+        "layer": { "type": "int", "default": 0, "group": "Look", "description": "Higher layers are drawn on top. Pieces on the same layer draw in scene order." }
+      },
+      "methods": {
+        "worldPosition": { "args": "", "doc": "Where the piece is in the scene (not measured from its parent): x, y." },
+        "setWorldPosition": { "args": "x, y", "doc": "Moves the piece to a place in the scene." },
+        "toWorld": { "args": "x, y", "doc": "A point measured from this piece, as a point in the scene." },
+        "fromWorld": { "args": "x, y", "doc": "A point in the scene, measured from this piece." },
+        "lookAt": { "args": "x, y", "doc": "Turns the piece to face a point in the scene." },
+        "distanceTo": { "args": "pieceOrX, y?", "doc": "Distance in pixels to another piece or a point." },
+        "angleTo": { "args": "pieceOrX, y?", "doc": "Angle in radians towards another piece or a point." },
+        "moveToward": { "args": "x, y, distance", "doc": "Moves at most distance pixels towards a point; true once it's there." },
+        "translate": { "args": "dx, dy", "doc": "Moves the piece by an offset." }
+      }
+    },
+    "Timer": {
+      "extends": "Piece", "group": "basic", "icon": "timer",
+      "description": "Counts down and calls tick() on its script and listeners. For spawn waves, cooldowns and delays.",
+      "properties": {
+        "seconds": { "type": "number", "default": 1, "min": 0, "step": 0.1, "unit": "s", "description": "Time between ticks." },
+        "running": { "type": "bool", "default": false, "description": "Counting. On in the scene file means it starts with the scene." },
+        "loop": { "type": "bool", "default": true, "description": "Keep ticking; off ticks once and stops." }
+      },
+      "methods": {
+        "start": { "args": "seconds?", "doc": "Starts (or restarts) the countdown." },
+        "stop": { "args": "", "doc": "Stops the countdown." }
+      },
+      "fields": { "timeLeft": "Seconds until the next tick." },
+      "events": { "tick": { "args": "", "doc": "The countdown reached zero." } }
+    },
+
+    "Sprite": {
+      "extends": "Group", "group": "visual", "icon": "sprite",
+      "description": "Draws a picture, or an animation from a .sprite file or a sprite sheet.",
+      "properties": {
+        "image": { "type": "resource", "kinds": ["image", "sprite"], "default": "", "group": "Picture", "description": "A picture (.png, .jpg) or a .sprite file with frames and animations." },
+        "animation": { "type": "animation", "default": "", "group": "Picture", "description": "The animation to play, from the .sprite file." },
+        "playing": { "type": "bool", "default": true, "group": "Picture", "description": "Play the animation." },
+        "speed": { "type": "number", "default": 1, "group": "Picture", "step": 0.1, "description": "Animation speed: 2 is twice as fast." },
+        "frame": { "type": "int", "default": 0, "min": 0, "group": "Picture", "description": "The frame shown, counting from 0." },
+        "columns": { "type": "int", "default": 1, "min": 1, "group": "Picture", "description": "For a sprite sheet without a .sprite file: frames across." },
+        "rows": { "type": "int", "default": 1, "min": 1, "group": "Picture", "description": "For a sprite sheet without a .sprite file: frames down." },
+        "centered": { "type": "bool", "default": true, "group": "Picture", "description": "Center the picture on the piece's position (a .sprite file's origin wins)." },
+        "flipX": { "type": "bool", "default": false, "group": "Picture", "description": "Mirror left to right." },
+        "flipY": { "type": "bool", "default": false, "group": "Picture", "description": "Mirror top to bottom." }
+      },
+      "methods": {
+        "play": { "args": "name?", "doc": "Plays an animation (or resumes the current one)." },
+        "hasAnimation": { "args": "name", "doc": "True if the .sprite file has an animation with this name." },
+        "stop": { "args": "", "doc": "Stops the animation on the current frame." },
+        "getSize": { "args": "", "doc": "Width and height of one frame, in pixels." }
+      },
+      "events": { "finished": { "args": "animation", "doc": "A non-looping animation reached its last frame." } }
+    },
+    "Shape": {
+      "extends": "Group", "group": "visual", "icon": "shape",
+      "description": "Draws a rectangle, circle, polygon or line. Good for prototypes, effects and games without art.",
+      "properties": {
+        "shape": { "type": "enum", "options": ["rectangle", "circle", "polygon", "line"], "default": "rectangle", "group": "Shape", "description": "What to draw." },
+        "width": { "type": "number", "default": 64, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
+        "height": { "type": "number", "default": 64, "min": 0, "group": "Shape", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "radius": { "type": "number", "default": 32, "min": 0, "group": "Shape", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "cornerRadius": { "type": "number", "default": 0, "min": 0, "group": "Shape", "unit": "px", "description": "Rounds the rectangle's corners.", "when": { "shape": ["rectangle"] } },
+        "points": { "type": "points", "default": [0, -32, 32, 32, -32, 32], "group": "Shape", "description": "Corner points x1, y1, x2, y2, ...", "when": { "shape": ["polygon", "line"] } },
+        "color": { "type": "color", "default": [0.36, 0.55, 0.95, 1], "group": "Shape", "description": "Fill or line color." },
+        "filled": { "type": "bool", "default": true, "group": "Shape", "description": "Fill the shape; off draws only its outline." },
+        "lineWidth": { "type": "number", "default": 2, "min": 0, "group": "Shape", "unit": "px", "description": "Outline and line thickness." },
+        "centered": { "type": "bool", "default": true, "group": "Shape", "description": "Center the rectangle on the piece's position.", "when": { "shape": ["rectangle"] } }
+      }
+    },
+    "Text": {
+      "extends": "Group", "group": "visual", "icon": "text",
+      "description": "Words in the game world, like a sign or a damage number. For scores and menus, use Label.",
+      "properties": {
+        "text": { "type": "text", "default": "Text", "group": "Text", "description": "What it says." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Text", "description": "A .ttf/.otf font file, \"pixel\" for the built-in pixel font, or empty for the default font." },
+        "size": { "type": "int", "default": 16, "min": 1, "group": "Text", "unit": "px", "description": "Font size." },
+        "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
+        "align": { "type": "enum", "options": ["left", "center", "right"], "default": "center", "group": "Text", "description": "Lines up the text around the piece's position." },
+        "wrap": { "type": "number", "default": 0, "min": 0, "group": "Text", "unit": "px", "description": "Wrap lines longer than this; 0 never wraps." }
+      }
+    },
+    "Tiles": {
+      "extends": "Group", "group": "visual", "icon": "tiles",
+      "description": "A grid of tiles from a tileset, painted in the scene view. Tiles marked solid are walls and floors that bodies can't pass.",
+      "properties": {
+        "tileset": { "type": "resource", "kinds": ["tileset"], "default": "", "group": "Tiles", "description": "The .tileset file: a picture cut into tiles, with settings such as solid." },
+        "cells": { "type": "cells", "default": null, "hidden": true, "description": "The painted tiles." },
+        "solid": { "type": "bool", "default": true, "group": "Tiles", "description": "Tiles marked solid block bodies. Off makes every tile just decoration." }
+      },
+      "methods": {
+        "getTile": { "args": "column, row", "doc": "The tile number in a cell, or -1 if it's empty." },
+        "setTile": { "args": "column, row, tile", "doc": "Changes a cell (-1 empties it)." },
+        "tileInfo": { "args": "tile", "doc": "The settings of a tile in the tileset (solid, name, ...)." },
+        "cellAt": { "args": "x, y", "doc": "The cell under a point in the scene: column, row." },
+        "cellPosition": { "args": "column, row", "doc": "The scene position of a cell's top-left corner." },
+        "cellsWith": { "args": "tile?", "doc": "A list of {column, row, tile} for every painted cell (or every cell with that tile)." }
+      }
+    },
+    "Camera": {
+      "extends": "Group", "group": "visual", "icon": "camera",
+      "description": "Decides which part of the scene is on screen. Put it inside the player to follow them.",
+      "properties": {
+        "active": { "type": "bool", "default": true, "group": "Camera", "description": "Use this camera. When several are active, the first in the scene wins." },
+        "zoom": { "type": "number", "default": 1, "min": 0.01, "step": 0.1, "group": "Camera", "description": "2 shows everything twice as big." },
+        "smoothing": { "type": "number", "default": 0, "min": 0, "step": 1, "group": "Camera", "description": "How gently it catches up: 0 sticks exactly, 5 glides." },
+        "left": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything left of this (empty for no edge)." },
+        "top": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything above this." },
+        "right": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything right of this." },
+        "bottom": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Don't show anything below this." }
+      },
+      "methods": {
+        "shake": { "args": "strength?, seconds?", "doc": "Shakes the view: shake(6, 0.3)." },
+        "screenToWorld": { "args": "sx, sy", "doc": "A point on the screen, as a point in the scene." },
+        "worldToScreen": { "args": "x, y", "doc": "A point in the scene, as a point on the screen." }
+      }
+    },
+    "Particles": {
+      "extends": "Group", "group": "visual", "icon": "particles",
+      "description": "Sprays particles: smoke, sparks, dust, rain, explosions.",
+      "properties": {
+        "emitting": { "type": "bool", "default": true, "group": "Emission", "description": "Make new particles." },
+        "rate": { "type": "number", "default": 30, "min": 0, "group": "Emission", "unit": "/s", "description": "Particles per second." },
+        "burst": { "type": "bool", "default": false, "group": "Emission", "description": "Make one burst of rate particles, then stop." },
+        "lifetime": { "type": "number", "default": 1, "min": 0, "step": 0.1, "group": "Emission", "unit": "s", "description": "How long each particle lives." },
+        "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Look", "description": "The particle picture; empty draws soft dots." },
+        "speed": { "type": "number", "default": 100, "group": "Motion", "unit": "px/s", "description": "Starting speed." },
+        "speedRandom": { "type": "number", "default": 0.5, "min": 0, "max": 1, "step": 0.05, "group": "Motion", "description": "How much the speed varies (0 to 1)." },
+        "direction": { "type": "angle", "default": -1.5708, "group": "Motion", "description": "Direction particles fly in." },
+        "spread": { "type": "angle", "default": 0.5, "group": "Motion", "description": "How far directions vary either side." },
+        "gravityX": { "type": "number", "default": 0, "group": "Motion", "unit": "px/s²", "description": "Constant pull, sideways." },
+        "gravityY": { "type": "number", "default": 0, "group": "Motion", "unit": "px/s²", "description": "Constant pull, down." },
+        "sizeStart": { "type": "number", "default": 8, "min": 0, "group": "Look", "unit": "px", "description": "Size when born." },
+        "sizeEnd": { "type": "number", "default": 2, "min": 0, "group": "Look", "unit": "px", "description": "Size when it fades." },
+        "colorStart": { "type": "color", "default": [1, 0.85, 0.4, 1], "group": "Look", "description": "Color when born." },
+        "colorEnd": { "type": "color", "default": [1, 0.3, 0.1, 0], "group": "Look", "description": "Color when it fades." },
+        "followPiece": { "type": "bool", "default": false, "group": "Motion", "description": "Particles move with the piece instead of staying where they were born." }
+      },
+      "methods": {
+        "emit": { "args": "count", "doc": "Makes count particles right now." },
+        "restart": { "args": "", "doc": "Clears every particle and starts again." }
+      }
+    },
+
+    "Body": {
+      "extends": "Group", "group": "physics", "icon": "body",
+      "description": "Something solid: it bumps into other bodies and solid tiles. Pick how it moves: still (walls and floors), scripted (players and enemies you move in code) or physics (crates that fall and tumble). Put a Sprite or Shape inside it and its shape fits itself.",
+      "properties": {
+        "motion": { "type": "enum", "options": ["still", "scripted", "physics"], "default": "scripted", "group": "Body", "description": "Still never moves on its own; scripted moves when its script calls move(); physics falls, bounces and gets pushed." },
+        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Body", "description": "Auto fits the Sprites and Shapes inside it. None uses only its Hitboxes." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Body", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "radius": { "type": "number", "default": 16, "min": 0, "group": "Body", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "vx": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed sideways, used by move() (scripted) or physics.", "when": { "motion": ["scripted", "physics"] } },
+        "vy": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed down, used by move() (scripted) or physics.", "when": { "motion": ["scripted", "physics"] } },
+        "slope": { "type": "angle", "default": 0.7854, "group": "Movement", "description": "The steepest surface that still counts as ground.", "when": { "motion": ["scripted"] } },
+        "mass": { "type": "number", "default": 1, "min": 0.001, "step": 0.1, "group": "Physics", "unit": "kg", "description": "How heavy it is.", "when": { "motion": ["physics"] } },
+        "friction": { "type": "number", "default": 0.3, "min": 0, "step": 0.05, "group": "Physics", "description": "How much it grips what it touches.", "when": { "motion": ["physics", "still"] } },
+        "bounce": { "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.05, "group": "Physics", "description": "How much it bounces: 0 none, 1 forever.", "when": { "motion": ["physics", "still"] } },
+        "gravity": { "type": "number", "default": 1, "step": 0.1, "group": "Physics", "description": "How strongly gravity pulls it; 0 floats.", "when": { "motion": ["physics"] } },
+        "drag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Air resistance.", "when": { "motion": ["physics"] } },
+        "fixedRotation": { "type": "bool", "default": false, "group": "Physics", "description": "Never tip over or spin.", "when": { "motion": ["physics"] } },
+        "passThrough": { "type": "tags", "default": "", "group": "Collisions", "description": "Tags of things it doesn't bump into, like \"ghost, pickup\"." }
+      },
+      "methods": {
+        "move": { "args": "", "doc": "Moves by vx, vy for this step, sliding along walls and floors (scripted bodies)." },
+        "moveBy": { "args": "dx, dy", "doc": "Moves by an offset and stops at the first thing in the way; returns what it hit, or nil." },
+        "onGround": { "args": "", "doc": "True if the last move ended standing on something." },
+        "onWall": { "args": "", "doc": "True if the last move hit a wall." },
+        "onCeiling": { "args": "", "doc": "True if the last move hit a ceiling." },
+        "touching": { "args": "tagOrPiece", "doc": "The first body or zone with a tag (or that piece) touching this one, or nil." },
+        "touchingTile": { "args": "setting", "doc": "The settings of a touching tile that has this setting (like \"damage\"), or nil." },
+        "push": { "args": "ix, iy", "doc": "A sudden kick, like a jump or a hit (physics bodies)." },
+        "applyForce": { "args": "fx, fy", "doc": "Pushes steadily this frame (physics bodies)." },
+        "getSize": { "args": "", "doc": "The size of its shape: width, height." }
+      },
+      "events": {
+        "hit": { "args": "other", "doc": "It bumped into another body or solid tiles." },
+        "entered": { "args": "zone", "doc": "It went into a zone." },
+        "exited": { "args": "zone", "doc": "It left a zone." }
+      }
+    },
+    "Zone": {
+      "extends": "Group", "group": "physics", "icon": "zone",
+      "description": "An area that notices bodies and zones going in and out: pickups, checkpoints, danger. Nothing bumps into it.",
+      "properties": {
+        "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "none"], "default": "auto", "group": "Zone", "description": "Auto fits the Sprites and Shapes inside it." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "radius": { "type": "number", "default": 16, "min": 0, "group": "Zone", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "detects": { "type": "tags", "default": "", "group": "Zone", "description": "Only notices things with one of these tags (empty: everything)." },
+        "active": { "type": "bool", "default": true, "group": "Zone", "description": "Notice things going in and out." }
+      },
+      "methods": {
+        "inside": { "args": "", "doc": "A list of the bodies and zones inside it now." },
+        "touching": { "args": "tagOrPiece", "doc": "The first body or zone with a tag (or that piece) inside it, or nil." }
+      },
+      "events": {
+        "entered": { "args": "other", "doc": "A body or zone came in." },
+        "exited": { "args": "other", "doc": "A body or zone left." }
+      }
+    },
+    "Hitbox": {
+      "extends": "Group", "group": "physics", "icon": "hitbox",
+      "description": "An extra collision shape for the Body or Zone it's inside, for shapes auto can't make: an L shape, a sword's reach.",
+      "parent": ["Body", "Zone"],
+      "properties": {
+        "shape": { "type": "enum", "options": ["rectangle", "circle"], "default": "rectangle", "group": "Hitbox", "description": "Shapes move and scale with their piece but don't rotate." },
+        "width": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle width.", "when": { "shape": ["rectangle"] } },
+        "height": { "type": "number", "default": 32, "min": 0, "group": "Hitbox", "unit": "px", "description": "Rectangle height.", "when": { "shape": ["rectangle"] } },
+        "radius": { "type": "number", "default": 16, "min": 0, "group": "Hitbox", "unit": "px", "description": "Circle radius.", "when": { "shape": ["circle"] } },
+        "off": { "type": "bool", "default": false, "group": "Hitbox", "description": "Turn this shape off." }
+      }
+    },
+    "Joint": {
+      "extends": "Group", "group": "physics", "icon": "joint", "module": "physics2d",
+      "description": "Connects two physics bodies: a pin, a rope, a spring or a weld.",
+      "properties": {
+        "kind": { "type": "enum", "options": ["pin", "rope", "spring", "weld"], "default": "pin", "group": "Joint", "description": "How the bodies are connected." },
+        "a": { "type": "piecepath", "default": "", "group": "Joint", "description": "The first body." },
+        "b": { "type": "piecepath", "default": "", "group": "Joint", "description": "The second body (empty: pinned in place)." },
+        "length": { "type": "number", "default": 0, "min": 0, "group": "Joint", "unit": "px", "description": "Rope and spring length; 0 uses the distance when the scene starts." },
+        "stiffness": { "type": "number", "default": 4, "min": 0, "group": "Joint", "description": "Spring stiffness (wobbles per second)." },
+        "damping": { "type": "number", "default": 0.5, "min": 0, "max": 1, "group": "Joint", "description": "How quickly a spring stops wobbling." }
+      }
+    },
+
+    "UI": {
+      "extends": "Piece", "group": "ui", "icon": "ui", "abstract": true,
+      "description": "The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.",
+      "properties": {
+        "anchor": { "type": "enum", "options": ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight", "fill"], "default": "topLeft", "group": "Layout", "description": "What its position is measured from. Fill stretches over the whole screen (or the UI piece it's inside)." },
+        "x": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
+        "y": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
+        "width": { "type": "number", "default": 160, "min": 0, "group": "Layout", "unit": "px", "description": "Width (ignored with fill)." },
+        "height": { "type": "number", "default": 40, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "visible": { "type": "bool", "default": true, "group": "Look", "description": "Show this piece and everything inside it." },
+        "opacity": { "type": "number", "default": 1, "min": 0, "max": 1, "step": 0.05, "group": "Look", "description": "0 is invisible, 1 is solid." }
+      },
+      "methods": {
+        "getRect": { "args": "", "doc": "Where it is on the screen now: x, y, width, height." },
+        "isHovered": { "args": "", "doc": "True while the mouse is over it." }
+      }
+    },
+    "Label": {
+      "extends": "UI", "group": "ui", "icon": "label",
+      "description": "Words on the screen: scores, timers, titles, dialog.",
+      "properties": {
+        "text": { "type": "text", "default": "Label", "group": "Text", "description": "What it says. Change it from a script: self.text = `Score: {score}`." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Text", "description": "A .ttf/.otf font, \"pixel\", or empty for the default font." },
+        "size": { "type": "int", "default": 20, "min": 1, "group": "Text", "unit": "px", "description": "Font size." },
+        "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
+        "align": { "type": "enum", "options": ["left", "center", "right"], "default": "left", "group": "Text", "description": "Lines up the text inside its rectangle." },
+        "valign": { "type": "enum", "options": ["top", "middle", "bottom"], "default": "top", "group": "Text", "description": "Lines up the text top to bottom." },
+        "outline": { "type": "bool", "default": false, "group": "Text", "description": "A dark outline, so it reads on any background." }
+      }
+    },
+    "Button": {
+      "extends": "UI", "group": "ui", "icon": "button",
+      "description": "A button to click or tap. Its script gets pressed().",
+      "properties": {
+        "text": { "type": "text", "default": "Button", "group": "Button", "description": "The button's words." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Button", "description": "A font, or empty for the default." },
+        "size": { "type": "int", "default": 18, "min": 1, "group": "Button", "unit": "px", "description": "Font size." },
+        "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Button", "description": "Background color." },
+        "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Button", "description": "Text color." },
+        "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
+        "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." }
+      },
+      "events": { "pressed": { "args": "", "doc": "The button was clicked or tapped." } }
+    },
+    "Panel": {
+      "extends": "UI", "group": "ui", "icon": "panel",
+      "description": "A colored box behind other UI: a dialog, a HUD background.",
+      "properties": {
+        "color": { "type": "color", "default": [0.08, 0.09, 0.12, 0.85], "group": "Panel", "description": "Fill color." },
+        "cornerRadius": { "type": "number", "default": 8, "min": 0, "group": "Panel", "unit": "px", "description": "Rounds the corners." },
+        "borderColor": { "type": "color", "default": [1, 1, 1, 0.15], "group": "Panel", "description": "Outline color." },
+        "borderWidth": { "type": "number", "default": 1, "min": 0, "group": "Panel", "unit": "px", "description": "Outline thickness; 0 for none." }
+      }
+    },
+    "Picture": {
+      "extends": "UI", "group": "ui", "icon": "picture",
+      "description": "A picture on the screen: an icon, a portrait, a logo.",
+      "properties": {
+        "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Picture", "description": "The picture." },
+        "fit": { "type": "enum", "options": ["stretch", "contain", "cover", "center", "tile"], "default": "contain", "group": "Picture", "description": "How the picture fills the rectangle." },
+        "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Picture", "description": "Tint." }
+      }
+    },
+    "Bar": {
+      "extends": "UI", "group": "ui", "icon": "bar",
+      "description": "A bar that fills up: health, loading, a countdown.",
+      "properties": {
+        "value": { "type": "number", "default": 50, "group": "Bar", "description": "How full it is, between min and max." },
+        "min": { "type": "number", "default": 0, "group": "Bar", "description": "The value when empty." },
+        "max": { "type": "number", "default": 100, "group": "Bar", "description": "The value when full." },
+        "color": { "type": "color", "default": [0.3, 0.8, 0.45, 1], "group": "Bar", "description": "Fill color." },
+        "background": { "type": "color", "default": [0, 0, 0, 0.45], "group": "Bar", "description": "Empty color." },
+        "cornerRadius": { "type": "number", "default": 4, "min": 0, "group": "Bar", "unit": "px", "description": "Rounds the corners." },
+        "showValue": { "type": "bool", "default": false, "group": "Bar", "description": "Show the value as text." }
+      }
+    },
+
+    "Sound": {
+      "extends": "Piece", "group": "sound", "icon": "sound",
+      "description": "Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song made in Smitten.",
+      "properties": {
+        "sound": { "type": "resource", "kinds": ["audio"], "default": "", "group": "Sound", "description": "The sound file." },
+        "autoplay": { "type": "bool", "default": false, "group": "Sound", "description": "Play when the scene starts." },
+        "loop": { "type": "bool", "default": false, "group": "Sound", "description": "Start again at the end." },
+        "volume": { "type": "number", "default": 1, "min": 0, "max": 1, "step": 0.05, "group": "Sound", "description": "Loudness, 0 to 1." },
+        "pitch": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Sound", "description": "1 is normal; 2 is an octave up." }
+      },
+      "methods": {
+        "play": { "args": "", "doc": "Plays the sound. Calling it again while it plays starts another copy (good for effects)." },
+        "stop": { "args": "", "doc": "Stops every copy." },
+        "pause": { "args": "", "doc": "Pauses." },
+        "resume": { "args": "", "doc": "Continues after pause()." },
+        "isPlaying": { "args": "", "doc": "True while it's playing." }
+      },
+      "events": { "finished": { "args": "", "doc": "The sound reached its end (not when looping)." } }
+    }
+  }
+}

@@ -1,4 +1,4 @@
--- TileMap: a grid of tiles from a .tileset file, painted in the editor.
+-- Tiles: a grid of tiles from a .tileset file, painted in the editor.
 --
 -- The painted cells are stored in the scene as one rectangle:
 --   "cells": { "x": 0, "y": 0, "w": 64, "h": 12, "data": "-1*130,3*5,..." }
@@ -12,7 +12,7 @@ local nodes2d = require("love.scene.nodes2d")
 
 local floor = math.floor
 
-local TileMap = nodeLib.classes.TileMap
+local Tiles = nodeLib.classes.Tiles
 
 -- Decodes the cells property into a sparse grid: grid[cy][cx] = tile.
 local function decodeCells(cells)
@@ -41,7 +41,7 @@ local function decodeCells(cells)
 end
 
 ---Encodes a grid back into the cells format (used by the editor's tests).
-function TileMap.encodeCells(grid)
+function Tiles.encodeCells(grid)
 	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
 	for cy, row in pairs(grid) do
 		for cx in pairs(row) do
@@ -83,24 +83,24 @@ local function ensure(self)
 	return self._ts
 end
 
-function TileMap:_enter()
+function Tiles:_enter()
 	ensure(self)
-	physics2d.addTileMap(self)
+	physics2d.addTiles(self)
 end
 
-function TileMap:_exit()
-	physics2d.removeTileMap(self)
+function Tiles:_exit()
+	physics2d.removeTiles(self)
 end
 
 -- Tile size in scene units and the map's origin (scale and position only).
-function TileMap:_cellSize()
+function Tiles:_cellSize()
 	local ts = ensure(self)
 	if not ts then return 0, 0, 0, 0 end
 	local a, b, c, d, tx, ty = nodes2d.globalMatrix(self)
 	return ts.tileWidth * a, ts.tileHeight * d, tx, ty
 end
 
-function TileMap:_solidAt(cx, cy)
+function Tiles:_solidAt(cx, cy)
 	local row = self._grid[cy]
 	local tile = row and row[cx]
 	if not tile then return nil end
@@ -109,7 +109,7 @@ function TileMap:_solidAt(cx, cy)
 	return nil
 end
 
-function TileMap:_findInBox(x0, y0, x1, y1, property)
+function Tiles:_findInBox(x0, y0, x1, y1, property)
 	local ts = ensure(self)
 	if not ts then return nil end
 	local tw, th, ox, oy = self:_cellSize()
@@ -126,13 +126,13 @@ function TileMap:_findInBox(x0, y0, x1, y1, property)
 	return nil
 end
 
-function TileMap:getTile(cx, cy)
+function Tiles:getTile(cx, cy)
 	ensure(self)
 	local row = self._grid[cy]
 	return row and row[cx] or -1
 end
 
-function TileMap:setTile(cx, cy, tile)
+function Tiles:setTile(cx, cy, tile)
 	ensure(self)
 	local row = self._grid[cy]
 	if tile == nil or tile < 0 then
@@ -147,37 +147,37 @@ function TileMap:setTile(cx, cy, tile)
 	self._dirty = true
 end
 
-function TileMap:getTileProperties(tile)
+function Tiles:tileInfo(tile)
 	local ts = ensure(self)
 	return ts and ts.tiles[tile] or {}
 end
 
-function TileMap:worldToCell(x, y)
-	local lx, ly = self:toLocal(x, y)
+function Tiles:cellAt(x, y)
+	local lx, ly = self:fromWorld(x, y)
 	local ts = ensure(self)
 	if not ts then return 0, 0 end
 	return floor(lx / ts.tileWidth), floor(ly / ts.tileHeight)
 end
 
-function TileMap:cellToWorld(cx, cy)
+function Tiles:cellPosition(cx, cy)
 	local ts = ensure(self)
 	if not ts then return 0, 0 end
-	return self:toGlobal(cx * ts.tileWidth, cy * ts.tileHeight)
+	return self:toWorld(cx * ts.tileWidth, cy * ts.tileHeight)
 end
 
-function TileMap:getUsedCells(tile)
+function Tiles:cellsWith(tile)
 	ensure(self)
 	local out = {}
 	for cy, row in pairs(self._grid) do
 		for cx, t in pairs(row) do
-			if tile == nil or t == tile then out[#out + 1] = { cx = cx, cy = cy, tile = t } end
+			if tile == nil or t == tile then out[#out + 1] = { column = cx, row = cy, tile = t } end
 		end
 	end
-	table.sort(out, function(p, q) return p.cy < q.cy or (p.cy == q.cy and p.cx < q.cx) end)
+	table.sort(out, function(p, q) return p.row < q.row or (p.row == q.row and p.column < q.column) end)
 	return out
 end
 
-function TileMap:_draw()
+function Tiles:_draw()
 	local ts = ensure(self)
 	if not ts then return end
 	if self._dirty or not self._batch or self._batchImage ~= ts.image then
@@ -197,4 +197,4 @@ function TileMap:_draw()
 	love.graphics.draw(self._batch)
 end
 
-return TileMap
+return Tiles

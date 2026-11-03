@@ -1,8 +1,8 @@
--- Nodes: the classes behind every node type, scripts, the tree, events and
--- groups (DESIGN.md, section 4).
+-- Pieces: the classes behind every piece type, scripts, the tree, events and
+-- tags (DESIGN.md, section 4).
 --
--- Every node type in nodes.json becomes a class table whose fields are the
--- type's property defaults, inheriting from its parent type. A node is a
+-- Every piece type in pieces.json becomes a class table whose fields are the
+-- type's property defaults, inheriting from its parent type. A piece is a
 -- plain table whose metatable reads through to its class, so properties are
 -- ordinary fields: `self.x = 10` sets one, and a property never set reads
 -- the default. Types implement themselves with underscore methods, which
@@ -12,9 +12,9 @@
 --   _exit()           leaving it
 --   _process(dt)      every frame, before the script's update(dt)
 --   _physics(dt)      every physics step, before physicsUpdate(dt)
---   _draw()           2D: draws the node in its own coordinates
+--   _draw()           draws the piece in its own coordinates
 --
--- A script is a table of functions and variables. A node with a script gets
+-- A script is a table of functions and variables. A piece with a script gets
 -- a class made of the script's fields over the type's class, so `self:foo()`
 -- finds the script's function first, then the type's method.
 
@@ -34,7 +34,7 @@ local function copy(t)
 end
 node.copy = copy
 
----The base of every class: the methods of Node.
+---The base of every class: the methods of Piece.
 local Node = {}
 Node.__index = Node
 Node.__mt = { __index = Node }
@@ -63,10 +63,9 @@ local function makeClass(name)
 end
 
 for name in pairs(schema.types) do makeClass(name) end
-Node.__mt = classes.Node.__mt
-Node.type = "Node"
+Node.type = "Piece"
 
----Adds methods to a node type: node.extend("Sprite2D", { _draw = ... }).
+---Adds methods to a piece type: node.extend("Sprite", { _draw = ... }).
 function node.extend(typeName, methods)
 	local cls = assert(classes[typeName], typeName)
 	for k, v in pairs(methods) do cls[k] = v end
@@ -125,7 +124,7 @@ local function deepCopyValue(v)
 	return out
 end
 
----Makes a node of a type, with an optional script table and properties.
+---Makes a piece of a type, with an optional script table and properties.
 function node.new(typeName, script, props)
 	local cls = classes[typeName]
 	if not cls then
@@ -134,10 +133,10 @@ function node.new(typeName, script, props)
 			if not def.abstract then names[#names + 1] = n end
 		end
 		local hint = require("love.engine.util").didYouMean(typeName, names)
-		error(("there's no node type called %q%s"):format(tostring(typeName), hint), 3)
+		error(("there's no piece type called %q%s"):format(tostring(typeName), hint), 3)
 	end
 	if cls._def.abstract then
-		error(("%s is the base of other node types and can't be made itself"):format(typeName), 3)
+		error(("%s is the base of other piece types and can't be made itself"):format(typeName), 3)
 	end
 	local c = script and scriptClass(script, cls) or cls
 	local n = setmetatable({ name = typeName, type = typeName, children = {}, parent = nil, script = nil }, c.__mt)
@@ -151,14 +150,14 @@ end
 ---------------------------------------------------------------------------
 -- The tree
 
--- Set by love.scene: the running tree (groups, deferred frees, camera).
+-- Set by love.scene: the running tree (tags, pieces to free, systems).
 node.tree = nil
 
 local function enterTree(n)
 	n._inside = true
 	local tree = node.tree
-	if n._groups and tree then
-		for g in pairs(n._groups) do tree:groupAdd(g, n) end
+	if n._tags and tree then
+		for g in pairs(n._tags) do tree:tagAdd(g, n) end
 	end
 	if n._enter then n:_enter() end
 	local ch = n.children
@@ -179,8 +178,8 @@ local function exitTree(n)
 	if f then f(n) end
 	if n._exit then n:_exit() end
 	local tree = node.tree
-	if n._groups and tree then
-		for g in pairs(n._groups) do tree:groupRemove(g, n) end
+	if n._tags and tree then
+		for g in pairs(n._tags) do tree:tagRemove(g, n) end
 	end
 	n._inside = false
 end
@@ -188,7 +187,7 @@ node.exitTree = exitTree
 
 function Node:add(child, index)
 	if type(child) ~= "table" or getmetatable(child) == nil or child.children == nil then
-		error("add() needs a node (made with smitten.scene.create or smitten.scene.instance)", 2)
+		error("add() needs a piece (made with smitten.scene.make)", 2)
 	end
 	if child.parent then child.parent:_detach(child) end
 	child.parent = self
@@ -213,7 +212,7 @@ function Node:_detach(child)
 	child.parent = nil
 end
 
----Removes the node from its parent now (it can be added somewhere else).
+---Takes the piece out of its parent now (it can be added somewhere else).
 function Node:remove()
 	if self.parent then self.parent:_detach(self) end
 	return self
@@ -230,8 +229,16 @@ function Node:destroy()
 	end
 end
 
-function Node:isInside()
+function Node:isAlive()
 	return self._inside == true and not self._dead
+end
+
+---Makes a piece from a scene file or a type and adds it as a child.
+function Node:spawn(what, props)
+	local scene = require("love.scene")
+	local ok, n = pcall(scene.make, what, props)
+	if not ok then error(n, 2) end
+	return self:add(n)
 end
 
 function Node:find(path)
@@ -256,7 +263,7 @@ function Node:find(path)
 	return n
 end
 
----Finds a descendant by name at any depth (first in tree order).
+---Finds a piece inside this one by name, at any depth (first in tree order).
 function Node:findDeep(name)
 	local ch = self.children
 	for i = 1, #ch do
@@ -297,21 +304,30 @@ function Node:getPath()
 	return table.concat(parts, "/")
 end
 
-function Node:addToGroup(name)
-	self._groups = self._groups or {}
-	if self._groups[name] then return end
-	self._groups[name] = true
-	if self._inside and node.tree then node.tree:groupAdd(name, self) end
+function Node:tag(name)
+	self._tags = self._tags or {}
+	if self._tags[name] then return end
+	self._tags[name] = true
+	if self._inside and node.tree then node.tree:tagAdd(name, self) end
 end
 
-function Node:removeFromGroup(name)
-	if not (self._groups and self._groups[name]) then return end
-	self._groups[name] = nil
-	if self._inside and node.tree then node.tree:groupRemove(name, self) end
+function Node:untag(name)
+	if not (self._tags and self._tags[name]) then return end
+	self._tags[name] = nil
+	if self._inside and node.tree then node.tree:tagRemove(name, self) end
 end
 
-function Node:inGroup(name)
-	return self._groups ~= nil and self._groups[name] == true
+function Node:hasTag(name)
+	return self._tags ~= nil and self._tags[name] == true
+end
+
+---True if the piece has any of the tags in a comma-separated list.
+function Node:hasAnyTag(list)
+	if not self._tags or list == nil or list == "" then return false end
+	for t in list:gmatch("[^,%s]+") do
+		if self._tags[t] then return true end
+	end
+	return false
 end
 
 ---------------------------------------------------------------------------

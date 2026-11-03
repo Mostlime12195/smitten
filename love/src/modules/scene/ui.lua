@@ -1,7 +1,7 @@
--- UI nodes: Label, Button, Panel, ImageRect and ProgressBar, drawn on top of
--- the game in screen space (game coordinates, not moved by cameras).
+-- UI pieces: Label, Button, Panel, Picture and Bar, drawn on top of the game
+-- in screen space (game coordinates, not moved by cameras).
 --
--- A control's rectangle is measured from its anchor in its parent control
+-- A UI piece's rectangle is measured from its anchor in its parent UI piece
 -- (or the screen): with anchor "bottomRight", x = 16 and y = 16 put it 16
 -- pixels in from the bottom-right corner; offsets always point inwards.
 
@@ -16,13 +16,13 @@ local ANCHORS = {
 	bottomLeft = { 0, 1 }, bottom = { 0.5, 1 }, bottomRight = { 1, 1 },
 }
 
-local function isControl(n)
+local function isUI(n)
 	return n.anchor ~= nil
 end
-M.isControl = isControl
+M.isUI = isUI
 
 local function layout(n, px, py, pw, ph)
-	if n.anchor == "full" then
+	if n.anchor == "fill" then
 		return px + n.x, py + n.y, math.max(0, pw - 2 * n.x), math.max(0, ph - 2 * n.y)
 	end
 	local a = ANCHORS[n.anchor] or ANCHORS.topLeft
@@ -33,15 +33,15 @@ local function layout(n, px, py, pw, ph)
 end
 M.layout = layout
 
-local Control = nodeLib.classes.Control
+local UIBase = nodeLib.classes.UI
 
-function Control:getRect()
+function UIBase:getRect()
 	local r = self._rect
 	if r then return r[1], r[2], r[3], r[4] end
 	return 0, 0, self.width, self.height
 end
 
-function Control:isHovered()
+function UIBase:isHovered()
 	return M.hovered == self
 end
 
@@ -113,9 +113,9 @@ function Panel:_drawUI(x, y, w, h, alpha)
 	end
 end
 
-local ImageRect = nodeLib.classes.ImageRect
+local Picture = nodeLib.classes.Picture
 
-function ImageRect:_drawUI(x, y, w, h, alpha)
+function Picture:_drawUI(x, y, w, h, alpha)
 	if self.image == nil or self.image == "" then return end
 	local img = assets.image(self.image)
 	local iw, ih = img:getDimensions()
@@ -145,9 +145,9 @@ function ImageRect:_drawUI(x, y, w, h, alpha)
 	end
 end
 
-local ProgressBar = nodeLib.classes.ProgressBar
+local Bar = nodeLib.classes.Bar
 
-function ProgressBar:_drawUI(x, y, w, h, alpha)
+function Bar:_drawUI(x, y, w, h, alpha)
 	local g = love.graphics
 	local r = self.cornerRadius
 	setColor(self.background, alpha)
@@ -173,7 +173,7 @@ local drawnCount = 0
 
 local function visit(n, px, py, pw, ph, alpha)
 	if n._dead then return end
-	if isControl(n) then
+	if isUI(n) then
 		if not n.visible then return end
 		local x, y, w, h = layout(n, px, py, pw, ph)
 		local r = n._rect
@@ -196,7 +196,7 @@ local function visit(n, px, py, pw, ph, alpha)
 		drawn[drawnCount] = n
 		px, py, pw, ph = x, y, w, h
 	elseif n.x ~= nil and (n.scaleX ~= nil) then
-		-- A 2D node: UI inside it still lays out against the screen.
+		-- A Group: UI inside it still lays out against the screen.
 		if n.visible == false then return end
 	end
 	local ch = n.children

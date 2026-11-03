@@ -615,10 +615,8 @@ struct OptionalModule
 
 static const OptionalModule optionalModules[] =
 {
-	{ "love.physics", "physics2d", "luaopen_love_physics", "2D physics (RigidBody2D, smitten.physics)" },
+	{ "love.physics", "physics2d", "luaopen_love_physics", "physics (Bodies whose motion is physics, Joints, smitten.physics)" },
 	{ "love.video", "video", "luaopen_love_video", "video (smitten.video)" },
-	{ "love.graphics3d", "3d", "luaopen_love_graphics3d", "3D graphics" },
-	{ "love.physics3d", "physics3d", "luaopen_love_physics3d", "3D physics" },
 	{ "love.synth", "synth", "luaopen_love_synth", "generated sounds and music (.sfx and .song files)" },
 	{ nullptr, nullptr, nullptr, nullptr }
 };

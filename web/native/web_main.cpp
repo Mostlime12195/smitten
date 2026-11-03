@@ -301,13 +301,6 @@ EMSCRIPTEN_KEEPALIVE void loveweb_set_paused(int p)
 	paused = p != 0;
 }
 
-// Optional engine modules (Jolt's std::mutex) yield; the core doesn't use it
-// itself, so it's defined here for them to import. There's one thread.
-EMSCRIPTEN_KEEPALIVE int sched_yield(void)
-{
-	return 0;
-}
-
 // Resizes a resizable game window to fill the page, like a maximized desktop
 // window. Returns 0 (and does nothing) if the game's window isn't resizable.
 EMSCRIPTEN_KEEPALIVE int loveweb_fit_window(int w, int h)
