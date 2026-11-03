@@ -22,8 +22,9 @@ engine, and Cupid stays a separate product with no part in Smitten.
 | How far to fork LÖVE | Extend LÖVE, don't change it: keep `love.*` as in LÖVE 12, add Smitten's features as a new engine module | 3 |
 | Language | Luau-like syntax built into Smitten's Lua parser, compiling to the same bytecode, so Cupid's JIT runs it natively. No transpiling, no VM swap | 4 |
 | Aesthetic | Pixel-first defaults (tools, templates, sounds) with no enforced limits; no cartridge mode | 7 |
+| Hosting | Its own domain, not a path next to Cupid on `mostlime12195.github.io` | 2 |
 
-The language and aesthetic decisions came from the project owner. The
+The language, aesthetic and hosting decisions came from the project owner. The
 project owner left the fork-depth decision to this design (section 3 has
 the reasoning) and can overturn it.
 
@@ -107,13 +108,20 @@ Options:
 editor diverges and will conflict more, which is expected. Cupid is fetched
 as a read-only remote; Smitten never pushes to it.
 
-### Living next to Cupid on the same origin
+### Hosting and storage names
 
-If both are deployed to GitHub Pages under the same account
-(`mostlime12195.github.io/cupid/` and `/smitten/`), they share one origin,
-and therefore IndexedDB, localStorage and the storage quota. Because
-Smitten starts as a copy of Cupid, it would also start with Cupid's
-storage names. Before the first deploy:
+Decision: **Smitten is hosted on its own domain** (name to be chosen). It
+can still be deployed with GitHub Pages, using a custom domain, or with any
+static host that serves `.wasm` as `application/wasm`. Its own domain gives
+it its own origin, so in production it shares no IndexedDB, localStorage or
+storage quota with Cupid at `mostlime12195.github.io`.
+
+Storage names still have to change, though. Smitten starts as a copy of
+Cupid, so it starts with Cupid's names, and both dev servers default to
+`http://localhost:8765`, the same origin. Running both locally (or Cupid
+ever moving to a domain of its own) would otherwise mix their projects.
+So, before the first deploy, and with Smitten's `serve.py` defaulting to a
+different port (8766):
 
 - Projects: Cupid's IndexedDB database is `love-web-studio`
   (`web/editor/fs-store.js`). Smitten's is `smitten`.
@@ -124,8 +132,7 @@ storage names. Before the first deploy:
 - Game save files: check the IndexedDB name the player's save filesystem
   (IDBFS) uses, and make it Smitten's own.
 
-A separate domain avoids all of this and is worth considering (section
-11). Also, GitHub currently redirects `github.com/Mostlime12195/smitten` to
+Also, GitHub currently redirects `github.com/Mostlime12195/smitten` to
 Cupid (its old name); a new Smitten repository there replaces that
 redirect.
 
@@ -447,7 +454,7 @@ Cupid.
 3. **Separate storage** (section 2): IndexedDB `smitten`;
    settings and theme keys under `smitten-editor.`; no migration from
    Cupid's keys; the game save filesystem's IndexedDB name made Smitten's
-   own.
+   own. `serve.py` defaults to port 8766.
 4. **`smitten` module skeleton.** `love/src/modules/smitten/` with a C++
    module that registers the embedded `smitten.lua` (turned into a header
    by `love/src/scripts/auto.lua`, like `nogame.lua`); a `love_smitten`
@@ -457,7 +464,10 @@ Cupid.
 5. **Template.** The blank project's `main.lua` shows
    `"Smitten " .. smitten.version` and gets a `smitten.json`.
 6. **Deploy.** Cupid's Pages workflow, renamed, building the engine with
-   Emscripten 6.0.13 and caching it. Choose the URL first (section 11).
+   Emscripten 6.0.13 and caching it, published on Smitten's own domain
+   (a `CNAME` file in `dist/` for GitHub Pages). Until the domain is
+   chosen, the workflow can deploy to the repository's default Pages URL
+   for testing.
 7. **Tests.** Cupid's suites still pass: `tools/jit/test.sh`, and the
    `smoke`, `threads`, `video` and `textinput` games. A new `tools/smitten`
    game checks that `smitten` loads, as a global and through `require`.
@@ -468,7 +478,8 @@ Done when:
       it.
 - [ ] The editor opens as Smitten; every example runs; the JIT tests pass.
 - [ ] A new project shows the Smitten version when run.
-- [ ] In one browser profile with both deployed on the same origin,
+- [ ] In one browser profile with both served from the same origin
+      (e.g. Cupid's and Smitten's `dist/` under one local server),
       Smitten and Cupid each keep their own projects, settings and save
       files.
 - [ ] Merging a later Cupid commit (`git merge cupid/main`) works without
@@ -559,9 +570,8 @@ tutorial project.
 
 ## 11. Smaller open questions
 
-1. **Where Smitten is hosted**: under `mostlime12195.github.io` (shares an
-   origin with Cupid; section 2 handles that) or its own domain. Needed
-   before milestone 1's deploy.
+1. **The domain name** (section 2). Not needed to start milestone 1; the
+   deploy can use the repository's default Pages URL until then.
 2. **Desktop export** (phase 3): build Smitten's engine natively (LÖVE
    builds on desktop; Smitten's Lua runs there without Cupid's JIT, which
    is WebAssembly-only, so pure-Lua code is slower than on LuaJIT), or wrap
