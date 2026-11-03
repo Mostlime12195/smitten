@@ -25,6 +25,7 @@ resolution and how it fits the window, input actions, and engine modules.
 | `display.filter` | `smooth`, or `pixel` for crisp pixel art (nearest-neighbor for pictures and fonts) |
 | `display.background` | The color behind everything |
 | `input` | [Input actions](input.md#actions), on top of the defaults |
+| `physics.gravity` | The scenes' gravity, `[x, y]` in pixels per second per second (default `[0, 980]`; the Physics tab). See [Physics](physics.md) |
 | `modules` | Engine modules: `"always"` or `"never"`; others are worked out from the project |
 | `identity` | Optional: the save folder's name, if it shouldn't follow `name` |
 
@@ -79,7 +80,8 @@ uses them, so small games load fast:
 
 | Module | Included when the game uses |
 | --- | --- |
-| `physics2d` | a Body whose motion is `physics`, a Joint, `smitten.physics` |
+| `physics2d` | a Body, Zone or Joint, or `smitten.physics` queries ([Physics](physics.md)) |
+| `lovephysics` | LÖVE's own `love.physics` API (`love.physics.newWorld`...) |
 | `video` | `smitten.video` |
 | `synth` | `.sfx` and `.song` files, `smitten.synth` |
 

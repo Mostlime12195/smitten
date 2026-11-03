@@ -216,6 +216,7 @@ function Tiles:fill(cx, cy, columns, rows, tile)
 		end
 	end
 	changedAll(self)
+	physics2d.tileAreaChanged(self, cx, cy, cx + (columns or 1) - 1, cy + (rows or 1) - 1)
 end
 
 ---Empties every cell.

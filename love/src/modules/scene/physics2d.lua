@@ -730,6 +730,17 @@ function M.tileChanged(map, cx, cy)
 	end
 end
 
+-- Called by tilemap.lua when a rectangle of cells changes.
+function M.tileAreaChanged(map, cx0, cy0, cx1, cy1)
+	local t = map._phys
+	if not t then return end
+	for ky = floor((cy0 - 1) / CHUNK), floor((cy1 + 1) / CHUNK) do
+		for kx = floor((cx0 - 1) / CHUNK), floor((cx1 + 1) / CHUNK) do
+			t.dirty[chunkKey(kx, ky)] = { kx, ky }
+		end
+	end
+end
+
 local function tilesVersion(map)
 	return tostring(map._grid) .. tostring(map._ts) .. tostring(map.solid)
 end

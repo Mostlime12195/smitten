@@ -48,6 +48,7 @@
 <tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for crisp pixel art (nearest-neighbor for pictures and fonts)</td></tr>
 <tr><td><code>display.background</code></td><td>The color behind everything</td></tr>
 <tr><td><code>input</code></td><td><a href="input#actions">Input actions</a>, on top of the defaults</td></tr>
+<tr><td><code>physics.gravity</code></td><td>The scenes' gravity, <code>[x, y]</code> in pixels per second per second (default <code>[0, 980]</code>; the Physics tab). See <a href="physics">Physics</a></td></tr>
 <tr><td><code>modules</code></td><td>Engine modules: <code>&quot;always&quot;</code> or <code>&quot;never&quot;</code>; others are worked out from the project</td></tr>
 <tr><td><code>identity</code></td><td>Optional: the save folder's name, if it shouldn't follow <code>name</code></td></tr></tbody>
 </table></div>
@@ -81,7 +82,8 @@ function pressed() fullscreen(not fullscreen()) end</code></pre>
 <p>Some parts of the engine are separate downloads, included only when a game uses them, so small games load fast:</p>
 <div class="table"><table>
 <thead><tr><th>Module</th><th>Included when the game uses</th></tr></thead>
-<tbody><tr><td><code>physics2d</code></td><td>a Body whose motion is <code>physics</code>, a Joint, <code>smitten.physics</code></td></tr>
+<tbody><tr><td><code>physics2d</code></td><td>a Body, Zone or Joint, or <code>smitten.physics</code> queries (<a href="physics">Physics</a>)</td></tr>
+<tr><td><code>lovephysics</code></td><td>LÖVE's own <code>love.physics</code> API (<code>love.physics.newWorld</code>...)</td></tr>
 <tr><td><code>video</code></td><td><code>smitten.video</code></td></tr>
 <tr><td><code>synth</code></td><td><code>.sfx</code> and <code>.song</code> files, <code>smitten.synth</code></td></tr></tbody>
 </table></div>

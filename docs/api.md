@@ -98,6 +98,19 @@ More in [Scripts](scripts.md).
 | `dist(a, b)` | The distance between two pieces, or dist(x1, y1, x2, y2). |
 | `jumpSpeed(height, gravity)` | How fast to go up to jump this high (with the piece's gravity). |
 
+## Physics
+
+More in [Physics](physics.md).
+
+| Call | |
+| --- | --- |
+| `raycast(x1, y1, x2, y2, tags)` | The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them. |
+| `raycastAll(x1, y1, x2, y2, tags)` | Everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }. |
+| `piecesAt(x, y, tags)` | The bodies and zones whose shapes contain a point. |
+| `overlap(kind, x, y, ...)` | The bodies and zones touching a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, width, height). |
+| `getGravity()` | The scene's gravity: x, y in pixels per second per second. |
+| `setGravity(x, y)` | Changes the scene's gravity: setGravity(0, 0) floats everything. |
+
 ## Screen
 
 More in [Project settings and modules](settings.md).
@@ -137,7 +150,7 @@ Functions the engine calls when a script defines them:
 | `function physicsUpdate(dt)` | Piece | 60 times a second, before bodies move. Use it for movement. |
 | `function draw()` | Piece | Draw extra things on top of the piece, in its own coordinates. |
 | `function removed()` | Piece | The piece is leaving the scene. |
-| `function hit(other)` | Body | It bumped into another body or solid tiles. |
+| `function hit(other, contact)` | Body | It started touching another body or solid tiles. contact has x, y (where), nx, ny (the direction from other to this body) and impulse (how hard). |
 | `function entered(zone)` | Body, Zone | Body: It went into a zone. Zone: A body or zone came in. |
 | `function exited(zone)` | Body, Zone | Body: It left a zone. Zone: A body or zone left. |
 | `function pressed()` | Button, Panel, Picture | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. |
