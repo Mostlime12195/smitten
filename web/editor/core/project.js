@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS = {
   version: 2,
   name: 'My game',
   main: '',
-  display: { width: 1280, height: 720, stretch: 'fit', filter: 'smooth' },
+  display: { width: 1280, height: 720, stretch: 'expand' },
 };
 
 const decoder = new TextDecoder();

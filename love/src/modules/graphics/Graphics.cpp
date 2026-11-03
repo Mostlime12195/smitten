@@ -2455,7 +2455,10 @@ void Graphics::points(const Vector2 *positions, const Colorf *colors, size_t num
 
 int Graphics::calculateEllipsePoints(float rx, float ry) const
 {
-	int points = (int) sqrtf(((rx + ry) / 2.0f) * 20.0f * (float) pixelScaleStack.back());
+	// Smitten: in the screen's pixels (the transform's scale and the pixel
+	// density), so circles stay round on high-DPI screens.
+	float scale = (float) (pixelScaleStack.back() * getCurrentDPIScale());
+	int points = (int) sqrtf(((rx + ry) / 2.0f) * 20.0f * scale);
 	return std::max(points, 8);
 }
 
@@ -2465,7 +2468,9 @@ void Graphics::polyline(const Vector2 *vertices, size_t count)
 	LineJoin linejoin = getLineJoin();
 	LineStyle linestyle = getLineStyle();
 
-	float pixelsize = 1.0f / std::max((float) pixelScaleStack.back(), 0.000001f);
+	// Smitten: smooth lines fade over one of the screen's pixels, not one
+	// unit, so they stay sharp on high-DPI screens.
+	float pixelsize = 1.0f / std::max((float) (pixelScaleStack.back() * getCurrentDPIScale()), 0.000001f);
 
 	if (linejoin == LINE_JOIN_NONE)
 	{

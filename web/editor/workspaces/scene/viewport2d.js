@@ -997,7 +997,7 @@ export class Viewport2D {
       s = {};
     }
     const d = (s && typeof s.display === 'object' && s.display) || {};
-    const stretch = d.stretch || 'fit';
+    const stretch = d.stretch || 'expand';
     const bg = Array.isArray(d.background) ? colorOf(d.background) : [0.11, 0.12, 0.15, 1];
     this.display = {
       width: Math.max(1, num(d.width, 1280)),

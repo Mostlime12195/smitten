@@ -39,6 +39,19 @@ function mountPlayer() {
   stage.replaceChildren(frame);
 }
 
+// Once the game starts, the player tells us its resolution: the stage takes
+// the game's shape (a phone game stands up), within reason.
+window.addEventListener('message', (e) => {
+  const frame = $('#player');
+  const msg = e.data;
+  if (!frame || e.source !== frame.contentWindow || msg?.source !== 'love-player' || msg.type !== 'display') return;
+  const w = Number(msg.width);
+  const hgt = Number(msg.height);
+  if (!(w > 0 && hgt > 0)) return;
+  const aspect = Math.min(21 / 9, Math.max(9 / 16, w / hgt));
+  document.documentElement.style.setProperty('--game-aspect', String(aspect));
+});
+
 /** 45000 → "12 h 30 min". */
 function duration(seconds) {
   const minutes = Math.round(seconds / 60);
