@@ -31,6 +31,7 @@ import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
 import { createLoveCompletions } from './completions.js';
+import { docsUrl } from './smitten-docs.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
@@ -953,6 +954,7 @@ function mainMenu() {
     { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
     { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
+    { label: 'Documentation', icon: 'help', action: () => openDocs() },
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
@@ -1023,9 +1025,10 @@ function nodeDocs(type) {
       h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Properties'),
       h('ul', {}, ...properties(t).filter((p) => !p.def.hidden).map((p) => h('li', {}, h('code', {}, p.name), ` — ${p.def.description}`))),
       Object.keys(ownMethods).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Methods') : null,
-      h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `self:${m}(${d.args})`), ` — ${d.doc}`))),
+      h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `${m}(${d.args})`), ` — ${d.doc}`))),
       Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
-      h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function Name:${m}(${d.args})`), ` — ${d.doc}`))),
+      h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function ${m}(${d.args})`), ` — ${d.doc}`))),
+      h('p', {}, h('a', { href: docsUrl(settings.get('platformUrl'), 'pieces', t), target: '_blank', rel: 'noopener' }, `${t} in the docs`)),
     ].filter(Boolean));
   };
   import('./core/schema.js').then(({ typesByGroup }) => {
@@ -1041,6 +1044,11 @@ function nodeDocs(type) {
   });
   body.append(list, page);
   openDialog({ title: 'Piece reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
+}
+
+/** The docs on the sharing site, in a new tab. */
+function openDocs(page = '', anchor = '') {
+  window.open(docsUrl(settings.get('platformUrl'), page, anchor), '_blank', 'noopener');
 }
 
 const SHORTCUTS = [
@@ -1078,6 +1086,8 @@ function commands() {
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
     { label: 'Piece reference', run: () => nodeDocs(null) },
+    { label: 'Documentation', run: () => openDocs() },
+    { label: 'Script API (docs)', run: () => openDocs('api') },
     { label: 'Editor settings', run: () => openSettings({}) },
     { label: 'All games', run: () => { location.hash = ''; } },
   ];

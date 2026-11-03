@@ -523,6 +523,21 @@ async function main() {
     assert.equal((await call('GET', '/u/someone')).status, 200);
     assert.equal((await call('GET', '/signin.html')).status, 404, 'pages are only served at their paths');
   });
+  await test('the docs are served at /docs/ and /docs/<page>', async () => {
+    const bare = await call('GET', '/docs');
+    assert.equal(bare.status, 301);
+    assert.equal(bare.headers.get('location'), '/docs/');
+    for (const path of ['/docs/', '/docs/scripts', '/docs/pieces']) {
+      const r = await call('GET', path);
+      assert.equal(r.status, 200, path);
+      assert.match(r.headers.get('content-type'), /^text\/html/);
+      assert.match(r.headers.get('content-security-policy'), /script-src 'self'/);
+      assert.match(new TextDecoder().decode(r.data), /<link rel="stylesheet" href="docs.css">/);
+    }
+    assert.match((await call('GET', '/docs/search.json')).headers.get('content-type'), /^application\/json/);
+    assert.equal((await call('GET', '/docs/no-such-page')).status, 404);
+    assert.equal((await call('GET', '/docs/index.html')).status, 404, 'pages are only served at their paths');
+  });
   await test('static files have content types and ETags', async () => {
     const r = await call('GET', '/site.css');
     assert.equal(r.status, 200);

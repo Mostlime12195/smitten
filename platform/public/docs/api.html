@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Script API · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Script API.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings and modules</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api" aria-current="page">Script API</a><ul class="nav-sub"><li><a href="#input">Input</a></li><li><a href="#scenes">Scenes</a></li><li><a href="#sound">Sound</a></li><li><a href="#saving">Saving</a></li><li><a href="#time">Time</a></li><li><a href="#math">Math</a></li><li><a href="#screen">Screen</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#script-functions">Script functions</a></li></ul></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Script API</h1>
+<p>Every name a script can use without <code>smitten.</code> in front, generated from <code>web/editor/core/script-api.js</code>. Names are looked up in this order: the script's own functions, the piece (its properties, variables and methods; see <a href="pieces">Pieces</a>), its children by capitalized name, this list, then Lua's globals. See <a href="scripts">Scripts</a> for how a script works.</p>
+<h2 id="input"><a class="anchor" href="#input" aria-hidden="true">#</a>Input</h2>
+<p>More in <a href="input">Input</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>pressed(action)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button.</td></tr>
+<tr><td><code>down(action)</code></td><td>True while an action or input is held.</td></tr>
+<tr><td><code>released(action)</code></td><td>True on the frame an action or input is let go.</td></tr>
+<tr><td><code>axis(negative, positive)</code></td><td>-1 to 1 (in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>vector(left, right, up, down)</code></td><td>x, y of a direction, at most 1 long.</td></tr>
+<tr><td><code>mouse()</code></td><td>x, y of the mouse in the scene.</td></tr>
+<tr><td><code>mouseScreen()</code></td><td>x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
+<tr><td><code>wheel()</code></td><td>How far the mouse wheel turned this frame: x, y (y &gt; 0 is up).</td></tr>
+<tr><td><code>touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
+<tr><td><code>stick(side, player)</code></td><td>A gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
+<tr><td><code>trigger(side, player)</code></td><td>A gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
+<tr><td><code>vibrate(strength, seconds, player)</code></td><td>Rumbles gamepads: vibrate(0.5, 0.2).</td></tr>
+<tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
+</table></div>
+<h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
+<p>More in <a href="scenes">Scenes and pieces</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
+<tr><td><code>reload()</code></td><td>Starts this scene again.</td></tr>
+<tr><td><code>transition(kind, seconds, color)</code></td><td>How go() changes scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
+<tr><td><code>spawn(sceneOrType, properties, parent)</code></td><td>Makes a piece and adds it to the scene (self:spawn adds it inside this piece).</td></tr>
+<tr><td><code>make(sceneOrType, properties)</code></td><td>Makes a piece without adding it anywhere.</td></tr>
+<tr><td><code>tagged(tag)</code></td><td>Every piece with a tag.</td></tr>
+<tr><td><code>first(tag)</code></td><td>The first piece with a tag, or nil.</td></tr>
+<tr><td><code>root()</code></td><td>The scene's root piece.</td></tr>
+<tr><td><code>camera()</code></td><td>The camera in use, or nil.</td></tr>
+<tr><td><code>game</code></td><td>A table for the whole game, kept when the scene changes: game.score += 1.</td></tr>
+<tr><td><code>pauseGame()</code></td><td>Pauses pieces and physics (pieces with pausable off keep running).</td></tr>
+<tr><td><code>resumeGame()</code></td><td>Unpauses.</td></tr>
+<tr><td><code>isPaused()</code></td><td>True while the game is paused.</td></tr>
+<tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
+</table></div>
+<h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
+<p>More in <a href="sound">Sound and music</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
+<tr><td><code>music(name, options)</code></td><td>Plays music on a loop instead of the music playing: music(&quot;theme&quot;, { volume = 0.6, fade = 1 }).</td></tr>
+<tr><td><code>stopMusic(fade)</code></td><td>Stops the music, fading out over fade seconds if given.</td></tr>
+<tr><td><code>pauseMusic()</code></td><td>Pauses the music.</td></tr>
+<tr><td><code>resumeMusic()</code></td><td>Continues the music.</td></tr>
+<tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
+</table></div>
+<h2 id="saving"><a class="anchor" href="#saving" aria-hidden="true">#</a>Saving</h2>
+<p>More in <a href="saving">Saving</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>save(key, value)</code></td><td>Keeps a value between plays: save(&quot;best&quot;, score).</td></tr>
+<tr><td><code>load(key, default)</code></td><td>A saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
+</table></div>
+<h2 id="time"><a class="anchor" href="#time" aria-hidden="true">#</a>Time</h2>
+<p>More in <a href="scripts">Scripts</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
+<tr><td><code>task(function)</code></td><td>Runs a function that can wait().</td></tr>
+<tr><td><code>after(seconds, function)</code></td><td>Calls a function once, after some seconds.</td></tr>
+<tr><td><code>every(seconds, function)</code></td><td>Calls a function every so many seconds, until it returns false.</td></tr>
+<tr><td><code>tween(target, seconds, values, easing)</code></td><td>Changes numbers smoothly: tween(self, 0.3, { y = 100 }).</td></tr>
+<tr><td><code>time()</code></td><td>Seconds since the game started.</td></tr></tbody>
+</table></div>
+<h2 id="math"><a class="anchor" href="#math" aria-hidden="true">#</a>Math</h2>
+<p>More in <a href="scripts">Scripts</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>approach(value, target, step)</code></td><td>Moves a value towards a target by at most step.</td></tr>
+<tr><td><code>lerp(a, b, t)</code></td><td>Between a and b: t = 0 is a, 1 is b.</td></tr>
+<tr><td><code>clamp(value, min, max)</code></td><td>The value, kept between min and max.</td></tr>
+<tr><td><code>sign(value)</code></td><td>-1, 0 or 1.</td></tr>
+<tr><td><code>round(value, step)</code></td><td>Rounded to the nearest step (default 1).</td></tr>
+<tr><td><code>rnd(n)</code></td><td>rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items.</td></tr>
+<tr><td><code>choose(...)</code></td><td>One of its arguments, at random.</td></tr>
+<tr><td><code>dist(a, b)</code></td><td>The distance between two pieces, or dist(x1, y1, x2, y2).</td></tr>
+<tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high (with the piece's gravity).</td></tr></tbody>
+</table></div>
+<h2 id="screen"><a class="anchor" href="#screen" aria-hidden="true">#</a>Screen</h2>
+<p>More in <a href="settings">Project settings and modules</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
+<tr><td><code>screenHeight()</code></td><td>The game's height, in game pixels.</td></tr>
+<tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen; fullscreen() is true while it does.</td></tr></tbody>
+</table></div>
+<h2 id="drawing"><a class="anchor" href="#drawing" aria-hidden="true">#</a>Drawing</h2>
+<p>More in <a href="drawing">Drawing</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>pen(r, g, b, a)</code></td><td>The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
+<tr><td><code>penSize(width)</code></td><td>How thick lines and outlines are.</td></tr>
+<tr><td><code>clearScreen(color)</code></td><td>Fills the whole screen with a color (the pen's if none).</td></tr>
+<tr><td><code>rect(x, y, w, h, fill)</code></td><td>A rectangle (fill = false for an outline).</td></tr>
+<tr><td><code>circle(x, y, radius, fill)</code></td><td>A circle (fill = false for an outline).</td></tr>
+<tr><td><code>oval(x, y, rx, ry, fill)</code></td><td>An ellipse.</td></tr>
+<tr><td><code>poly(points, fill)</code></td><td>A polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
+<tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>A line through points.</td></tr>
+<tr><td><code>dot(x, y)</code></td><td>One pixel.</td></tr>
+<tr><td><code>write(text, x, y, options)</code></td><td>Text; options: a size, or { size, font, align, width }.</td></tr>
+<tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2 }).</td></tr></tbody>
+</table></div>
+<h2 id="script-functions"><a class="anchor" href="#script-functions" aria-hidden="true">#</a>Script functions</h2>
+<p>Functions the engine calls when a script defines them:</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th>Pieces</th><th></th></tr></thead>
+<tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The piece and everything inside it have joined the scene. The scene's root gets go()'s extra values.</td></tr>
+<tr><td><code>function update(dt)</code></td><td>Piece</td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function draw()</code></td><td>Piece</td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
+<tr><td><code>function removed()</code></td><td>Piece</td><td>The piece is leaving the scene.</td></tr>
+<tr><td><code>function hit(other)</code></td><td>Body</td><td>It bumped into another body or solid tiles.</td></tr>
+<tr><td><code>function entered(zone)</code></td><td>Body, Zone</td><td>Body: It went into a zone. Zone: A body or zone came in.</td></tr>
+<tr><td><code>function exited(zone)</code></td><td>Body, Zone</td><td>Body: It left a zone. Zone: A body or zone left.</td></tr>
+<tr><td><code>function pressed()</code></td><td>Button, Panel, Picture</td><td>Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped.</td></tr>
+<tr><td><code>function tick()</code></td><td>Timer</td><td>The countdown reached zero.</td></tr>
+<tr><td><code>function finished(animation)</code></td><td>Sprite, Particles, Sound</td><td>Sprite: A non-looping animation reached its last frame. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Sound: The sound reached its end (not when looping).</td></tr>
+<tr><td><code>function hovered()</code></td><td>UI</td><td>The pointer came over it (not Labels).</td></tr>
+<tr><td><code>function unhovered()</code></td><td>UI</td><td>The pointer left it.</td></tr></tbody>
+</table></div>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="sharing"><span>Previous</span>Sharing and publishing</a><a class="next" href="pieces"><span>Next</span>Pieces</a></nav>
+  </main>
+</div>
+</body>
+</html>

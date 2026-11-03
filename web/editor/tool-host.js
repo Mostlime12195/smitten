@@ -1,6 +1,6 @@
 // Opens project files in Smitten's built-in tools (pixel editor, map editor,
 // sound and music editors) instead of the code editor. Each open file gets
-// its own tool instance; see docs/reference.md ("Editor tools").
+// its own tool instance; see docs/editor-tools.md.
 
 import * as ui from './ui.js';
 import { tools } from './tools/index.js';

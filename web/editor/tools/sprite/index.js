@@ -1,6 +1,6 @@
 // Image editor: paints a PNG (one image, or a sheet of frames) and its
 // .sprite file (frame size, origin, animations). Opens .png, .sprite and the
-// older .sprite.json. See docs/reference.md ("Sprites", "Editor tools").
+// older .sprite.json. See docs/formats.md ("Sprites") and docs/editor-tools.md.
 
 import { SpriteEditor } from './editor.js';
 import { encodePNGSync } from './png.js';

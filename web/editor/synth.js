@@ -1,4 +1,4 @@
-// The synthesizer for the editor's sound previews (docs/reference.md,
+// The synthesizer for the editor's sound previews (docs/editor-tools.md,
 // "Synthesizer in the editor"). synth.mjs is the engine's own synthesizer
 // (love/src/modules/smitten/Synth.cpp) built on its own, so a sound renders
 // to exactly the same samples here as in the game.
