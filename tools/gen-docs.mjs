@@ -18,15 +18,20 @@
 // shows a placeholder page for it.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const docsDir = join(root, 'docs');
-const outDir = join(root, 'platform', 'public', 'docs');
+// node tools/gen-docs.mjs [--out dir --local]: --local writes a copy for the
+// editor's built-in docs panel (dist/docs): plain .html links, its own
+// stylesheet, no links back to the site.
+const argv = process.argv.slice(2);
+const LOCAL = argv.includes('--local');
+const outDir = argv.includes('--out') ? resolve(argv[argv.indexOf('--out') + 1]) : join(root, 'platform', 'public', 'docs');
 const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/pieces.json'), 'utf8'));
 const { SCRIPT_API_GROUPS, SCRIPT_CALLBACKS } = await import(pathToFileURL(join(root, 'web/editor/core/script-api.js')).href);
-const { SMITTEN_MODULES, LOVE_ADDITIONS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
+const { SMITTEN_MODULES, MODULE_HELPERS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
 
 // The site's pages, in sidebar order. A page whose file is missing gets a
 // placeholder (physics, written by hand later).
@@ -92,7 +97,7 @@ function apiTable(group) {
 }
 
 function moduleTable(mod) {
-  const members = SMITTEN_MODULES[mod] || LOVE_ADDITIONS[mod];
+  const members = SMITTEN_MODULES[mod] || MODULE_HELPERS[mod];
   if (!members) throw new Error(`no module ${mod}`);
   const fns = Object.entries(members).filter(([, d]) => d);
   const fields = Object.entries(members).filter(([, d]) => !d).map(([n]) => `\`${n}\``);
@@ -163,8 +168,11 @@ function enginePage() {
   const out = [
     '# The engine table',
     '',
-    '`smitten` and `love` are the same table, so [LÖVE 12\'s API](https://love2d.org/wiki/Main_Page)',
-    'is all there. This page lists what Smitten adds.',
+    '`smitten` holds the engine: drawing (`smitten.graphics`), sound (`smitten.audio`,',
+    '`smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`, `smitten.joystick`,',
+    '`smitten.touch`), files (`smitten.filesystem`), `smitten.math`, `smitten.timer`,',
+    '`smitten.window` and the rest, and Smitten\'s own modules. This page lists Smitten\'s',
+    'modules and the helpers it adds to the others.',
     '',
     '## Smitten\'s modules',
     '',
@@ -177,13 +185,14 @@ function enginePage() {
     storage: 'See [Saving](saving.md).',
     display: 'See [Project settings](settings.md).',
     json: 'JSON text to Lua values and back.',
+    physics: 'Queries on the running scene\'s physics. See [Physics](physics.md).',
     synth: 'See [Sound and music](sound.md).',
   };
   for (const mod of Object.keys(SMITTEN_MODULES)) {
     out.push(`### smitten.${mod}`, '', intro[mod] || '', '', ...moduleTable(mod));
   }
-  out.push('## Added to LÖVE\'s modules', '');
-  for (const mod of Object.keys(LOVE_ADDITIONS)) out.push(`### smitten.${mod}`, '', ...moduleTable(mod));
+  out.push('## Helpers in the engine\'s modules', '');
+  for (const mod of Object.keys(MODULE_HELPERS)) out.push(`### smitten.${mod}`, '', ...moduleTable(mod));
   return out.join('\n');
 }
 
@@ -210,8 +219,9 @@ for (const f of readdirSync(docsDir).filter((f) => f.endsWith('.md'))) {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown to HTML (the subset the docs use: headings, paragraphs, lists,
-// tables, fenced code, blockquotes, inline code, links, bold, italics)
+// Markdown to HTML (the subset the docs use: headings, paragraphs, lists
+// whose items can hold more blocks, tables, fenced code at any indent,
+// images with captions, tips (> **Tip:**), inline code, links, bold, italics)
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const slug = (s) => s.toLowerCase().replace(/`/g, '').replace(/<[^>]+>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -219,8 +229,27 @@ const slug = (s) => s.toLowerCase().replace(/`/g, '').replace(/<[^>]+>/g, '').re
 // docs links: "camera.md#follow" -> "camera#follow"; "reference.md" -> "./".
 function href(h) {
   const m = /^([\w-]+)\.md(#.*)?$/.exec(h);
-  if (m) return `${m[1] === 'reference' ? './' : m[1]}${m[2] || ''}`;
+  if (m) return `${pageHref(m[1])}${m[2] || ''}`;
   return h;
+}
+
+// Lua in code blocks: comments, strings, numbers and keywords.
+const LUA_KEYWORDS = new Set('and break continue do else elseif end false for function if in local nil not or repeat return then true until while'.split(' '));
+function highlightLua(code) {
+  let out = '';
+  const re = /(--\[\[[\s\S]*?\]\]|--[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`[^`]*`)|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)\b/g;
+  let last = 0;
+  for (const m of code.matchAll(re)) {
+    out += esc(code.slice(last, m.index));
+    if (m[1]) out += `<span class="tk-c">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="tk-s">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="tk-n">${esc(m[3])}</span>`;
+    else if (LUA_KEYWORDS.has(m[4])) out += `<span class="tk-k">${m[4]}</span>`;
+    else if (code[m.index + m[0].length] === '(') out += `<span class="tk-f">${m[4]}</span>`;
+    else out += m[4];
+    last = m.index + m[0].length;
+  }
+  return out + esc(code.slice(last));
 }
 
 function inline(s) {
@@ -228,6 +257,7 @@ function inline(s) {
   const keep = (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; };
   s = s.replace(/``\s?(.+?)\s?``/g, keep).replace(/`([^`]+)`/g, keep);
   s = esc(s).replace(/\\\|/g, '|');
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) => `<img src="${esc(src)}" alt="${alt}" loading="lazy">`);
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, h) => {
     const ext = /^https?:/.test(h);
     return `<a href="${esc(href(h))}"${ext ? ' rel="noopener"' : ''}>${t}</a>`;
@@ -254,7 +284,7 @@ function cells(row) {
   return out;
 }
 
-const BLOCK = /^(#{1,4} |```|\||\s*[-*] |\d+\. |> |<!--|---+\s*$)/;
+const BLOCK = /^(#{1,4} |\s*```|\||\s*[-*] |\d+\. |> |<!--|---+\s*$|!\[)/;
 
 function render(md) {
   const lines = md.split('\n');
@@ -272,13 +302,20 @@ function render(md) {
   };
   while (i < lines.length) {
     const line = lines[i];
-    if (/^```/.test(line)) {
-      const lang = line.slice(3).trim();
+    if (/^\s*```/.test(line)) {
+      const indent = /^\s*/.exec(line)[0].length;
+      const lang = line.trim().slice(3).trim();
       const code = [];
       i++;
-      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) code.push(lines[i++].slice(Math.min(indent, /^\s*/.exec(lines[i - 1])[0].length)));
       i++;
-      html.push(`<pre><code${lang ? ` class="lang-${esc(lang)}"` : ''}>${esc(code.join('\n'))}</code></pre>`);
+      const body = lang === 'lua' ? highlightLua(code.join('\n')) : esc(code.join('\n'));
+      html.push(`<pre><code${lang ? ` class="lang-${esc(lang)}"` : ''}>${body}</code></pre>`);
+    } else if (/^!\[[^\]]*\]\([^)]+\)\s*$/.test(line)) {
+      // An image on its own line: a figure, captioned by its alt text.
+      const [, alt, src] = /^!\[([^\]]*)\]\(([^)\s]+)\)/.exec(line);
+      html.push(`<figure><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">${alt ? `<figcaption>${inline(alt)}</figcaption>` : ''}</figure>`);
+      i++;
     } else if (/^<!--/.test(line)) {
       while (i < lines.length && !lines[i].includes('-->')) i++;
       i++;
@@ -304,21 +341,38 @@ function render(md) {
         `<tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('\n')}</tbody>`,
         '</table></div>');
     } else if (/^\s*[-*] /.test(line) || /^\d+\. /.test(line)) {
+      // Items hold everything indented under them (more paragraphs, code,
+      // images), rendered as blocks of their own.
       const ordered = /^\d+\. /.test(line);
+      const marker = ordered ? /^\d+\. / : /^\s*[-*] /;
       const items = [];
+      let width = 2; // how far an item's own lines are indented: under its text
       while (i < lines.length) {
         const l = lines[i];
-        if ((ordered ? /^\d+\. / : /^\s*[-*] /).test(l)) items.push(l.replace(/^\s*(?:[-*]|\d+\.) /, ''));
-        else if (/^\s{2,}\S/.test(l) && items.length) items[items.length - 1] += ` ${l.trim()}`;
-        else break;
+        if (marker.test(l)) {
+          width = /^\s*(?:[-*]|\d+\.) /.exec(l)[0].length;
+          items.push([l.slice(width)]);
+        } else if (items.length && /^\s{2,}\S/.test(l)) {
+          items[items.length - 1].push(l.slice(Math.min(width, /^\s*/.exec(l)[0].length)));
+        } else if (items.length && !l.trim() && i + 1 < lines.length && (/^\s{2,}\S/.test(lines[i + 1]))) {
+          items[items.length - 1].push('');
+        } else break;
         i++;
       }
       const tag = ordered ? 'ol' : 'ul';
-      html.push(`<${tag}>${items.map((it) => `<li>${inline(it)}</li>`).join('')}</${tag}>`);
+      const li = (it) => {
+        if (it.length === 1 || !it.slice(1).some((x) => x.trim())) return `<li>${inline(it.join(' ').trim())}</li>`;
+        const inner = render(it.join('\n')).html.replace(/^<p>([\s\S]*?)<\/p>/, '$1');
+        return `<li>${inner}</li>`;
+      };
+      html.push(`<${tag}>${items.map(li).join('')}</${tag}>`);
     } else if (/^> /.test(line)) {
       const q = [];
       while (i < lines.length && /^> ?/.test(lines[i]) && lines[i].trim()) q.push(lines[i++].replace(/^> ?/, ''));
-      html.push(`<blockquote><p>${inline(q.join(' '))}</p></blockquote>`);
+      const text = q.join(' ');
+      const tip = /^\*\*(Tip|Note|Careful):\*\*\s*/.exec(text);
+      if (tip) html.push(`<div class="callout ${tip[1].toLowerCase()}"><strong>${tip[1]}</strong><p>${inline(text.slice(tip[0].length))}</p></div>`);
+      else html.push(`<blockquote><p>${inline(text)}</p></blockquote>`);
     } else if (/^---+\s*$/.test(line)) {
       html.push('<hr>');
       i++;
@@ -343,7 +397,10 @@ const plain = (md) => md.replace(/```[\s\S]*?```/g, ' ').replace(/<!--[\s\S]*?--
 const HEART = '<svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
 const SEARCH_ICON = '<svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 
-const pageHref = (name) => (name === 'reference' ? './' : name);
+function pageHref(name) {
+  if (LOCAL) return name === 'reference' ? 'index.html' : `${name}.html`;
+  return name === 'reference' ? './' : name;
+}
 
 function sidebar(current, headings) {
   return NAV.map((s) => `<div class="nav-section"><div class="nav-title">${esc(s.title)}</div><ul>${s.pages.map(([name, title]) => {
@@ -370,8 +427,7 @@ function pageHtml(name, { title, html, headings }) {
 <title>${esc(docTitle)}</title>
 <meta name="description" content="Smitten's documentation: ${esc(title)}.">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../site.css">
+${LOCAL ? '' : '<link rel="icon" href="../favicon.svg" type="image/svg+xml">\n'}<link rel="stylesheet" href="${LOCAL ? 'site.css' : '../site.css'}">
 <link rel="stylesheet" href="docs.css">
 <script type="module" src="docs.js"></script>
 </head>
@@ -379,9 +435,9 @@ function pageHtml(name, { title, html, headings }) {
 <header class="topbar">
   <div class="topbar-inner">
     <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-    <a class="brand" href="../" aria-label="Smitten games">${HEART}<span>Smitten</span></a>
-    <a class="docs-home" href="./">Docs</a>
-    <form class="search" role="search" id="docs-search" action="./">
+    ${LOCAL ? `<a class="brand" href="index.html" aria-label="Smitten docs">${HEART}<span>Docs</span></a>` : `<a class="brand" href="../" aria-label="Smitten games">${HEART}<span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>`}
+    <form class="search" role="search" id="docs-search" action="${LOCAL ? 'index.html' : './'}">
       ${SEARCH_ICON}
       <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
       <div class="search-results" id="docs-results" role="listbox" hidden></div>
@@ -455,6 +511,23 @@ const CSS = `/* Smitten docs: the sharing site's look (site.css) with a sidebar.
 .prose pre code { padding: 0; background: none; font-size: 13.5px; line-height: 1.55; overflow-wrap: normal; white-space: pre; }
 .prose blockquote { margin: 0 0 16px; padding: 10px 14px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--surface); color: var(--fg-muted); }
 .prose blockquote p { margin: 0; }
+.prose li > p { margin: 6px 0; }
+.prose li > pre, .prose li > figure { margin: 10px 0 14px; }
+.prose figure { margin: 20px 0 24px; }
+.prose figure img { display: block; max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
+.prose figcaption { margin-top: 8px; color: var(--fg-muted); font-size: 13.5px; }
+.prose p img { max-width: 100%; vertical-align: middle; border-radius: 6px; }
+.callout { margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+.callout strong { display: block; margin-bottom: 2px; font-size: 13px; }
+.callout p { margin: 0; color: var(--fg-muted); }
+.callout.tip strong { color: var(--accent); }
+.callout.careful strong { color: #e5a03c; }
+.tk-c { color: var(--fg-muted); font-style: italic; }
+.tk-s { color: #4fae74; }
+.tk-n { color: #c98a3a; }
+.tk-k { color: #a476e0; }
+.tk-f { color: #4f8ae8; }
+@media (prefers-color-scheme: dark) { .tk-s { color: #8bd5a2; } .tk-n { color: #f2b56b; } .tk-k { color: #c8a2ff; } .tk-f { color: #82b0ff; } }
 .prose hr { margin: 28px 0; border: 0; border-top: 1px solid var(--border); }
 .prose .table { margin: 0 0 18px; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .prose table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
@@ -638,7 +711,14 @@ for (const [name, navTitle] of NAV.flatMap((s) => s.pages)) {
     }
   }
 }
+// Screenshots and other images (docs/images, made by tools/docs-shots.mjs).
+const imagesDir = join(docsDir, 'images');
+if (existsSync(imagesDir)) {
+  mkdirSync(join(outDir, 'images'), { recursive: true });
+  for (const f of readdirSync(imagesDir)) writeFileSync(join(outDir, 'images', f), readFileSync(join(imagesDir, f)));
+}
 writeFileSync(join(outDir, 'search.json'), JSON.stringify(search));
 writeFileSync(join(outDir, 'docs.css'), CSS);
 writeFileSync(join(outDir, 'docs.js'), JS);
+if (LOCAL) writeFileSync(join(outDir, 'site.css'), readFileSync(join(root, 'platform/public/site.css')));
 console.log(`docs: ${count} pages in platform/public/docs, ${search.length} search entries; docs/pieces.md, api.md, engine.md written`);

@@ -1,14 +1,16 @@
 # Sound and music
 
-Plays `.wav`, `.ogg`, `.mp3` and `.flac` files, and `.sfx` and `.song`
-files made in the Sound and Music workspaces.
+Smitten plays `.wav`, `.ogg`, `.mp3` and `.flac` files, plus the sound
+effects (`.sfx`) and songs (`.song`) you make in the editor's **Sound** and
+**Music** workspaces. There are two ways to play them: from a script with
+`sfx` and `music`, or with a **Sound** piece placed in a scene.
 
 ```lua
-sfx("coin")                              -- coin.sfx, coin.wav, ... anywhere
+sfx("coin")                                -- finds coin.sfx (or coin.wav...) anywhere
 sfx("hit", { volume = 0.5, pitch = 0.9 + rnd(0.2) })
-music("theme")                           -- loops across scenes
-music("boss", { fade = 1 })              -- crossfades
-stopMusic(2)
+music("theme")                             -- loops, and keeps playing between scenes
+music("boss", { fade = 1 })                -- fades from the old music to this one
+stopMusic(2)                               -- fades out over 2 seconds
 ```
 
 <!-- api:Sound -->
@@ -22,22 +24,33 @@ stopMusic(2)
 | `masterVolume(volume)` | Every sound's volume, 0 to 1; masterVolume() reads it. |
 <!-- end -->
 
-A bare name finds the file anywhere in the project; `.sfx` wins over other
-types. A path plays that file.
+## Finding sounds
 
-`sfx` returns the LÖVE [Source](https://love2d.org/wiki/Source). Pitch 2 is
-an octave up.
+Give a bare name like `"coin"` and Smitten finds the sound with that name
+anywhere in your project. If several files share the name, `.sfx` wins.
+A full path like `"sounds/coin.wav"` plays exactly that file.
 
-`music` with the music already playing keeps it playing. Music continues
-across scenes and isn't affected by `pauseGame()` or `timeScale()`.
+A little random pitch (`pitch = 0.9 + rnd(0.2)`) keeps repeated sounds,
+like footsteps or hits, from sounding mechanical. A pitch of 2 is an
+octave higher.
+
+## Music
+
+`music(name)` loops a sound as background music, replacing whatever was
+playing. Asking for the music that's already playing changes nothing, so
+every level can safely call `music("theme")`. Music carries on across
+scene changes, and isn't stopped by pausing or slowed by `timeScale`.
 
 ## The Sound piece
 
-Plays one file, set in the Inspector. `volume` and `pitch` apply while
-playing, so they can be tweened. It stops when it leaves the scene.
+A Sound piece plays one file, chosen in the Inspector. It's useful for
+sounds that belong to something in the level (a waterfall, an engine
+hum), for sounds that should start with the scene (**autoplay**), and for
+sounds a script controls in detail. Its `volume` and `pitch` can change
+while it plays, so you can tween them. It stops when it leaves the scene.
 
 ```lua
-function ready() fadeIn(2) end
+function ready() fadeIn(2) end   -- an alarm that swells in
 ```
 
 <!-- piece:Sound -->
@@ -51,7 +64,7 @@ function ready() fadeIn(2) end
 
 | Method | |
 | --- | --- |
-| `play()` | Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song). |
+| `play()` | Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song). |
 | `stop()` | Stops every copy. |
 | `pause()` | Pauses. |
 | `resume()` | Continues after pause(). |
@@ -81,4 +94,5 @@ function ready() fadeIn(2) end
 <!-- end -->
 
 `smitten.synth.sfx(path)` and `smitten.synth.song(path)` load `.sfx` and
-`.song` files ([File formats](formats.md#sound-effects-in-code)).
+`.song` files as objects you can play and stop yourself
+([File formats](formats.md#sound-effects-in-code)).

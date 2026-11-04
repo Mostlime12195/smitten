@@ -1,40 +1,56 @@
 # Scenes and pieces
 
-A scene is a tree of pieces in a `.scene` file. One scene runs at a time,
-starting with the project's main scene. A scene can be placed inside
-another; each placed copy can override its properties.
+A **scene** is one screen of your game, such as a level, a menu or a game
+over screen, saved as a `.scene` file. It's a tree of **pieces**: a level
+might hold the player, the ground, some coins and a camera, and the player
+holds its picture and its own camera. One scene runs at a time, starting
+with the project's main scene.
+
+Scenes can be placed inside other scenes. The Platformer template's coin
+is its own small scene, placed many times in the level; each copy can
+change its settings, and editing the coin scene changes them all.
 
 ## Finding pieces
 
 | | |
 | --- | --- |
-| `Look`, `Camera` | A child by name (capitalized), in the piece's script |
-| `find("UI/Score")` | A piece by path from this one; `..` goes up |
-| `findDeep("Score")` | The first piece with that name inside this one |
+| `Look`, `Camera` | A child, by its name (names starting with a capital letter work like this) |
+| `find("UI/Score")` | A piece by its path from this one; `..` goes up a level |
+| `findDeep("Score")` | The first piece with that name anywhere inside this one |
 | `findChildOfType("Sprite")` | The first child of a type |
-| `parent`, `children` | The parent; the list of children |
-| `root()` | The scene's root |
-| `first("player")`, `tagged("coin")` | The first piece with a tag; all of them |
+| `parent`, `children` | The piece this one is inside; the pieces inside it |
+| `root()` | The scene's top piece |
+| `first("player")`, `tagged("coin")` | The first piece with a tag; every piece with it |
 
 ## Tags
 
-Set tags in the Inspector or with `tag(name)` and `untag(name)`.
-`other:is("enemy")` checks a tag or a type (`other:is("Body")`).
-`hasAnyTag("enemy, spikes")` checks several.
+Tags are labels you give pieces, like `player`, `enemy` or `coin`, so
+scripts can find them and tell them apart. Add them in the Inspector, or
+with `tag(name)` and `untag(name)` from a script.
+
+`other:is("enemy")` checks for a tag, or a type (`other:is("Body")`).
+`hasAnyTag("enemy, spikes")` checks several at once. Bodies and Zones also
+use tags to decide what they bump into ([Physics](physics.md)).
 
 ## Making and removing pieces
+
+`spawn` makes a new piece, from a scene file or a piece type, and adds it
+to the scene:
 
 ```lua
 spawn("scenes/bullet.scene", { x = x, y = y, rotation = rotation })
 spawn("Text", { text = "+10", x = x, y = y - 20 })
-self:spawn("scenes/hat.scene")            -- inside this piece
-local enemy = make("scenes/enemy.scene")  -- not in the scene yet
+self:spawn("scenes/hat.scene")           -- inside this piece instead
+
+local enemy = make("scenes/enemy.scene") -- made, but not added yet
 Enemies:add(enemy)
-destroy()                                 -- at the end of the frame
+
+destroy()                                -- remove this piece
 ```
 
-`destroy()` removes a piece and its children at the end of the frame.
-`remove()` takes it out immediately, to `add` it elsewhere.
+`destroy()` removes a piece and everything inside it at the end of the
+frame. `remove()` takes a piece out straight away without destroying it,
+so you can `add` it somewhere else.
 
 <!-- api:Scenes -->
 | Call | |
@@ -57,40 +73,45 @@ destroy()                                 -- at the end of the frame
 
 ## Changing scenes
 
-`go(path, ...)` changes scene at the end of the frame. The extra values go
-to the new root's `ready(...)`.
+`go("scenes/level2.scene")` switches to another scene at the end of the
+frame. Any extra values are handed to the new scene's root, in its
+`ready(...)`:
 
 ```lua
 go("scenes/gameover.scene", score)
 
--- on the game over scene's root
+-- on the game over scene's root piece
 function ready(score)
   find("Score").text = `Score: {score}`
 end
 ```
 
-`reload()` restarts the scene with the same values.
-`transition("fade", 0.4[, color])` makes later scene changes fade;
-`transition("none")` turns it off.
+`reload()` starts the current scene again. `transition("fade", 0.4)` makes
+scene changes fade through black (or another color:
+`transition("fade", 0.4, {1, 1, 1})`), and `transition("none")` goes back
+to instant cuts.
 
 ## The game table
 
-`game` is shared by every script and survives scene changes:
+Everything in a scene is gone when it ends. `game` is a table every script
+can use that lasts for the whole time the game runs, which makes it the
+place for things like lives and score:
 
 ```lua
 game.lives = (game.lives or 3) - 1
 ```
 
-To keep values between plays, use [Saving](saving.md).
+To keep something after the game closes, [save](saving.md) it.
 
-## Pausing
+## Pausing and slow motion
 
-`pauseGame()` stops `update`, `physicsUpdate`, physics, animations, timers
-and tweens. Drawing and UI input continue. Pieces with `pausable` off, and
-their children, keep running: put the pause menu in one.
+`pauseGame()` stops pieces' `update` and `physicsUpdate`, physics,
+animations, timers and tweens; the screen still draws and UI still
+responds. Pieces whose **pausable** setting is off, and everything inside
+them, keep running, so put your pause menu inside one:
 
 ```lua
--- on a Group with pausable off
+-- on a Group with pausable off, holding the pause menu
 function update(dt)
   if pressed("pause") then
     if isPaused() then resumeGame() else pauseGame() end
@@ -99,8 +120,8 @@ function update(dt)
 end
 ```
 
-`timeScale(0.5)` runs the game at half speed; `timeScale(0)` freezes it.
-Music isn't affected by either.
+`timeScale(0.5)` runs the game at half speed for a slow-motion moment, and
+`timeScale(1)` puts it back. Music keeps playing normally through both.
 
 ## Every piece
 
@@ -140,11 +161,12 @@ Music isn't affected by either.
 
 Every piece also has `name`, `type`, `parent`, `children` and `script`.
 
-## Positions
+## Position, size and drawing order
 
-Group and every piece made from it have `x`, `y`, `rotation` (radians),
-`scaleX`, `scaleY`, `visible`, `tint` and `layer`, relative to the parent.
-`y` grows downwards.
+Pieces that appear in the world (Group and everything based on it) have
+`x`, `y`, `rotation` (in radians), `scaleX`, `scaleY`, `visible`, `tint`
+and `layer`. Positions are measured from the parent piece, and `y` grows
+downwards. Higher layers draw on top.
 
 <!-- piece:Group -->
 | Property | Type | Default | |

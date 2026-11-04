@@ -1,15 +1,21 @@
 # Drawing
 
-A piece's `draw()` runs after the piece draws, in its own coordinates:
-(0, 0) is its position, and it turns and scales with it. UI pieces draw in
-screen pixels from their top-left corner.
+Most games don't need any drawing code: Sprites, Shapes, Text, Tiles and
+Particles draw themselves. When you want something they can't do, such as
+a health bar over an enemy or a laser beam, give the piece a `draw()`
+function.
+
+`draw()` runs right after the piece draws itself, in the piece's own
+coordinates: (0, 0) is the piece's position, and the drawing turns and
+scales with the piece.
 
 ```lua
+-- A health bar above an enemy
 function draw()
+  pen(0, 0, 0, 0.5)
+  rect(-16, -30, 32, 4)
   pen("#ff5050")
-  penSize(3)
-  line(-16, -28, -16 + 32 * hp / maxHp, -28)
-  write(name, 0, 24, { size = 10, align = "center" })
+  rect(-16, -30, 32 * hp / maxHp, 4)
 end
 ```
 
@@ -31,29 +37,40 @@ end
 
 ## Colors
 
-`pen(r, g, b, a)` (0 to 1), `pen(gray)`, `pen({r, g, b, a})` or
-`pen("#rrggbb[aa]")`. The piece's `tint` multiplies what it draws.
+`pen` sets the color for what you draw next: red, green, blue and alpha
+from 0 to 1 (`pen(1, 0.5, 0)`), a gray (`pen(0.5)`), a table like color
+settings use (`pen({1, 0, 0, 0.5})`), or a hex code (`pen("#ff8800")`).
+The piece's `tint` also colors everything it draws.
 
 ## Text
 
-`write(text, x, y[, size])`, or a table: `size`, `font` (a font file or
-`"pixel"`), `align` (`left`, `center`, `right`) and `width` (wraps).
+`write(text, x, y)` writes at 16 pixels, and `write(text, x, y, 24)` at
+24. For more, pass a table: `size`, `font` (a font file, or `"pixel"` for
+the built-in pixel font), `align` (`"left"`, `"center"` or `"right"`) and
+`width` (longer lines wrap). Text stays sharp when the game is scaled up.
 
 ## Sprites
 
-`sprite(path, x, y[, options])` draws a picture from its top-left corner.
+`sprite(path, x, y)` draws a picture with its top-left corner at x, y. An
+options table picks a frame or transforms it:
 
 | Option | |
 | --- | --- |
-| `frame` | A frame of a `.sprite`, or of a sheet cut with `columns`/`rows` (from 0) |
-| `columns`, `rows` | Cut a picture into frames |
-| `rotation`, `scale`, `scaleX`, `scaleY` | |
-| `flipX`, `flipY` | |
-| `centered` | Center on x, y |
+| `frame` | A frame of a `.sprite` file, or of a sheet cut with `columns` and `rows` (counting from 0) |
+| `columns`, `rows` | Cut a plain picture into frames |
+| `rotation`, `scale`, `scaleX`, `scaleY` | Turn and size |
+| `flipX`, `flipY` | Mirror it |
+| `centered` | Center it on x, y |
 
 ```lua
 sprite("art/tiles.png", 32, 0, { columns = 8, rows = 8, frame = 12 })
 ```
 
-All of [`smitten.graphics`](https://love2d.org/wiki/love.graphics) also
-works in `draw()`; `pen` is `smitten.graphics.setColor`.
+## Drawing on the screen
+
+A UI piece's `draw()` uses screen pixels, starting from its own top-left
+corner, so it's the place for anything that should ignore the camera.
+`clearScreen(color)` fills the whole screen, for hand-drawn backgrounds.
+
+For anything beyond these, [`smitten.graphics`](engine.md) has the full
+set: meshes, canvases, shaders, blend modes and more.

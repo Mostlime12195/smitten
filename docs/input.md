@@ -1,7 +1,9 @@
 # Input
 
-Read input through **actions**: named groups of keys and buttons, set in
-**Project settings › Input**.
+Most games read input through **actions**: names like `jump` or `left`
+that stand for several keys and buttons at once. A game written with
+actions works with a keyboard, a gamepad and (for the mouse button)
+touch, without extra code. Players can also rebind them.
 
 ```lua
 function physicsUpdate(dt)
@@ -30,6 +32,9 @@ end
 
 ## Actions
 
+Every project starts with these. Change them, or add your own, in
+**Project settings › Input**.
+
 | Action | Default inputs |
 | --- | --- |
 | `left`, `right`, `up`, `down` | Arrow keys, WASD, d-pad, left stick |
@@ -39,36 +44,42 @@ end
 | `cancel` | Escape, Backspace, gamepad B |
 | `pause` | Escape, P, gamepad Start |
 
-`pressed`, `down` and `released` also take a single input name:
-`pressed("space")`. `pressed()` with no argument means any input.
+`pressed`, `down` and `released` also accept a single input, which is
+handy for quick tests: `pressed("space")`, `down("mouse:2")`. And
+`pressed()` with nothing in the brackets is true when anything at all was
+pressed, for "press any key" screens.
 
 ### Input names
 
 | Name | Input |
 | --- | --- |
-| `"a"`, `"space"`, `"left"`, `"return"`, ... | Keys ([LÖVE key names](https://love2d.org/wiki/KeyConstant)) |
-| `"mouse:1"`, `"mouse:2"`, `"mouse:3"` | Left, right, middle button; a touch is `mouse:1` |
-| `"wheel:up"`, `"wheel:down"` | Mouse wheel, pressed for one frame |
+| `"a"`, `"space"`, `"left"`, `"return"`, `"escape"`, ... | Keys |
+| `"mouse:1"`, `"mouse:2"`, `"mouse:3"` | Left, right and middle mouse buttons. A touch counts as `mouse:1` |
+| `"wheel:up"`, `"wheel:down"` | The mouse wheel |
 | `"pad:a"`, `"pad:start"`, `"pad:dpleft"`, ... | Gamepad buttons |
-| `"axis:leftx-"`, `"axis:triggerleft+"`, ... | Half a stick or a trigger, pressed past halfway |
+| `"axis:leftx-"`, `"axis:triggerleft+"`, ... | Half of a stick or a trigger, pushed past halfway |
 
-## Rebinding
+## Rebinding controls
 
-`smitten.input.bind(action, inputs)` replaces an action's inputs.
-`lastPressed()` returns the input pressed this frame.
+`smitten.input.bind(action, inputs)` changes an action's inputs while the
+game runs, and `smitten.input.lastPressed()` tells you what was just
+pressed. Together they make a "press a key for jump" screen:
 
 ```lua
 local key = smitten.input.lastPressed()
 if key then
   smitten.input.bind("jump", { key })
-  save("jumpKey", key)
+  save("jumpKey", key)   -- remember it next time
 end
 ```
 
-## Mouse
+## The mouse
 
-`mouse()` is the pointer in the scene; `mouseScreen()` is on the screen,
-for UI. `smitten.mouse.isOverUI()` is true over a button or panel.
+`mouse()` gives the pointer's position in the scene, which is what you
+want for aiming or clicking on things in the world. `mouseScreen()` gives
+it on the screen, for UI. `smitten.mouse.isOverUI()` is true when the
+pointer is over a button or panel, so a click meant for the UI doesn't
+also fire a shot:
 
 ```lua
 if pressed("mouse:1") and not smitten.mouse.isOverUI() then shoot() end
@@ -76,19 +87,22 @@ if pressed("mouse:1") and not smitten.mouse.isOverUI() then shoot() end
 
 ## Touch
 
-`touches()` returns each finger: `id`, `x`, `y` (screen) and `worldX`,
-`worldY` (scene).
+A touch works as the left mouse button, so most games run on phones as
+they are. For multi-touch, `touches()` lists every finger with its `id`,
+its screen position (`x`, `y`) and its position in the scene (`worldX`,
+`worldY`).
 
 ## Gamepads
 
-`stick(side, player)`, `trigger(side, player)` and
-`vibrate(strength, seconds, player)`. `smitten.input.gamepads()` is the
-number connected.
+Actions already read gamepads. For more control, `stick("left")` gives a
+stick's direction, `trigger("right")` how far a trigger is pressed, and
+`vibrate(0.5, 0.2)` rumbles. Each takes a player number at the end for
+local multiplayer: `stick("left", 2)`.
 
 ## Typing
 
-`typed()` returns the text typed this frame and turns text input on (the
-on-screen keyboard on phones).
+`typed()` returns whatever was typed this frame, and turns on text input
+(on phones, that shows the keyboard):
 
 ```lua
 name ..= typed()

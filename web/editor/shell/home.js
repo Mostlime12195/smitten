@@ -55,7 +55,7 @@ export async function renderHome(root, ctx) {
     return card;
   });
 
-  const importInput = h('input', { type: 'file', accept: '.zip,.love', hidden: true });
+  const importInput = h('input', { type: 'file', accept: '.zip', hidden: true });
   importInput.addEventListener('change', async () => {
     const file = importInput.files?.[0];
     if (!file) return;

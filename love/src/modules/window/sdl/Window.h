@@ -189,6 +189,13 @@ private:
 
 	ContextAttribs contextAttribs;
 
+#ifdef LOVE_EMSCRIPTEN
+	// The MSAA samples asked of the WebGL context (its antialias attribute),
+	// which can only be chosen when the context is made.
+	int webMSAA = 0;
+	int webContextMSAA = 0;
+#endif
+
 	StrongRef<graphics::Graphics> graphics;
 
 	Uint32 dialogEventId;

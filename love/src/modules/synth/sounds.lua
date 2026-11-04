@@ -21,13 +21,13 @@ local audio = {}
 local function needModules(what)
 	if not love.sound then
 		local ok = pcall(require, "love.sound")
-		if not ok then error(("smitten.%s needs love.sound, which is disabled in conf.lua"):format(what), 3) end
+		if not ok then error(("smitten.%s needs the sound module, which this build doesn't have"):format(what), 3) end
 	end
 end
 
 local function needAudio(what)
 	if not love.audio then
-		error(("smitten.%s: love.audio is disabled in conf.lua, so sounds can't play"):format(what), 3)
+		error(("smitten.%s: audio isn't available, so sounds can't play"):format(what), 3)
 	end
 end
 
@@ -84,13 +84,13 @@ local function songDuration(song)
 	return order * length * 60 / (bpm * steps)
 end
 
--- basePath may be a file in the song's folder or the folder itself.
+-- The folder instrument paths are relative to. basePath may be the song
+-- file (or another file in its folder) or the folder itself.
 local function songBase(basePath)
 	basePath = basePath or ""
-	if basePath ~= "" and basePath:sub(-1) ~= "/" and love.filesystem.getInfo(basePath, "directory") then
-		basePath = basePath .. "/"
-	end
-	return basePath
+	if basePath == "" or basePath:sub(-1) == "/" then return basePath end
+	if love.filesystem.getInfo(basePath, "directory") then return basePath .. "/" end
+	return basePath:match("^(.*/)[^/]*$") or ""
 end
 
 ---@class smitten.Sfx
@@ -138,7 +138,7 @@ function Song:_load()
 	if self._source then return self._source end
 	needAudio("song")
 	needModules("song")
-	local song = resolveSongSfx(self._data, self.path)
+	local song = resolveSongSfx(self._data, songBase(self.path))
 	local soundData, loopPoint, passSeconds = native.renderSong(song, true)
 	self.duration = passSeconds
 	if loopPoint then
@@ -177,7 +177,7 @@ function Song:setVolume(volume)
 end
 
 ---The Source the song plays from (rendering the song if it hasn't been):
----for pitch, seek and the rest of LÖVE's Source methods.
+---for pitch, seek and the rest of a Source's methods.
 ---@return love.Source
 function Song:getSource()
 	return self:_load()

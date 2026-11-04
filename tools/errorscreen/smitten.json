@@ -1,0 +1,6 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Error screen test",
+  "main": "main.scene"
+}

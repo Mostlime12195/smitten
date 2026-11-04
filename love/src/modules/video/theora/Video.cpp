@@ -26,7 +26,7 @@
 #include "common/delay.h"
 #include "timer/Timer.h"
 #ifdef LOVE_EMSCRIPTEN
-#include "thread/web/GreenThreads.h"
+#include "thread/web/FrameTasks.h"
 #endif
 
 namespace love

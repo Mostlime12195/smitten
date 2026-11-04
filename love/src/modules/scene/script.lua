@@ -17,7 +17,8 @@
 --      move() is self:move())
 --   3. children, for capitalized names: Look.color = ..., Camera.zoom = 2
 --   4. the short API below (input, scenes, sound, time, math, drawing)
---   5. Lua's globals (math, string, print, smitten, ...)
+--   5. the globals (math, string, print, smitten, ...; not love, the
+--      engine's internal name for smitten)
 --
 -- Assigning a name that isn't a local sets it on the piece. A few calls are
 -- decided the other way: spawn() adds to the scene (self:spawn() adds inside
@@ -454,6 +455,10 @@ function Node:is(name)
 	return (self._tags ~= nil and self._tags[name] == true) or self:isA(name)
 end
 
+-- What game code sees as globals (love.engine): Lua's, the game's own and
+-- smitten, but not love.
+local globals = require("love.engine").globals
+
 -- Run as they are, every frame: wait() can't pause them.
 local DIRECT = { update = true, physicsUpdate = true, draw = true }
 
@@ -502,7 +507,7 @@ function M.instantiate(n, s)
 			local p = pieceApi[k]
 			if p then return bind(p) end
 			v = api[k]
-			if v == nil then v = _G[k] end
+			if v == nil then v = globals[k] end
 			-- Functions and tables from the API and Lua (math, print, approach)
 			-- are kept in the environment, so the next read is direct.
 			local t = type(v)
@@ -556,6 +561,7 @@ end
 function M.load(path)
 	local chunk, err = love.filesystem.load(path)
 	if not chunk then error(err, 0) end
+	setfenv(chunk, globals)
 	if M.isOldStyle(love.filesystem.read(path) or "") then
 		local value = chunk()
 		if type(value) ~= "table" then

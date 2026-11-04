@@ -120,12 +120,12 @@
 </table></div>
 <p>Missing fields take the values in the example above. The same parameters always produce the same samples (<code>noise</code> uses a fixed seed).</p>
 <h3 id="sound-effects-in-code"><a class="anchor" href="#sound-effects-in-code" aria-hidden="true">#</a>Sound effects in code</h3>
-<pre><code class="lang-lua">local jump = smitten.synth.sfx(&quot;sfx/jump&quot;)     -- cached; rendered once
-jump:play()                              -- returns the love Source playing it (several can overlap)
-jump:play({ volume = 0.5, pitch = 1.2 })
-jump:stop()                              -- stops every copy
-jump.soundData                           -- the rendered love SoundData
-jump.duration                            -- seconds</code></pre>
+<pre><code class="lang-lua"><span class="tk-k">local</span> jump = smitten.synth.<span class="tk-f">sfx</span>(<span class="tk-s">&quot;sfx/jump&quot;</span>)     <span class="tk-c">-- cached; rendered once</span>
+jump:<span class="tk-f">play</span>()                              <span class="tk-c">-- returns the sound playing it (several can overlap)</span>
+jump:<span class="tk-f">play</span>({ volume = <span class="tk-n">0.5</span>, pitch = <span class="tk-n">1.2</span> })
+jump:<span class="tk-f">stop</span>()                              <span class="tk-c">-- stops every copy</span>
+jump.soundData                           <span class="tk-c">-- the rendered samples</span>
+jump.duration                            <span class="tk-c">-- seconds</span></code></pre>
 <h2 id="songs"><a class="anchor" href="#songs" aria-hidden="true">#</a>Songs</h2>
 <p><code>music/theme.song</code>.</p>
 <pre><code class="lang-json">{
@@ -162,16 +162,16 @@ jump.duration                            -- seconds</code></pre>
 }</code></pre>
 <ul><li>Steps are <code>1 / stepsPerBeat</code> of a beat at <code>bpm</code>. A pattern is <code>patternLength</code> steps long. <code>order</code> lists patterns to play in sequence.</li><li>A note plays on its channel with the channel's instrument. Notes on the same channel may overlap (chords). <code>note</code> is a MIDI number (60 = middle C, 261.63 Hz). <code>volume</code> 0–1, default 1.</li><li>Synth instruments: <code>wave</code> as in sound effects, an ADSR envelope (<code>attack</code>, <code>decay</code>, <code>release</code> in seconds, <code>sustain</code> level 0–1), <code>duty</code>, vibrato, <code>lowpass</code>. The note sounds for <code>length</code> steps, then releases.</li><li>Sound-effect instruments play an <code>.sfx</code> per note, whole (a note's <code>length</code> doesn't cut it); with <code>pitched: true</code> its <code>frequency</code> (and <code>minFrequency</code>) is shifted by the note's distance from 60. An optional <code>volume</code> (default 1) scales them.</li><li><code>loop</code>: whether playback loops; <code>loopStart</code> is the index in <code>order</code> it loops back to. When looping, notes still ringing at the end of the song ring on over the start of the next loop.</li><li>Missing fields take these defaults: <code>bpm</code> 120, <code>stepsPerBeat</code> 4, <code>patternLength</code> 32, <code>loop</code> true, <code>loopStart</code> 0; a channel's <code>instrument</code> is its own index and <code>volume</code> 1; synth instruments' fields as in &quot;Square lead&quot; above; a note's <code>channel</code> 0, <code>step</code> 0, <code>length</code> 1, <code>note</code> 60, <code>volume</code> 1. Steps and lengths may be fractional.</li></ul>
 <h3 id="songs-in-code"><a class="anchor" href="#songs-in-code" aria-hidden="true">#</a>Songs in code</h3>
-<pre><code class="lang-lua">local theme = smitten.synth.song(&quot;music/theme&quot;)   -- cached; rendered once, on first use
-theme:play()                                -- loops as the file says
-theme:stop(); theme:pause(); theme:resume()
-theme:setVolume(0.5)
-theme:isPlaying()
-theme.duration                              -- seconds, one pass through `order`</code></pre>
-<p>Songs are rendered to a buffer by the C++ synthesizer and played as an ordinary LÖVE Source, so they keep playing in background tabs.</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> theme = smitten.synth.<span class="tk-f">song</span>(<span class="tk-s">&quot;music/theme&quot;</span>)   <span class="tk-c">-- cached; rendered once, on first use</span>
+theme:<span class="tk-f">play</span>()                                <span class="tk-c">-- loops as the file says</span>
+theme:<span class="tk-f">stop</span>(); theme:<span class="tk-f">pause</span>(); theme:<span class="tk-f">resume</span>()
+theme:<span class="tk-f">setVolume</span>(<span class="tk-n">0.5</span>)
+theme:<span class="tk-f">isPlaying</span>()
+theme.duration                              <span class="tk-c">-- seconds, one pass through `order`</span></code></pre>
+<p>Songs are rendered to a buffer by the C++ synthesizer and played like any other sound, so they keep playing in background tabs.</p>
 <h3 id="the-synthesizer-in-code"><a class="anchor" href="#the-synthesizer-in-code" aria-hidden="true">#</a>The synthesizer in code</h3>
-<pre><code class="lang-lua">smitten.synth.renderSfx(params)            -- params: a decoded .sfx table -&gt; SoundData
-smitten.synth.renderSong(song, basePath)   -- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -&gt; SoundData</code></pre>
+<pre><code class="lang-lua">smitten.synth.<span class="tk-f">renderSfx</span>(params)            <span class="tk-c">-- params: a decoded .sfx table -&gt; SoundData</span>
+smitten.synth.<span class="tk-f">renderSong</span>(song, basePath)   <span class="tk-c">-- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -&gt; SoundData</span></code></pre>
 <p>SoundData is 44100 Hz, 16-bit, mono. <code>renderSong</code> renders one pass through <code>order</code>, followed by whatever still rings.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="engine"><span>Previous</span>The engine table</a><a class="next" href="editor-tools"><span>Next</span>Editor tools</a></nav>

@@ -5,7 +5,7 @@ import { h, openDialog } from '../ui.js';
 import { nodeIcon } from '../shell/node-icons.js';
 import { typesByGroup, typeDef, methods, events, properties, moduleOf, isA } from '../core/schema.js';
 
-const MODULE_NAMES = { physics2d: 'physics (Box2D)', lovephysics: 'LÖVE physics', video: 'video', synth: 'sound generator' };
+const MODULE_NAMES = { physics2d: 'physics (Box2D)', video: 'video', synth: 'sound generator' };
 const RECENT_KEY = 'smitten-editor.recent-nodes';
 
 /** Suggestions for what to add, from what the parent is. */

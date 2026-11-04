@@ -19,7 +19,7 @@ const RESOURCE_EXT = {
   scene: /\.scene$/i,
 };
 
-const MODULE_NAMES = { physics2d: 'physics', lovephysics: 'LÖVE physics', video: 'video', synth: 'sound generator' };
+const MODULE_NAMES = { physics2d: 'physics', video: 'video', synth: 'sound generator' };
 
 export class InspectorPanel {
   /** ctx: { project, inputActions(), openScript(node), attachScript(node), openScene(path), openDocs(type) } */
@@ -193,7 +193,7 @@ export class InspectorPanel {
       });
       chips.append(input);
       out.push(this.section('tags', 'Tags', [h('div', { style: 'grid-column: 1 / -1' }, chips,
-        h('p', { class: 'insp-desc', style: 'margin-top: 6px' }, 'Scripts find pieces by tag (smitten.scene.tagged("enemy"), other:hasTag("coin")), and bodies and zones use tags to choose what they touch.'))]));
+        h('p', { class: 'insp-desc', style: 'margin-top: 6px' }, 'Scripts find pieces by tag: tagged("enemy"), other:is("coin"). Bodies and Zones use tags to choose what they touch.'))]));
     }
     return out;
   }

@@ -1,82 +1,96 @@
 # Physics
 
-Each scene has a Box2D 3 world. **Bodies** are solid, **Zones** detect
-overlaps, **Hitboxes** add shapes, **Joints** connect bodies, and solid
-**tiles** are walls and floors. Physics steps 60 times a second, after
-`physicsUpdate(dt)`.
+Every scene has a physics world, powered by Box2D. **Bodies** are solid
+things that bump into each other, **Zones** notice when things go in and
+out, **Hitboxes** give either one extra shapes, **Joints** connect bodies
+together, and solid **tiles** act as walls and floors. Physics updates 60
+times a second, right after every piece's `physicsUpdate(dt)`.
 
-Units: pixels, pixels per second, radians (clockwise), kilograms. `y` points
-down.
+Lengths are in pixels, speeds in pixels per second, angles in radians
+(clockwise), and mass in kilograms. As everywhere in Smitten, `y` points
+down, so `vy = -400` moves up.
 
 ## Bodies
 
-| `motion` | Moved by | For |
+A Body's **motion** decides what moves it:
+
+| `motion` | Moved by | Good for |
 | --- | --- | --- |
 | `still` | Nothing, unless a script moves it | Floors, walls, moving platforms |
-| `scripted` | `vx`, `vy` and `move()` | Players, enemies |
-| `physics` | Gravity, collisions, forces, joints | Crates, balls, debris |
+| `scripted` | Its script, by setting `vx`, `vy` and calling `move()` | Players and enemies |
+| `physics` | The physics world: gravity, collisions, forces, joints | Crates, balls, debris |
 
-`motion` can change at any time.
+Motion can change at any time, so a crate can sit `still` until something
+knocks it loose.
+
+A Body's **shape** is the part that collides:
 
 | `shape` | |
 | --- | --- |
-| `auto` | Fits the Sprites and Shapes inside |
+| `auto` | Fits the Sprites and Shapes inside the Body (the default) |
 | `rectangle` | `width` × `height` |
 | `circle` | `radius` |
-| `capsule` | `width` × `height`, round ends |
-| `polygon` | `points` `{x1, y1, x2, y2, ...}`, up to 8, convex |
-| `none` | Hitboxes only |
+| `capsule` | `width` × `height` with rounded ends; good for characters |
+| `polygon` | Up to 8 corners in `points`: `{x1, y1, x2, y2, ...}` |
+| `none` | Only its Hitboxes |
 
 Shapes move, turn and scale with the piece. A **Hitbox** inside a Body or
-Zone adds a shape; `off = true` disables it.
+Zone adds another shape, for things `auto` can't make, like an L shape or
+a sword's reach; set its `off` to disable it.
 
-## Scripted bodies
+## Moving players and enemies
+
+Scripted bodies are moved by their script. Set the speed you want, then
+call `move()`:
 
 ```lua
 function physicsUpdate(dt)
   vx = axis("left", "right") * 220
-  vy = math.min(vy + 1800 * dt, 1000)
+  vy = math.min(vy + 1800 * dt, 1000)            -- gravity, with a top speed
   if pressed("jump") and onGround() then vy = -jumpSpeed(96) end
   move()
 end
 ```
 
-`move()` moves by `vx * dt`, `vy * dt`. It slides along surfaces, climbs
-slopes up to `slope` (45°), stays grounded over small steps, rides moving
-platforms, pushes physics bodies according to `mass`, passes up through
-one-way tiles, and turns by `spin`.
+`move()` does the hard parts of platformer movement for you: it slides
+along walls, walks up and down slopes up to `slope` degrees, stays on the
+ground over small bumps, rides moving platforms, pushes physics bodies
+(harder the heavier its `mass`), jumps up through one-way tiles and lands
+on them.
 
 | | |
 | --- | --- |
-| `onGround()`, `onWall()`, `onCeiling()` | What the last move touched |
-| `moveBy(dx, dy)` | Moves until blocked; returns what it hit, or nil |
+| `onGround()`, `onWall()`, `onCeiling()` | What the last `move()` ran into |
+| `moveBy(dx, dy)` | Moves in a straight line until blocked, and returns what it hit |
 
-Setting `x`, `y` or `rotation` moves the body there, pushing what's in the
-way for short distances.
+Setting `x`, `y` or `rotation` directly moves a body there, pushing aside
+what's in the way over short distances.
 
 ## Physics bodies
 
-`vx`, `vy` and `spin` are the current velocity; set them to throw.
+Physics bodies move on their own. `vx`, `vy` and `spin` are their current
+velocity; set them to throw something. To push them around:
 
 | | |
 | --- | --- |
-| `applyImpulse(ix, iy[, x, y])` | Instant change of velocity by impulse / `mass`; at a point, also spins |
-| `applyForce(fx, fy[, x, y])` | Force for one step; call every `physicsUpdate` |
-| `applyTorque(t)`, `applyAngularImpulse(i)` | Turning force; instant turn |
-| `wake()` | Wakes a sleeping body |
-| `grab(x, y)`, `dragTo(x, y)`, `drop()` | Hold, move and release by a point; keeps momentum |
+| `applyImpulse(ix, iy)` | A sudden push, like a jump or a kick. Applied at a point (`applyImpulse(ix, iy, x, y)`), it also spins the body |
+| `applyForce(fx, fy)` | A steady push for one step; call it every `physicsUpdate` for wind or thrusters |
+| `applyTorque(t)`, `applyAngularImpulse(i)` | The same for turning |
+| `grab(x, y)`, `dragTo(x, y)`, `drop()` | Hold the body by a point, move it, and let go (it keeps its momentum) |
+| `wake()` | Wake a body that has come to rest |
 
 | Setting | |
 | --- | --- |
-| `mass` | Kilograms |
-| `gravity` | Gravity scale: 0 floats, -1 falls up |
-| `friction`, `bounce` | 0 to 1 |
-| `drag`, `spinDrag` | Linear and angular damping |
-| `fixedRotation` | Never turns |
-| `bullet` | Continuous collision against other moving bodies |
-| `asleep` | Start at rest |
+| `mass` | How heavy it is, in kilograms |
+| `gravity` | How strongly gravity pulls it: 0 floats, -1 falls up |
+| `friction`, `bounce` | From 0 to 1: grip, and bounciness |
+| `drag`, `spinDrag` | Slow its movement and its turning, like air resistance |
+| `fixedRotation` | Never turns over |
+| `bullet` | Extra-careful collisions for small, fast things |
+| `asleep` | Start resting until something touches it |
 
-Setting `x`, `y` or `rotation` teleports and keeps velocity.
+Setting `x`, `y` or `rotation` of a physics body teleports it and keeps
+its speed. Here's an explosion that throws everything nearby outwards:
 
 ```lua
 for _, p in ipairs(overlap("circle", x, y, 150)) do
@@ -90,40 +104,51 @@ end
 
 ## Collisions
 
-`hit(other, contact)` runs on both bodies when they start touching.
+When a Body starts touching something, its script's `hit(other, contact)`
+runs, on both bodies. `contact` says where and how hard:
 
 | `contact` | |
 | --- | --- |
-| `x`, `y` | Contact point |
-| `nx`, `ny` | Normal, from `other` towards this body |
-| `impulse` | Strength of the impact |
+| `x`, `y` | Where they touched |
+| `nx`, `ny` | The direction from `other` towards this body |
+| `impulse` | How hard they hit: small for a touch, large for a crash |
+
+```lua
+function hit(other, contact)
+  if contact.impulse > 300 then sfx("thud") end
+  if other:is("spikes") then reload() end
+end
+```
 
 | | |
 | --- | --- |
-| `isTouching(pieceOrTag)` | Whether it touches it now |
-| `touching(pieceOrTag)` | The first touching match, or nil |
-| `contacts()` | Current contacts: `{piece, x, y, nx, ny, impulse}` |
-| `touchingTile(setting)` | Settings of a touching tile that has `setting` |
+| `isTouching(pieceOrTag)` | Whether it's touching that piece, or anything with that tag, right now |
+| `touching(pieceOrTag)` | The first matching piece it's touching, or nil |
+| `contacts()` | Everything it's touching: `{piece, x, y, nx, ny, impulse}` |
+| `touchingTile(setting)` | The settings of a touched tile with that setting |
 
-`passThrough` lists tags this body ignores, both ways; `"tiles"` ignores
-solid tiles.
+**passThrough** lists tags a body goes straight through, both ways: a
+ghost might pass through `"walls"`. `"tiles"` passes through solid tiles.
 
 ## Zones
 
-`entered(other)` and `exited(other)` run on the Zone and on the Body.
-`detects` limits them to tags, `active = false` turns the Zone off, and
-`inside()` lists what's in it. Zones don't block and don't detect still
-bodies.
+A Zone notices bodies and other zones going in and out, without blocking
+anything. Its script gets `entered(other)` and `exited(other)`, and so
+does the Body that went in. **detects** limits it to things with certain
+tags, `active = false` turns it off, and `inside()` lists what's in it
+right now. Zones don't notice `still` bodies.
 
 ## Tiles
 
-Solid tiles have smooth seams. `oneWay` tiles block only from above.
-Changes by `setTile`, `fill` and `clear` apply immediately. See
-[Tiles](tiles.md).
+Solid tiles in a Tiles piece are walls and floors with smooth seams, so
+nothing catches on the edges between tiles. One-way tiles are solid only
+from above. Changing tiles with `setTile`, `fill` or `clear` takes effect
+immediately. See [Tiles](tiles.md).
 
 ## Queries
 
-Global in scripts and on `smitten.physics`:
+These ask the physics world about the scene. They work in any script, and
+on `smitten.physics`:
 
 <!-- api:Physics -->
 | Call | |
@@ -137,43 +162,42 @@ Global in scripts and on `smitten.physics`:
 <!-- end -->
 
 ```lua
+-- Can this enemy see the player, with nothing solid in between?
 local hit = raycast(x, y, player.x, player.y)
 local sees = hit and hit.piece == player
 ```
 
-Raycasts ignore Zones and the backs of tiles.
+Raycasts skip Zones and the backs of tiles.
 
 ## Gravity
 
-Set in **Project settings › Physics** (`physics.gravity`, default
-`[0, 980]`). `setGravity(x, y)` and `getGravity()` change it at run time.
-Scripted bodies apply their own gravity.
+The scene's gravity is set in **Project settings › Physics**
+(`physics.gravity`, `[0, 980]` by default). `setGravity(0, 0)` switches it
+off for a space level, and `getGravity()` reads it. Scripted bodies apply
+their own gravity in their script, as in the example above.
 
 ## Joints
 
-A Joint connects body `a` to body `b`, or to its own position when `b` is
-empty. It acts at the Joint's position.
+A **Joint** connects body `a` to body `b`, or to its own spot in the
+scene when `b` is empty. It acts where the Joint piece is, so a door's
+hinge Joint goes at the hinge.
 
 | `kind` | |
 | --- | --- |
-| `pin` | Rotates around the Joint. `motor`, `limit` (`minAngle`, `maxAngle`), `spring` |
-| `weld` | Fixed together; `spring` makes it flex |
-| `rope` | At most `length` apart |
-| `spring` | Pulls to `length`: `stiffness`, `damping` |
-| `distance` | Exactly `length` apart |
-| `slider` | Moves along the Joint's x axis. `motor`, `limit` (`lower`, `upper`), `spring` |
-| `wheel` | Rotates, and springs along the Joint's y axis. `motor` |
-| `mouse` | Pulls `a` towards the Joint's position |
+| `pin` | Turns around the Joint, like a hinge or a wheel on an axle. Can have a `motor`, a `limit` (`minAngle`, `maxAngle`) and a `spring` |
+| `weld` | Holds them together; with `spring`, it flexes |
+| `rope` | Keeps them at most `length` apart |
+| `spring` | Pulls them towards `length` apart, with `stiffness` and `damping` |
+| `distance` | Keeps them exactly `length` apart, like a rod |
+| `slider` | Slides along the Joint's x direction, like a piston. Can have a `motor`, a `limit` (`lower`, `upper`) and a `spring` |
+| `wheel` | Turns, with a spring along the Joint's y direction, like a car's wheel |
+| `mouse` | Pulls `a` towards wherever the Joint is |
 
-Settings apply while running. `collide` lets connected bodies collide.
-`breakForce` above 0 breaks the joint under that force and emits `broke`.
-Read state with `getAngle()`, `getTranslation()`, `getLength()`,
-`getSpeed()`, `getForce()` and `getTorque()`.
-
-## love.physics
-
-LÖVE's `love.physics` (Box2D 2.4) works as in LÖVE, as the optional
-`lovephysics` module. Scenes don't use it.
+Joint settings can change while the game runs (`motorSpeed = 5`).
+`collide` lets the two connected bodies still bump into each other. With a
+`breakForce`, the joint snaps when pulled harder than that and sends
+`broke`. `getAngle()`, `getTranslation()`, `getLength()`, `getSpeed()`,
+`getForce()` and `getTorque()` read its state.
 
 ## Reference
 

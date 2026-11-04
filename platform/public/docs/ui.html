@@ -25,29 +25,34 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#keyboard-and-gamepad-menus">Keyboard and gamepad menus</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
-<p>UI pieces draw on top of the game in screen pixels and ignore cameras: <strong>Label</strong>, <strong>Button</strong>, <strong>Bar</strong>, <strong>Panel</strong> and <strong>Picture</strong>. A UI piece inside another is laid out inside it.</p>
+<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus. There are five: <strong>Label</strong> (text), <strong>Button</strong>, <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI) and <strong>Picture</strong>. A UI piece inside another is laid out inside it.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
-<p>Each UI piece is placed from an <strong>anchor</strong> (a corner, an edge, <code>center</code> or <code>fill</code>); <code>x</code> and <code>y</code> are the distance in from it. <code>getRect()</code> returns the current screen rectangle. <code>visible</code> and <code>opacity</code> apply to children too.</p>
-<pre><code class="lang-lua">Message.text = &quot;Level complete&quot;
-tween(Message, 0.3, { opacity = 1 })</code></pre>
+<p>Each UI piece is placed from an <strong>anchor</strong>: a corner, an edge, the center, or <code>fill</code> (the whole screen, or the whole of the UI piece it's inside). <code>x</code> and <code>y</code> are the distance in from that anchor. With the anchor <code>bottomRight</code> and <code>x</code>, <code>y</code> at 16, a piece sits 16 pixels in from the bottom-right corner on any screen size.</p>
+<p>Every setting can change while the game runs:</p>
+<pre><code class="lang-lua">Message.text = <span class="tk-s">&quot;Level complete!&quot;</span>
+<span class="tk-f">tween</span>(Message, <span class="tk-n">0.3</span>, { opacity = <span class="tk-n">1</span> })</code></pre>
+<p><code>getRect()</code> returns where a UI piece is on the screen right now, and <code>visible</code> and <code>opacity</code> hide or fade it along with everything inside it.</p>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
-<p>A Button's script gets <code>pressed()</code> when clicked or tapped (Pictures and Panels too). In a Button's script, read input with <code>smitten.input.pressed</code>, since <code>pressed</code> is the event.</p>
-<pre><code class="lang-lua">function pressed() go(&quot;scenes/level1.scene&quot;) end</code></pre>
+<p>When a Button is clicked or tapped, its script's <code>pressed()</code> runs (Pictures and Panels get it too):</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a &quot;Play&quot; button</span>
+<span class="tk-k">function</span> <span class="tk-f">pressed</span>()
+  <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>)
+<span class="tk-k">end</span></code></pre>
+<p>In a Button's own script, <code>pressed</code> means that event, so read input there with <code>smitten.input.pressed(...)</code>.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>disabled</code></td><td>Can't be pressed; drawn faded</td></tr>
-<tr><td><code>isHovered()</code>, <code>isDown()</code></td><td>Pointer over it; held down</td></tr>
-<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events</td></tr>
-<tr><td><code>smitten.mouse.isOverUI()</code></td><td>Pointer over any button or panel</td></tr></tbody>
+<tr><td><code>isHovered()</code>, <code>isDown()</code></td><td>The pointer is over it; it's held down</td></tr>
+<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events when the pointer arrives and leaves</td></tr>
+<tr><td><code>smitten.mouse.isOverUI()</code></td><td>The pointer is over any button or panel</td></tr></tbody>
 </table></div>
-<h2 id="keyboard-and-gamepad-menus"><a class="anchor" href="#keyboard-and-gamepad-menus" aria-hidden="true">#</a>Keyboard and gamepad menus</h2>
-<p>With <strong>autofocus</strong> on, a Button has focus when the scene starts. The <code>up</code>/<code>down</code>/<code>left</code>/<code>right</code> actions move focus to the nearest button and <code>accept</code> presses it. <code>focus()</code> and <code>isFocused()</code> control it from scripts. Without a focused button, arrow keys go to the game.</p>
-<p>UI keeps working while the game is paused; see <a href="scenes#pausing">Pausing</a>.</p>
-<p>A UI piece's <code>draw()</code> uses screen pixels from its top-left corner.</p>
+<h2 id="menus-for-keyboards-and-gamepads"><a class="anchor" href="#menus-for-keyboards-and-gamepads" aria-hidden="true">#</a>Menus for keyboards and gamepads</h2>
+<p>Turn on a Button's <strong>autofocus</strong> and it has the focus when the scene starts. The arrow keys, d-pad and stick then move the focus to the nearest button in that direction, and Enter, Space or gamepad A press it. Clicking a button also focuses it, and <code>focus()</code> moves the focus from a script. While no button has focus, the arrow keys go to the game as usual.</p>
+<p>UI keeps working while the game is paused, which is what pause menus need (<a href="scenes#pausing-and-slow-motion">Pausing</a>).</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece.</td></tr>

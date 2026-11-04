@@ -12,16 +12,23 @@
   <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
 </div>
 
+<!-- The splash screen while the game loads (customizable in smitten.json
+     "splash"), and messages when something goes wrong or the game ends. -->
 <div id="overlay" hidden>
-  <div class="card">
-    <div class="logo" aria-hidden="true">❤</div>
-    <div id="overlay-title">Smitten</div>
-    <div id="overlay-status">Loading engine…</div>
+  <div class="splash">
+    <img id="splash-image" alt="" hidden>
+    <svg id="splash-mark" class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.6 1.1 4.4 2.6.8-1.5 2.3-2.6 4.4-2.6 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>
+    <p id="splash-caption">Made with Smitten</p>
+  </div>
+  <div class="foot">
     <div class="bar"><div id="overlay-progress"></div></div>
-    <button id="play-button" hidden>▶ Play</button>
+    <div id="overlay-status" role="status"></div>
+    <button id="play-button" class="play" type="button" aria-label="Play again" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>
+    </button>
     <label id="file-picker" hidden>
-      Drop a <code>.love</code> file here, or <u>choose one</u>
-      <input type="file" accept=".love,.zip" hidden>
+      Drop a game here, or <u>choose a file</u>
+      <input type="file" accept=".zip" hidden>
     </label>
   </div>
 </div>
@@ -33,7 +40,7 @@
 </div>
 
 <div id="toolbar" hidden>
-  <button id="btn-fullscreen" title="Fullscreen (F11)">⛶</button>
+  <button id="btn-fullscreen" title="Fullscreen (F11)" aria-label="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button>
 </div>
 
 <script type="module" src="player.js"></script>

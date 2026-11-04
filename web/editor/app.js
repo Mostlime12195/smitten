@@ -30,8 +30,7 @@ import { ConsolePanel } from './console.js';
 import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
-import { createLoveCompletions } from './completions.js';
-import { docsUrl } from './smitten-docs.js';
+import { createCompletions } from './completions.js';
 import { createShareLink, readShareHash } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
@@ -118,7 +117,7 @@ function showHome() {
     openProject: (id) => { location.hash = `project=${id}`; },
     importZip: async (file) => {
       const files = await unzipToProjectFiles(new Uint8Array(await file.arrayBuffer()));
-      const name = file.name.replace(/\.(zip|love)$/i, '');
+      const name = file.name.replace(/\.zip$/i, '');
       const p = await store.createProject(name, files);
       location.hash = `project=${p.id}`;
     },
@@ -173,13 +172,24 @@ async function openProject(id) {
   ed.playBtn.addEventListener('click', () => play());
   ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
   ed.stopBtn.addEventListener('click', () => stop());
+  // Publish is the main way to share; its arrow holds the other ways out.
   const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
   publishBtn.addEventListener('click', () => publish());
+  const shareMore = h('button', { type: 'button', class: 'btn ghost share-more', title: 'Export or share', 'aria-label': 'More ways to share', 'aria-haspopup': 'menu' }, icon('chevronDown', 14));
+  shareMore.addEventListener('click', () => {
+    shareMore.setAttribute('aria-expanded', 'true');
+    showMenu(publishBtn, [
+      { label: 'Publish…', icon: 'publish', action: () => publish() },
+      { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+      { label: 'Copy share link', icon: 'link', action: () => shareLink() },
+    ], { onClose: () => shareMore.setAttribute('aria-expanded', 'false') });
+  });
+  const shareGroup = h('div', { class: 'share-group' }, publishBtn, shareMore);
   ed.accountSlot = h('div', { class: 'account-slot' });
   renderAccount();
   ed.offAccount = onAccountChange(() => renderAccount());
   const titlebar = h('header', { class: 'titlebar' }, menus, switcher,
-    h('div', { class: 'tb-right' }, publishBtn, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
+    h('div', { class: 'tb-right' }, shareGroup, ed.accountSlot, h('div', { class: 'play-group' }, ed.playBtn, ed.stopBtn)));
 
   // Center: workspaces and the game view
   const area = h('div', { class: 'workspace-area' });
@@ -199,8 +209,10 @@ async function openProject(id) {
     files: { id: 'files', title: 'Files', region: 'left', el: panelEl() },
     inspector: { id: 'inspector', title: 'Inspector', region: 'right', el: panelEl() },
     output: { id: 'output', title: 'Output', region: 'bottom', el: panelEl() },
+    docs: { id: 'docs', title: 'Docs', region: 'right', el: panelEl() },
   };
   ed.dock = new DockManager(shell, center, Object.values(panels));
+  ed.docsHost = panels.docs.el;
   ed.dock.addEventListener('change', () => saveLayout());
   ed.dock.addEventListener('resize', () => ed.ws && ed.workspaces[ed.ws]?.resize());
 
@@ -223,7 +235,7 @@ async function openProject(id) {
     openScript: (node) => openFile(sceneWs().doc.scriptOf(node)),
     attachScript: (node) => attachScript(node),
     openScene: (path) => openFile(path),
-    openDocs: (type) => nodeDocs(type),
+    openDocs: (type) => openDocs('pieces', type),
   });
   buildFilesPanel(panels.files.el);
   buildOutputPanel(panels.output.el);
@@ -239,11 +251,11 @@ async function openProject(id) {
     openFile: (path) => openFile(path),
     addNodeDialog: (parent) => addNodeTo(parent),
     setCursor: (text) => { ed.status.right.textContent = text; },
-    // Completions need LÖVE's API list, loaded once.
+    // Completions need the engine's API list, loaded once.
     completions: (editor) => {
       if (!editor.cm) return null;
       let source = null;
-      loveApi().then((api) => { source = createLoveCompletions(api, editor.cm, () => project.paths()); });
+      engineApi().then((api) => { source = createCompletions(api, editor.cm, () => project.paths()); });
       return (context) => source?.(context) ?? null;
     },
   };
@@ -326,13 +338,10 @@ async function openProject(id) {
   }
   for (const p of scenes) await ed.workspaces.scene.open(p);
   for (const p of (saved.scripts || []).filter((x) => project.has(x))) await ed.workspaces.script.open(p);
-  if (!scenes.length && project.has('main.lua')) {
-    await ed.workspaces.script.open('main.lua');
-    if (!saved.workspace) switchWorkspace('script');
-  }
   if (saved.workspace && saved.workspace !== ed.ws) switchWorkspace(saved.workspace);
   window.addEventListener('beforeunload', saveAll);
   hydrateIcons(app);
+  explainMainLua(project);
 
   // Undo and redo follow the open scene's history.
   let watched = null;
@@ -368,9 +377,37 @@ async function openProject(id) {
 }
 
 let apiPromise = null;
-function loveApi() {
-  apiPromise ??= fetch('love-api.json').then((r) => r.json()).catch(() => ({}));
+function engineApi() {
+  apiPromise ??= fetch('engine-api.json').then((r) => r.json()).catch(() => ({}));
   return apiPromise;
+}
+
+/**
+ * Projects made before Smitten only ran scenes can have a main.lua (and a
+ * conf.lua) with LÖVE-style code and no main scene. Smitten doesn't run
+ * those files any more: say so when the project opens, and offer a main
+ * scene.
+ */
+async function explainMainLua(project) {
+  if (!project.has('main.lua') && !project.has('conf.lua')) return;
+  const main = project.settings().main;
+  if (main && project.has(main)) return;
+  const scenes = project.paths().filter((p) => p.endsWith('.scene'));
+  const files = ['main.lua', 'conf.lua'].filter((p) => project.has(p));
+  const choice = await openDialog({
+    title: 'This project needs a main scene',
+    body: h('div', {},
+      h('p', { class: 'insp-desc' }, `It was made with an older Smitten that ran ${files.join(' and ')} on its own, without scenes. Smitten doesn't run ${files.length > 1 ? 'those files' : 'that file'} any more: every game starts from its main scene, and behavior goes in scripts attached to pieces.`),
+      h('p', { class: 'insp-desc' }, `Your files are all still here. Make a main scene${scenes.length ? ', or choose one in Project settings,' : ''} and move the code you want to keep into scripts.`)),
+    actions: [
+      { label: 'Not now', value: null, ghost: true },
+      ...(scenes.length ? [{ label: 'Project settings', value: 'settings' }] : []),
+      { label: 'Make a main scene', value: 'scene', primary: true },
+    ],
+  });
+  if (!ed || ed.project !== project) return;
+  if (choice === 'scene') newScene('level');
+  else if (choice === 'settings') openProjectSettings();
 }
 
 /** Scenes saved with the first rebuild's piece names are converted once. */
@@ -712,7 +749,7 @@ async function newScript(node = null, dir = 'scripts') {
 
 async function attachScript(node) {
   const doc = sceneWs().doc;
-  const scripts = ed.project.paths().filter((p) => p.endsWith('.lua') && p !== 'main.lua' && p !== 'conf.lua');
+  const scripts = ed.project.paths().filter((p) => p.endsWith('.lua'));
   const ready = SCRIPT_LIBRARY.filter((sc) => sc.suits.includes(node.type)).concat(SCRIPT_LIBRARY.filter((sc) => !sc.suits.includes(node.type)));
   const sel = h('select', { class: 'input', size: 12, style: 'height: auto' },
     h('option', { value: 'new', selected: true }, 'A new, empty script'),
@@ -857,14 +894,14 @@ async function play(scenePath = null) {
   const project = ed.project;
   const files = project.snapshot();
   const main = project.settings().main;
-  if (!scenePath && !main && !project.has('main.lua')) {
+  if (!scenePath && !(main && project.has(main))) {
     const open = sceneWs().doc?.path;
     if (open) {
       if (await confirmDialog({ title: 'No main scene yet', message: `Make ${open} the main scene, the one the game starts with?`, okLabel: 'Make it the main scene' })) {
         project.updateSettings({ main: open });
       } else return;
     } else {
-      toast('Make a scene first, or a main.lua.');
+      toast('Make a scene first: the game starts from its main scene.');
       return;
     }
   }
@@ -872,13 +909,6 @@ async function play(scenePath = null) {
   ed.lastRun = scenePath;
   if (settings.get('clearConsoleOnRun')) ed.console.clear();
   ed.console.separator?.(scenePath ? `Playing ${scenePath}` : 'Playing');
-  // Code that can't work in a browser, explained before it fails (compat.js).
-  if (settings.get('compatCheck')) {
-    const { checkProject } = await import('./compat.js');
-    for (const issue of await checkProject(files)) {
-      if (issue.severity !== 'info') ed.console.info(`${issue.path}:${issue.line}: ${issue.message}`, issue.severity === 'error' ? 'danger' : 'warning');
-    }
-  }
   ed.gameView.hidden = false;
   ed.gameTitle.textContent = project.name;
   ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query: { jit: settings.get('jit') ? '1' : '0' } });
@@ -953,8 +983,8 @@ function mainMenu() {
     { label: 'Editor settings…', icon: 'settings', action: () => openSettings({}) },
     { label: 'Command palette…', icon: 'command', shortcut: `${modKey}+K`, action: () => commandPalette() },
     { label: 'Keyboard shortcuts', icon: 'keyboard', action: () => shortcutsDialog() },
-    { label: 'Piece reference…', icon: 'book', action: () => nodeDocs(null) },
-    { label: 'Documentation', icon: 'help', action: () => openDocs() },
+    { label: 'Piece reference', icon: 'book', action: () => openDocs('pieces') },
+    { label: 'Documentation', icon: 'help', shortcut: 'F1', action: () => openDocs() },
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
@@ -1028,7 +1058,7 @@ function nodeDocs(type) {
       h('ul', {}, ...Object.entries(ownMethods).map(([m, d]) => h('li', {}, h('code', {}, `${m}(${d.args})`), ` — ${d.doc}`))),
       Object.keys(ev).length ? h('div', { class: 'add-node-group', style: 'padding: 0' }, 'Script functions') : null,
       h('ul', {}, ...Object.entries(ev).map(([m, d]) => h('li', {}, h('code', {}, `function ${m}(${d.args})`), ` — ${d.doc}`))),
-      h('p', {}, h('a', { href: docsUrl(settings.get('platformUrl'), 'pieces', t), target: '_blank', rel: 'noopener' }, `${t} in the docs`)),
+      h('p', {}, h('a', { href: '#', onclick: (e) => { e.preventDefault(); openDocs('pieces', t); } }, `${t} in the docs`)),
     ].filter(Boolean));
   };
   import('./core/schema.js').then(({ typesByGroup }) => {
@@ -1046,13 +1076,30 @@ function nodeDocs(type) {
   openDialog({ title: 'Piece reference', wide: true, body, actions: [{ label: 'Close', value: null, primary: true }] });
 }
 
-/** The docs on the sharing site, in a new tab. */
+/**
+ * The docs, in the Docs panel: the editor's own copy (dist/docs), so they
+ * open beside your work, offline too. It floats at first and docks like any
+ * panel.
+ */
 function openDocs(page = '', anchor = '') {
-  window.open(docsUrl(settings.get('platformUrl'), page, anchor), '_blank', 'noopener');
+  if (!ed.docsFrame) {
+    ed.docsFrame = h('iframe', { class: 'docs-frame', title: 'Smitten docs' });
+    ed.docsHost.append(h('div', { class: 'panel' }, ed.docsFrame));
+  }
+  const file = page && page !== 'reference' ? page : 'index';
+  ed.docsFrame.src = `docs/${file}.html${anchor ? `#${String(anchor).toLowerCase()}` : ''}`;
+  if (ed.dock.isVisible('docs')) {
+    ed.dock.show('docs');
+    return;
+  }
+  const box = ed.dock.shell.getBoundingClientRect();
+  const w = Math.round(Math.min(520, box.width - 32));
+  const hh = Math.round(Math.min(700, box.height - 32));
+  ed.dock.float('docs', { x: box.width - w - 16, y: 16, w, h: hh });
 }
 
 const SHORTCUTS = [
-  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'],
+  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'], ['Docs', 'F1'],
   ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
   ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a piece', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a piece', 'F2'],
   ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
@@ -1085,7 +1132,7 @@ function commands() {
     { label: 'Publish…', run: () => publish() },
     { label: 'Export…', run: () => exportDialog(ed.project) },
     { label: 'Reset layout', run: () => resetLayout() },
-    { label: 'Piece reference', run: () => nodeDocs(null) },
+    { label: 'Piece reference', run: () => openDocs('pieces') },
     { label: 'Documentation', run: () => openDocs() },
     { label: 'Script API (docs)', run: () => openDocs('api') },
     { label: 'Editor settings', run: () => openSettings({}) },
@@ -1148,6 +1195,7 @@ function handleGlobalKey(e) {
   if (e.key === 'F5') { play(e.shiftKey ? null : ed.lastRun ?? null); return true; }
   if (e.key === 'F6') { const d = sceneWs().doc; if (d) play(d.path); return true; }
   if (e.key === 'F8') { stop(); return true; }
+  if (e.key === 'F1') { openDocs(); return true; }
   if (mod && (k === 'k' || (e.shiftKey && k === 'p'))) { commandPalette(); return true; }
   if (mod && k === 'p') { commandPalette(true); return true; }
   if (mod && k === 's') { saveAll(); toast('Saved.'); return true; }

@@ -1,42 +1,61 @@
 # Camera
 
-A Camera sets which part of the scene is on screen. Without one, the
-scene's (0, 0) is the top-left corner. Cameras don't move UI.
+A **Camera** decides which part of the scene is on the screen. Without
+one, the screen shows the scene from (0, 0) at the top-left corner. UI
+pieces stay put on the screen whatever the camera does.
 
-## Following
+## Following the player
 
-Put the Camera inside the player, or set its `target` (or call
-`Camera:follow(piece)`). `smoothing` glides (0 sticks); `offsetX` and
-`offsetY` shift the view; `snap()` jumps to the target.
+The simplest way is to put the Camera inside the player: it moves with
+them. Or set the Camera's **target** to the player in the Inspector (or
+call `Camera:follow(player)`), which lets the camera live anywhere and
+switch targets later.
+
+**smoothing** makes it glide after its target instead of sticking to it
+(0 sticks, 5 is gentle). `offsetX` and `offsetY` shift the view, for
+example to look ahead of a running player. After teleporting the player,
+`snap()` jumps the camera straight there.
 
 ```lua
-Camera.offsetX = approach(Camera.offsetX, sign(vx) * 60, 120 * dt)
+-- On the player: look ahead in the direction it's running
+function update(dt)
+  Camera.offsetX = approach(Camera.offsetX, sign(vx) * 60, 120 * dt)
+end
 ```
 
-## Limits
+## Keeping it inside the level
 
-`left`, `top`, `right` and `bottom` stop the view at those edges.
-`setLimits(l, t, r, b)` sets all four; `limitTo(tiles)` uses a Tiles
-piece's painted area. A limited area smaller than the screen is centered.
+`left`, `top`, `right` and `bottom` stop the camera from showing anything
+past those edges. `setLimits(left, top, right, bottom)` sets all four, and
+`limitTo(level)` uses the painted area of a Tiles piece, so the view never
+shows empty space outside the level. If the limited area is smaller than
+the screen, it's centered.
 
 ## Zoom and shake
 
-`zoom = 2` doubles the size. `shake(strength, seconds)`: `shake(6, 0.3)`.
+`zoom = 2` makes everything twice as big; tween it for a smooth zoom.
+`shake(strength, seconds)` shakes the view and fades out: `shake(6, 0.3)`
+for a hit, `shake(16, 0.8)` for an explosion.
 
 ## Several cameras
 
-The first active camera is used. `makeCurrent()` switches; `camera()`
-returns the one in use.
+The first active camera in the scene is the one used. `makeCurrent()`
+switches to another camera, and `camera()` returns the one in use.
 
-## Coordinates
+## Screen and scene positions
+
+The screen is measured in game pixels, and the scene in its own units
+through the camera. These convert between them:
 
 | | |
 | --- | --- |
-| `mouse()` | The pointer in the scene |
-| `Camera:screenToWorld(x, y)`, `worldToScreen(x, y)` | Convert between screen and scene |
-| `Camera:getView()` | The visible area: x, y, width, height |
+| `mouse()` | The pointer's position in the scene |
+| `Camera:screenToWorld(x, y)` | A point on the screen, as a point in the scene |
+| `Camera:worldToScreen(x, y)` | A point in the scene, as a point on the screen |
+| `Camera:getView()` | The part of the scene on screen: x, y, width, height |
 
 ```lua
+-- Spawn a bat just past the right edge of the screen
 local vx, vy, vw, vh = camera():getView()
 spawn("scenes/bat.scene", { x = vx + vw + 32, y = vy + rnd(vh) })
 ```

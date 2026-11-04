@@ -1,47 +1,61 @@
 # UI
 
-UI pieces draw on top of the game in screen pixels and ignore cameras:
-**Label**, **Button**, **Bar**, **Panel** and **Picture**. A UI piece
-inside another is laid out inside it.
+UI pieces draw on top of the game, in screen pixels, and the camera
+doesn't move them, which suits scores, health bars and menus. There are
+five: **Label** (text), **Button**, **Bar** (health, progress), **Panel**
+(a box behind other UI) and **Picture**. A UI piece inside another is laid
+out inside it.
 
 ## Layout
 
-Each UI piece is placed from an **anchor** (a corner, an edge, `center` or
-`fill`); `x` and `y` are the distance in from it. `getRect()` returns the
-current screen rectangle. `visible` and `opacity` apply to children too.
+Each UI piece is placed from an **anchor**: a corner, an edge, the
+center, or `fill` (the whole screen, or the whole of the UI piece it's
+inside). `x` and `y` are the distance in from that anchor. With the anchor
+`bottomRight` and `x`, `y` at 16, a piece sits 16 pixels in from the
+bottom-right corner on any screen size.
+
+Every setting can change while the game runs:
 
 ```lua
-Message.text = "Level complete"
+Message.text = "Level complete!"
 tween(Message, 0.3, { opacity = 1 })
 ```
 
+`getRect()` returns where a UI piece is on the screen right now, and
+`visible` and `opacity` hide or fade it along with everything inside it.
+
 ## Buttons
 
-A Button's script gets `pressed()` when clicked or tapped (Pictures and
-Panels too). In a Button's script, read input with
-`smitten.input.pressed`, since `pressed` is the event.
+When a Button is clicked or tapped, its script's `pressed()` runs
+(Pictures and Panels get it too):
 
 ```lua
-function pressed() go("scenes/level1.scene") end
+-- On a "Play" button
+function pressed()
+  go("scenes/level1.scene")
+end
 ```
+
+In a Button's own script, `pressed` means that event, so read input there
+with `smitten.input.pressed(...)`.
 
 | | |
 | --- | --- |
 | `disabled` | Can't be pressed; drawn faded |
-| `isHovered()`, `isDown()` | Pointer over it; held down |
-| `hovered()`, `unhovered()` | Events |
-| `smitten.mouse.isOverUI()` | Pointer over any button or panel |
+| `isHovered()`, `isDown()` | The pointer is over it; it's held down |
+| `hovered()`, `unhovered()` | Events when the pointer arrives and leaves |
+| `smitten.mouse.isOverUI()` | The pointer is over any button or panel |
 
-## Keyboard and gamepad menus
+## Menus for keyboards and gamepads
 
-With **autofocus** on, a Button has focus when the scene starts. The
-`up`/`down`/`left`/`right` actions move focus to the nearest button and
-`accept` presses it. `focus()` and `isFocused()` control it from scripts.
-Without a focused button, arrow keys go to the game.
+Turn on a Button's **autofocus** and it has the focus when the scene
+starts. The arrow keys, d-pad and stick then move the focus to the nearest
+button in that direction, and Enter, Space or gamepad A press it. Clicking
+a button also focuses it, and `focus()` moves the focus from a script.
+While no button has focus, the arrow keys go to the game as usual.
 
-UI keeps working while the game is paused; see [Pausing](scenes.md#pausing).
-
-A UI piece's `draw()` uses screen pixels from its top-left corner.
+UI keeps working while the game is paused, which is what pause menus
+need ([Pausing](scenes.md#pausing-and-slow-motion)).
 
 <!-- piece:UI -->
 | Property | Type | Default | |

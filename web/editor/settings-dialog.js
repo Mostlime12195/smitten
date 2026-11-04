@@ -244,7 +244,7 @@ function buildSections(shortcutGroups) {
         { key: 'highlightActiveLine', label: 'Highlight current line', control: () => switchControl('highlightActiveLine') },
         { key: 'showWhitespace', label: 'Show whitespace', desc: 'Draw dots for spaces and arrows for tabs.', control: () => switchControl('showWhitespace') },
         { key: 'closeBrackets', label: 'Close brackets and quotes', control: () => switchControl('closeBrackets') },
-        { key: 'autocomplete', label: 'Suggestions while typing', desc: 'LÖVE API, Lua keywords and names from your files. Ctrl+Space always shows them.', control: () => switchControl('autocomplete') },
+        { key: 'autocomplete', label: 'Suggestions while typing', desc: 'Smitten\'s API, the piece\'s names, Lua keywords and names from your files. Ctrl+Space always shows them.', control: () => switchControl('autocomplete') },
       ],
     },
     {
@@ -259,7 +259,6 @@ function buildSections(shortcutGroups) {
         { key: 'autorun', label: 'Run after saving', desc: 'Restart the game every time you save a file.', control: () => switchControl('autorun') },
         { key: 'focusGameOnRun', label: 'Focus the game when it starts', desc: 'Keyboard input goes to the game instead of the editor.', control: () => switchControl('focusGameOnRun') },
         { key: 'clearConsoleOnRun', label: 'Clear the console on run', control: () => switchControl('clearConsoleOnRun') },
-        { key: 'compatCheck', label: 'Check web compatibility', desc: 'Before each run and export, list code that can\'t work in a browser.', control: () => switchControl('compatCheck') },
         { key: 'scaleMode', label: 'Game scaling', desc: 'How a fixed-size window fits the game panel. Pixel-perfect uses whole-number scales and sharp pixels.', control: () => selectControl('scaleMode', [['fit', 'Fit'], ['integer', 'Pixel-perfect'], ['none', 'Actual size']]) },
         { key: 'jit', label: 'Lua JIT compiler', desc: 'Compiles hot Lua code to WebAssembly. Turn off to compare speed or rule it out when debugging.', control: () => switchControl('jit') },
       ],

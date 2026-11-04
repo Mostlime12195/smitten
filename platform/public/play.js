@@ -25,9 +25,10 @@ function showNotice(kind, text) {
 
 /** The player, in an iframe from this site. The sandbox keeps games from opening pop-ups or navigating the page. */
 function mountPlayer() {
-  const loveUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.love`;
-  const p = new URLSearchParams({ game: loveUrl });
+  const gameUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.zip`;
+  const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
+  p.set('title', game.title);
   const frame = h('iframe', {
     id: 'player',
     src: `/player/player.html?${p}`,
@@ -37,7 +38,42 @@ function mountPlayer() {
     referrerpolicy: 'same-origin',
   });
   stage.replaceChildren(frame);
+  frame.focus();
 }
+
+/** The site's own start screen: the game's picture, name and maker, and Play. The game only downloads once it's pressed. */
+function showStartCard() {
+  const play = h('button', { type: 'button', class: 'start-play', 'aria-label': `Play ${game.title}` }, icon('play', 30));
+  const by = game.owner?.displayName || (game.owner?.username ? `@${game.owner.username}` : '');
+  const card = h('div', { class: 'start-card' },
+    game.thumbnail ? h('img', { class: 'start-shot', src: game.thumbnail, alt: '' }) : null,
+    play,
+    h('div', { class: 'start-info' },
+      h('strong', {}, game.title),
+      by ? h('span', {}, `by ${by}`) : null));
+  // Anywhere on the card starts the game, not only the button.
+  card.addEventListener('click', () => {
+    card.classList.add('starting');
+    setTimeout(() => {
+      mountPlayer();
+      countPlay();
+    }, 160);
+  }, { once: true });
+  stage.replaceChildren(card);
+}
+
+// Once the game starts, the player tells us its resolution: the stage takes
+// the game's shape (a phone game stands up), within reason.
+window.addEventListener('message', (e) => {
+  const frame = $('#player');
+  const msg = e.data;
+  if (!frame || e.source !== frame.contentWindow || msg?.source !== 'love-player' || msg.type !== 'display') return;
+  const w = Number(msg.width);
+  const hgt = Number(msg.height);
+  if (!(w > 0 && hgt > 0)) return;
+  const aspect = Math.min(21 / 9, Math.max(9 / 16, w / hgt));
+  document.documentElement.style.setProperty('--game-aspect', String(aspect));
+});
 
 /** 45000 → "12 h 30 min". */
 function duration(seconds) {
@@ -193,8 +229,7 @@ async function main() {
     return;
   }
   render();
-  mountPlayer();
-  countPlay();
+  showStartCard();
 }
 
 main();

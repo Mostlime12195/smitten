@@ -10,7 +10,7 @@
 #include "common/runtime.h"
 #include "common/Variant.h"
 #include "modules/love/love.h"
-#include "modules/thread/web/GreenThreads.h"
+#include "modules/thread/web/FrameTasks.h"
 
 #include <SDL3/SDL.h>
 #include <emscripten.h>
@@ -18,6 +18,7 @@
 #include <emscripten/eventloop.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -238,8 +239,6 @@ void frame()
 	if (L == nullptr || paused)
 		return;
 
-	double start = emscripten_get_now();
-
 	int nres = 0;
 	int status = love::luax_resume(L, 0, &nres);
 
@@ -249,11 +248,8 @@ void frame()
 		releaseEventStrings();
 		syncTextInputState();
 
-		// love.thread Threads (and streaming audio) get whatever is left of
-		// a 60 Hz frame after the game's own update and draw.
-		double elapsed = (emscripten_get_now() - start) / 1000.0;
-		double budget = std::clamp(0.014 - elapsed, 0.002, 0.012);
-		love::thread::web::runFrame(budget);
+		// Streaming audio and video decoding, which run on threads on desktop.
+		love::thread::web::runFrameTasks();
 		return;
 	}
 
@@ -335,7 +331,26 @@ EMSCRIPTEN_KEEPALIVE int loveweb_fit_window(int w, int h)
 	int curw = 0, curh = 0;
 	SDL_GetWindowSize(window, &curw, &curh);
 	if (curw != w || curh != h)
+	{
 		SDL_SetWindowSize(window, w, h);
+		return 1;
+	}
+
+	// Same size, but the page's pixel ratio changed (zoom, or the window
+	// moved to another screen): SDL only picks the new ratio up when the size
+	// changes, so step to another size and back. The game draws at the
+	// screen's real resolution again.
+	if ((SDL_GetWindowFlags(window) & SDL_WINDOW_HIGH_PIXEL_DENSITY) != 0)
+	{
+		int pw = 0, ph = 0;
+		SDL_GetWindowSizeInPixels(window, &pw, &ph);
+		double ratio = emscripten_get_device_pixel_ratio();
+		if (std::abs(pw - (int) std::lround(w * ratio)) > 1 || std::abs(ph - (int) std::lround(h * ratio)) > 1)
+		{
+			SDL_SetWindowSize(window, w + 1, h);
+			SDL_SetWindowSize(window, w, h);
+		}
+	}
 	return 1;
 }
 

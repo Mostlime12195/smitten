@@ -447,7 +447,7 @@
         "pitch": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Sound", "description": "1 is normal; 2 is an octave up." }
       },
       "methods": {
-        "play": { "args": "", "doc": "Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song)." },
+        "play": { "args": "", "doc": "Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song)." },
         "stop": { "args": "", "doc": "Stops every copy." },
         "pause": { "args": "", "doc": "Pauses." },
         "resume": { "args": "", "doc": "Continues after pause()." },

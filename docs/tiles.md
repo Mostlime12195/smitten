@@ -1,53 +1,67 @@
 # Tiles
 
-A Tiles piece is a grid of tiles from a `.tileset`. Each tile can have
-settings such as `solid`, `oneWay` or your own (`damage`).
+A **Tiles** piece is a grid painted with tiles from a tileset: a picture
+cut into squares, where each tile can have settings like `solid` (blocks
+bodies), `oneWay` (only solid from above) or anything of your own, such
+as `damage`. You paint it in the scene view, and scripts can read and
+change it while the game runs, for breakable blocks, doors or
+procedurally built levels.
 
-Cells are addressed by column and row from the piece's position; (0, 0) is
-the top-left cell and negatives work. A cell holds a tile number (from 0,
-in reading order of the tileset picture) or -1 for empty.
+Cells are counted in columns and rows from the Tiles piece's position:
+(0, 0) is its top-left cell, and negative numbers work too. Each cell
+holds a tile number, counted from 0 across the tileset picture, or -1 when
+it's empty.
 
-## Cells
+## Reading and changing cells
 
 | | |
 | --- | --- |
-| `getTile(column, row)`, `setTile(column, row, tile)` | Read or change a cell; -1 empties it |
-| `fill(column, row, columns, rows, tile)` | Fill a rectangle |
+| `getTile(column, row)`, `setTile(column, row, tile)` | Read or change one cell; -1 empties it |
+| `fill(column, row, columns, rows, tile)` | Fill a rectangle of cells |
 | `clear()` | Empty every cell |
-| `cellsWith(tile)` | Painted cells (or those with `tile`), as `{column, row, tile}` |
-| `neighbors(column, row, diagonal)` | Adjacent cells, as `{column, row, tile}` |
-| `tileInfo(tile)` | The tile's settings |
-| `isSolid(column, row)` | Whether the cell's tile is solid |
+| `cellsWith(tile)` | Every painted cell (or every cell with that tile), as `{column, row, tile}` |
+| `neighbors(column, row, diagonal)` | The cells around one, as `{column, row, tile}` |
+| `tileInfo(tile)` | A tile's settings: `solid`, `name`, `damage`... |
+| `isSolid(column, row)` | Whether that cell's tile is solid |
+
+Solid tiles start blocking bodies as soon as they change.
 
 ## Cells and positions
 
 | | |
 | --- | --- |
-| `cellAt(x, y)` | The cell under a scene point |
-| `tileAt(x, y)` | The tile under a scene point, or -1 |
+| `cellAt(x, y)` | The cell under a point in the scene |
+| `tileAt(x, y)` | The tile under a point, or -1 |
 | `cellPosition(column, row)`, `cellCenter(column, row)` | A cell's corner or center in the scene |
-| `getTileSize()` | One cell's size |
+| `getTileSize()` | How big one cell is in the scene |
 | `getBounds()` | The painted area: x, y, width, height |
 
+A common trick is to paint markers in the tile map and turn them into
+pieces when the level starts:
+
 ```lua
-for _, c in ipairs(Level:cellsWith(7)) do
-  local cx, cy = Level:cellCenter(c.column, c.row)
-  spawn("scenes/coin.scene", { x = cx, y = cy })
-  Level:setTile(c.column, c.row, -1)
+-- Turn every coin tile (tile 7) into a real coin
+function ready()
+  for _, c in ipairs(Level:cellsWith(7)) do
+    local cx, cy = Level:cellCenter(c.column, c.row)
+    spawn("scenes/coin.scene", { x = cx, y = cy })
+    Level:setTile(c.column, c.row, -1)
+  end
 end
 ```
 
-## Collisions
+## Touching tiles
 
-A Body's `hit(other)` receives the Tiles piece. `touchingTile(setting)`
-returns the settings of a touched tile that has `setting`:
+A Body's `hit(other)` receives the Tiles piece when it bumps into solid
+tiles. `touchingTile(setting)` returns the settings of a touched tile that
+has that setting, which suits hazards:
 
 ```lua
 local t = touchingTile("damage")
 if t then hurt(t.damage) end
 ```
 
-Tileset files: [File formats](formats.md#tilesets).
+The tileset file format is in [File formats](formats.md#tilesets).
 
 <!-- piece:Tiles -->
 | Property | Type | Default | |

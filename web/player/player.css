@@ -1,9 +1,11 @@
 :root {
-  --bg: #0d0d10;
-  --fg: #e8e6ef;
-  --muted: #8b8899;
-  --accent: #e74a99;
-  --card: #18171d;
+  --bg: #0b0c0f;
+  --fg: #eef0f3;
+  --muted: #9a9ea8;
+  --accent: #4b8bff;
+  --brand: #e5487a;
+  --panel: rgba(22, 24, 28, 0.86);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: dark;
 }
 
@@ -14,7 +16,8 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
@@ -39,64 +42,89 @@ html, body {
 
 body.pixelated #canvas { image-rendering: pixelated; }
 
+/* The splash screen: the game's own picture (smitten.json "splash") or
+   Smitten's mark, on the game's background color, while it loads. */
 #overlay {
   position: fixed;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 40%, #1d1a26, var(--bg) 70%);
+  background: var(--splash-bg, var(--bg));
   z-index: 10;
+  transition: opacity 0.45s var(--ease);
 }
 #overlay[hidden] { display: none; }
+#overlay.leaving { opacity: 0; pointer-events: none; }
 
-.card {
+.splash {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 32px 40px;
-  min-width: 280px;
-  text-align: center;
+  gap: 14px;
+  animation: splash-in 0.6s var(--ease) both;
 }
+@keyframes splash-in { from { opacity: 0; transform: scale(0.96); } }
+.splash .mark { width: 64px; height: 64px; fill: var(--brand); }
+#splash-image { display: block; max-width: min(70vw, 720px); max-height: 60vh; object-fit: contain; }
+#splash-image[hidden], .splash .mark[hidden], #splash-caption[hidden] { display: none; }
+body.pixelated #splash-image, #splash-image.pixel { image-rendering: pixelated; }
+#splash-caption { margin: 0; color: var(--muted); font-size: 13px; letter-spacing: 0.02em; }
+#overlay.light { --muted: rgba(0, 0, 0, 0.55); --fg: #16171b; }
+#overlay.light .bar { background: rgba(0, 0, 0, 0.12); }
 
-.logo {
-  font-size: 56px;
-  line-height: 1;
-  color: var(--accent);
-  filter: drop-shadow(0 0 18px rgba(231, 74, 153, 0.45));
-  animation: beat 1.2s ease-in-out infinite;
+.foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
 }
-@keyframes beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.12); } 30% { transform: scale(1); } }
-
-#overlay-title { font-size: 20px; font-weight: 600; }
-#overlay-status { color: var(--muted); min-height: 1.4em; white-space: pre-wrap; max-width: 60ch; }
-#overlay-status.error { color: #ff8a8a; text-align: left; font: 12px/1.45 ui-monospace, Menlo, monospace; }
-
-.bar { width: 220px; height: 4px; border-radius: 2px; background: #2a2833; overflow: hidden; }
+.bar { width: 160px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
 .bar[hidden] { display: none; }
-#overlay-progress { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
-#overlay-progress.indeterminate { width: 35%; animation: slide 1.1s ease-in-out infinite; }
-@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+#overlay-progress { height: 100%; width: 0; border-radius: 2px; background: var(--fg); opacity: 0.8; transition: width 0.2s var(--ease); }
+#overlay-progress.indeterminate { width: 30%; animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-110%); } to { transform: translateX(340%); } }
+#overlay-status { color: var(--muted); font-size: 13px; min-height: 1.45em; white-space: pre-wrap; max-width: 60ch; text-align: center; }
+#overlay-status:empty { display: none; }
+#overlay-status.error {
+  color: #ffb1b1; text-align: left; font: 12px/1.5 ui-monospace, Menlo, monospace;
+  padding: 12px 14px; border-radius: 10px; background: rgba(229, 72, 77, 0.12);
+}
+/* When something goes wrong or the game ends, the message takes the middle. */
+#overlay.message .splash { display: none; }
+#overlay.message .foot { position: static; }
 
-#play-button {
-  margin-top: 8px;
-  padding: 10px 28px;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
+.play {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   color: #fff;
   background: var(--accent);
-  border: 0;
-  border-radius: 999px;
   cursor: pointer;
+  transition: transform 0.18s var(--ease), filter 0.18s;
 }
-#play-button:hover { filter: brightness(1.1); }
-#play-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.play[hidden] { display: none; }
+.play svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.play:hover { transform: scale(1.06); filter: brightness(1.08); }
+.play:active { transform: scale(0.95); }
+.play:focus-visible { outline: 3px solid rgba(255, 255, 255, 0.85); outline-offset: 4px; }
 
 #file-picker { color: var(--muted); cursor: pointer; }
-#file-picker u { color: var(--fg); }
-body.dragging #overlay { outline: 3px dashed var(--accent); outline-offset: -12px; }
+#file-picker u { color: var(--fg); text-underline-offset: 3px; }
+body.dragging #overlay { outline: 2px dashed var(--accent); outline-offset: -14px; }
+
+/* In the editor the game starts at once: no splash. */
+body.embed .splash { display: none; }
 
 #toolbar {
   position: fixed;
@@ -109,16 +137,25 @@ body.dragging #overlay { outline: 3px dashed var(--accent); outline-offset: -12p
 #toolbar[hidden] { display: none; }
 body:hover #toolbar { opacity: 0.85; }
 #toolbar button {
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   color: var(--fg);
-  background: rgba(24, 23, 29, 0.85);
-  border: 1px solid #2f2d38;
-  border-radius: 6px;
+  background: var(--panel);
+  border: 0;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
   cursor: pointer;
+  transition: transform 0.15s var(--ease);
 }
+#toolbar button:hover { transform: scale(1.06); }
+#toolbar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 body.embed #toolbar { display: none; }
+/* Touch screens have no hover to reveal it, and an invisible button would
+   take the game's touches; games there go fullscreen with fullscreen(true). */
+@media (hover: none) { #toolbar { display: none; } }
 
 /* Shown when a game opens a file dialog outside of a click or key press:
    browsers only open file pickers in response to one. */
@@ -133,9 +170,10 @@ body.embed #toolbar { display: none; }
   gap: 8px;
   max-width: calc(100vw - 24px);
   padding: 8px 8px 8px 14px;
-  background: rgba(24, 23, 29, 0.96);
-  border: 1px solid #2f2d38;
-  border-radius: 10px;
+  background: var(--panel);
+  border: 0;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 #dialog-bar[hidden] { display: none; }
@@ -145,9 +183,9 @@ body.embed #toolbar { display: none; }
   padding: 6px 14px;
   font: inherit;
   color: var(--fg);
-  background: #2a2833;
+  background: rgba(255, 255, 255, 0.1);
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
 }
 #dialog-bar #dialog-ok { color: #fff; background: var(--accent); font-weight: 600; }

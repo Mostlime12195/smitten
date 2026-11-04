@@ -107,7 +107,7 @@ platform/
   src/admin.js             moderation
   src/storage.js           game files on disk
   src/validate.js          titles, descriptions, usernames, passwords, the word filter, PNGs, modules
-  src/zip.js               .love checks
+  src/zip.js               game zip checks
   src/http.js              JSON, cookies, security headers, CORS
   migrations/              the schema, applied in order on start
   config/blocked-words.json the word filter's list
@@ -128,7 +128,7 @@ platform/
   user_version` says which have.
 - **Playing.** `/play/<id>` is `play.html` with the title and description
   filled in for link previews. `play.js` puts the player in a sandboxed
-  iframe: `/player/player.html?game=/api/games/<id>/<title>.love&modules=physics2d`.
+  iframe: `/player/player.html?game=/api/games/<id>/<title>.zip&modules=physics2d`.
   The server refuses a `?game=` that isn't one of this site's games, so the
   player can't run games from elsewhere. The sandbox has no `allow-popups`
   or `allow-top-navigation`.
@@ -388,11 +388,11 @@ means `Authorization: Bearer <editor token>`.
 | --- | --- | --- |
 | `GET /api/config` | anyone | Editor URL and origins, report reasons, modules, limits, `accounts.hackclub`, `accounts.hackatime`, `accounts.email` |
 | `GET /api/games?sort=new\|popular&q=&user=&limit=24&cursor=` | anyone | Public games, newest or most played; `q` searches titles and descriptions, `user` filters by username |
-| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the `.love`), optionally `thumbnail` (PNG). `201 {id, game}` |
+| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the project as a zip), optionally `thumbnail` (PNG). `201 {id, game}` |
 | `GET /api/games/<id>` | anyone | A game, with `owner`, `remixOf: {id, title}`, `remixes` and `hackatime: {seconds, checkedAt}` (when tracked); `yours: true` for its owner |
 | `PUT /api/games/<id>` | owner | Publish an update (the same form; without `hackatimeProject`, the game keeps its) |
 | `DELETE /api/games/<id>` | owner | Delete the game and its files |
-| `GET /api/games/<id>/<name>.love` | anyone | The game (`application/zip`, as an attachment; ETag and 304s) |
+| `GET /api/games/<id>/<name>.zip` | anyone | The game (`application/zip`, as an attachment; ETag and 304s). Older `<name>.love` links still work |
 | `GET /api/games/<id>/thumbnail.png` | anyone | The thumbnail |
 | `POST /api/games/<id>/play` | anyone | Count a play |
 | `POST /api/games/<id>/report` | anyone | Report: `{reason, note}` |
@@ -475,7 +475,7 @@ The audience is teenagers:
   cut off as they arrive. Publishing: 10 an hour per account. Reports: 20
   an hour per address and per account.
 - **Zip checks.** A plain zip (no encryption, ZIP64 or unusual
-  compression) with `main.lua` or `smitten.json` at its root, no absolute
+  compression) with `smitten.json` at its root, no absolute
   or `..` paths. Thumbnails must be real PNGs.
 - **Word filter** on titles, descriptions, usernames and display names
   (`config/blocked-words.json`): whole words with endings, look-alike
@@ -702,4 +702,4 @@ origin, and in the editor, **Settings › Publishing** is the site's URL.
 - Optionally require Hack Club's sign-in for publishing (verified
   teenagers, and bans that stick), or show a badge for Hack Club accounts.
 - Likes, favorites and a "Featured" row.
-- Versions: keep `v<n>.love`, roll back, remix an exact version.
+- Versions: keep `v<n>.zip`, roll back, remix an exact version.

@@ -87,9 +87,6 @@ extern "C" int luaopen_bit(lua_State *L);
 #	include "touch/Touch.h"
 #endif
 
-// Scripts.
-#include "scripts/nogame.lua.h"
-
 // Smitten: the engine's Lua modules (love/src/modules/*/*.lua), embedded by
 // build.py.
 #ifdef LOVE_SMITTEN
@@ -102,10 +99,6 @@ extern "C" int luaopen_bit(lua_State *L);
 #endif
 
 // Put the Lua code directly into a raw string literal.
-static const char arg_lua[] =
-#include "arg.lua"
-;
-
 static const char callbacks_lua[] =
 #include "callbacks.lua"
 ;
@@ -183,9 +176,7 @@ extern "C"
 #if defined(LOVE_ENABLE_WINDOW)
 	extern int luaopen_love_window(lua_State*);
 #endif
-	extern int luaopen_love_nogame(lua_State*);
 	extern int luaopen_love_jitsetup(lua_State*);
-	extern int luaopen_love_arg(lua_State*);
 	extern int luaopen_love_callbacks(lua_State*);
 	extern int luaopen_love_boot(lua_State*);
 
@@ -255,9 +246,7 @@ static const luaL_Reg modules[] = {
 #if defined(LOVE_ENABLE_WINDOW)
 	{ "love.window", luaopen_love_window },
 #endif
-	{ "love.nogame", luaopen_love_nogame },
 	{ "love.jitsetup", luaopen_love_jitsetup },
-	{ "love.arg", luaopen_love_arg },
 	{ "love.callbacks", luaopen_love_callbacks },
 	{ "love.boot", luaopen_love_boot },
 	{ 0, 0 }
@@ -530,57 +519,6 @@ static int w_deprecation__gc(lua_State *)
 	return 0;
 }
 
-static void luax_addcompatibilityalias(lua_State *L, const char *module, const char *name, const char *alias)
-{
-	lua_getglobal(L, module);
-	if (lua_istable(L, -1))
-	{
-		lua_getfield(L, -1, alias);
-		bool hasalias = !lua_isnoneornil(L, -1);
-		lua_pop(L, 1);
-		if (!hasalias)
-		{
-			lua_getfield(L, -1, name);
-			lua_setfield(L, -2, alias);
-		}
-	}
-	lua_pop(L, 1);
-}
-
-#ifdef LOVE_EMSCRIPTEN
-// require() of a module that can't exist in a browser fails with an
-// explanation instead of a list of files that weren't found.
-static int w_webUnsupportedModule(lua_State *L)
-{
-	return luaL_error(L, "module '%s' isn't available on the web: %s",
-		luaL_optstring(L, 1, "?"), lua_tostring(L, lua_upvalueindex(1)));
-}
-
-static void webPreloadUnsupported(lua_State *L, const char *name, const char *why)
-{
-	lua_getglobal(L, "package");
-	lua_getfield(L, -1, "preload");
-	lua_pushstring(L, why);
-	lua_pushcclosure(L, w_webUnsupportedModule, 1);
-	lua_setfield(L, -2, name);
-	lua_pop(L, 2);
-}
-
-static void webPreloadUnsupportedModules(lua_State *L)
-{
-	const char *ffi = "it's part of LuaJIT, and the browser runs standard Lua 5.1 "
-		"(libraries that check 'if jit then' or use pcall(require, 'ffi') fall back "
-		"to plain Lua automatically)";
-	const char *net = "browsers don't allow raw network sockets "
-		"(use require('https') for HTTP requests)";
-	for (const char *name : {"ffi", "jit", "jit.opt", "jit.util", "jit.profile", "jit.vmdef", "string.buffer"})
-		webPreloadUnsupported(L, name, ffi);
-	for (const char *name : {"socket", "socket.core", "socket.http", "socket.url", "socket.ftp",
-	                         "socket.smtp", "socket.tp", "ltn12", "mime", "mime.core", "enet"})
-		webPreloadUnsupported(L, name, net);
-}
-#endif
-
 #ifdef LOVE_SMITTEN
 // Smitten: registers the engine's embedded Lua modules in package.preload.
 static void preloadEngineLua(lua_State *L)
@@ -620,7 +558,6 @@ struct OptionalModule
 static const OptionalModule optionalModules[] =
 {
 	{ "love.box2d", "physics2d", "luaopen_love_box2d", "physics (Bodies, Zones and Joints)" },
-	{ "love.lovephysics", "lovephysics", "luaopen_love_physics", "love.physics (LÖVE's Box2D 2.4 API)" },
 	{ "love.video", "video", "luaopen_love_video", "video (smitten.video)" },
 	{ "love.synth", "synth", "luaopen_love_synth", "generated sounds and music (.sfx and .song files)" },
 	{ nullptr, nullptr, nullptr, nullptr }
@@ -670,7 +607,8 @@ int luaopen_love(lua_State *L)
 	love::luax_insistglobal(L, "love");
 
 #ifdef LOVE_SMITTEN
-	// Smitten: one engine table, reachable as both smitten and love.
+	// Smitten: the engine table is smitten. The engine's own code also calls it
+	// love; game code doesn't see that name (love.engine's globals).
 	lua_pushvalue(L, -1);
 	lua_setglobal(L, "smitten");
 	lua_getglobal(L, "package");
@@ -791,13 +729,6 @@ int luaopen_love(lua_State *L)
 	love::luax_require(L, "love.data");
 	lua_pop(L, 1);
 
-#if LUA_VERSION_NUM <= 501
-	// These are deprecated in Lua 5.1. LuaJIT 2.1 removes them, but code
-	// written assuming LuaJIT 2.0 or Lua 5.1 is used might still rely on them.
-	luax_addcompatibilityalias(L, "math", "fmod", "mod");
-	luax_addcompatibilityalias(L, "string", "gmatch", "gfind");
-#endif
-
 #ifdef LOVE_ENABLE_LUASOCKET
 	love::luasocket::preload(L);
 #endif
@@ -819,7 +750,6 @@ int luaopen_love(lua_State *L)
 		luaopen_bit(L);
 		lua_settop(L, top);
 	}
-	webPreloadUnsupportedModules(L);
 #endif
 #ifdef LOVE_ENABLE_LUAHTTPS
 	love::luax_preload(L, luaopen_https, "https");
@@ -939,25 +869,9 @@ int w__openConsole(lua_State *L)
 
 #endif // LOVE_LEGENDARY_CONSOLE_IO_HACK
 
-int luaopen_love_nogame(lua_State *L)
-{
-	if (luaL_loadbuffer(L, (const char *)love::nogame_lua, sizeof(love::nogame_lua), "=[love \"nogame.lua\"]") == 0)
-		lua_call(L, 0, 1);
-
-	return 1;
-}
-
 int luaopen_love_jitsetup(lua_State *L)
 {
 	if (luaL_loadbuffer(L, jit_setup_lua, sizeof(jit_setup_lua), "=[love \"jitsetup.lua\"]") == 0)
-		lua_call(L, 0, 1);
-
-	return 1;
-}
-
-int luaopen_love_arg(lua_State *L)
-{
-	if (luaL_loadbuffer(L, arg_lua, sizeof(arg_lua), "=[love \"arg.lua\"]") == 0)
 		lua_call(L, 0, 1);
 
 	return 1;

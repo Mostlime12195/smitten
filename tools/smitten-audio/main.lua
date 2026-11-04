@@ -1,5 +1,6 @@
 -- Smitten's synthesizer test: renders every sound effect and song in this
 -- folder, prints render timings and a checksum per file, and plays them.
+-- It's the script of main.scene's root piece.
 --
 -- The checksum lines ("checksum <file> <hex> <samples>") are compared with
 -- the editor's synthesizer by check.mjs: copy the console output into a file
@@ -22,11 +23,11 @@ local function say(fmt, ...)
 end
 
 local function ms(t0)
-	return (love.timer.getTime() - t0) * 1000
+	return (smitten.timer.getTime() - t0) * 1000
 end
 
 local function readJSON(path)
-	return smitten.json.decode(assert(love.filesystem.read(path)))
+	return smitten.json.decode(assert(smitten.filesystem.read(path)))
 end
 
 -- A song table with its sound-effect instruments loaded, as smitten.song
@@ -40,7 +41,7 @@ local function resolveSong(song, path)
 		for k, v in pairs(inst) do c[k] = v end
 		if inst.type == "sfx" then
 			local file = smitten.assets.join(path, inst.sfx)
-			if not love.filesystem.getInfo(file, "file") then file = file .. ".sfx" end
+			if not smitten.filesystem.getInfo(file, "file") then file = file .. ".sfx" end
 			c.sfx = readJSON(file)
 		end
 		copy.instruments[i] = c
@@ -50,17 +51,17 @@ end
 
 local function sorted(folder, suffix)
 	local files = {}
-	for _, name in ipairs(love.filesystem.getDirectoryItems(folder)) do
+	for _, name in ipairs(smitten.filesystem.getDirectoryItems(folder)) do
 		if name:sub(-#suffix) == suffix then files[#files + 1] = folder .. "/" .. name end
 	end
 	table.sort(files)
 	return files
 end
 
-function love.load()
-	local t0 = love.timer.getTime()
+function ready()
+	local t0 = smitten.timer.getTime()
 	for _, path in ipairs(sorted("sfx", ".sfx")) do
-		local t = love.timer.getTime()
+		local t = smitten.timer.getTime()
 		local sound = smitten.synth.sfx(path)
 		local renderMs = ms(t)
 		local _, sum = native.renderSfx(readJSON(path))
@@ -71,17 +72,18 @@ function love.load()
 	say("all sound effects: %.1f ms", ms(t0))
 
 	for _, path in ipairs(sorted("music", ".song")) do
-		local t = love.timer.getTime()
-		local data = smitten.synth.renderSong(readJSON(path), path)
+		local t = smitten.timer.getTime()
+		local folder = path:match("^(.*/)")
+		local data = smitten.synth.renderSong(readJSON(path), folder)
 		local renderMs = ms(t)
-		local _, _, _, sum = native.renderSong(resolveSong(readJSON(path), path), false)
+		local _, _, _, sum = native.renderSong(resolveSong(readJSON(path), folder), false)
 		say("checksum %s %08x %d", path, sum, data:getSampleCount())
 		say("  %s: %.1f s of samples, rendered in %.1f ms", path, data:getDuration(), renderMs)
 	end
 
 	theme = smitten.synth.song("music/theme")
 	jingle = smitten.synth.song("music/jingle")
-	local t = love.timer.getTime()
+	local t = smitten.timer.getTime()
 	theme:play()
 	say("theme: %.1f s per pass, first play (render + loop decoder) %.1f ms", theme.duration, ms(t))
 	assert(smitten.synth.song("music/theme") == theme, "songs are cached")
@@ -89,18 +91,9 @@ function love.load()
 end
 
 local checked = false
-function love.update()
-	if not checked and love.timer.getTime() > 3 then
-		checked = true
-		say("after 3 s: theme playing %s", tostring(theme:isPlaying()))
-		local a, b = sounds[1]:play(), sounds[1]:play({ volume = 0.3, pitch = 1.5 })
-		say("overlapping copies: %s", tostring(a ~= b and a:isPlaying() and b:isPlaying()))
-		sounds[1]:stop()
-		say("after stop: %s", tostring(not a:isPlaying() and not b:isPlaying()))
-	end
-end
+local KEYS = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "space", "s", "j", "r" }
 
-function love.keypressed(key)
+local function keypressed(key)
 	local n = tonumber(key)
 	if n and sounds[n] then
 		sounds[n]:play()
@@ -113,15 +106,29 @@ function love.keypressed(key)
 		jingle:stop()
 		jingle:play()
 	elseif key == "r" then
-		local t = love.timer.getTime()
+		local t = smitten.timer.getTime()
 		smitten.synth.renderSong(readJSON("music/theme.song"), "music/")
 		say("theme rendered again in %.1f ms", ms(t))
 	end
 end
 
-function love.draw()
-	love.graphics.print("1-9: sound effects   space: pause theme   s: stop   j: jingle   r: render", 10, 10)
+function update(dt)
+	if not checked and smitten.timer.getTime() > 3 then
+		checked = true
+		say("after 3 s: theme playing %s", tostring(theme:isPlaying()))
+		local a, b = sounds[1]:play(), sounds[1]:play({ volume = 0.3, pitch = 1.5 })
+		say("overlapping copies: %s", tostring(a ~= b and a:isPlaying() and b:isPlaying()))
+		sounds[1]:stop()
+		say("after stop: %s", tostring(not a:isPlaying() and not b:isPlaying()))
+	end
+	for _, key in ipairs(KEYS) do
+		if smitten.keyboard.pressed(key) then keypressed(key) end
+	end
+end
+
+function draw()
+	smitten.graphics.print("1-9: sound effects   space: pause theme   s: stop   j: jingle   r: render", 10, 10)
 	for i, line in ipairs(log) do
-		love.graphics.print(line, 10, 20 + i * 18)
+		smitten.graphics.print(line, 10, 20 + i * 18)
 	end
 end

@@ -182,12 +182,13 @@ for (const t of TEMPLATES) {
 const overrides = { paths: () => [], readText: () => '', readJSON: () => null, settings: () => ({ modules: { video: 'always', physics2d: 'never' } }) };
 const om = detectModules(overrides);
 check('module overrides', om.video.included && !om.physics2d.included && om.video.override === 'always');
-const code = { paths: () => ['main.lua'], readText: () => 'local w = smitten.physics.newWorld(0, 9.81)\nsmitten.synth.sfx("a.sfx"):play()', readJSON: () => null, settings: () => ({}) };
+const code = { paths: () => ['scripts/a.lua'], readText: () => 'smitten.synth.sfx("a.sfx"):play()\nlove.physics.newWorld(0, 9.81)', readJSON: () => null, settings: () => ({}) };
 const cm = detectModules(code);
-check('modules from code', cm.lovephysics.included && !cm.physics2d.included && cm.synth.included && !cm.video.included);
-const queries = { paths: () => ['main.lua'], readText: () => 'local hit = smitten.physics.raycast(0, 0, 10, 0)\nlocal b = spawn("Body", {})', readJSON: () => null, settings: () => ({}) };
-const qm = detectModules(queries);
-check('scene physics from code', qm.physics2d.included && !qm.lovephysics.included);
+check('modules from code', !cm.physics2d.included && cm.synth.included && !cm.video.included && !('lovephysics' in cm));
+const queries = { paths: () => ['scripts/a.lua'], readText: () => 'local hit = smitten.physics.raycast(0, 0, 10, 0)', readJSON: () => null, settings: () => ({}) };
+check('scene physics from a query', detectModules(queries).physics2d.included);
+const spawns = { paths: () => ['scripts/a.lua'], readText: () => 'local b = spawn("Body", {})', readJSON: () => null, settings: () => ({}) };
+check('scene physics from spawn', detectModules(spawns).physics2d.included);
 
 // --- Ready-made scripts ------------------------------------------------------------
 for (const sc of SCRIPT_LIBRARY) {

@@ -1,0 +1,6 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Lua compatibility test",
+  "main": "main.scene"
+}

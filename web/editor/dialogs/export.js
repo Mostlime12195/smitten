@@ -1,8 +1,8 @@
 // The Export dialog: a web build for itch.io (with only the engine modules
-// the game uses), the project as a zip, or a .love file.
+// the game uses), or the project as a zip.
 
 import { h, openDialog, downloadBlob, formatBytes, toast } from '../ui.js';
-import { buildWebExport, zipFiles, buildLove, slugify } from '../exporter.js';
+import { buildWebExport, zipFiles, slugify } from '../exporter.js';
 import { detectModules, moduleSize } from '../core/modules.js';
 
 export async function exportDialog(project) {
@@ -21,8 +21,7 @@ export async function exportDialog(project) {
     h('div', {}, h('strong', {}, title), h('div', { class: 'why' }, desc)));
   const formats = h('div', { class: 'module-list' },
     format('web', 'Web game (zip)', 'Upload it to itch.io as an HTML game, or put it on any website. Plays in any modern browser.', true),
-    format('project', 'Project (zip)', 'Every file of the project, to back it up or open it in Smitten elsewhere.'),
-    format('love', '.love file', 'For LÖVE 12 on desktop. Only works if the game uses LÖVE\'s API and plain Lua, not Smitten\'s scenes or syntax.'));
+    format('project', 'Project (zip)', 'Every file of the project, to back it up or open it in Smitten elsewhere.'));
   const modulesNote = h('div', { class: 'insp-desc', style: 'margin-top: 12px' },
     included.length
       ? `Includes the engine${core ? ` (${formatBytes(core)})` : ''} and ${included.map((m, i) => `${m.name.toLowerCase()}${sizes[i] ? ` (${formatBytes(sizes[i])})` : ''}`).join(', ')}.`
@@ -42,12 +41,9 @@ export async function exportDialog(project) {
     if (kind === 'web') {
       const zip = await buildWebExport(project.snapshot(), project.name, included.map((m) => m.id));
       downloadBlob(new Blob([zip], { type: 'application/zip' }), `${name}-web.zip`);
-    } else if (kind === 'project') {
+    } else {
       const zip = await zipFiles(project.snapshot());
       downloadBlob(new Blob([zip], { type: 'application/zip' }), `${name}.zip`);
-    } else {
-      const love = await buildLove(project.snapshot());
-      downloadBlob(new Blob([love], { type: 'application/zip' }), `${name}.love`);
     }
     toast('Exported. Check your downloads.', { type: 'success' });
   } catch (e) {

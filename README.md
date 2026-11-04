@@ -3,13 +3,14 @@
 A 2D game engine in your browser. Build scenes from pieces, give them life
 with Lua scripts you own, paint pictures, make sound effects and music, and
 share the game for anyone to play and remix, all in one tab with nothing to
-install. Underneath it's a fork of [LÖVE](https://love2d.org) 12 compiled to
-WebAssembly, so everything LÖVE can do, a Smitten game can do too.
+install. The engine is built on a fork of [LÖVE](https://love2d.org) 12,
+compiled to WebAssembly.
 
 Smitten's engine and editor started from the code of
 [Cupid](https://github.com/Mostlime12195/cupid), which brings LÖVE 12 to the
 web with a Lua-to-WebAssembly JIT. Smitten is a separate project built on
-that code, and neither is affiliated with the LÖVE team.
+that code: it runs Smitten projects, not LÖVE games (that's what Cupid is
+for), and neither is affiliated with the LÖVE team.
 
 ## What you get
 
@@ -26,8 +27,9 @@ that code, and neither is affiliated with the LÖVE team.
   editor and workspaces for painting, sound effects and music. Panels move
   between docks, every tool opens ready to use, and **live tweaking** lets
   you change the running game without touching your files.
-- **One engine table**: `smitten` and `love` are the same, so LÖVE games,
-  tutorials and libraries work as they are.
+- **One engine table**: `smitten` holds drawing, sound, input, files and
+  Smitten's own modules (`smitten.scene`, `smitten.input`, ...), and
+  scripts have a short API on top (`pressed("jump")`, `sfx("coin")`).
 - **Only what a game uses**: physics (Box2D), video and the sound generator
   are separate downloads, included when a game uses them.
 - **A friendlier Lua**: `score += 10`, `continue`, `` `HP: {hp}` `` and
@@ -39,7 +41,7 @@ The docs start at [docs/reference.md](docs/reference.md): getting started,
 scripts, scenes, input, sound, camera, tiles, UI, saving, drawing, project
 settings, sharing, the script API, every piece and the file formats. The
 sharing site serves them at `/docs`. [DESIGN.md](DESIGN.md) explains the
-decisions behind Smitten, including what it changes from LÖVE.
+decisions behind Smitten.
 
 ```lua
 -- scripts/coin.lua, attached to a Zone: a script is the piece's own code
@@ -64,51 +66,29 @@ end
 | `love/src/modules/{engine,input,tween,assets,storage,display,json}/` | Smitten's modules, in Lua, embedded by `build.py` (`engine/live.lua` is live tweaking) |
 | `love/src/modules/synth/` | The sound synthesizer (the `synth` module) |
 | `deps/lua-5.1.5/` | PUC Lua 5.1.5 with LuaJIT's extensions, the JIT and Smitten's syntax |
-| `deps/theora/` | libtheora 1.2.0 decoder, for `love.video` |
+| `deps/theora/` | libtheora 1.2.0 decoder, for video |
 | `web/native/` | Web entry point (`web_main.cpp`) replacing LÖVE's blocking `main()` |
 | `web/player/` | The player page (standalone and embeddable); loads the modules a game needs |
 | `web/editor/` | The editor: `core/` (project, scene documents, schema, live tweaking), `shell/`, `panels/`, `workspaces/`, `dialogs/`, the tools in `tools/`, and the ready-made scripts in `scripts/` |
 | `platform/` | The sharing site prototype (Cloudflare Worker, R2, D1) |
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
-| `package.py` | Command-line web export for a game folder or `.love` |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `smitten-audio`, the JIT's suite, Cupid's test games) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `package.py` | Command-line web export for a project folder or zip |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, the JIT's suite) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
 Lua runs on PUC Lua 5.1 plus a JIT that compiles hot functions to
 WebAssembly: 1.7–14× faster than the plain interpreter on Lua-heavy code
-(see "The Lua JIT" below). Drawing, physics, audio and
-image decoding are LÖVE's own C++ code, batched into WebGL 2. Compared with
-desktop LÖVE on LuaJIT, pure-Lua code is slower and engine-side work is
-about the same, so games that spend their frame drawing lose little.
+(see "The Lua JIT" below). Drawing, audio and image decoding are the
+engine's C++ code, batched into WebGL 2, and physics is Box2D 3 in C, so
+games that spend their frame drawing and simulating lose little to the
+browser.
 
-## Threads without SharedArrayBuffer
+## Lua
 
-Browsers can't block the main thread, and real threads need cross-origin
-isolation headers that many hosts don't send. Instead, each `love.thread`
-Thread gets its own Lua state and runs as a coroutine on the main thread
-(`love/src/modules/thread/web/GreenThreads.cpp`):
-
-- Threads are preempted by an instruction-count hook (Lua 5.1 can yield from
-  hooks), so even `while true do ... end` worker loops don't freeze the page.
-- `Channel:demand`, `Channel:supply`, `Thread:wait` and `love.timer.sleep`
-  yield the thread until they can complete.
-- When the main thread blocks (for example `channel:demand()` in
-  `love.load`), other threads run until it can continue. A real deadlock
-  raises an error instead of hanging the tab.
-- Threads get whatever time is left in each 60 Hz frame after the game's
-  update and draw (2 to 12 ms).
-
-The trade-off: threads share one CPU core with the game, so they make
-blocking-style code work but don't add parallel speed.
-
-## Lua compatibility
-
-Desktop LÖVE runs LuaJIT, which is Lua 5.1 plus extensions. Smitten runs PUC
-Lua 5.1.5 with the LuaJIT 2.1 extensions that games and libraries commonly
-use added back (`deps/lua-5.1.5`), so code written for desktop LÖVE loads
-and behaves the same:
+Smitten runs PUC Lua 5.1.5 with the LuaJIT 2.1 language extensions that
+libraries commonly use added back (`deps/lua-5.1.5`):
 
 | Extension | Notes |
 | --- | --- |
@@ -123,19 +103,11 @@ and behaves the same:
 | `coroutine.isyieldable`, `package.searchpath`, `os.exit(true/false)` | |
 | `bit` | LuaBitOp, as on LuaJIT |
 
-What can't work in a browser fails with a message that says why, instead of
-a generic error:
-
-- `require("ffi")`, `require("jit")`, `jit.*` modules and `string.buffer`:
-  "isn't available on the web: it's part of LuaJIT ...". The `jit` global is
-  nil, so libraries that check `if jit then` take their plain-Lua path.
-- `require("socket")`, `"enet"` and LuaSocket's other modules: browsers have
-  no raw sockets; use `require("https")`.
-- 64-bit literals (`1LL`, `1ULL`) and imaginary literals (`2i`): a syntax
-  error that names LuaJIT's FFI.
-- Yielding inside a metamethod, a `for ... in` iterator or a C function such
-  as `table.sort`'s comparator: the error says that yielding works inside
-  `pcall` but not there. (LuaJIT allows the first two.)
+There's no FFI and no `jit` library (the `jit` global is nil). 64-bit
+literals (`1LL`) and imaginary literals (`2i`) are a syntax error that
+says so. Yielding inside a metamethod, a `for ... in` iterator or a C
+function such as `table.sort`'s comparator raises an error that says
+yielding works inside `pcall` but not there.
 
 ### Smitten syntax
 
@@ -151,20 +123,6 @@ bytecode.
 | `continue` | `for i = 1, n do if skip(i) then continue end ... end` | Jumps to the end of the loop body (the condition in `repeat ... until`, which can't use a local the `continue` skipped). Like `break`, it ends its block. Only a keyword when it stands alone: `continue = 1`, `t.continue`, `::continue::` and `goto continue` still work |
 | String interpolation | `` `HP: {hp}/{maxHp}` `` | Each `{expression}` is converted by the original `tostring` (replacing the global doesn't change it). `\{` writes a brace; the usual escapes work. A backtick string can't be a call's argument without parentheses (`` print(`x`) ``) |
 | If-expressions | `local speed = if running then 200 else 100` | `elseif` allowed, `else` required; only the chosen branch is evaluated |
-
-Code that uses them won't run on desktop LÖVE. `findSmittenSyntax` in
-`web/editor/smitten-syntax.js` lists where a file uses each of them
-(`node tools/smitten-syntax/test.mjs` tests it).
-
-### Compatibility check
-
-The editor checks a project's Lua files each time it plays, and `package.py`
-does the same when packaging. Problems appear in the Output panel (or on
-stderr) with the file and line: LuaJIT-only and networking modules required
-without `pcall`, 64-bit literals, compute shaders, `io.popen` and
-`os.execute`, unguarded `jit.*` calls, plus notes about
-`love.system.getOS()` returning `"Web"` and threads sharing one core. The
-rules are in `web/editor/compat-rules.json`.
 
 ## The Lua JIT
 
@@ -202,8 +160,8 @@ compiles that to machine code like any other wasm.
 - Compiled functions call other compiled functions directly, up to 64 deep,
   setting up the callee's frame without going through `luaD_precall` when
   nothing unusual (varargs, hooks, a growing stack) is involved.
-- Frames with a line or count hook are interpreted, so `debug.sethook` and
-  `love.thread`'s scheduler work unchanged.
+- Frames with a line or count hook are interpreted, so `debug.sethook`
+  works unchanged.
 - `?jit=0` on the player turns it off.
 
 `tools/jit/bench.lua` (run by `node tools/jit/bench.mjs`, which prints
@@ -265,15 +223,14 @@ source /path/to/emsdk/emsdk_env.sh
 python3 build.py
 ```
 
-Builds are incremental (about 450 source files the first time). The engine is linked twice over: a core (`dist/smitten.wasm`, an
+Builds are incremental (about 350 source files the first time). The engine is linked twice over: a core (`dist/smitten.wasm`, an
 Emscripten main module) and side modules in `dist/modules/` that a game only
 downloads when it uses them:
 
 | Module | What's in it | Size |
 | --- | --- | --- |
-| core | Lua and the JIT, LÖVE's modules, scenes, pieces, UI | 6.91 MB |
-| `physics2d` | Box2D 3: Bodies, Zones, Joints, `smitten.physics` queries | 0.33 MB |
-| `lovephysics` | LÖVE's `love.physics` (Box2D 2.4) | 0.23 MB |
+| core | Lua and the JIT, drawing, sound, input, files, scenes, pieces, UI | 6.73 MB |
+| `physics2d` | Box2D 3: Bodies, Zones, Joints, `smitten.physics` queries | 0.34 MB |
 | `video` | Theora, `smitten.video` | 0.13 MB |
 | `synth` | the synthesizer, `.sfx` and `.song` files | 0.03 MB |
 
@@ -295,7 +252,8 @@ python3 serve.py
 ```
 
 and open http://localhost:8766/ for the editor or
-http://localhost:8766/player.html?game=path/to/game.love for the player.
+http://localhost:8766/player.html?game=path/to/game.zip for the player
+(a zip of a project folder).
 
 Tests:
 
@@ -309,19 +267,26 @@ Tests:
   bodies and zones, scripts and the whole script API: input, tiles,
   camera, sprites, particles, sound, saving, pausing, time scale, scene
   changes with values and transitions, UI focus; `rigid` for physics
-  Bodies and tag filtering). Zip one and open it in the player
-  (`player.html?game=tools/scene-tests/smoke.love` with the test server);
-  every line it prints says what it checked.
+  Bodies and tag filtering; `physics` for scene physics). Open one in
+  the player with the test server (below); every line it prints says what
+  it checked.
+- `python3 tools/stress/gen.py` and `node tools/stress/run.mjs` run stress
+  projects and the scene tests in a headless Chrome (`physics-check`
+  prints a digest to compare engine versions).
+- `PLATFORM_PORT=8790 node tools/platform-tests/test.mjs`: the sharing site.
 - `tools/smitten-audio` (whose `check.mjs` confirms the engine and
-  `synth.mjs` render identical samples).
+  `synth.mjs` render identical samples), `tools/video` (playback, pausing
+  and seeking), `tools/luacompat` (the Lua extensions) and
+  `tools/errorscreen`.
 - `node tools/gen-docs.mjs` regenerates `docs/pieces.md`, `docs/api.md`,
   `docs/engine.md`, the tables marked in the other pages, and the HTML docs
   in `platform/public/docs/`; run it after changing `pieces.json`,
   `web/editor/core/script-api.js` or `web/editor/smitten-docs.js`.
-The test games in `tools/` run with `python3 tools/test_server.py 8772`,
-which zips them on request and adds the routes the `https` test needs:
-http://localhost:8772/player.html?game=tools/https.love (or `smoke`,
-`filedialog`, `textinput`, ...).
+The test projects in `tools/` run with `python3 tools/test_server.py 8772`,
+which zips them on request:
+http://localhost:8772/player.html?game=tools/scene-tests/smoke.zip (or
+`tools/video.zip&modules=video`, `tools/smitten-audio.zip&modules=synth`,
+...).
 
 ## The editor
 
@@ -358,13 +323,13 @@ uploaded anywhere unless you share or publish.
   game bar turns it off). Stop with F8.
 - **Project settings**: name, main scene, resolution and how it fits the
   window, input actions, and engine modules.
-- **Export**: a web zip for itch.io with only the modules the game uses, a
-  project zip, or a `.love`; share links for small projects.
+- **Export**: a web zip for itch.io with only the modules the game uses, or
+  a project zip; share links for small projects.
 - Command palette (Ctrl+K), open a file (Ctrl+P), piece reference (Help),
   light and dark themes, icons from [Lucide](https://lucide.dev).
 - The code editor is CodeMirror 6 with Lua and Smitten syntax, and
-  completion for LÖVE 12, Smitten's modules, piece methods after `self:`,
-  script functions, the short script API and file paths.
+  completion for the short script API, the piece's own names and methods,
+  script functions, `smitten.*` and file paths.
 
 The editor loads CodeMirror from a CDN, so the first load needs an internet
 connection; the code editor falls back to a plain text area if that fails.
@@ -372,18 +337,18 @@ connection; the code editor falls back to a plain text area if that fails.
 ## Publishing a game
 
 Copy `player.html`, `player.js`, `player.css`, `smitten.mjs`,
-`smitten.wasm` and the `modules/*.wasm` your game uses next to your
-`game.love`, and add this to `player.html`'s `<head>`:
+`smitten.wasm` and the `modules/*.wasm` your game uses next to a zip of
+your project (`game.zip`), and add this to `player.html`'s `<head>`:
 
 ```html
-<meta name="love-game" content="game.love">
+<meta name="smitten-game" content="game.zip">
 <meta name="smitten-modules" content="physics2d">
 ```
 
 The editor's **Export for web** does this for you, as does the command line:
 
 ```bash
-python3 package.py path/to/game out/ --zip
+python3 package.py path/to/project out/ --zip
 ```
 
 Either produces a zip you can upload to itch.io as an HTML game. Serving `.wasm` as `application/wasm`
@@ -393,7 +358,7 @@ Player URL options:
 
 | Option | Effect |
 | --- | --- |
-| `?game=url` | Load a `.love` from a URL |
+| `?game=url` | Load a game (a zip of a project) from a URL |
 | `?modules=a,b` | Engine modules to load before the game (a game that uses a missing one reloads with it, if the server has it) |
 | `?autoplay=1` | Skip the Play button (audio may stay muted until the first click) |
 | `?scale=fit` (default) / `integer` / `none` | How a fixed-size window is scaled to the page |
@@ -402,112 +367,74 @@ Player URL options:
 
 ## Web-specific behavior
 
-- `love.system.getOS()` returns `"Web"`.
-- Save files live in IndexedDB and are flushed every 2 seconds, when the tab
-  is hidden, and when the game quits.
-- `love.timer.sleep` on the main thread doesn't block (it lets threads run instead).
-- Text input is enabled by default, as on desktop, except on touch devices
-  (no hover, coarse pointer), where it starts off as on Android and iOS.
-  While it's on, a hidden text field has keyboard focus instead of the
-  canvas, so IME composition (Chinese, Japanese, Korean), emoji pickers,
-  dictation and on-screen keyboards reach `love.textinput` (composition in
-  progress is reported to `love.textedited`). `love.keypressed` works as
-  before; keys that belong to an IME composition don't produce key presses.
-  Pasting into the field is ignored, as on desktop: use
-  `love.system.getClipboardText`.
-- On touch devices, tap the game while text input is on to bring up the
-  on-screen keyboard (browsers only show it in response to a tap).
-  `love.keyboard.setTextInput(true, x, y, w, h)` moves the hidden field over
-  that rectangle, which is where IME candidate windows appear.
-- `require("https")` (lua-https) works, using a synchronous `XMLHttpRequest`:
-  it blocks like on desktop. Browser rules apply: other sites must allow
-  cross-origin requests (CORS), an `https` page can't request `http` URLs,
-  and some request headers (`User-Agent`, `Content-Length`, ...) are set by
-  the browser. Network errors, including refused CORS requests, return
-  status `0` with an error message as the body (like lua-https on macOS).
-  Response header names are lower case. Relative URLs are resolved against
-  the page, so a game can request files hosted next to it.
-- `love.window.showFileDialog` uses the browser's file picker.
-  - `openfile` and `openfolder` copy what was picked into the in-memory file
-    system (`/picked/<n>/...`) and return those paths; read them as on
-    desktop with `love.filesystem.openNativeFile`, `mountFullPath` or
-    `io.open`. Filters become the picker's `accept` list; browsers can't
-    show a title or button labels.
-  - `savefile` returns `/picked/<n>/<defaultname>`. When the game has
-    written and closed that file, the browser downloads it under that name
-    (again on every later save to it).
-  - Cancelling returns an empty list, as on desktop.
-  - Browsers only open pickers in response to a click or key press. If the
-    game calls `showFileDialog` from `love.keypressed` or
-    `love.mousepressed`, the picker opens directly (in browsers that report
-    `navigator.userActivation`). Otherwise, and always for `savefile`, the
-    player shows a small bar with a "Choose file…" / "Save" button and
-    Cancel; the picker opens when it's clicked.
-- Games with `t.window.resizable = true` fill the page and get `love.resize`.
-- `love.window.setFullscreen` resizes the game immediately; the browser
-  enters real fullscreen on the next click or key press (browsers only allow
+- Saves (`smitten.storage`) live in IndexedDB and are flushed every 2
+  seconds, when the tab is hidden, and when the game quits.
+- Text input goes through a hidden text field, so IME composition
+  (Chinese, Japanese, Korean), emoji pickers, dictation and on-screen
+  keyboards reach `smitten.input.typed()`. It's on by default, except on
+  touch devices (no hover, coarse pointer), where a tap on the game brings
+  up the on-screen keyboard (browsers only show it in response to a tap).
+- `fullscreen(true)` resizes the game immediately; the browser enters real
+  fullscreen on the next click or key press (browsers only allow
   fullscreen from a user gesture).
-
-## Not supported
-
-- Networking modules: `socket` (LuaSocket) and `enet` (browsers have no raw
-  sockets). `https` works, see above.
-- WOFF2 fonts (FreeType is built without Brotli); TTF and OTF work.
-- LuaJIT itself and its `ffi` library (Lua runs on PUC Lua 5.1 with LuaJIT's
-  language extensions and this project's own JIT; see "Lua compatibility").
-- Compute shaders (WebGL 2 has none).
+- `smitten.system.getOS()` returns `"Web"`.
+- Not available: compute shaders (WebGL 2 has none) and WOFF2 fonts
+  (FreeType is built without Brotli; TTF and OTF work).
 
 ## How it works
 
 `web/native/web_main.cpp` replaces LÖVE's `main()`. On desktop LÖVE resumes
 its boot coroutine in a `while` loop. `boot.lua` yields once per iteration of
 `love.run`'s main loop, so on the web that coroutine is resumed once per
-`requestAnimationFrame` instead. LÖVE's own Lua code changes only where
-noted below.
+`requestAnimationFrame` instead.
 
 The engine patches (`git diff dca79b4 -- love deps`) are kept small so they
 can be rebased onto newer LÖVE commits:
 
-- Add an `LOVE_EMSCRIPTEN` platform (`config.h`) and leave out LuaSocket
-  and ENet.
-- lua-https gets a browser backend
-  (`love/src/libraries/luahttps/src/emscripten`, requests made in
-  `web/native/library_love.js`).
+- Add an `LOVE_EMSCRIPTEN` platform (`config.h`) and leave out LuaSocket,
+  ENet and lua-https; with `LOVE_SMITTEN`, also `love.thread` and LÖVE's
+  `love.physics` (Box2D 2.4).
 - WebGL 2 differences: no texture swizzle (LA8 textures use
   `LUMINANCE_ALPHA`), no `GL_FRAMEBUFFER_SRGB` toggle.
 - `love.timer` uses `emscripten_get_now`; sleeping doesn't block.
 - A Lua-to-WebAssembly JIT (above), in `deps/lua-5.1.5/ljit.inc` with small hooks in `lvm.c`, `ldo.c` and `lfunc.c`.
-- Green threads for `love.thread` (above); audio streaming refills from the
-  frame loop and a timer instead of a pool thread, and recovers from underruns.
+- No threads: audio streaming refills from the frame loop and a timer
+  instead of a pool thread, and recovers from underruns
+  (`love/src/modules/thread/web/FrameTasks.cpp`).
 - `love.video` decodes Theora from the frame loop too, instead of its worker
   thread. libtheora's decoder is built from source (`deps/theora`, without
   its x86/ARM assembly); libogg is Emscripten's port.
 - A streaming Source seeked while paused or stopped no longer skips ahead
   when played again (this showed up as a video with audio jumping ahead).
-- `boot.lua` skips modules the build doesn't include.
+- `boot.lua` is cut down: no `conf.lua`, `main.lua`, command line or
+  no-game screen. A game is a project with a `smitten.json`; anything else
+  gets an error screen that says why. `callbacks.lua`'s main loop runs only
+  the engine (no `love.load`/`update`/`draw` callbacks), and events go to
+  the engine's input handling.
 - LuaBitOp (`deps/luabitop`) is loaded as the global `bit`, as on LuaJIT.
 - SDL3 text input is started when the window is created (not on touch
   devices). Text from the page's hidden text field is pushed as SDL text
   events by `web/native/web_main.cpp`.
-- `love.window.showFileDialog` hands the dialog to `library_love.js`
-  instead of SDL (`love/src/modules/window/sdl/Window.cpp`).
+- File dialogs go to `library_love.js` instead of SDL
+  (`love/src/modules/window/sdl/Window.cpp`).
 
 ### Smitten's additions
 
 Smitten is a fork: its features are part of the engine, not a module on
-top of it. DESIGN.md, section 9, summarizes what it changes from LÖVE.
+top of it. DESIGN.md, section 9, summarizes what it changes.
 
-- `love.cpp` makes the engine table both `love` and `smitten`, registers
-  the embedded Lua modules (`build/gen/engine_lua.h`), gives `love.box2d`
-  (the scenes' Box2D 3), `love.lovephysics` (LÖVE's `love.physics`),
-  `love.video` and `love.synth` loaders that `dlopen` the side module the
-  player loaded (or explain which module to turn on), and exposes the live
-  tweaking channel (`love._livePoll`, fed by `web_main.cpp`).
-- `boot.lua` calls `love.engine.init` once LÖVE's modules are loaded:
-  Smitten's modules load on first use, helpers join LÖVE's modules, and
-  `smitten.json` sets up the display, input actions and the main scene.
-  `love.run` drives the scene tree through `love._engine`; a game without
-  scenes runs exactly as in LÖVE.
+- `love.cpp` names the engine table `smitten`, registers the embedded Lua
+  modules (`build/gen/engine_lua.h`), gives `love.box2d` (the scenes'
+  Box2D 3), `love.video` and `love.synth` loaders that `dlopen` the side
+  module the player loaded (or explain which module to turn on), and
+  exposes the live tweaking channel (`love._livePoll`, fed by
+  `web_main.cpp`). The engine's own code still calls the table `love`
+  internally; game code doesn't see that name (`love.engine` gives
+  scripts and the files they `require` globals without it).
+- `boot.lua` calls `love.engine.init` once the modules are loaded:
+  Smitten's modules load on first use, helpers join the engine's modules,
+  and `smitten.json` sets up the display, input actions and the main
+  scene. `love.run` drives the scene tree through `love._engine`.
 - `love/src/modules/scene/`: scenes and pieces. `pieces.json` describes every
   piece; `build.py` turns it into Lua for the runtime and copies it next to
   the editor for the inspector, the Add a piece dialog and completions.
@@ -519,7 +446,7 @@ top of it. DESIGN.md, section 9, summarizes what it changes from LÖVE.
 - The player keeps save files under its own data folder
   (`XDG_DATA_HOME`), and the editor uses its own storage names, so
   Smitten never shares projects, settings or saves with Cupid or other
-  LÖVE players on the same site.
+  players on the same site.
 
 ## Licenses
 

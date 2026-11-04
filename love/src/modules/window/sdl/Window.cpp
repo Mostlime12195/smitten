@@ -143,9 +143,17 @@ void Window::setGLFramebufferAttributes(bool sRGB)
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
+#ifdef LOVE_EMSCRIPTEN
+	// On the web the browser does the backbuffer's MSAA (the WebGL context's
+	// antialias attribute). That skips love.graphics' own MSAA backbuffer and
+	// its resolve blit, and phones' tiled GPUs resolve it almost for free.
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, webMSAA > 1 ? 1 : 0);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, webMSAA > 1 ? webMSAA : 0);
+#else
 	// Backbuffer MSAA is handled by the love.graphics implementation.
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+#endif
 
 	SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, sRGB ? 1 : 0);
 
@@ -633,8 +641,16 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 		Uint32 createflags = sdlflags & (~SDL_WINDOW_FULLSCREEN);
 
+#ifdef LOVE_EMSCRIPTEN
+		webMSAA = f.msaa;
+#endif
+
 		if (!createWindowAndContext(x, y, width, height, createflags, renderer))
 			return false;
+
+#ifdef LOVE_EMSCRIPTEN
+		webContextMSAA = webMSAA > 1 ? webMSAA : 0;
+#endif
 
 		SDL_SetWindowMinimumSize(window, f.minwidth, f.minheight);
 
@@ -679,7 +695,12 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 		backbufferSettings.pixelHeight = pixelHeight;
 		backbufferSettings.stencil = f.stencil;
 		backbufferSettings.depth = f.depth;
+#ifdef LOVE_EMSCRIPTEN
+		// The WebGL context has it (setGLFramebufferAttributes).
+		backbufferSettings.msaa = 0;
+#else
 		backbufferSettings.msaa = f.msaa;
+#endif
 
 		if (needsetmode)
 		{
@@ -706,7 +727,11 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 			graphics->backbufferChanged(backbufferSettings);
 		}
 
+#ifdef LOVE_EMSCRIPTEN
+		this->settings.msaa = webContextMSAA;
+#else
 		this->settings.msaa = graphics->getBackbufferMSAA();
+#endif
 	}
 
 	// Set fullscreen when user requested it before.

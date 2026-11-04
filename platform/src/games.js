@@ -60,7 +60,7 @@ export function publicGame(row, origin) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     thumbnail: row.has_thumbnail ? `${base}/thumbnail.png?v=${row.version}` : null,
-    gameUrl: `${base}/game.love`,
+    gameUrl: `${base}/game.zip`,
     playUrl: `${origin}/play/${row.id}`,
   };
   // How long Hackatime tracked for it, when its owner has Hackatime connected.
@@ -100,7 +100,7 @@ function ownedRow(ctx, id) {
 // ---------------------------------------------------------------------------
 // Reading an upload: multipart/form-data with
 //   meta       JSON {title, description, modules, engineVersion, remixOf, hackatimeProject}
-//   game       the .love (a zip), at most MAX_GAME_BYTES
+//   game       the game (a zip of the project), at most MAX_GAME_BYTES
 //   thumbnail  optional PNG, at most MAX_THUMBNAIL_BYTES
 
 /**
@@ -157,7 +157,7 @@ async function readUpload(ctx) {
   }
 
   const game = form.get('game');
-  if (!game || typeof game === 'string') throw new HttpError(422, 'The upload has no game file (a "game" part with the .love).', { field: 'game' });
+  if (!game || typeof game === 'string') throw new HttpError(422, 'The upload has no game file (a "game" part with the zip).', { field: 'game' });
   if (game.size > lim.gameBytes) throw new HttpError(413, `The game is ${mb(game.size)}; the limit is ${mb(lim.gameBytes)}.`, { field: 'game' });
   const gameBytes = new Uint8Array(await game.arrayBuffer());
   inspectZip(gameBytes);
@@ -313,12 +313,13 @@ async function fileResponse(ctx, row, name, headers) {
   return new Response(file.body, { headers: h });
 }
 
-/** The .love, at /api/games/<id>/game.love (or /<any name>.love: the player shows that name). */
+/** The game's zip, at /api/games/<id>/game.zip (or /<any name>.zip: the player shows that name; .love
+ * links from before still work). */
 export async function getGameFile(ctx, id) {
   const row = visibleRow(ctx, id);
   const res = await fileResponse(ctx, row, GAME_FILE, {
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="${slug(row.title)}.love"`,
+    'Content-Disposition': `attachment; filename="${slug(row.title)}.zip"`,
     'Cache-Control': row.status === 'public' ? 'public, max-age=0, must-revalidate' : 'private, no-store',
   });
   if (!res) throw new HttpError(404, "This game's file is missing.");

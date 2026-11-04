@@ -1,4 +1,5 @@
--- Pure-Lua benchmark (the Lua parts of tools/bench plus numeric kernels).
+-- Pure-Lua benchmark: game-like workloads (particles, entities, collisions)
+-- plus numeric kernels.
 -- Optional arguments: a filter on benchmark names, and the number of timed
 -- runs (more when profiling one benchmark).
 local clock = os.clock

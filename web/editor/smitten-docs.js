@@ -1,7 +1,8 @@
-// Completion data for what Smitten adds to the engine table (smitten is love):
-// its own modules, the helpers that join LÖVE's modules, and the path
-// arguments the editor can complete. Node methods and script callbacks come
-// from the piece schema (core/schema.js).
+// Completion data for Smitten's own modules (smitten.scene, smitten.input,
+// ...), the helpers that join the engine's modules (smitten.math.chance,
+// ...), and the path arguments the editor can complete. Piece methods and
+// script callbacks come from the piece schema (core/schema.js); the rest of
+// smitten.* from engine-api.json and engine-docs.js.
 
 /**
  * A page of the docs on the sharing site (platform/public/docs, made by
@@ -80,12 +81,20 @@ export const SMITTEN_MODULES = {
     toGame: ['x, y', 'Window coordinates to game coordinates.'],
     toWindow: ['x, y', 'Game coordinates to window coordinates.'],
     getWindowRect: ['', 'The game\'s area in the window: x, y, width, height.'],
-    width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null,
+    width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null, antialias: null, background: null,
   },
   json: {
     decode: ['text', 'JSON text to Lua values.'],
     encode: ['value, indent?', 'Lua values to JSON text.'],
     null: null,
+  },
+  physics: {
+    raycast: ['x1, y1, x2, y2, tags?', 'The first body or tiles a line touches, nearest first: {piece, x, y, nx, ny, fraction}, or nil.'],
+    raycastAll: ['x1, y1, x2, y2, tags?', 'Every hit along a line, nearest first.'],
+    piecesAt: ['x, y, tags?', 'The bodies and zones whose shapes contain a point.'],
+    overlap: ['kind, ...', 'The bodies and zones touching a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, w, h).'],
+    getGravity: ['', 'The scene\'s gravity: x, y (pixels per second per second).'],
+    setGravity: ['x, y', 'Changes the scene\'s gravity: setGravity(0, 0) floats.'],
   },
   synth: {
     sfx: ['path', 'A .sfx sound effect made in the Sound workspace; :play() it.'],
@@ -95,8 +104,8 @@ export const SMITTEN_MODULES = {
   },
 };
 
-/** Helpers that join LÖVE's modules: smitten.<module>.<name>. */
-export const LOVE_ADDITIONS = {
+/** Helpers that join the engine's modules: smitten.<module>.<name>. */
+export const MODULE_HELPERS = {
   math: {
     chance: ['p', 'True with probability p: chance(0.25) is true a quarter of the time.'],
     pick: ['list', 'A random element of a list.'],
