@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Development server for the test projects in tools/.
+Development server for the test projects in tools/ and the games in games/.
 
 Serves dist/ like serve.py, plus:
 
     /tools/<path>.zip        the project in tools/<path>/ zipped on the fly, e.g.
                              player.html?game=tools/scene-tests/smoke.zip
                              player.html?game=tools/video.zip&modules=video
+    /games/<name>.zip        games/<name>/ zipped the same way, without its tools/
+                             (the art and map generators), e.g.
+                             player.html?game=games/my-game.zip
 
     python3 tools/test_server.py 8772
 """
@@ -20,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 TOOLS = ROOT / "tools"
+GAMES = ROOT / "games"
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -38,18 +42,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def project_zip(self):
-        """The zipped project for /tools/<path>.zip, or None for other paths."""
+        """The zipped project for /tools/<path>.zip or /games/<name>.zip, or None for other paths."""
         path = self.path.split("?", 1)[0]
-        if not (path.startswith("/tools/") and path.endswith(".zip")):
+        base = TOOLS if path.startswith("/tools/") else GAMES if path.startswith("/games/") else None
+        if base is None or not path.endswith(".zip"):
             return None
-        src = (TOOLS / path[len("/tools/"):-len(".zip")]).resolve()
-        if TOOLS not in src.parents or not (src / "smitten.json").is_file():
+        src = (base / path[len(base.name) + 2:-len(".zip")]).resolve()
+        if base not in src.parents or not (src / "smitten.json").is_file():
             return b""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             for f in sorted(src.rglob("*")):
-                if f.is_file():
-                    z.write(f, f.relative_to(src).as_posix())
+                rel = f.relative_to(src)
+                # A game's art and map generators stay out of the game.
+                if f.is_file() and not (base == GAMES and rel.parts[0] == "tools"):
+                    z.write(f, rel.as_posix())
         return buf.getvalue()
 
     def serve_zip(self, head):

@@ -4,8 +4,19 @@
     {
       "name": "smitten",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["serve.py"],
+      "runtimeArgs": [
+        "serve.py"
+      ],
       "port": 8766
+    },
+    {
+      "name": "test-server",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "tools/test_server.py",
+        "8772"
+      ],
+      "port": 8772
     }
   ]
 }
