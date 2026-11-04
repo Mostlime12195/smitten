@@ -469,6 +469,32 @@ function M.isScript(s)
 	return type(s) == "table" and rawget(s, "__smitten") ~= nil
 end
 
+-- The Lua types each kind of piece property holds.
+local PROPERTY_LUA_TYPES = {
+	number = { number = true }, int = { number = true }, angle = { number = true },
+	bool = { boolean = true }, color = { table = true },
+	text = { string = true, number = true }, enum = { string = true }, resource = { string = true },
+}
+
+-- A top-level line like `bounce = true` sets the piece's own property when
+-- one has that name. With a value of the wrong kind that breaks the piece
+-- somewhere far away, so say so where it happens.
+local propertiesOf = {}
+local function checkTopLevel(n, k, v)
+	if type(k) ~= "string" then return end
+	local props = propertiesOf[n.type]
+	if not props then
+		props = node.properties(n.type)
+		propertiesOf[n.type] = props
+	end
+	local def = props[k]
+	local ok = def and PROPERTY_LUA_TYPES[def.type]
+	if ok and not ok[type(v)] then
+		error(("%s is a property of every %s (a %s), so this sets it to %s. Give your variable another name."):format(
+			k, n.type, def.type, tostring(v)), 3)
+	end
+end
+
 ---Gives a piece its script: runs the file in the piece's own environment.
 function M.instantiate(n, s)
 	local info = s.__smitten
@@ -523,6 +549,7 @@ function M.instantiate(n, s)
 					n[k] = function(_, ...) return runTask(n, v, ...) end
 				end
 			else
+				if defining then checkTopLevel(n, k, v) end
 				n[k] = v
 				if defining then vars[k] = true end
 			end
