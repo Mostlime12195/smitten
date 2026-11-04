@@ -447,7 +447,10 @@ local function updateShapes(n, force)
 	else
 		flags = SHAPE_CONTACT_EVENTS + (n.motion ~= "still" and SHAPE_SENSOR_EVENTS or 0)
 	end
-	local friction, bounce = n.friction or 0.3, n.bounce or 0
+	-- Zones have no material: a script variable of theirs called friction
+	-- or bounce is the script's own.
+	local friction, bounce = 0.3, 0
+	if not isZone then friction, bounce = n.friction or 0.3, n.bounce or 0 end
 	local list = {}
 	local slot = n._slot
 	for i = 1, count do
