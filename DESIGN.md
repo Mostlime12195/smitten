@@ -2,20 +2,21 @@
 
 Status: third design, 2026-11-03. The project owner reversed the second
 design's 3D support and asked that Smitten stop looking like a copy of
-Godot; earlier designs are in git history.
+Godot, and then that it stop running LÖVE games (that's what Cupid is
+for); earlier designs are in git history.
 
 Smitten is a 2D game engine and editor that runs in the browser, for
 teenagers and game jams. Games are built from scenes of pieces, given life
 by Lua scripts the game's maker owns, and shared on a site where anyone can
-play and remix them. Underneath it's a fork of LÖVE 12 compiled to
+play and remix them. The engine is built on a fork of LÖVE 12, compiled to
 WebAssembly, with a Lua-to-WebAssembly JIT.
 
 ## 0. Decisions
 
 | Question | Decision | Section |
 | --- | --- | --- |
-| Who it's for | Teenagers and game jams first (e.g. Hack Club members); experienced LÖVE developers a close second | 1 |
-| Engine | A full fork of LÖVE with one table: `smitten` and `love` are the same, so LÖVE games and tutorials still work | 2, 9 |
+| Who it's for | Teenagers and game jams first (e.g. Hack Club members); experienced programmers a close second | 1 |
+| Engine | A fork of LÖVE 12 cut down to what Smitten uses, with one table, `smitten`. It doesn't run LÖVE games or LÖVE-style code (Cupid does) | 2, 9 |
 | Dimensions | 2D only | 4 |
 | Identity | Smitten's own model and words, not Godot's: pieces, Bodies with built-in shapes, Zones, tags | 4 |
 | Behavior | Scripts that are the piece's own code (no boilerplate, a short API like Pico-8's). Ready-made ones (platformer, patrol, pickup...) are copied into the project as ordinary Lua files to read and change; nothing is a hidden engine behavior | 5 |
@@ -30,31 +31,35 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
 1. **Teenagers making their first games, and jam teams.** Often on
    Chromebooks or school laptops. They decide the defaults, the words and
    what's on screen.
-2. **Experienced LÖVE developers.** The whole LÖVE 12 API is there, plain
-   Lua runs as is, and a `main.lua` game runs without a single scene.
+2. **Experienced programmers.** Plain Lua with a JIT, scripts that can
+   draw anything in `draw()` with `smitten.graphics`, and every engine
+   module under `smitten.*`.
 
 ## 2. One engine
 
-- `smitten` is the engine table, with LÖVE's modules (`smitten.graphics`,
-  `smitten.audio`, `smitten.physics`, ...) and Smitten's next to them
-  (`smitten.scene`, `smitten.input`, `smitten.tween`, `smitten.assets`,
-  `smitten.storage`, `smitten.display`, `smitten.synth`). `love` is the same
-  table.
+- `smitten` is the engine table: drawing, sound, input devices and files
+  (`smitten.graphics`, `smitten.audio`, `smitten.keyboard`, ...) and
+  Smitten's own modules next to them (`smitten.scene`, `smitten.input`,
+  `smitten.tween`, `smitten.assets`, `smitten.storage`, `smitten.display`,
+  `smitten.physics`, `smitten.synth`). The engine's own code calls the same
+  table `love` internally; game code doesn't see that name.
 - Helpers join the module they belong to: `smitten.math.chance/pick/clamp/
   lerp/approach`, `smitten.timer.after/every`, `smitten.mouse.pressed`,
   `smitten.mouse.x/y/worldX/worldY`, `smitten.keyboard.pressed`.
-- `love.run` runs the scene tree when there is one: input, the game's own
-  `smitten.update`, scripts and physics, then the world, the game's
-  `smitten.draw`, and UI on top. A project whose `smitten.json` names a main
-  scene needs no `main.lua`.
+- `love.run` runs the scene tree: input, scripts and physics, then the
+  world and UI on top. A project is a `smitten.json` that names the main
+  scene. There's no `main.lua`, `conf.lua` or `love.load/update/draw`:
+  game-wide code is a script on the main scene's root, and what `conf.lua`
+  set (title, resolution, saves folder) is in `smitten.json` (`name`,
+  `display`, `identity`). An old project with only a `main.lua` gets an
+  error screen that says so, and the editor offers to make a main scene.
 
 ## 3. Modules: a game ships only what it uses
 
 | Module | What's in it | When a game gets it |
 | --- | --- | --- |
-| core (`smitten.wasm`, 6.9 MB) | Lua and the JIT, LÖVE's modules, the scene tree, pieces, collisions, UI | Always |
-| `physics2d` (0.33 MB) | Box2D 3 (our fork, `deps/box2d3`): the scenes' physics, `smitten.physics` queries | A Body, Zone or Joint, or code using `smitten.physics.raycast` and the other queries |
-| `lovephysics` (0.23 MB) | LÖVE's `love.physics` (Box2D 2.4) | Code using `love.physics.newWorld` and the rest of LÖVE's API |
+| core (`smitten.wasm`, 6.7 MB) | Lua and the JIT, drawing, sound, input, the scene tree, pieces, collisions, UI | Always |
+| `physics2d` (0.34 MB) | Box2D 3 (our fork, `deps/box2d3`): the scenes' physics, `smitten.physics` queries | A Body, Zone or Joint, or code using `smitten.physics.raycast` and the other queries |
 | `video` (0.13 MB) | Theora, `smitten.video` | Code using `smitten.video` |
 | `synth` (0.03 MB) | The sound generator | `.sfx` or `.song` files, or `smitten.synth` |
 
@@ -225,8 +230,8 @@ in place; standard conventions; neutral looks with icons from
 - **Project settings**: name, main scene, display (resolution and how it
   fits the window, smooth or pixel, antialiasing, background color),
   splash screen, input actions, physics, modules.
-- **Export**: a web zip with only the modules the game uses, a project
-  zip, a `.love`; share links; publishing to the sharing site.
+- **Export**: a web zip with only the modules the game uses, or a project
+  zip; share links; publishing to the sharing site.
 
 ## 7. Sharing site
 
@@ -243,8 +248,8 @@ rate limits. `platform/README.md` has the details and the next steps.
 ## 8. Language
 
 Lua 5.1 with LuaJIT's extensions plus Luau-style syntax in the parser,
-compiled to existing bytecode, so the JIT, debug hooks, coroutines and
-green threads work unchanged:
+compiled to existing bytecode, so the JIT, debug hooks and coroutines work
+unchanged:
 
 | Feature | Example |
 | --- | --- |
@@ -262,23 +267,25 @@ Smitten started from LÖVE 12 (love2d/love@ef388d4) and Lua 5.1.5, through
 Cupid's web port.
 
 - **Runs in the browser** (Cupid's port): an Emscripten platform; the main
-  loop driven by `requestAnimationFrame`; WebGL 2 differences; an HTTPS
-  backend through `fetch`; green threads for `love.thread` (one core);
-  audio streaming and video decoding from the frame loop; file dialogs and
-  text input through the page. No LuaSocket, ENet or FFI.
+  loop driven by `requestAnimationFrame`; WebGL 2 differences; audio
+  streaming and video decoding from the frame loop; file dialogs and text
+  input through the page.
 - **Lua**: PUC Lua 5.1 with LuaJIT's extensions instead of LuaJIT (which
   can't target WebAssembly), a JIT that compiles Lua to WebAssembly, and
   Smitten's syntax.
-- **One table**, `smitten` = `love`, and helpers in LÖVE's modules.
+- **One table**, `smitten`, with helpers in the engine's modules. `love`
+  is only the engine's internal name for it.
 - **Split into a core and optional modules** loaded only when used.
 - **New modules**: scenes and pieces, input actions, tweens and timers,
-  assets, saving, display scaling, JSON, the sound generator, live tweaking.
-- **The main loop** runs the scene tree; `smitten.json` replaces the need
-  for `main.lua`.
-
-LÖVE's own engine code is barely touched outside the web port: its API,
-`conf.lua` and callbacks work as in LÖVE, so LÖVE games run as they are
-(except LuaJIT-only and networking libraries).
+  assets, saving, display scaling, JSON, scene physics on Box2D 3, the
+  sound generator, live tweaking.
+- **The main loop** runs the scene tree; `smitten.json` replaces `conf.lua`
+  and the main scene replaces `main.lua`.
+- **Cut**: running LÖVE games (`main.lua`, `conf.lua`, the `love.*`
+  callbacks, the no-game screen, command-line options), `love.physics`
+  (Box2D 2.4), `love.thread`, lua-https, LuaSocket and ENet, and the
+  editor's `.love` export and web-compatibility checker. The core went from
+  7.00 MB to 6.73 MB (2.52 to 2.35 MB gzipped).
 
 ## 10. Storage, hosting, export
 
@@ -292,7 +299,7 @@ its own domain; `serve.py` uses port 8766 locally.
 smitten/
   DESIGN.md, README.md, build.py, serve.py, package.py
   love/                        the engine (a LÖVE 12 fork)
-    src/modules/love/          boot, the main loop, the smitten/love table, optional modules
+    src/modules/love/          boot, the main loop, the smitten table, optional modules
     src/modules/scene/         scenes and pieces; pieces.json describes them all
     src/modules/engine/        start-up, helpers, live tweaking
     src/modules/{input,tween,assets,storage,display,json,synth}/

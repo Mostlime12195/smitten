@@ -1,0 +1,11 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Smitten synthesizer test",
+  "identity": "smitten-audio",
+  "main": "main.scene",
+  "display": {
+    "width": 640,
+    "height": 360
+  }
+}

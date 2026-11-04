@@ -169,10 +169,12 @@ export class Project extends EventTarget {
   // Settings (smitten.json)
 
   settings() {
+    // A project without a smitten.json yet keeps the name it was made with.
+    const defaults = { ...DEFAULT_SETTINGS, name: this.meta.name || DEFAULT_SETTINGS.name };
     try {
-      return { ...DEFAULT_SETTINGS, ...(this.readJSON('smitten.json') || {}) };
+      return { ...defaults, ...(this.readJSON('smitten.json') || {}) };
     } catch {
-      return { ...DEFAULT_SETTINGS };
+      return defaults;
     }
   }
 

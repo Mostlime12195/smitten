@@ -4,8 +4,8 @@
 --   local coin = smitten.scene.spawn("scenes/coin.scene", { x = 100, y = 40 })
 --   for _, e in ipairs(smitten.scene.tagged("enemy")) do e:destroy() end
 --
--- love.run calls update() and draw() through love.engine, so a project
--- only needs a main scene in smitten.json; main.lua is optional.
+-- love.run calls update() and draw() through love.engine; a project names
+-- its main scene in smitten.json.
 
 local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
@@ -434,12 +434,10 @@ function scene.getDelta()
 	return tree.dt
 end
 
--- Drawing: the world, the game's own smitten.draw, then UI on top, then
--- the transition's cover.
-function scene._draw(userDraw)
+-- Drawing: the world, then UI on top, then the transition's cover.
+function scene._draw()
 	local root = tree.root
 	if root then require("love.scene.nodes2d").render(root) end
-	if userDraw then userDraw() end
 	if root then require("love.scene.ui").render(root) end
 	if fading then
 		local t = style.seconds > 0 and math.min(1, fading.time / style.seconds) or 1

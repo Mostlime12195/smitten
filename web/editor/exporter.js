@@ -1,4 +1,4 @@
-// Zip import/export: .love files, "export for web" bundles and archive import.
+// Zip import/export: project zips, "export for web" bundles and archive import.
 //
 // Uses fflate from a CDN. If it cannot be loaded (offline), falls back to a
 // tiny built-in zip writer (stored, uncompressed) and a reader that inflates
@@ -154,12 +154,12 @@ export async function unzipBytes(bytes) {
     if (/(^|\/)(__MACOSX|\.DS_Store$|Thumbs\.db$)/.test(path)) continue;
     out[path] = data;
   }
-  // A .love made by zipping the folder (instead of its contents) has everything
-  // under one directory; strip it so main.lua ends up at the root.
+  // A zip made by zipping the folder (instead of its contents) has everything
+  // under one directory; strip it so smitten.json ends up at the root.
   const paths = Object.keys(out);
-  if (paths.length && !out['main.lua']) {
+  if (paths.length && !out['smitten.json']) {
     const first = paths[0].split('/')[0];
-    if (paths.every((p) => p.startsWith(`${first}/`)) && out[`${first}/main.lua`]) {
+    if (paths.every((p) => p.startsWith(`${first}/`)) && out[`${first}/smitten.json`]) {
       const stripped = {};
       for (const p of paths) stripped[p.slice(first.length + 1)] = out[p];
       return stripped;
@@ -175,7 +175,8 @@ export async function unzipToProjectFiles(bytes) {
   return files;
 }
 
-export async function buildLove(files) {
+/** The game as the player runs it: a zip of the project's files. */
+export async function buildGameZip(files) {
   return zipFiles(files);
 }
 
@@ -193,7 +194,7 @@ async function fetchBytes(name) {
 
 /**
  * A zip that can be uploaded to itch.io as an HTML game: index.html (the
- * player, pointed at game.love), the engine, only the engine modules the
+ * player, pointed at game.zip), the engine, only the engine modules the
  * game uses (DESIGN.md, section 3), and the game itself.
  */
 export async function buildWebExport(files, title, modules = []) {
@@ -201,7 +202,7 @@ export async function buildWebExport(files, title, modules = []) {
   await Promise.all(WEB_ASSETS.map(async (name) => { assets[name] = await fetchBytes(name); }));
   let html = new TextDecoder().decode(assets['player.html']);
   const meta = [
-    '<meta name="love-game" content="game.love">',
+    '<meta name="smitten-game" content="game.zip">',
     `<meta name="smitten-modules" content="${escapeHtml(modules.join(','))}">`,
   ].join('\n');
   html = html.replace(/<head>/i, `<head>\n${meta}`);
@@ -212,7 +213,7 @@ export async function buildWebExport(files, title, modules = []) {
     'player.css': assets['player.css'],
     'smitten.mjs': assets['smitten.mjs'],
     'smitten.wasm': assets['smitten.wasm'],
-    'game.love': await buildLove(files),
+    'game.zip': await buildGameZip(files),
   };
   for (const m of modules) out[`modules/${m}.wasm`] = await fetchBytes(`modules/${m}.wasm`);
   return zipFiles(out);

@@ -31,7 +31,7 @@ const LOCAL = argv.includes('--local');
 const outDir = argv.includes('--out') ? resolve(argv[argv.indexOf('--out') + 1]) : join(root, 'platform', 'public', 'docs');
 const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/pieces.json'), 'utf8'));
 const { SCRIPT_API_GROUPS, SCRIPT_CALLBACKS } = await import(pathToFileURL(join(root, 'web/editor/core/script-api.js')).href);
-const { SMITTEN_MODULES, LOVE_ADDITIONS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
+const { SMITTEN_MODULES, MODULE_HELPERS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
 
 // The site's pages, in sidebar order. A page whose file is missing gets a
 // placeholder (physics, written by hand later).
@@ -97,7 +97,7 @@ function apiTable(group) {
 }
 
 function moduleTable(mod) {
-  const members = SMITTEN_MODULES[mod] || LOVE_ADDITIONS[mod];
+  const members = SMITTEN_MODULES[mod] || MODULE_HELPERS[mod];
   if (!members) throw new Error(`no module ${mod}`);
   const fns = Object.entries(members).filter(([, d]) => d);
   const fields = Object.entries(members).filter(([, d]) => !d).map(([n]) => `\`${n}\``);
@@ -168,8 +168,11 @@ function enginePage() {
   const out = [
     '# The engine table',
     '',
-    '`smitten` and `love` are the same table, so [LÖVE 12\'s API](https://love2d.org/wiki/Main_Page)',
-    'is all there. This page lists what Smitten adds.',
+    '`smitten` holds the engine: drawing (`smitten.graphics`), sound (`smitten.audio`,',
+    '`smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`, `smitten.joystick`,',
+    '`smitten.touch`), files (`smitten.filesystem`), `smitten.math`, `smitten.timer`,',
+    '`smitten.window` and the rest, and Smitten\'s own modules. This page lists Smitten\'s',
+    'modules and the helpers it adds to the others.',
     '',
     '## Smitten\'s modules',
     '',
@@ -182,13 +185,14 @@ function enginePage() {
     storage: 'See [Saving](saving.md).',
     display: 'See [Project settings](settings.md).',
     json: 'JSON text to Lua values and back.',
+    physics: 'Queries on the running scene\'s physics. See [Physics](physics.md).',
     synth: 'See [Sound and music](sound.md).',
   };
   for (const mod of Object.keys(SMITTEN_MODULES)) {
     out.push(`### smitten.${mod}`, '', intro[mod] || '', '', ...moduleTable(mod));
   }
-  out.push('## Added to LÖVE\'s modules', '');
-  for (const mod of Object.keys(LOVE_ADDITIONS)) out.push(`### smitten.${mod}`, '', ...moduleTable(mod));
+  out.push('## Helpers in the engine\'s modules', '');
+  for (const mod of Object.keys(MODULE_HELPERS)) out.push(`### smitten.${mod}`, '', ...moduleTable(mod));
   return out.join('\n');
 }
 

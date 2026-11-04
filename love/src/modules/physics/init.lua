@@ -1,14 +1,11 @@
--- smitten.physics (and love.physics): the scene's physics queries, plus
--- LÖVE's own love.physics API for plain LÖVE code.
+-- smitten.physics: queries on the running scene's physics.
 --
 --   local hit = smitten.physics.raycast(x, y, x + 300, y)
 --   for _, p in ipairs(smitten.physics.piecesAt(mx, my)) do ... end
 --   smitten.physics.setGravity(0, 0)
 --
 -- The queries work on the running scene's Box2D world (scene/physics2d.lua,
--- the physics2d module). Anything else, like love.physics.newWorld, is
--- LÖVE's API on Box2D 2.4: the lovephysics module, loaded the first time a
--- game uses it, so scene games don't download it.
+-- the physics2d module).
 
 local physics = {}
 
@@ -34,20 +31,5 @@ function physics.getGravity() return scenePhysics().getGravity() end
 
 ---Changes the scene's gravity: setGravity(0, 980) pulls down, setGravity(0, 0) floats.
 function physics.setGravity(x, y) return scenePhysics().setGravity(x, y) end
-
--- LÖVE's love.physics (Box2D 2.4), loaded on first use. Its luaopen sets
--- love.physics to its own table; this one stays love.physics.
-local love2 = nil
-setmetatable(physics, {
-	__index = function(t, k)
-		if not love2 then
-			love2 = require("love.lovephysics")
-			rawset(love, "physics", t)
-		end
-		local v = love2[k]
-		if v ~= nil then rawset(t, k, v) end
-		return v
-	end,
-})
 
 return physics

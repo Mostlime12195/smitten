@@ -158,11 +158,15 @@
 #	define LOVE_ENABLE_KEYBOARD
 #	define LOVE_ENABLE_MATH
 #	define LOVE_ENABLE_MOUSE
+#ifndef LOVE_SMITTEN
 #	define LOVE_ENABLE_PHYSICS
+#endif
 #	define LOVE_ENABLE_SENSOR
 #	define LOVE_ENABLE_SOUND
 #	define LOVE_ENABLE_SYSTEM
+#ifndef LOVE_SMITTEN
 #	define LOVE_ENABLE_THREAD
+#endif
 #	define LOVE_ENABLE_TIMER
 #	define LOVE_ENABLE_TOUCH
 #	define LOVE_ENABLE_VIDEO
@@ -175,7 +179,9 @@
 #	define LOVE_ENABLE_LUASOCKET
 #endif
 #	define LOVE_ENABLE_LUA53
+#ifndef LOVE_SMITTEN
 #	define LOVE_ENABLE_LUAHTTPS
+#endif
 #endif
 
 // Check we have a sane configuration

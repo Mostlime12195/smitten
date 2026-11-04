@@ -23,7 +23,7 @@
   },
   {
    "type": "sfx",
-   "sfx": "../sfx/coin.sfx.json",
+   "sfx": "../sfx/coin.sfx",
    "pitched": true
   }
  ],

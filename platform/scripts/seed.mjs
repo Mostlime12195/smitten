@@ -88,9 +88,9 @@ function zip(files) {
 // A simpler version of the editor's detection (web/editor/core/modules.js):
 // Bodies moved by physics, or the APIs in code.
 const MODULES = [
-  ['physics2d', /"motion": "physics"|\b(?:smitten|love)\.physics\./],
-  ['video', /\b(?:smitten|love)\.video\b|\bnewVideo\s*\(/],
-  ['synth', /\b(?:smitten|love)\.synth\b/],
+  ['physics2d', /"motion": "physics"|\bsmitten\.physics\./],
+  ['video', /\bsmitten\.video\b|\bnewVideo\s*\(/],
+  ['synth', /\bsmitten\.synth\b/],
 ];
 
 for (const ex of TEMPLATES.filter((t) => t.id !== 'empty')) {
@@ -99,7 +99,7 @@ for (const ex of TEMPLATES.filter((t) => t.id !== 'empty')) {
   const modules = MODULES.filter(([, re]) => re.test(code)).map(([id]) => id);
   const form = new FormData();
   form.append('meta', JSON.stringify({ title: ex.name, description: ex.description, modules, engineVersion: '0.2.0' }));
-  form.append('game', new Blob([zip(files)], { type: 'application/zip' }), 'game.love');
+  form.append('game', new Blob([zip(files)], { type: 'application/zip' }), 'game.zip');
   const res = await fetch(`${base}/api/games`, { method: 'POST', body: form, headers: { Cookie: cookie, Origin: base } });
   const data = await res.json();
   if (!res.ok) {

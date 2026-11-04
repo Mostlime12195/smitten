@@ -127,9 +127,9 @@ local timing = {}
 local function timed(name, t, key)
   local f = t[key]
   t[key] = function(...)
-    local t0 = love.timer.getTime()
+    local t0 = smitten.timer.getTime()
     local a, b = f(...)
-    timing[name] = (timing[name] or 0) + love.timer.getTime() - t0
+    timing[name] = (timing[name] or 0) + smitten.timer.getTime() - t0
     return a, b
   end
 end
@@ -145,13 +145,13 @@ function Stats:ready()
   timed("update", smitten.scene, "_update")
   timed("draw", smitten.scene, "_draw")
   for name, sys in pairs(smitten.scene._tree.systems) do timed(name, sys, "step") end
-  -- smitten.draw runs after the world is drawn: count its draw calls there.
-  local stats, prev = self, love.draw
-  love.draw = function()
-    if prev then prev() end
-    stats._draws = love.graphics.getStats().drawcalls
+  -- The frame's draw calls, once the scene (world and UI) is drawn.
+  local stats, draw = self, smitten.scene._draw
+  smitten.scene._draw = function(...)
+    draw(...)
+    stats._draws = smitten.graphics.getStats().drawcalls
   end
-  print(("stress %s: %d pieces, loaded in %.0f ms"):format(self.name, count(self), love.timer.getTime() * 1000))
+  print(("stress %s: %d pieces, loaded in %.0f ms"):format(self.name, count(self), smitten.timer.getTime() * 1000))
 end
 
 function Stats:update(dt)

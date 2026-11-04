@@ -168,7 +168,7 @@ export function openPopup() {
   const win = window.open('', '_blank', 'popup,width=840,height=660');
   if (win) {
     try {
-      win.document.title = 'LÖVE';
+      win.document.title = 'Smitten';
       win.document.body.style.cssText = 'margin:0;background:#0d0d10;color:#8b8899;font:14px system-ui;display:grid;place-items:center;height:100vh';
       win.document.body.textContent = 'Packing game…';
     } catch { /* ignore */ }

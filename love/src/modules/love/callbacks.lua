@@ -24,204 +24,64 @@ freely, subject to the following restrictions:
 
 local love = require("love")
 
+-- Smitten: events go to the engine (love.engine hooks the input events into
+-- smitten.input and the UI), not to LÖVE-style callbacks on the engine
+-- table; games react to them in scripts.
 function love.createhandlers()
-
-	-- Standard callback handlers.
+	local function ignore() end
 	love.handlers = setmetatable({
-		keypressed = function (b,s,r)
-			if love.keypressed then return love.keypressed(b,s,r) end
-		end,
-		keyreleased = function (b,s)
-			if love.keyreleased then return love.keyreleased(b,s) end
-		end,
-		textinput = function (t)
-			if love.textinput then return love.textinput(t) end
-		end,
-		textedited = function (t,s,l)
-			if love.textedited then return love.textedited(t,s,l) end
-		end,
-		mousemoved = function (x,y,dx,dy,t)
-			if love.mousemoved then return love.mousemoved(x,y,dx,dy,t) end
-		end,
-		mousepressed = function (x,y,b,t,c)
-			if love.mousepressed then return love.mousepressed(x,y,b,t,c) end
-		end,
-		mousereleased = function (x,y,b,t,c)
-			if love.mousereleased then return love.mousereleased(x,y,b,t,c) end
-		end,
-		wheelmoved = function (x,y,px,py,dir)
-			if love.wheelmoved then return love.wheelmoved(x,y,px,py,dir) end
-		end,
-		touchpressed = function (id,x,y,dx,dy,p,t,m)
-			if love.touchpressed then return love.touchpressed(id,x,y,dx,dy,p,t,m) end
-		end,
-		touchreleased = function (id,x,y,dx,dy,p,t,m)
-			if love.touchreleased then return love.touchreleased(id,x,y,dx,dy,p,t,m) end
-		end,
-		touchmoved = function (id,x,y,dx,dy,p,t,m)
-			if love.touchmoved then return love.touchmoved(id,x,y,dx,dy,p,t,m) end
-		end,
-		joystickpressed = function (j,b)
-			if love.joystickpressed then return love.joystickpressed(j,b) end
-		end,
-		joystickreleased = function (j,b)
-			if love.joystickreleased then return love.joystickreleased(j,b) end
-		end,
-		joystickaxis = function (j,a,v)
-			if love.joystickaxis then return love.joystickaxis(j,a,v) end
-		end,
-		joystickhat = function (j,h,v)
-			if love.joystickhat then return love.joystickhat(j,h,v) end
-		end,
-		gamepadpressed = function (j,b)
-			if love.gamepadpressed then return love.gamepadpressed(j,b) end
-		end,
-		gamepadreleased = function (j,b)
-			if love.gamepadreleased then return love.gamepadreleased(j,b) end
-		end,
-		gamepadaxis = function (j,a,v)
-			if love.gamepadaxis then return love.gamepadaxis(j,a,v) end
-		end,
-		joystickadded = function (j)
-			if love.joystickadded then return love.joystickadded(j) end
-		end,
-		joystickremoved = function (j)
-			if love.joystickremoved then return love.joystickremoved(j) end
-		end,
-		joysticksensorupdated = function (j, sensorType, x, y, z)
-			if love.joysticksensorupdated then return love.joysticksensorupdated(j, sensorType, x, y, z) end
-		end,
-		focus = function (f)
-			if love.focus then return love.focus(f) end
-		end,
-		mousefocus = function (f)
-			if love.mousefocus then return love.mousefocus(f) end
-		end,
-		visible = function (v)
-			if love.visible then return love.visible(v) end
-		end,
-		exposed = function ()
-			if love.exposed then return love.exposed() end
-		end,
-		occluded = function ()
-			if love.occluded then return love.occluded() end
-		end,
-		quit = function ()
-			return
-		end,
-		threaderror = function (t, err)
-			if love.threaderror then return love.threaderror(t, err) end
-		end,
-		resize = function (w, h)
-			if love.resize then return love.resize(w, h) end
-			collectgarbage()
-		end,
-		filedropped = function (f, x, y)
-			if love.filedropped then return love.filedropped(f, x, y) end
-		end,
-		directorydropped = function (dir, x, y)
-			if love.directorydropped then return love.directorydropped(dir, x, y) end
-		end,
-		dropbegan = function ()
-			if love.dropbegan then return love.dropbegan() end
-		end,
-		dropmoved = function (x, y)
-			if love.dropmoved then return love.dropmoved(x, y) end
-		end,
-		dropcompleted = function (x, y)
-			if love.dropcompleted then return love.dropcompleted(x, y) end
-		end,
 		lowmemory = function ()
-			if love.lowmemory then love.lowmemory() end
 			collectgarbage()
 			collectgarbage()
-		end,
-		displayrotated = function (display, orient)
-			if love.displayrotated then return love.displayrotated(display, orient) end
-		end,
-		localechanged = function ()
-			if love.localechanged then return love.localechanged() end
-		end,
-		audiodisconnected = function (sources)
-			if not love.audiodisconnected or not love.audiodisconnected(sources) then
-				love.audio.setPlaybackDevice()
-			end
-		end,
-		sensorupdated = function (sensorType, x, y, z)
-			if love.sensorupdated then return love.sensorupdated(sensorType, x, y, z) end
-		end,
-		themechanged = function ()
-			if love.themechanged then return love.themechanged() end
 		end,
 	}, {
 		__index = function(self, name)
-			error("Unknown event: " .. name)
+			return ignore
 		end,
 	})
-
 end
 
 -----------------------------------------------------------
--- Default callbacks.
+-- The main loop.
 -----------------------------------------------------------
 
+-- Smitten: every frame runs the scene tree, input actions and timers
+-- (love.engine), which starts the project's main scene.
 function love.run()
-	-- Smitten: the scene tree, input actions and timers (love.engine). It
-	-- starts the project's main scene, if it has one, before love.load.
 	local engine = love._engine
-	if engine then engine.start() end
+	engine.start()
 
-	if love.load then love.load(love.parsedGameArguments, love.rawGameArguments) end
-
-	-- We don't want the first frame's dt to include time taken by love.load.
+	-- The first frame's dt shouldn't include the time the scene took to load.
 	if love.timer then love.timer.step() end
 
-	-- Main loop time.
 	return function()
 		-- Process events.
 		if love.event then
 			love.event.pump()
 			for name, a,b,c,d,e,f,g,h in love.event.poll() do
 				if name == "quit" then
-					if c or not love.quit or not love.quit() then
-						return a or 0, b
-					end
+					return a or 0, b
 				end
 				love.handlers[name](a,b,c,d,e,f,g,h)
 			end
 		end
 
-		-- Update dt, as we'll be passing it to update
 		local dt = love.timer and love.timer.step() or 0
-
-		-- Call update and draw
-		if love.update then love.update(dt) end -- will pass 0 if love.timer is disabled
-		if engine then engine.update(dt) end
+		engine.update(dt)
 
 		if love.graphics and love.graphics.isActive() then
 			love.graphics.origin()
 			love.graphics.clear(love.graphics.getBackgroundColor())
-
-			if engine then
-				engine.draw(love.draw)
-			elseif love.draw then
-				love.draw()
-			end
-
+			engine.draw()
 			love.graphics.present()
 		end
 
-		if engine then engine.endFrame() end
-		if love.timer then love.timer.sleep(0.001) end
+		engine.endFrame()
 	end
 end
 
 local pcall, table = pcall, table
 local debug, print, tostring, error = debug, print, tostring, error
-
-function love.threaderror(t, err)
-	error("Thread error ("..tostring(t)..")\n\n"..err, 0)
-end
 
 local utf8 = require("utf8")
 
@@ -358,9 +218,6 @@ function love.errorhandler(msg)
 	end
 
 end
-
--- Legacy code support.
-love.errhand = love.errorhandler
 
 -- DO NOT REMOVE THE NEXT LINE. It is used to load this file as a C++ string.
 --)luastring"--"

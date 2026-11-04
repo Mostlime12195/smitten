@@ -25,8 +25,8 @@ function showNotice(kind, text) {
 
 /** The player, in an iframe from this site. The sandbox keeps games from opening pop-ups or navigating the page. */
 function mountPlayer() {
-  const loveUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.love`;
-  const p = new URLSearchParams({ game: loveUrl });
+  const gameUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.zip`;
+  const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
   p.set('title', game.title);
   const frame = h('iframe', {

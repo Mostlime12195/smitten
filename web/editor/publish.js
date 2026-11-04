@@ -3,7 +3,7 @@
 //
 //   publishDialog(project, { files, modules, platformUrl })
 //     The Publish dialog: title, description and an optional thumbnail (a PNG
-//     from the project), then uploads the game as a .love. Games belong to
+//     from the project), then uploads the game as a zip. Games belong to
 //     accounts on the site, so it asks you to sign in first (account.js)
 //     and says who's publishing. Which game a project was published as is
 //     kept in localStorage under "smitten-editor.published"
@@ -26,7 +26,7 @@
 //     recognized as the remix.
 
 import { h, openDialog, confirmDialog, toast, formatBytes } from './ui.js';
-import { buildLove, unzipToProjectFiles } from './exporter.js';
+import { buildGameZip, unzipToProjectFiles } from './exporter.js';
 import { account, accountToken, clearAccount, onChange, refreshAccount, signIn, signOut } from './account.js';
 
 const PUBLISHED_KEY = 'smitten-editor.published';
@@ -457,7 +457,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
     setBusy(true);
     try {
       showProgress('Packing the game…');
-      const love = await buildLove(files);
+      const love = await buildGameZip(files);
       if (love.length > MAX_GAME_BYTES) {
         throw new Error(`The game is ${formatBytes(love.length)} packed; the limit is 25 MB. Remove files it doesn't use, or make images and sounds smaller.`);
       }
@@ -473,7 +473,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
         // game's page can show the time tracked for it.
         hackatimeProject: project.name,
       }));
-      body.append('game', new Blob([love], { type: 'application/zip' }), 'game.love');
+      body.append('game', new Blob([love], { type: 'application/zip' }), 'game.zip');
       if (thumbPath) body.append('thumbnail', new Blob([asBytes(files[thumbPath])], { type: 'image/png' }), 'thumbnail.png');
 
       const onProgress = (f) => showProgress(f < 1 ? `Uploading… ${Math.round(f * 100)}%` : 'Saving…', f);
@@ -652,7 +652,7 @@ export async function fetchRemix(platformUrl, gameId) {
   const { game } = await request(`${base}/api/games/${gameId}`);
   let res;
   try {
-    res = await fetch(game.gameUrl || `${base}/api/games/${gameId}/game.love`);
+    res = await fetch(game.gameUrl || `${base}/api/games/${gameId}/game.zip`);
   } catch {
     throw new Error(`Couldn't reach ${new URL(base).host} to download the game.`);
   }

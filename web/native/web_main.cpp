@@ -10,7 +10,7 @@
 #include "common/runtime.h"
 #include "common/Variant.h"
 #include "modules/love/love.h"
-#include "modules/thread/web/GreenThreads.h"
+#include "modules/thread/web/FrameTasks.h"
 
 #include <SDL3/SDL.h>
 #include <emscripten.h>
@@ -239,8 +239,6 @@ void frame()
 	if (L == nullptr || paused)
 		return;
 
-	double start = emscripten_get_now();
-
 	int nres = 0;
 	int status = love::luax_resume(L, 0, &nres);
 
@@ -250,11 +248,8 @@ void frame()
 		releaseEventStrings();
 		syncTextInputState();
 
-		// love.thread Threads (and streaming audio) get whatever is left of
-		// a 60 Hz frame after the game's own update and draw.
-		double elapsed = (emscripten_get_now() - start) / 1000.0;
-		double budget = std::clamp(0.014 - elapsed, 0.002, 0.012);
-		love::thread::web::runFrame(budget);
+		// Streaming audio and video decoding, which run on threads on desktop.
+		love::thread::web::runFrameTasks();
 		return;
 	}
 

@@ -30,7 +30,6 @@
 #include "image/wrap_Image.h"
 #include "common/Reference.h"
 #include "math/wrap_Transform.h"
-#include "thread/wrap_Channel.h"
 
 #include "opengl/Graphics.h"
 
@@ -510,21 +509,6 @@ static void screenshotFileCallback(const Graphics::ScreenshotInfo *info, love::i
 	delete fileinfo;
 }
 
-static void screenshotChannelCallback(const Graphics::ScreenshotInfo *info, love::image::ImageData *i, void * /*gd*/)
-{
-	if (info == nullptr)
-		return;
-
-	auto *channel = (love::thread::Channel *) info->data;
-
-	if (channel != nullptr)
-	{
-		if (i != nullptr)
-			channel->push(Variant(&love::image::ImageData::type, i));
-
-		channel->release();
-	}
-}
 
 int w_captureScreenshot(lua_State *L)
 {
@@ -560,15 +544,8 @@ int w_captureScreenshot(lua_State *L)
 		info.data = fileinfo;
 		info.callback = screenshotFileCallback;
 	}
-	else if (luax_istype(L, 1, love::thread::Channel::type))
-	{
-		auto *channel = love::thread::luax_checkchannel(L, 1);
-		channel->retain();
-		info.data = channel;
-		info.callback = screenshotChannelCallback;
-	}
 	else
-		return luax_typerror(L, 1, "function, string, or Channel");
+		return luax_typerror(L, 1, "function or string");
 
 	luax_catchexcept(L,
 		[&]() { instance()->captureScreenshot(info); },

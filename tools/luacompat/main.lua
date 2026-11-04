@@ -1,11 +1,12 @@
--- LuaJIT extensions and web-specific errors, inside the real engine.
+-- LuaJIT's language extensions, inside the real engine. The script of
+-- main.scene's root piece.
 local results = {}
 local function check(name, ok, detail)
   results[#results + 1] = ("%s %s%s"):format(ok and "PASS" or "FAIL", name, detail and (": " .. detail) or "")
   print("COMPAT " .. results[#results])
 end
 
-function love.load()
+function ready()
   local n = 0
   for i = 1, 10 do if i % 2 == 0 then goto continue end n = n + i ::continue:: end
   check("goto", n == 25)
@@ -17,17 +18,15 @@ function love.load()
   co()
   check("yield in pcall", co(41) == 42)
   check("table.new", type(require("table.new")) == "function")
-  check("load with env", load("return x", "c", "t", { x = 5 })() == 5)
-  local ok, err = pcall(require, "ffi")
-  check("ffi message", not ok and err:find("isn't available on the web") ~= nil, err)
-  ok, err = pcall(require, "socket")
-  check("socket message", not ok and err:find("raw network sockets") ~= nil, err)
+  -- load() in a script is the short API's (saved values); Lua's is _G.load.
+  check("load with env", _G.load("return x", "c", "t", { x = 5 })() == 5)
+  check("no ffi", not pcall(require, "ffi"))
   check("jit global", jit == nil)
   local f, lerr = loadstring("return 1LL")
   check("LL message", f == nil and lerr:find("FFI") ~= nil, lerr)
   print("COMPAT done")
 end
 
-function love.draw()
-  for i, r in ipairs(results) do love.graphics.print(r, 10, i * 18) end
+function draw()
+  for i, r in ipairs(results) do smitten.graphics.print(r, 10, i * 18) end
 end

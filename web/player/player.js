@@ -1,10 +1,10 @@
 // Smitten player.
 //
-// Standalone:  player.html?game=path/to/game.love   (or drop a .love on the page)
+// Standalone:  player.html?game=path/to/game.zip   (or drop a game zip on the page)
 //              Shows the splash while it loads (smitten.json "splash"), then
 //              starts the game by itself.
 // Embedded:    <iframe src="player.html?embed=1">, then postMessage
-//              {type: 'run', files: {'main.lua': '...', 'img/a.png': Uint8Array}}
+//              {type: 'run', files: {'smitten.json': '...', 'img/a.png': Uint8Array}}
 //              or {type: 'run', love: Uint8Array}, plus modules: ['physics2d', ...].
 //
 // Optional engine modules (DESIGN.md, section 3) are loaded before the game
@@ -26,14 +26,14 @@ const { default: createSmitten } = await import(`./smitten.mjs?v=${BUILD}`);
 const DATA_HOME = '/home/web_user/.local/share/smitten';
 const SAVE_ROOT = `${DATA_HOME}/love`;
 const GAME_DIR = '/game';
-const GAME_FILE = '/game.love';
+const GAME_FILE = '/game.zip';
 
 const params = new URLSearchParams(location.search);
 const embedded = params.get('embed') === '1';
-const scaleMode = params.get('scale') || document.querySelector('meta[name="love-scale"]')?.content || 'fit';
+const scaleMode = params.get('scale') || document.querySelector('meta[name="smitten-scale"]')?.content || 'fit';
 // ?jit=0 runs all Lua in the interpreter (for comparison or debugging).
 const jitEnabled = params.get('jit') !== '0';
-const gameUrl = params.get('game') || document.querySelector('meta[name="love-game"]')?.content || null;
+const gameUrl = params.get('game') || document.querySelector('meta[name="smitten-game"]')?.content || null;
 const listedModules = (params.get('modules') ?? document.querySelector('meta[name="smitten-modules"]')?.content ?? '')
   .split(',').map((m) => m.trim()).filter(Boolean);
 
@@ -581,7 +581,7 @@ function acceptDroppedFiles() {
   const load = async (file) => {
     if (!file) return;
     filePicker.hidden = true;
-    startWithSplash({ love: new Uint8Array(await file.arrayBuffer()) }, file.name.replace(/\.(love|zip)$/i, ''));
+    startWithSplash({ love: new Uint8Array(await file.arrayBuffer()) }, file.name.replace(/\.zip$/i, ''));
   };
   input.addEventListener('change', () => load(input.files[0]));
   window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });

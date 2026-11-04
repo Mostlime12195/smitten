@@ -20,10 +20,6 @@
 
 #include "Thread.h"
 
-#ifdef LOVE_EMSCRIPTEN
-#include "thread/LuaThread.h"
-#include "thread/web/GreenThreads.h"
-#endif
 
 namespace love
 {
@@ -47,28 +43,15 @@ Thread::~Thread()
 
 #ifdef LOVE_EMSCRIPTEN
 
-// No OS threads in the browser. Lua threads run on the web scheduler; engine
-// threads (e.g. the audio pool) are driven from the frame loop instead.
+// No OS threads in the browser: engine threads (the audio pool, video
+// decoding) are driven from the frame loop instead (web/FrameTasks.h).
 bool Thread::start()
 {
-	if (running)
-		return false;
-
-	LuaThread *lt = dynamic_cast<LuaThread *>(t);
-	if (lt == nullptr)
-		return false;
-
-	running = true;
-	t->retain();
-	web::spawn(lt, this);
-	return true;
+	return false;
 }
 
 void Thread::wait()
 {
-	LuaThread *lt = dynamic_cast<LuaThread *>(t);
-	if (running && lt != nullptr)
-		web::waitFor(lt);
 }
 
 bool Thread::isRunning()

@@ -1,7 +1,12 @@
--- Walks the running LÖVE engine and prints a JSON description of its API.
--- Run it through the web player (see tools/README in the editor source, or
--- tools/introspect.html). Output lines are prefixed with "@@API " and must be
--- concatenated in order.
+-- Walks the running engine (smitten.*) and prints a JSON description of its
+-- API for the editor's completions (engine-api.json). It runs as the script
+-- of a scene's root piece: tools/introspect.html sets that up in the player.
+-- Output lines are prefixed with "@@API " and must be concatenated in order.
+--
+-- Smitten's own modules (scene, input, ...) load on first use, so they
+-- aren't listed: their completions come from smitten-docs.js. Modules that
+-- aren't for games are left out.
+local SKIP = { event = true, path = true, handlers = true }
 
 local function sortedKeys(t)
   local keys = {}
@@ -24,22 +29,20 @@ local function list(t)
 end
 
 local modules = {}
-local loveFunctions = {}
-for _, name in ipairs(sortedKeys(love)) do
-  local v = love[name]
-  if type(v) == "table" and name ~= "handlers" and name ~= "arg" then
+for _, name in ipairs(sortedKeys(smitten)) do
+  local v = rawget(smitten, name)
+  if type(v) == "table" and not SKIP[name] then
     local fns = {}
     for _, fname in ipairs(sortedKeys(v)) do
-      if type(v[fname]) == "function" then fns[#fns + 1] = fname end
+      if type(v[fname]) == "function" and not fname:match("^_") then fns[#fns + 1] = fname end
     end
     if #fns > 0 then modules[#modules + 1] = esc(name) .. ":" .. list(fns) end
-  elseif type(v) == "function" then
-    loveFunctions[#loveFunctions + 1] = name
   end
 end
 
--- Object types: LÖVE stores each type's metatable in the registry under the
--- type name, with __index pointing at itself and type/typeOf methods.
+-- Object types: the engine stores each type's metatable in the registry
+-- under the type name, with __index pointing at itself and type/typeOf
+-- methods.
 local types = {}
 local reg = debug.getregistry()
 local names = {}
@@ -59,8 +62,7 @@ for _, tname in ipairs(names) do
   types[#types + 1] = esc(tname) .. ":" .. list(methods)
 end
 
-local json = '{"version":' .. esc(table.concat({ love.getVersion() }, ".", 1, 3))
-  .. ',"love":' .. list(loveFunctions)
+local json = '{"version":' .. esc(tostring(smitten.version))
   .. ',"modules":{' .. table.concat(modules, ",") .. '}'
   .. ',"types":{' .. table.concat(types, ",") .. '}}'
 
@@ -68,4 +70,4 @@ for i = 1, #json, 800 do
   print("@@API " .. json:sub(i, i + 799))
 end
 print("@@END")
-love.event.quit()
+smitten.event.quit()
