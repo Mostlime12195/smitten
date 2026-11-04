@@ -547,7 +547,7 @@ Extends [Piece](#piece).
 
 | Method | |
 | --- | --- |
-| `play()` | Plays and returns the LÖVE Source. Calling it while playing starts another copy (not for .song). |
+| `play()` | Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song). |
 | `stop()` | Stops every copy. |
 | `pause()` | Pauses. |
 | `resume()` | Continues after pause(). |

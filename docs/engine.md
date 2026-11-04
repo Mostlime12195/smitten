@@ -1,7 +1,10 @@
 # The engine table
 
-`smitten` and `love` are the same table, so [LÖVE 12's API](https://love2d.org/wiki/Main_Page)
-is all there. This page lists what Smitten adds.
+`smitten` holds the engine: drawing (`smitten.graphics`), sound (`smitten.audio`,
+`smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`, `smitten.joystick`,
+`smitten.touch`), files (`smitten.filesystem`), `smitten.math`, `smitten.timer`,
+`smitten.window` and the rest, and Smitten's own modules. This page lists Smitten's
+modules and the helpers it adds to the others.
 
 ## Smitten's modules
 
@@ -116,6 +119,19 @@ JSON text to Lua values and back.
 
 Fields: `null`.
 
+### smitten.physics
+
+Queries on the running scene's physics. See [Physics](physics.md).
+
+| Function | |
+| --- | --- |
+| `smitten.physics.raycast(x1, y1, x2, y2, tags?)` | The first body or tiles a line touches, nearest first: {piece, x, y, nx, ny, fraction}, or nil. |
+| `smitten.physics.raycastAll(x1, y1, x2, y2, tags?)` | Every hit along a line, nearest first. |
+| `smitten.physics.piecesAt(x, y, tags?)` | The bodies and zones whose shapes contain a point. |
+| `smitten.physics.overlap(kind, ...)` | The bodies and zones touching a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, w, h). |
+| `smitten.physics.getGravity()` | The scene's gravity: x, y (pixels per second per second). |
+| `smitten.physics.setGravity(x, y)` | Changes the scene's gravity: setGravity(0, 0) floats. |
+
 ### smitten.synth
 
 See [Sound and music](sound.md).
@@ -127,7 +143,7 @@ See [Sound and music](sound.md).
 | `smitten.synth.renderSfx(params)` | Renders sound effect parameters to a SoundData. |
 | `smitten.synth.renderSong(song, basePath)` | Renders a song table to a SoundData. |
 
-## Added to LÖVE's modules
+## Helpers in the engine's modules
 
 ### smitten.math
 

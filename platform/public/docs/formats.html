@@ -121,10 +121,10 @@
 <p>Missing fields take the values in the example above. The same parameters always produce the same samples (<code>noise</code> uses a fixed seed).</p>
 <h3 id="sound-effects-in-code"><a class="anchor" href="#sound-effects-in-code" aria-hidden="true">#</a>Sound effects in code</h3>
 <pre><code class="lang-lua"><span class="tk-k">local</span> jump = smitten.synth.<span class="tk-f">sfx</span>(<span class="tk-s">&quot;sfx/jump&quot;</span>)     <span class="tk-c">-- cached; rendered once</span>
-jump:<span class="tk-f">play</span>()                              <span class="tk-c">-- returns the love Source playing it (several can overlap)</span>
+jump:<span class="tk-f">play</span>()                              <span class="tk-c">-- returns the sound playing it (several can overlap)</span>
 jump:<span class="tk-f">play</span>({ volume = <span class="tk-n">0.5</span>, pitch = <span class="tk-n">1.2</span> })
 jump:<span class="tk-f">stop</span>()                              <span class="tk-c">-- stops every copy</span>
-jump.soundData                           <span class="tk-c">-- the rendered love SoundData</span>
+jump.soundData                           <span class="tk-c">-- the rendered samples</span>
 jump.duration                            <span class="tk-c">-- seconds</span></code></pre>
 <h2 id="songs"><a class="anchor" href="#songs" aria-hidden="true">#</a>Songs</h2>
 <p><code>music/theme.song</code>.</p>
@@ -168,7 +168,7 @@ theme:<span class="tk-f">stop</span>(); theme:<span class="tk-f">pause</span>();
 theme:<span class="tk-f">setVolume</span>(<span class="tk-n">0.5</span>)
 theme:<span class="tk-f">isPlaying</span>()
 theme.duration                              <span class="tk-c">-- seconds, one pass through `order`</span></code></pre>
-<p>Songs are rendered to a buffer by the C++ synthesizer and played as an ordinary LÖVE Source, so they keep playing in background tabs.</p>
+<p>Songs are rendered to a buffer by the C++ synthesizer and played like any other sound, so they keep playing in background tabs.</p>
 <h3 id="the-synthesizer-in-code"><a class="anchor" href="#the-synthesizer-in-code" aria-hidden="true">#</a>The synthesizer in code</h3>
 <pre><code class="lang-lua">smitten.synth.<span class="tk-f">renderSfx</span>(params)            <span class="tk-c">-- params: a decoded .sfx table -&gt; SoundData</span>
 smitten.synth.<span class="tk-f">renderSong</span>(song, basePath)   <span class="tk-c">-- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -&gt; SoundData</span></code></pre>

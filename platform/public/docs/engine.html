@@ -25,11 +25,11 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine" aria-current="page">The engine table</a><ul class="nav-sub"><li><a href="#smitten-s-modules">Smitten's modules</a></li><li><a href="#added-to-l-ve-s-modules">Added to LÖVE's modules</a></li></ul></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine" aria-current="page">The engine table</a><ul class="nav-sub"><li><a href="#smitten-s-modules">Smitten's modules</a></li><li><a href="#helpers-in-the-engine-s-modules">Helpers in the engine's modules</a></li></ul></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>The engine table</h1>
-<p><code>smitten</code> and <code>love</code> are the same table, so <a href="https://love2d.org/wiki/Main_Page" rel="noopener">LÖVE 12's API</a> is all there. This page lists what Smitten adds.</p>
+<p><code>smitten</code> holds the engine: drawing (<code>smitten.graphics</code>), sound (<code>smitten.audio</code>, <code>smitten.sound</code>), input devices (<code>smitten.keyboard</code>, <code>smitten.mouse</code>, <code>smitten.joystick</code>, <code>smitten.touch</code>), files (<code>smitten.filesystem</code>), <code>smitten.math</code>, <code>smitten.timer</code>, <code>smitten.window</code> and the rest, and Smitten's own modules. This page lists Smitten's modules and the helpers it adds to the others.</p>
 <h2 id="smitten-s-modules"><a class="anchor" href="#smitten-s-modules" aria-hidden="true">#</a>Smitten's modules</h2>
 <h3 id="smitten-scene"><a class="anchor" href="#smitten-scene" aria-hidden="true">#</a>smitten.scene</h3>
 <p>See <a href="scenes">Scenes and pieces</a>.</p>
@@ -125,6 +125,17 @@
 <tr><td><code>smitten.json.encode(value, indent?)</code></td><td>Lua values to JSON text.</td></tr></tbody>
 </table></div>
 <p>Fields: <code>null</code>.</p>
+<h3 id="smitten-physics"><a class="anchor" href="#smitten-physics" aria-hidden="true">#</a>smitten.physics</h3>
+<p>Queries on the running scene's physics. See <a href="physics">Physics</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.physics.raycast(x1, y1, x2, y2, tags?)</code></td><td>The first body or tiles a line touches, nearest first: {piece, x, y, nx, ny, fraction}, or nil.</td></tr>
+<tr><td><code>smitten.physics.raycastAll(x1, y1, x2, y2, tags?)</code></td><td>Every hit along a line, nearest first.</td></tr>
+<tr><td><code>smitten.physics.piecesAt(x, y, tags?)</code></td><td>The bodies and zones whose shapes contain a point.</td></tr>
+<tr><td><code>smitten.physics.overlap(kind, ...)</code></td><td>The bodies and zones touching a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, w, h).</td></tr>
+<tr><td><code>smitten.physics.getGravity()</code></td><td>The scene's gravity: x, y (pixels per second per second).</td></tr>
+<tr><td><code>smitten.physics.setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats.</td></tr></tbody>
+</table></div>
 <h3 id="smitten-synth"><a class="anchor" href="#smitten-synth" aria-hidden="true">#</a>smitten.synth</h3>
 <p>See <a href="sound">Sound and music</a>.</p>
 <div class="table"><table>
@@ -134,7 +145,7 @@
 <tr><td><code>smitten.synth.renderSfx(params)</code></td><td>Renders sound effect parameters to a SoundData.</td></tr>
 <tr><td><code>smitten.synth.renderSong(song, basePath)</code></td><td>Renders a song table to a SoundData.</td></tr></tbody>
 </table></div>
-<h2 id="added-to-l-ve-s-modules"><a class="anchor" href="#added-to-l-ve-s-modules" aria-hidden="true">#</a>Added to LÖVE's modules</h2>
+<h2 id="helpers-in-the-engine-s-modules"><a class="anchor" href="#helpers-in-the-engine-s-modules" aria-hidden="true">#</a>Helpers in the engine's modules</h2>
 <h3 id="smitten-math"><a class="anchor" href="#smitten-math" aria-hidden="true">#</a>smitten.math</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>

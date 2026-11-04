@@ -47,9 +47,10 @@ Assigning to a name that isn't `local` stores it on the piece, where other
 scripts can read it (`other.hp`). `self` is the piece itself, for when you
 need to pass it somewhere.
 
-Two details: `spawn()` adds a new piece to the scene, while `self:spawn()`
-adds it inside this piece; and `type()` is Lua's function, so a piece's
-type is `self.type`.
+A few details: `spawn()` adds a new piece to the scene, while
+`self:spawn()` adds it inside this piece; `type()` is Lua's function, so a
+piece's type is `self.type`; and `load()` reads a [saved value](saving.md),
+so Lua's own `load` is `_G.load`.
 
 ## Script variables
 

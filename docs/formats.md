@@ -135,10 +135,10 @@ always produce the same samples (`noise` uses a fixed seed).
 
 ```lua
 local jump = smitten.synth.sfx("sfx/jump")     -- cached; rendered once
-jump:play()                              -- returns the love Source playing it (several can overlap)
+jump:play()                              -- returns the sound playing it (several can overlap)
 jump:play({ volume = 0.5, pitch = 1.2 })
 jump:stop()                              -- stops every copy
-jump.soundData                           -- the rendered love SoundData
+jump.soundData                           -- the rendered samples
 jump.duration                            -- seconds
 ```
 
@@ -214,8 +214,8 @@ theme:isPlaying()
 theme.duration                              -- seconds, one pass through `order`
 ```
 
-Songs are rendered to a buffer by the C++ synthesizer and played as an
-ordinary LÖVE Source, so they keep playing in background tabs.
+Songs are rendered to a buffer by the C++ synthesizer and played like
+any other sound, so they keep playing in background tabs.
 
 ### The synthesizer in code
 
