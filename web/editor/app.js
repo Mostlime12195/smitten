@@ -561,11 +561,15 @@ function buildFilesPanel(el) {
       const to = toDir ? `${toDir}/${from.split('/').pop()}` : from.split('/').pop();
       if (to !== from) ed.project.rename(from, to);
     },
-    onDropFiles: async (dt, toDir) => {
-      const { readDataTransfer } = await import('./file-tree.js');
-      const files = await readDataTransfer(dt);
-      for (const [p, data] of Object.entries(files)) ed.project.write(toDir ? `${toDir}/${p}` : p, data);
-      toast(`Imported ${Object.keys(files).length} file(s).`);
+    onDropFiles: async (dropped, toDir) => {
+      // Dropped folders keep their names, so dropping scripts/ onto the top
+      // replaces scripts/... files with the same names.
+      const files = (await dropped).filter(({ path }) => !path.split('/').some((part) => part.startsWith('.')));
+      for (const { path, file } of files) {
+        const p = toDir ? `${toDir}/${path}` : path;
+        ed.project.write(p, classifyBytes(p, new Uint8Array(await file.arrayBuffer())));
+      }
+      toast(`Imported ${files.length} file${files.length === 1 ? '' : 's'}.`);
     },
     isDirty: () => false,
     onEmptyAction: () => {},

@@ -311,7 +311,9 @@ export class FileTree {
         const from = e.dataTransfer.getData(INTERNAL_TYPE);
         if (from && dirName(from) !== dir && from !== dir) this.opts.onMove(from, dir);
       } else {
-        this.opts.onDropFiles(e.dataTransfer, dir);
+        // Browsers only let the drop event itself read what was dropped, so
+        // start reading now and hand over the promise.
+        this.opts.onDropFiles(readDataTransfer(e.dataTransfer), dir);
       }
     });
   }
