@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>File formats</h1>
-<p>Project files other than scripts and pictures are JSON. Paths are relative to the project folder unless noted. <code>smitten.json</code> is in <a href="settings">Project settings</a>.</p>
+<p>All project files are JSON, except scripts and pictures. Paths are relative to the project folder, unless this page gives a different rule. <a href="settings">Project settings</a> tells about <code>smitten.json</code>.</p>
 <h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
 <p>A scene is a tree of pieces in a <code>.scene</code> file (JSON):</p>
 <pre><code class="lang-json">{
@@ -45,9 +45,9 @@
     ]
   }
 }</code></pre>
-<ul><li>An entry has <code>name</code>, then <code>type</code> (a piece type) or <code>scene</code> (another scene placed here), and optionally <code>script</code>, <code>properties</code> (only values that differ from the defaults, plus script variables), <code>tags</code> and <code>children</code>.</li><li>A placed scene's <code>properties</code> override its scene's root; its <code>children</code> are added to the ones its scene has.</li><li>Paths are relative to the project's folder.</li><li>Angles are in degrees. (<code>&quot;version&quot;: 2</code> scenes hold radians, and a Body's <code>gravityScale</code> under the name <code>gravity</code>; they still load, and the editor saves them as version 3: see <a href="older-projects">Older projects</a>.)</li><li>Tiles <code>cells</code> are one rectangle of tile numbers, row by row; <code>-1</code> is empty and <code>n*k</code> repeats <code>n</code> <code>k</code> times.</li></ul>
+<ul><li>Each entry has a <code>name</code>. Then it has a <code>type</code> (a piece type) or a <code>scene</code> (a different scene, placed here).</li><li>An entry can also have <code>script</code>, <code>properties</code>, <code>tags</code> and <code>children</code>. <code>properties</code> has only the values that are not the defaults, and the script variables.</li><li>The <code>properties</code> of a placed scene override the root of its scene. The engine adds its <code>children</code> to the children that its scene has.</li><li>Paths are relative to the folder of the project.</li><li>Angles are in degrees. Scenes with <code>&quot;version&quot;: 2</code> have angles in radians. They also keep the <code>gravityScale</code> of a Body with the name <code>gravity</code>. These scenes still load, and the editor saves them as version 3. See <a href="older-projects">Older projects</a>.</li><li>The <code>cells</code> of a Tiles piece are one rectangle of tile numbers, row by row. <code>-1</code> is an empty cell, and <code>n*k</code> is <code>n</code> repeated <code>k</code> times.</li></ul>
 <h2 id="sprites"><a class="anchor" href="#sprites" aria-hidden="true">#</a>Sprites</h2>
-<p>A <code>.sprite</code> file describes an image's frames and animations:</p>
+<p>A <code>.sprite</code> file gives the frames and the animations of an image:</p>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.sprite&quot;,
   &quot;version&quot;: 1,
@@ -60,7 +60,7 @@
     &quot;run&quot;: { &quot;frames&quot;: [2, 3, 4, 5], &quot;fps&quot;: 12, &quot;loop&quot;: true }
   }
 }</code></pre>
-<p>Frames are numbered from 0, left to right and top to bottom. <code>image</code> is relative to the <code>.sprite</code> file. A <code>Sprite</code> whose <code>image</code> is a <code>.sprite</code> plays its animations; the ready-made player scripts play <code>idle</code>, <code>run</code> or <code>walk</code>, <code>jump</code> and <code>fall</code> when they exist (<code>sprite:hasAnimation(name)</code>).</p>
+<p>Frame numbers start at 0, and go from left to right and from top to bottom. <code>image</code> is relative to the <code>.sprite</code> file. If the <code>image</code> of a <code>Sprite</code> is a <code>.sprite</code> file, the Sprite plays its animations. The ready-made player scripts play <code>idle</code>, <code>run</code> or <code>walk</code>, <code>jump</code> and <code>fall</code>, if the file has them (<code>sprite:hasAnimation(name)</code>).</p>
 <h2 id="tilesets"><a class="anchor" href="#tilesets" aria-hidden="true">#</a>Tilesets</h2>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.tileset&quot;,
@@ -70,8 +70,9 @@
   &quot;tileHeight&quot;: 16,
   &quot;tiles&quot;: { &quot;0&quot;: { &quot;solid&quot;: true }, &quot;4&quot;: { &quot;name&quot;: &quot;spikes&quot;, &quot;damage&quot;: 1 }, &quot;7&quot;: { &quot;solid&quot;: true, &quot;oneWay&quot;: true } }
 }</code></pre>
-<p><code>solid</code> tiles block Bodies, <code>oneWay</code> ones only from above (a Body with <code>tiles</code> in its <code>passThrough</code> ignores them). Other settings are for scripts: <code>body:touchingTile(&quot;damage&quot;)</code> returns the settings of a touching tile that has one, and <code>tiles:tileInfo(tile)</code> returns any tile's.</p>
-<p>Two more sections are optional (<a href="tiles#terrains">Tiles</a> explains them):</p>
+<p><code>tiles</code> gives the tile properties of each tile, by tile number:</p>
+<ul><li><code>solid</code> tiles block Bodies.</li><li><code>oneWay</code> tiles block Bodies only from above.</li><li>A Body with <code>tiles</code> in its <code>passThrough</code> goes through <code>solid</code> and <code>oneWay</code> tiles.</li><li>Other tile properties are for scripts. <code>body:touchingTile(&quot;damage&quot;)</code> returns the tile properties of a touched tile that has <code>damage</code>. <code>tiles:tileInfo(tile)</code> returns the tile properties of a tile.</li></ul>
+<p>There are two more sections, which are optional. <a href="tiles#terrains">Tiles</a> tells about them:</p>
 <pre><code class="lang-json">{
   &quot;terrains&quot;: [
     { &quot;name&quot;: &quot;grass&quot;, &quot;match&quot;: &quot;all&quot;, &quot;color&quot;: &quot;#4caf50&quot;,
@@ -82,9 +83,10 @@
     &quot;12&quot;: { &quot;frames&quot;: [12, 13], &quot;durations&quot;: [0.8, 0.2], &quot;randomStart&quot;: true }
   }
 }</code></pre>
-<ul><li><code>terrains</code> is a list. Each has a <code>name</code>, a <code>match</code> (<code>&quot;all&quot;</code>: sides and corners, the default; <code>&quot;sides&quot;</code>; <code>&quot;corners&quot;</code>), a <code>color</code> for the editor, and <code>tiles</code>: for each tile of the terrain, a number that says where the terrain carries on past that tile. Add up: up 1, up-right 2, right 4, down-right 8, down 16, down-left 32, left 64, up-left 128. Tiles with the same number are variants. A tile listed in two terrains belongs to the first.</li><li><code>animations</code> gives a tile the tiles it shows in turn (<code>frames</code>), at <code>fps</code> frames a second (8 if left out) or for <code>durations</code> seconds each; <code>randomStart</code> starts every cell at a different point of the loop.</li></ul>
+<ul><li><code>terrains</code> is a list. Each terrain has:</li><li><code>name</code>.</li><li><code>match</code>: <code>&quot;all&quot;</code> (sides and corners, the default), <code>&quot;sides&quot;</code> or <code>&quot;corners&quot;</code>.</li><li><code>color</code>: the color of the terrain in the editor.</li><li><code>tiles</code>: for each tile of the terrain, a number that tells where the terrain continues past that tile. The number is a sum of these values: up 1, up-right 2, right 4, down-right 8, down 16, down-left 32, left 64, up-left 128. Tiles with the same number are variants.
+<p>If a tile is in two terrains, it is part of the first terrain only.</p></li><li><code>animations</code> gives a tile the tiles that it shows in turn (<code>frames</code>). It shows them at <code>fps</code> animation frames a second (8 if there is no <code>fps</code>), or for <code>durations</code> seconds each. With <code>randomStart</code>, each cell starts at a different point of the loop.</li></ul>
 <h2 id="sound-effects"><a class="anchor" href="#sound-effects" aria-hidden="true">#</a>Sound effects</h2>
-<p><code>sfx/jump.sfx</code>. Synth parameters in physical units; the synthesizer renders 44100 Hz mono.</p>
+<p>For example, <code>sfx/jump.sfx</code>. The synth parameters are in physical units. The synthesizer makes sound at 44100 Hz, mono.</p>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.sfx&quot;,
   &quot;version&quot;: 1,
@@ -113,11 +115,11 @@
 <thead><tr><th>Field</th><th>Range</th><th>Meaning</th></tr></thead>
 <tbody><tr><td><code>wave</code></td><td><code>square</code>, <code>sawtooth</code>, <code>triangle</code>, <code>sine</code>, <code>noise</code></td><td>Oscillator</td></tr>
 <tr><td><code>volume</code></td><td>0–1</td><td>Output level</td></tr>
-<tr><td><code>attack</code>, <code>sustain</code>, <code>decay</code></td><td>seconds, ≥ 0</td><td>Envelope: rise, hold, fall. Length = their sum</td></tr>
-<tr><td><code>punch</code></td><td>0–1</td><td>Extra level at the start of the sustain, fading out over it</td></tr>
+<tr><td><code>attack</code>, <code>sustain</code>, <code>decay</code></td><td>seconds, ≥ 0</td><td>Envelope: rise, hold, fall. The length of the sound is their sum</td></tr>
+<tr><td><code>punch</code></td><td>0–1</td><td>More level at the start of the sustain. It decreases during the sustain</td></tr>
 <tr><td><code>frequency</code></td><td>Hz, 20–8000</td><td>Start pitch</td></tr>
-<tr><td><code>minFrequency</code></td><td>Hz</td><td>The sound stops early when a downward slide reaches it</td></tr>
-<tr><td><code>slide</code></td><td>octaves/second</td><td>Pitch change; negative falls</td></tr>
+<tr><td><code>minFrequency</code></td><td>Hz</td><td>When a slide down gets to this frequency, the sound stops</td></tr>
+<tr><td><code>slide</code></td><td>octaves/second</td><td>Change of pitch. A negative value makes the pitch go down</td></tr>
 <tr><td><code>deltaSlide</code></td><td>octaves/second²</td><td>Change of <code>slide</code></td></tr>
 <tr><td><code>vibratoDepth</code></td><td>semitones</td><td>Vibrato amount</td></tr>
 <tr><td><code>vibratoSpeed</code></td><td>Hz</td><td>Vibrato rate</td></tr>
@@ -125,21 +127,21 @@
 <tr><td><code>arpeggioTime</code></td><td>seconds; 0 = off</td><td>When the jump happens</td></tr>
 <tr><td><code>duty</code></td><td>0–1</td><td>Square-wave pulse width</td></tr>
 <tr><td><code>dutySweep</code></td><td>per second</td><td>Change of <code>duty</code></td></tr>
-<tr><td><code>repeat</code></td><td>seconds; 0 = off</td><td>Restart the pitch effects every so often</td></tr>
+<tr><td><code>repeat</code></td><td>seconds; 0 = off</td><td>Starts the pitch effects again at this interval</td></tr>
 <tr><td><code>lowpass</code></td><td>0–1; 1 = off</td><td>Low-pass cutoff (0 = darkest)</td></tr>
 <tr><td><code>highpass</code></td><td>0–1; 0 = off</td><td>High-pass cutoff</td></tr>
 <tr><td><code>bitcrush</code></td><td>0–1; 0 = off</td><td>Sample-rate and bit-depth reduction</td></tr></tbody>
 </table></div>
-<p>Missing fields take the values in the example above. The same parameters always produce the same samples (<code>noise</code> uses a fixed seed).</p>
+<p>If a field is not in the file, it has the value from the example above. The same parameters always make the same samples (<code>noise</code> uses a fixed seed).</p>
 <h3 id="sound-effects-in-code"><a class="anchor" href="#sound-effects-in-code" aria-hidden="true">#</a>Sound effects in code</h3>
-<pre><code class="lang-lua"><span class="tk-k">local</span> jump = smitten.synth.<span class="tk-f">sfx</span>(<span class="tk-s">&quot;sfx/jump&quot;</span>)     <span class="tk-c">-- cached; rendered once</span>
-jump:<span class="tk-f">play</span>()                              <span class="tk-c">-- returns the sound playing it (several can overlap)</span>
+<pre><code class="lang-lua"><span class="tk-k">local</span> jump = smitten.synth.<span class="tk-f">sfx</span>(<span class="tk-s">&quot;sfx/jump&quot;</span>)     <span class="tk-c">-- kept in memory; made one time</span>
+jump:<span class="tk-f">play</span>()                              <span class="tk-c">-- returns the sound that plays it (many can overlap)</span>
 jump:<span class="tk-f">play</span>({ volume = <span class="tk-n">0.5</span>, pitch = <span class="tk-n">1.2</span> })
-jump:<span class="tk-f">stop</span>()                              <span class="tk-c">-- stops every copy</span>
-jump.soundData                           <span class="tk-c">-- the rendered samples</span>
+jump:<span class="tk-f">stop</span>()                              <span class="tk-c">-- stops all copies</span>
+jump.soundData                           <span class="tk-c">-- the samples</span>
 jump.duration                            <span class="tk-c">-- seconds</span></code></pre>
 <h2 id="songs"><a class="anchor" href="#songs" aria-hidden="true">#</a>Songs</h2>
-<p><code>music/theme.song</code>.</p>
+<p>For example, <code>music/theme.song</code>.</p>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.song&quot;,
   &quot;version&quot;: 1,
@@ -172,19 +174,21 @@ jump.duration                            <span class="tk-c">-- seconds</span></c
   ],
   &quot;order&quot;: [0, 0, 1]
 }</code></pre>
-<ul><li>Steps are <code>1 / stepsPerBeat</code> of a beat at <code>bpm</code>. A pattern is <code>patternLength</code> steps long. <code>order</code> lists patterns to play in sequence.</li><li>A note plays on its channel with the channel's instrument. Notes on the same channel may overlap (chords). <code>note</code> is a MIDI number (60 = middle C, 261.63 Hz). <code>volume</code> 0–1, default 1.</li><li>Synth instruments: <code>wave</code> as in sound effects, an ADSR envelope (<code>attack</code>, <code>decay</code>, <code>release</code> in seconds, <code>sustain</code> level 0–1), <code>duty</code>, vibrato, <code>lowpass</code>. The note sounds for <code>length</code> steps, then releases.</li><li>Sound-effect instruments play an <code>.sfx</code> per note, whole (a note's <code>length</code> doesn't cut it); with <code>pitched: true</code> its <code>frequency</code> (and <code>minFrequency</code>) is shifted by the note's distance from 60. An optional <code>volume</code> (default 1) scales them.</li><li><code>loop</code>: whether playback loops; <code>loopStart</code> is the index in <code>order</code> it loops back to. When looping, notes still ringing at the end of the song ring on over the start of the next loop.</li><li>Missing fields take these defaults: <code>bpm</code> 120, <code>stepsPerBeat</code> 4, <code>patternLength</code> 32, <code>loop</code> true, <code>loopStart</code> 0; a channel's <code>instrument</code> is its own index and <code>volume</code> 1; synth instruments' fields as in &quot;Square lead&quot; above; a note's <code>channel</code> 0, <code>step</code> 0, <code>length</code> 1, <code>note</code> 60, <code>volume</code> 1. Steps and lengths may be fractional.</li></ul>
+<ul><li>A step is <code>1 / stepsPerBeat</code> of a beat at <code>bpm</code>. A pattern has <code>patternLength</code> steps. <code>order</code> is the list of patterns to play, in sequence.</li><li>A note plays on its channel, with the instrument of the channel. Notes on the same channel can overlap (chords). <code>note</code> is a MIDI number (60 = middle C, 261.63 Hz). <code>volume</code> is from 0 to 1, and its default is 1.</li><li>Synth instruments have:</li><li><code>wave</code>, as in sound effects.</li><li>An ADSR envelope: <code>attack</code>, <code>decay</code> and <code>release</code> in seconds, and the <code>sustain</code> level from 0 to 1.</li><li><code>duty</code>, vibrato and <code>lowpass</code>.
+<p>The note plays for <code>length</code> steps. Then it releases.</p></li><li>Sound-effect instruments play an <code>.sfx</code> for each note, from start to end (the <code>length</code> of a note does not stop it). With <code>pitched: true</code>, the engine moves its <code>frequency</code> (and <code>minFrequency</code>) by the distance of the note from 60. An optional <code>volume</code> (default 1) scales them.</li><li><code>loop</code> tells whether the song plays again from <code>loopStart</code> when it gets to the end. <code>loopStart</code> is the index in <code>order</code> where the loop starts. When the song loops, notes that still sound at the end of the song continue over the start of the next loop.</li><li>If a field is not in the file, it has its default:</li><li><code>bpm</code> 120, <code>stepsPerBeat</code> 4, <code>patternLength</code> 32, <code>loop</code> true, <code>loopStart</code> 0.</li><li>For a channel: <code>instrument</code> is the index of the channel, and <code>volume</code> is 1.</li><li>For a synth instrument: the fields of &quot;Square lead&quot; above.</li><li>For a note: <code>channel</code> 0, <code>step</code> 0, <code>length</code> 1, <code>note</code> 60, <code>volume</code> 1.
+<p>Steps and lengths can be fractions.</p></li></ul>
 <h3 id="songs-in-code"><a class="anchor" href="#songs-in-code" aria-hidden="true">#</a>Songs in code</h3>
-<pre><code class="lang-lua"><span class="tk-k">local</span> theme = smitten.synth.<span class="tk-f">song</span>(<span class="tk-s">&quot;music/theme&quot;</span>)   <span class="tk-c">-- cached; rendered once, on first use</span>
-theme:<span class="tk-f">play</span>()                                <span class="tk-c">-- loops as the file says</span>
+<pre><code class="lang-lua"><span class="tk-k">local</span> theme = smitten.synth.<span class="tk-f">song</span>(<span class="tk-s">&quot;music/theme&quot;</span>)   <span class="tk-c">-- kept in memory; made one time, at first use</span>
+theme:<span class="tk-f">play</span>()                                <span class="tk-c">-- loops if the file says so</span>
 theme:<span class="tk-f">stop</span>(); theme:<span class="tk-f">pause</span>(); theme:<span class="tk-f">resume</span>()
 theme:<span class="tk-f">setVolume</span>(<span class="tk-n">0.5</span>)
 theme:<span class="tk-f">isPlaying</span>()
 theme.duration                              <span class="tk-c">-- seconds, one pass through `order`</span></code></pre>
-<p>Songs are rendered to a buffer by the C++ synthesizer and played like any other sound, so they keep playing in background tabs.</p>
+<p>The C++ synthesizer makes the samples of a song into a buffer. The engine plays them as it plays all other sounds. Because of this, songs continue to play in background tabs.</p>
 <h3 id="the-synthesizer-in-code"><a class="anchor" href="#the-synthesizer-in-code" aria-hidden="true">#</a>The synthesizer in code</h3>
 <pre><code class="lang-lua">smitten.synth.<span class="tk-f">renderSfx</span>(params)            <span class="tk-c">-- params: a decoded .sfx table -&gt; SoundData</span>
-smitten.synth.<span class="tk-f">renderSong</span>(song, basePath)   <span class="tk-c">-- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -&gt; SoundData</span></code></pre>
-<p>SoundData is 44100 Hz, 16-bit, mono. <code>renderSong</code> renders one pass through <code>order</code>, followed by whatever still rings.</p>
+smitten.synth.<span class="tk-f">renderSong</span>(song, basePath)   <span class="tk-c">-- a decoded .song table; sfx paths are relative to basePath (the song's path or folder) -&gt; SoundData</span></code></pre>
+<p>SoundData is 44100 Hz, 16-bit, mono. <code>renderSong</code> makes the samples for one pass through <code>order</code>. Then it adds the notes that still sound.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="engine"><span>Previous</span>The engine table</a><a class="next" href="editor-tools"><span>Next</span>Editor tools</a></nav>
   </main>

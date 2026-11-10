@@ -1,8 +1,8 @@
 # File formats
 
-Project files other than scripts and pictures are JSON. Paths are relative
-to the project folder unless noted. `smitten.json` is in
-[Project settings](settings.md).
+All project files are JSON, except scripts and pictures. Paths are
+relative to the project folder, unless this page gives a different rule.
+[Project settings](settings.md) tells about `smitten.json`.
 
 ## Scenes
 
@@ -24,21 +24,24 @@ A scene is a tree of pieces in a `.scene` file (JSON):
 }
 ```
 
-- An entry has `name`, then `type` (a piece type) or `scene` (another scene
-  placed here), and optionally `script`, `properties` (only values that
-  differ from the defaults, plus script variables), `tags` and `children`.
-- A placed scene's `properties` override its scene's root; its `children`
-  are added to the ones its scene has.
-- Paths are relative to the project's folder.
-- Angles are in degrees. (`"version": 2` scenes hold radians, and a Body's
-  `gravityScale` under the name `gravity`; they still load, and the editor
-  saves them as version 3: see [Older projects](older-projects.md).)
-- Tiles `cells` are one rectangle of tile numbers, row by row; `-1` is
-  empty and `n*k` repeats `n` `k` times.
+- Each entry has a `name`. Then it has a `type` (a piece type) or a
+  `scene` (a different scene, placed here).
+- An entry can also have `script`, `properties`, `tags` and `children`.
+  `properties` has only the values that are not the defaults, and the
+  script variables.
+- The `properties` of a placed scene override the root of its scene. The
+  engine adds its `children` to the children that its scene has.
+- Paths are relative to the folder of the project.
+- Angles are in degrees. Scenes with `"version": 2` have angles in
+  radians. They also keep the `gravityScale` of a Body with the name
+  `gravity`. These scenes still load, and the editor saves them as
+  version 3. See [Older projects](older-projects.md).
+- The `cells` of a Tiles piece are one rectangle of tile numbers, row by
+  row. `-1` is an empty cell, and `n*k` is `n` repeated `k` times.
 
 ## Sprites
 
-A `.sprite` file describes an image's frames and animations:
+A `.sprite` file gives the frames and the animations of an image:
 
 ```json
 {
@@ -55,10 +58,11 @@ A `.sprite` file describes an image's frames and animations:
 }
 ```
 
-Frames are numbered from 0, left to right and top to bottom. `image` is
-relative to the `.sprite` file. A `Sprite` whose `image` is a `.sprite`
-plays its animations; the ready-made player scripts play `idle`, `run` or
-`walk`, `jump` and `fall` when they exist (`sprite:hasAnimation(name)`).
+Frame numbers start at 0, and go from left to right and from top to
+bottom. `image` is relative to the `.sprite` file. If the `image` of a
+`Sprite` is a `.sprite` file, the Sprite plays its animations. The
+ready-made player scripts play `idle`, `run` or `walk`, `jump` and `fall`,
+if the file has them (`sprite:hasAnimation(name)`).
 
 ## Tilesets
 
@@ -73,12 +77,18 @@ plays its animations; the ready-made player scripts play `idle`, `run` or
 }
 ```
 
-`solid` tiles block Bodies, `oneWay` ones only from above (a Body with
-`tiles` in its `passThrough` ignores them). Other settings are for scripts:
-`body:touchingTile("damage")` returns the settings of a touching tile that
-has one, and `tiles:tileInfo(tile)` returns any tile's.
+`tiles` gives the tile properties of each tile, by tile number:
 
-Two more sections are optional ([Tiles](tiles.md#terrains) explains them):
+- `solid` tiles block Bodies.
+- `oneWay` tiles block Bodies only from above.
+- A Body with `tiles` in its `passThrough` goes through `solid` and
+  `oneWay` tiles.
+- Other tile properties are for scripts. `body:touchingTile("damage")`
+  returns the tile properties of a touched tile that has `damage`.
+  `tiles:tileInfo(tile)` returns the tile properties of a tile.
+
+There are two more sections, which are optional.
+[Tiles](tiles.md#terrains) tells about them:
 
 ```json
 {
@@ -93,21 +103,26 @@ Two more sections are optional ([Tiles](tiles.md#terrains) explains them):
 }
 ```
 
-- `terrains` is a list. Each has a `name`, a `match` (`"all"`: sides and
-  corners, the default; `"sides"`; `"corners"`), a `color` for the editor,
-  and `tiles`: for each tile of the terrain, a number that says where the
-  terrain carries on past that tile. Add up: up 1, up-right 2, right 4,
-  down-right 8, down 16, down-left 32, left 64, up-left 128. Tiles with the
-  same number are variants. A tile listed in two terrains belongs to the
-  first.
-- `animations` gives a tile the tiles it shows in turn (`frames`), at `fps`
-  frames a second (8 if left out) or for `durations` seconds each;
-  `randomStart` starts every cell at a different point of the loop.
+- `terrains` is a list. Each terrain has:
+  - `name`.
+  - `match`: `"all"` (sides and corners, the default), `"sides"` or
+    `"corners"`.
+  - `color`: the color of the terrain in the editor.
+  - `tiles`: for each tile of the terrain, a number that tells where the
+    terrain continues past that tile. The number is a sum of these values:
+    up 1, up-right 2, right 4, down-right 8, down 16, down-left 32, left 64,
+    up-left 128. Tiles with the same number are variants.
+
+  If a tile is in two terrains, it is part of the first terrain only.
+- `animations` gives a tile the tiles that it shows in turn (`frames`).
+  It shows them at `fps` animation frames a second (8 if there is no
+  `fps`), or for `durations` seconds each. With `randomStart`, each cell
+  starts at a different point of the loop.
 
 ## Sound effects
 
-`sfx/jump.sfx`. Synth parameters in physical units; the synthesizer
-renders 44100 Hz mono.
+For example, `sfx/jump.sfx`. The synth parameters are in physical
+units. The synthesizer makes sound at 44100 Hz, mono.
 
 ```json
 {
@@ -140,11 +155,11 @@ renders 44100 Hz mono.
 | --- | --- | --- |
 | `wave` | `square`, `sawtooth`, `triangle`, `sine`, `noise` | Oscillator |
 | `volume` | 0–1 | Output level |
-| `attack`, `sustain`, `decay` | seconds, ≥ 0 | Envelope: rise, hold, fall. Length = their sum |
-| `punch` | 0–1 | Extra level at the start of the sustain, fading out over it |
+| `attack`, `sustain`, `decay` | seconds, ≥ 0 | Envelope: rise, hold, fall. The length of the sound is their sum |
+| `punch` | 0–1 | More level at the start of the sustain. It decreases during the sustain |
 | `frequency` | Hz, 20–8000 | Start pitch |
-| `minFrequency` | Hz | The sound stops early when a downward slide reaches it |
-| `slide` | octaves/second | Pitch change; negative falls |
+| `minFrequency` | Hz | When a slide down gets to this frequency, the sound stops |
+| `slide` | octaves/second | Change of pitch. A negative value makes the pitch go down |
 | `deltaSlide` | octaves/second² | Change of `slide` |
 | `vibratoDepth` | semitones | Vibrato amount |
 | `vibratoSpeed` | Hz | Vibrato rate |
@@ -152,28 +167,29 @@ renders 44100 Hz mono.
 | `arpeggioTime` | seconds; 0 = off | When the jump happens |
 | `duty` | 0–1 | Square-wave pulse width |
 | `dutySweep` | per second | Change of `duty` |
-| `repeat` | seconds; 0 = off | Restart the pitch effects every so often |
+| `repeat` | seconds; 0 = off | Starts the pitch effects again at this interval |
 | `lowpass` | 0–1; 1 = off | Low-pass cutoff (0 = darkest) |
 | `highpass` | 0–1; 0 = off | High-pass cutoff |
 | `bitcrush` | 0–1; 0 = off | Sample-rate and bit-depth reduction |
 
-Missing fields take the values in the example above. The same parameters
-always produce the same samples (`noise` uses a fixed seed).
+If a field is not in the file, it has the value from the example above.
+The same parameters always make the same samples (`noise` uses a fixed
+seed).
 
 ### Sound effects in code
 
 ```lua
-local jump = smitten.synth.sfx("sfx/jump")     -- cached; rendered once
-jump:play()                              -- returns the sound playing it (several can overlap)
+local jump = smitten.synth.sfx("sfx/jump")     -- kept in memory; made one time
+jump:play()                              -- returns the sound that plays it (many can overlap)
 jump:play({ volume = 0.5, pitch = 1.2 })
-jump:stop()                              -- stops every copy
-jump.soundData                           -- the rendered samples
+jump:stop()                              -- stops all copies
+jump.soundData                           -- the samples
 jump.duration                            -- seconds
 ```
 
 ## Songs
 
-`music/theme.song`.
+For example, `music/theme.song`.
 
 ```json
 {
@@ -210,48 +226,58 @@ jump.duration                            -- seconds
 }
 ```
 
-- Steps are `1 / stepsPerBeat` of a beat at `bpm`. A pattern is
-  `patternLength` steps long. `order` lists patterns to play in sequence.
-- A note plays on its channel with the channel's instrument. Notes on the
-  same channel may overlap (chords). `note` is a MIDI number (60 = middle
-  C, 261.63 Hz). `volume` 0–1, default 1.
-- Synth instruments: `wave` as in sound effects, an ADSR envelope
-  (`attack`, `decay`, `release` in seconds, `sustain` level 0–1),
-  `duty`, vibrato, `lowpass`. The note sounds for `length` steps, then
-  releases.
-- Sound-effect instruments play an `.sfx` per note, whole (a note's
-  `length` doesn't cut it); with `pitched: true` its `frequency` (and
-  `minFrequency`) is shifted by the note's distance from 60. An optional
-  `volume` (default 1) scales them.
-- `loop`: whether playback loops; `loopStart` is the index in `order` it
-  loops back to. When looping, notes still ringing at the end of the song
-  ring on over the start of the next loop.
-- Missing fields take these defaults: `bpm` 120, `stepsPerBeat` 4,
-  `patternLength` 32, `loop` true, `loopStart` 0; a channel's `instrument`
-  is its own index and `volume` 1; synth instruments' fields as in "Square
-  lead" above; a note's `channel` 0, `step` 0, `length` 1, `note` 60,
-  `volume` 1. Steps and lengths may be fractional.
+- A step is `1 / stepsPerBeat` of a beat at `bpm`. A pattern has
+  `patternLength` steps. `order` is the list of patterns to play, in
+  sequence.
+- A note plays on its channel, with the instrument of the channel. Notes
+  on the same channel can overlap (chords). `note` is a MIDI number
+  (60 = middle C, 261.63 Hz). `volume` is from 0 to 1, and its default is 1.
+- Synth instruments have:
+  - `wave`, as in sound effects.
+  - An ADSR envelope: `attack`, `decay` and `release` in seconds, and the
+    `sustain` level from 0 to 1.
+  - `duty`, vibrato and `lowpass`.
+
+  The note plays for `length` steps. Then it releases.
+- Sound-effect instruments play an `.sfx` for each note, from start to
+  end (the `length` of a note does not stop it). With `pitched: true`,
+  the engine moves its `frequency` (and `minFrequency`) by the distance of
+  the note from 60. An optional `volume` (default 1) scales them.
+- `loop` tells whether the song plays again from `loopStart` when it gets
+  to the end. `loopStart` is the index in `order` where the loop starts.
+  When the song loops, notes that still sound at the end of the song
+  continue over the start of the next loop.
+- If a field is not in the file, it has its default:
+  - `bpm` 120, `stepsPerBeat` 4, `patternLength` 32, `loop` true,
+    `loopStart` 0.
+  - For a channel: `instrument` is the index of the channel, and `volume`
+    is 1.
+  - For a synth instrument: the fields of "Square lead" above.
+  - For a note: `channel` 0, `step` 0, `length` 1, `note` 60, `volume` 1.
+
+  Steps and lengths can be fractions.
 
 ### Songs in code
 
 ```lua
-local theme = smitten.synth.song("music/theme")   -- cached; rendered once, on first use
-theme:play()                                -- loops as the file says
+local theme = smitten.synth.song("music/theme")   -- kept in memory; made one time, at first use
+theme:play()                                -- loops if the file says so
 theme:stop(); theme:pause(); theme:resume()
 theme:setVolume(0.5)
 theme:isPlaying()
 theme.duration                              -- seconds, one pass through `order`
 ```
 
-Songs are rendered to a buffer by the C++ synthesizer and played like
-any other sound, so they keep playing in background tabs.
+The C++ synthesizer makes the samples of a song into a buffer. The
+engine plays them as it plays all other sounds. Because of this, songs
+continue to play in background tabs.
 
 ### The synthesizer in code
 
 ```lua
 smitten.synth.renderSfx(params)            -- params: a decoded .sfx table -> SoundData
-smitten.synth.renderSong(song, basePath)   -- a decoded .song table; basePath (the song's path or folder) resolves its sfx paths -> SoundData
+smitten.synth.renderSong(song, basePath)   -- a decoded .song table; sfx paths are relative to basePath (the song's path or folder) -> SoundData
 ```
 
-SoundData is 44100 Hz, 16-bit, mono. `renderSong` renders one pass through
-`order`, followed by whatever still rings.
+SoundData is 44100 Hz, 16-bit, mono. `renderSong` makes the samples for
+one pass through `order`. Then it adds the notes that still sound.

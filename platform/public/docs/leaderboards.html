@@ -25,18 +25,20 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards" aria-current="page">Leaderboards</a><ul class="nav-sub"><li><a href="#adding-a-leaderboard">Adding a leaderboard</a></li><li><a href="#sending-a-score">Sending a score</a></li><li><a href="#showing-the-top-scores">Showing the top scores</a></li><li><a href="#who-the-player-is">Who the player is</a></li><li><a href="#when-it-doesn-t-work">When it doesn't work</a></li><li><a href="#keeping-it-fair">Keeping it fair</a></li></ul></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards" aria-current="page">Leaderboards</a><ul class="nav-sub"><li><a href="#adding-a-leaderboard">Adding a leaderboard</a></li><li><a href="#sending-a-score">Sending a score</a></li><li><a href="#showing-the-top-scores">Showing the top scores</a></li><li><a href="#who-the-player-is">Who the player is</a></li><li><a href="#when-it-does-not-work">When it does not work</a></li><li><a href="#keeping-it-fair">Keeping it fair</a></li></ul></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Leaderboards</h1>
-<p>A game published on the sharing site can have <strong>leaderboards</strong>: lists of the best scores (or fastest times) that everyone who plays it shares. They are optional. A game has none until you add one, and a game that uses them still works everywhere else, without them.</p>
-<blockquote><p>Scores are sent by the game from each player's browser, so someone who wants to cheat can send a made-up score. Leaderboards are for fun, not for prizes. You can remove a score, or reset a whole board, any time.</p></blockquote>
+<p>A game that you publish on the games site can have <strong>leaderboards</strong>. A leaderboard is a list of the best scores (or the fastest times) of all the players of the game. Leaderboards are optional. A game has no leaderboards until you add one. A game that uses leaderboards also works in all other places, without them.</p>
+<blockquote><p>Each player's browser sends the scores of the game. For this reason, a player who wants to cheat can send a false score. Use leaderboards for fun, not for prizes. You can remove a score, or reset a full leaderboard, at any time.</p></blockquote>
 <h2 id="adding-a-leaderboard"><a class="anchor" href="#adding-a-leaderboard" aria-hidden="true">#</a>Adding a leaderboard</h2>
-<ol><li>Publish the game.</li><li>On the site, open your <strong>account page</strong>, find the game under <em>Your games</em> and choose <strong>Leaderboards</strong>.</li><li>Give the board a <strong>title</strong> (&quot;High scores&quot;), a short <strong>key</strong> your scripts use (&quot;best&quot;), and choose what wins: the highest score, the lowest score, or the fastest time (seconds, shown as <code>1:23.45</code>).</li></ol>
-<p>The board appears under the game on its page, with the ten best scores. A game can have up to 10 boards (one per level, say), each with its own key. From the same place you can <strong>rename</strong> a board, <strong>reset</strong> it (remove every score) or <strong>delete</strong> it. On the game's own page, you (and only you) get a <strong>Remove</strong> button next to every score.</p>
+<ol><li>Publish the game.</li><li>On the games site, open your <strong>account page</strong>.</li><li>Find the game under <em>Your games</em>.</li><li>Click <strong>Leaderboards</strong>.</li><li>Give the leaderboard a <strong>title</strong>, for example &quot;High scores&quot;.</li><li>Give the leaderboard a short <strong>key</strong> for your scripts, for example &quot;best&quot;.</li><li>Choose what wins: the highest score, the lowest score, or the fastest time. The games site shows a time in seconds as <code>1:23.45</code>.</li></ol>
+<p>The leaderboard shows below the game on its page, with the ten best scores. A game can have a maximum of 10 leaderboards (for example, one for each level). Each leaderboard has its own key. On the account page, you can also do these things to a leaderboard:</p>
+<ul><li><strong>Rename</strong> it.</li><li><strong>Reset</strong> it, which removes all its scores.</li><li><strong>Delete</strong> it.</li></ul>
+<p>On the page of the game, you get a <strong>Remove</strong> button next to each score. Only you see these buttons.</p>
 <h2 id="sending-a-score"><a class="anchor" href="#sending-a-score" aria-hidden="true">#</a>Sending a score</h2>
-<p><code>smitten.boards.submit(key, value)</code> sends a score to the board with that key. In <code>ready()</code>, an event or a <code>task()</code> it waits for the site's answer, the way <code>wait()</code> waits:</p>
-<pre><code class="lang-lua"><span class="tk-c">-- scripts/game.lua, on the main scene's root</span>
+<p><code>smitten.boards.submit(key, value)</code> sends a score to the leaderboard with that key. In <code>ready()</code>, in an event or in a <code>task()</code>, it waits for the answer from the games site, as <code>wait()</code> waits:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/game.lua, on the root of the main scene</span>
 score = <span class="tk-n">0</span>
 
 <span class="tk-k">function</span> <span class="tk-f">gameOver</span>()
@@ -48,9 +50,11 @@ score = <span class="tk-n">0</span>
   <span class="tk-k">end</span>
   <span class="tk-f">showScores</span>()
 <span class="tk-k">end</span></code></pre>
-<p><code>result</code> is a table: <code>rank</code> (the player's place on the board), <code>value</code> (their best score so far) and <code>improved</code> (true when this score beat their old one). When something went wrong, <code>submit</code> gives <code>nil</code> and a word that says why (see <a href="#when-it-doesnt-work">below</a>); it never stops the game with an error.</p>
+<p><code>result</code> is a table with these fields:</p>
+<ul><li><code>rank</code>: the position of the player on the leaderboard.</li><li><code>value</code>: the best score of the player until now.</li><li><code>improved</code>: true when this score is better than the old best score of the player.</li></ul>
+<p>If there is a problem, <code>submit</code> gives <code>nil</code> and a word that tells the cause (see <a href="#when-it-does-not-work">below</a>). It never stops the game with an error.</p>
 <h2 id="showing-the-top-scores"><a class="anchor" href="#showing-the-top-scores" aria-hidden="true">#</a>Showing the top scores</h2>
-<p><code>smitten.boards.top(key, count)</code> gives the best scores, best first: a list of rows, each with <code>rank</code>, <code>name</code>, <code>value</code>, and <code>me = true</code> on the player's own row. With a Label for each line (here ten Labels named <code>Row1</code> to <code>Row10</code> inside a Panel called <code>Scores</code>):</p>
+<p><code>smitten.boards.top(key, count)</code> gives the best scores, with the best score first. It gives a list of rows. Each row has <code>rank</code>, <code>name</code> and <code>value</code>, and the row of the player has <code>me = true</code>. This example uses one Label for each line: ten Labels with the names <code>Row1</code> to <code>Row10</code>, inside a Panel with the name <code>Scores</code>.</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">showScores</span>()
   <span class="tk-k">local</span> rows = smitten.boards.<span class="tk-f">top</span>(<span class="tk-s">&quot;best&quot;</span>, <span class="tk-n">10</span>)
   <span class="tk-k">for</span> i = <span class="tk-n">1</span>, <span class="tk-n">10</span> <span class="tk-k">do</span>
@@ -64,7 +68,7 @@ score = <span class="tk-n">0</span>
     <span class="tk-k">end</span>
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>smitten.boards.around(key, count)</code> gives the rows around the player's own score instead (handy when they're 250th), and <code>smitten.boards.list()</code> the game's boards.</p>
+<p><code>smitten.boards.around(key, count)</code> gives the rows around the score of the player. This is good when the player is in position 250, for example. <code>smitten.boards.list()</code> gives the leaderboards of the game.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.boards.available()</code></td><td>True while the game runs on its page on the games site and has leaderboards there. False in the editor and in exported games.</td></tr>
@@ -74,7 +78,7 @@ score = <span class="tk-n">0</span>
 <tr><td><code>smitten.boards.list(callback?)</code></td><td>The game's leaderboards: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
 </table></div>
 <h3 id="from-update"><a class="anchor" href="#from-update" aria-hidden="true">#</a>From update()</h3>
-<p><code>update()</code> and <code>draw()</code> can't wait, so there these functions take a function to call when the answer arrives, as their last argument:</p>
+<p><code>update()</code> and <code>draw()</code> cannot wait. In these functions, give a function as the last argument. The engine calls that function when the answer comes:</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;tab&quot;</span>) <span class="tk-k">then</span>
     smitten.boards.<span class="tk-f">top</span>(<span class="tk-s">&quot;best&quot;</span>, <span class="tk-n">10</span>, <span class="tk-k">function</span>(rows, why)
@@ -82,32 +86,34 @@ score = <span class="tk-n">0</span>
     <span class="tk-k">end</span>)
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>submit</code> without a function still sends the score from <code>update()</code>; it just doesn't tell you how it went.</p>
+<p>If you call <code>submit</code> from <code>update()</code> without a function, it still sends the score. But it does not tell you the result.</p>
 <h2 id="who-the-player-is"><a class="anchor" href="#who-the-player-is" aria-hidden="true">#</a>Who the player is</h2>
-<ul><li>Someone <strong>signed in</strong> to the site appears under their display name. Their scores follow their account.</li><li>Anyone else is a <strong>guest</strong>. A guest's name is whatever the game passes: <code>smitten.boards.submit(&quot;best&quot;, score, { name = &quot;Ada&quot; })</code>. Names are 1 to 12 letters, numbers, spaces, <code>-</code> and <code>_</code>, and go through the site's word filter; with no name, the row says &quot;Guest&quot;. Guests show in grey on the game's page, and rows have <code>guest = true</code>. If your game asks for a name, ask for a nickname, never a real name.</li></ul>
-<p>A board keeps one score per player, their best. A guest counts as the same player while they use the same name from the same network.</p>
-<h2 id="when-it-doesn-t-work"><a class="anchor" href="#when-it-doesn-t-work" aria-hidden="true">#</a>When it doesn't work</h2>
-<p>Leaderboards only work while the game runs <strong>on its page on the sharing site</strong>. In the editor's Play, in an exported game (on itch.io, say) and anywhere else, <code>smitten.boards.available()</code> is false and every call answers <code>nil, &quot;unavailable&quot;</code> straight away, so the same game works everywhere:</p>
+<ul><li>A player who is <strong>signed in</strong> to the games site shows with their display name. Their scores are part of their account.</li><li>All other players are <strong>guests</strong>. The name of a guest is the name that the game gives: <code>smitten.boards.submit(&quot;best&quot;, score, { name = &quot;Ada&quot; })</code>.</li><li>A name has 1 to 12 characters: letters, numbers, spaces, <code>-</code> and <code>_</code>.</li><li>The word filter of the games site checks each name.</li><li>If there is no name, the row shows &quot;Guest&quot;.</li><li>Guests show in grey on the page of the game, and their rows have <code>guest = true</code>.</li><li>If your game asks for a name, ask for a nickname. Never ask for a real name.</li></ul>
+<p>A leaderboard keeps one score for each player: the best score. A guest is the same player while the guest uses the same name from the same network.</p>
+<h2 id="when-it-does-not-work"><a class="anchor" href="#when-it-does-not-work" aria-hidden="true">#</a>When it does not work</h2>
+<p>Leaderboards work only while the game runs <strong>on its page on the games site</strong>. In other places, <code>smitten.boards.available()</code> is false. Some examples are <strong>Play</strong> in the editor and an exported game (on itch.io, for example). There, all calls give <code>nil, &quot;unavailable&quot;</code> immediately. Because of this, the same game works in all places:</p>
 <pre><code class="lang-lua"><span class="tk-k">if</span> smitten.boards.<span class="tk-f">available</span>() <span class="tk-k">then</span>
   smitten.boards.<span class="tk-f">submit</span>(<span class="tk-s">&quot;best&quot;</span>, score)
 <span class="tk-k">end</span></code></pre>
 <p>To try your leaderboard, publish the game and play it on its page.</p>
-<p>The second value says why a call gave <code>nil</code>:</p>
+<p>When a call gives <code>nil</code>, the second value tells the cause:</p>
 <div class="table"><table>
-<thead><tr><th>Why</th><th>What happened</th></tr></thead>
-<tbody><tr><td><code>&quot;unavailable&quot;</code></td><td>The game isn't on its page on the site, or it has no boards there</td></tr>
-<tr><td><code>&quot;no-board&quot;</code></td><td>The game has no board with that key (check the key on your account page)</td></tr>
-<tr><td><code>&quot;bad-value&quot;</code></td><td>The score wasn't a number</td></tr>
-<tr><td><code>&quot;out-of-range&quot;</code></td><td>The score is outside the range the board allows</td></tr>
-<tr><td><code>&quot;bad-name&quot;</code></td><td>The guest's name is too long, has other characters, or a word the site doesn't allow</td></tr>
+<thead><tr><th>Cause</th><th>What happened</th></tr></thead>
+<tbody><tr><td><code>&quot;unavailable&quot;</code></td><td>The game is not on its page on the games site, or it has no leaderboards there</td></tr>
+<tr><td><code>&quot;no-board&quot;</code></td><td>The game has no leaderboard with that key (look at the key on your account page)</td></tr>
+<tr><td><code>&quot;bad-value&quot;</code></td><td>The score is not a number</td></tr>
+<tr><td><code>&quot;out-of-range&quot;</code></td><td>The score is outside the range that the leaderboard permits</td></tr>
+<tr><td><code>&quot;bad-name&quot;</code></td><td>The name of the guest is too long, has other characters, or has a word that the games site does not permit</td></tr>
 <tr><td><code>&quot;too-many&quot;</code></td><td>Too many scores from this player or network in the last hour</td></tr>
-<tr><td><code>&quot;busy&quot;</code></td><td>Too many calls at once: wait for answers before asking again</td></tr>
-<tr><td><code>&quot;timeout&quot;</code>, <code>&quot;offline&quot;</code></td><td>The site didn't answer</td></tr>
-<tr><td><code>&quot;needs-callback&quot;</code></td><td><code>top()</code> from <code>update()</code> without a function to give the answer to</td></tr></tbody>
+<tr><td><code>&quot;busy&quot;</code></td><td>Too many calls at the same time. Wait for the answers before you ask again</td></tr>
+<tr><td><code>&quot;timeout&quot;</code>, <code>&quot;offline&quot;</code></td><td>The games site did not answer</td></tr>
+<tr><td><code>&quot;needs-callback&quot;</code></td><td>A call to <code>top()</code> from <code>update()</code>, without a function to give the answer to</td></tr></tbody>
 </table></div>
 <h2 id="keeping-it-fair"><a class="anchor" href="#keeping-it-fair" aria-hidden="true">#</a>Keeping it fair</h2>
-<p>A score is just a number the game sends, and a game runs on the player's computer, so nothing can prove a score is real. The site keeps things within bounds: scores must be numbers, each player and network can send only so many an hour, names are filtered, and a board keeps its best 1000 scores. Beyond that it's up to you:</p>
-<ul><li>Send scores a cheater gains little from faking, and don't promise prizes for them.</li><li>Look at your boards now and then. <strong>Remove</strong> scores that can't be real on the game's page, or <strong>Reset</strong> the board.</li><li>A board can have a lowest and highest allowed score (<code>min</code> and <code>max</code> through the site's API, see the site's README), which stops the laziest fakes: nobody scores 999,999,999 in a game that tops out at 5,000.</li></ul>
+<p>A score is only a number that the game sends. The game runs on the computer of the player. For this reason, nothing can prove that a score is real. The games site keeps the scores in limits:</p>
+<ul><li>Scores must be numbers.</li><li>Each player and each network can send only a limited number of scores in one hour.</li><li>The word filter checks the names.</li><li>A leaderboard keeps its best 1000 scores.</li></ul>
+<p>For more protection, do these things:</p>
+<ul><li>Use scores that give a cheater little reason to make false ones. Do not promise prizes for scores.</li><li>Look at your leaderboards from time to time. On the page of the game, <strong>Remove</strong> the scores that cannot be real, or <strong>Reset</strong> the leaderboard.</li><li>Give the leaderboard a lowest and a highest permitted score (<code>min</code> and <code>max</code>, through the API of the games site. See the README of the site). This stops the most obvious false scores. For example, nobody gets 999,999,999 in a game where the maximum is 5,000.</li></ul>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sharing"><span>Previous</span>Sharing and publishing</a><a class="next" href="older-projects"><span>Next</span>Older projects</a></nav>
   </main>
