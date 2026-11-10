@@ -1,5 +1,6 @@
 -- UI pieces: Label, Button, Panel, Picture and Bar, drawn on top of the game
--- in screen space (game coordinates, not moved by cameras).
+-- in screen space (game coordinates, not moved by cameras). TouchStick and
+-- TouchButton are in touch.lua.
 --
 -- A UI piece's rectangle is measured from its anchor in its parent UI piece
 -- (or the screen): with anchor "bottomRight", x = 16 and y = 16 put it 16
@@ -62,6 +63,12 @@ local function printIn(text, font, s, x, y, w, h, align, valign)
 	local ty = y
 	if valign == "middle" then ty = y + (h - th) / 2 elseif valign == "bottom" then ty = y + h - th end
 	g.printf(text, x, ty, w / s, align, 0, s, s)
+end
+
+---Draws text in the middle of a rectangle (for the touch pieces).
+function M.printIn(text, fontPath, size, x, y, w, h)
+	local font, s = scaledFont(fontPath, size)
+	printIn(text, font, s, x, y, w, h, "center", "middle")
 end
 
 ---------------------------------------------------------------------------
@@ -238,16 +245,26 @@ function M.render(root)
 	for i = drawnCount + 1, #drawn do drawn[i] = nil end
 	-- The pointer is over the topmost control drawn under it.
 	local mx, my = display.toGame(love.mouse.getPosition())
-	local hovered = nil
+	M.hovered = M.pick(mx, my, false)
+end
+
+---The topmost UI piece at a point (in game coordinates) that answers the
+---pointer: not Labels, and touch pieces only when they take this pointer
+---(a finger, or the mouse on ones that are always shown).
+function M.pick(x, y, finger)
 	for i = drawnCount, 1, -1 do
 		local c = drawn[i]
-		local r = c._rect
-		if (c._drawUI ~= nil and c.type ~= "Label") and mx >= r[1] and my >= r[2] and mx < r[1] + r[3] and my < r[2] + r[4] then
-			hovered = c
-			break
+		if c._drawUI ~= nil and c.type ~= "Label" then
+			local takes = c._takes
+			if takes then
+				if not c._dead and c._inside and takes(c, x, y, finger) then return c end
+			else
+				local r = c._rect
+				if x >= r[1] and y >= r[2] and x < r[1] + r[3] and y < r[2] + r[4] then return c end
+			end
 		end
 	end
-	M.hovered = hovered
+	return nil
 end
 
 ---True if the pointer is over a button or panel (so a game can ignore a
@@ -260,15 +277,9 @@ end
 ---in game coordinates; kind is "pressed" or "released".
 function M.input(root, kind, x, y, button)
 	if button ~= 1 then return end
-	local target = nil
-	for i = drawnCount, 1, -1 do
-		local c = drawn[i]
-		local r = c._rect
-		if c._drawUI ~= nil and c.type ~= "Label" and x >= r[1] and y >= r[2] and x < r[1] + r[3] and y < r[2] + r[4] then
-			target = c
-			break
-		end
-	end
+	local target = M.pick(x, y, false)
+	-- Touch pieces answer fingers themselves (scene/touch.lua).
+	if target and target._touchControl then target = nil end
 	if kind == "pressed" then
 		M.pressedOn = target
 		if target and target.type == "Button" and not target.disabled then

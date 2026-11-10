@@ -519,6 +519,59 @@
       }
     },
 
+    "TouchStick": {
+      "extends": "UI", "group": "ui", "icon": "touchStick",
+      "description": "A stick for a thumb on a touch screen. It pushes input actions the way a gamepad's stick does, so axis(\"left\", \"right\") reads it with no extra code.",
+      "properties": {
+        "leftAction": { "type": "action", "default": "left", "group": "Stick", "description": "The action it pushes when the thumb goes left (none: it pushes nothing that way)." },
+        "rightAction": { "type": "action", "default": "right", "group": "Stick", "description": "The action it pushes when the thumb goes right." },
+        "upAction": { "type": "action", "default": "up", "group": "Stick", "description": "The action it pushes when the thumb goes up." },
+        "downAction": { "type": "action", "default": "down", "group": "Stick", "description": "The action it pushes when the thumb goes down." },
+        "player": { "type": "int", "default": 0, "min": 0, "max": 8, "group": "Stick", "description": "Whose actions it pushes: 2 for player 2. 0 takes the player of the piece it's inside, or player 1." },
+        "mode": { "type": "enum", "options": ["fixed", "floating", "follow"], "default": "fixed", "group": "Stick", "description": "fixed stays in the middle of its rectangle. floating appears where the thumb lands, anywhere in the rectangle. follow does too, and is dragged along when the thumb goes further than the radius." },
+        "radius": { "type": "number", "default": 60, "min": 1, "group": "Stick", "unit": "px", "description": "How far the thumb goes for a full push; also the size of the stick's circle." },
+        "deadzone": { "type": "number", "default": 0.2, "min": 0, "max": 0.9, "step": 0.05, "group": "Stick", "description": "How much of the radius near the middle counts as not pushed at all (0.2 is a fifth)." },
+        "show": { "type": "enum", "options": ["touch", "always", "never"], "default": "touch", "group": "Look", "description": "touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can work it. never keeps it invisible; fingers still work it." },
+        "color": { "type": "color", "default": [1, 1, 1, 0.25], "group": "Look", "description": "The color of the stick's circle (or a tint for its image)." },
+        "knobColor": { "type": "color", "default": [1, 1, 1, 0.6], "group": "Look", "description": "The color of the knob under the thumb (or a tint for its image)." },
+        "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Look", "description": "A picture for the stick's circle, instead of the drawn one." },
+        "knobImage": { "type": "resource", "kinds": ["image"], "default": "", "group": "Look", "description": "A picture for the knob, instead of the drawn one." }
+      },
+      "methods": {
+        "getValue": { "args": "", "doc": "Where the stick is pushed: x, y from -1 to 1 (0, 0 when no finger is on it)." },
+        "isActive": { "args": "", "doc": "True while a finger is on the stick." }
+      },
+      "events": {
+        "pressed": { "args": "", "doc": "A finger landed on the stick." },
+        "released": { "args": "", "doc": "The finger let go of the stick." }
+      }
+    },
+
+    "TouchButton": {
+      "extends": "UI", "group": "ui", "icon": "touchButton",
+      "description": "A button for a finger on a touch screen. It holds an input action down while it's held, so pressed(\"jump\") reads it with no extra code.",
+      "properties": {
+        "action": { "type": "action", "default": "jump", "group": "Button", "description": "The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released())." },
+        "player": { "type": "int", "default": 0, "min": 0, "max": 8, "group": "Button", "description": "Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1." },
+        "shape": { "type": "enum", "options": ["circle", "rectangle"], "default": "circle", "group": "Button", "description": "circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle." },
+        "text": { "type": "text", "default": "", "group": "Button", "description": "Words or a letter on the button." },
+        "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Button", "description": "A picture on the button: an arrow, a sword." },
+        "show": { "type": "enum", "options": ["touch", "always", "never"], "default": "touch", "group": "Look", "description": "touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can press it. never keeps it invisible; fingers still press it." },
+        "color": { "type": "color", "default": [1, 1, 1, 0.3], "group": "Look", "description": "The button's color. It's drawn stronger while held." },
+        "textColor": { "type": "color", "default": [1, 1, 1, 0.9], "group": "Look", "description": "The color of its words." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Look", "description": "A font, or empty for the default." },
+        "size": { "type": "int", "default": 20, "min": 1, "group": "Look", "unit": "px", "description": "Font size." },
+        "cornerRadius": { "type": "number", "default": 8, "min": 0, "group": "Look", "unit": "px", "description": "Rounds the corners.", "when": { "shape": ["rectangle"] } }
+      },
+      "methods": {
+        "isDown": { "args": "", "doc": "True while a finger holds it down." }
+      },
+      "events": {
+        "pressed": { "args": "", "doc": "A finger pressed the button (or slid onto it)." },
+        "released": { "args": "", "doc": "The finger let go, or slid off." }
+      }
+    },
+
     "Sound": {
       "extends": "Piece", "group": "sound", "icon": "sound",
       "description": "Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song made in Smitten.",

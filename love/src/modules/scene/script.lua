@@ -149,11 +149,13 @@ local function sound() return require("love.scene.audio") end
 
 -- Input. pressed(), down() and released() take an action ("jump") or an
 -- input ("space", "mouse:1", "pad:a"); pressed() alone is any press.
-function api.pressed(action) return input().pressed(action) end
-function api.down(action) return input().down(action) end
-function api.released(action) return input().released(action) end
-function api.axis(negative, positive) return input().axis(negative, positive) end
-function api.vector(left, right, up, down) return input().vector(left, right, up, down) end
+-- A player number at the end reads that player only: pressed("jump", 2).
+-- (A piece's script gets its own copies of these, playerCalls below.)
+function api.pressed(action, player) return input().pressed(action, player) end
+function api.down(action, player) return input().down(action, player) end
+function api.released(action, player) return input().released(action, player) end
+function api.axis(negative, positive, player) return input().axis(negative, positive, player) end
+function api.vector(left, right, up, down, player) return input().vector(left, right, up, down, player) end
 function api.wheel() return input().wheel() end
 function api.typed() return input().typed() end
 function api.touches() return input().touches() end
@@ -485,6 +487,73 @@ function pieceApi.jumpSpeed(n, height, g)
 	return math.sqrt(2 * g * height)
 end
 
+-- The player a piece plays for: its own `player` (a script variable or a
+-- property that's a number from 1 up), else that of the nearest piece above
+-- it that has one, else nil. Looked up once a frame for each piece.
+local inputModule = nil
+local function playerOf(n)
+	local i = inputModule
+	if not i then
+		i = input()
+		inputModule = i
+	end
+	local f = i._frame
+	if n._playerAt ~= f then
+		n._playerAt = f
+		local found = false
+		local p = n
+		repeat
+			local v = p.player
+			if type(v) == "number" and v >= 1 then
+				found = v
+				break
+			end
+			p = p.parent
+		until not p
+		n._player = found
+	end
+	return n._player or nil
+end
+M.playerOf = playerOf
+
+-- In a piece's script, the input calls with no player use the piece's
+-- player (playerOf): one player scene serves every player. Each is made
+-- once for a piece and kept in its environment, so a call costs what the
+-- plain one does plus one look at the piece.
+local playerCalls = {}
+
+function playerCalls.pressed(n, i)
+	return function(action, player) return i.pressed(action, player or playerOf(n)) end
+end
+
+function playerCalls.down(n, i)
+	return function(action, player) return i.down(action, player or playerOf(n)) end
+end
+
+function playerCalls.released(n, i)
+	return function(action, player) return i.released(action, player or playerOf(n)) end
+end
+
+function playerCalls.axis(n, i)
+	return function(negative, positive, player) return i.axis(negative, positive, player or playerOf(n)) end
+end
+
+function playerCalls.vector(n, i)
+	return function(left, right, up, down, player) return i.vector(left, right, up, down, player or playerOf(n)) end
+end
+
+function playerCalls.stick(n, i)
+	return function(side, player) return i.stick(side, player or playerOf(n)) end
+end
+
+function playerCalls.trigger(n, i)
+	return function(side, player) return i.trigger(side, player or playerOf(n)) end
+end
+
+function playerCalls.vibrate(n, i)
+	return function(strength, seconds, player) return i.vibrate(strength, seconds, player or playerOf(n)) end
+end
+
 ---------------------------------------------------------------------------
 -- Pieces
 
@@ -594,7 +663,13 @@ function M.instantiate(n, s)
 					if child then return child end
 				end
 			end
-			local p = pieceApi[k]
+			local p = playerCalls[k]
+			if p then
+				local f = p(n, input())
+				rawset(env, k, f)
+				return f
+			end
+			p = pieceApi[k]
 			if p then return bind(p) end
 			v = api[k]
 			if v == nil then v = globals[k] end

@@ -105,6 +105,16 @@ local function extendModules()
 		function mouse.pressed(button) return input._rawPressed("mouse:" .. (button or 1)) end
 		function mouse.released(button) return input._rawReleased("mouse:" .. (button or 1)) end
 		function mouse.down(button) return mouse.isDown(button or 1) end
+		-- While a finger stands in for the mouse (scene/touch.lua: another
+		-- finger is on a touch control), the mouse is where that finger is.
+		local getPosition = mouse.getPosition
+		function mouse.getPosition()
+			local f = input._finger
+			if f then return f[1], f[2] end
+			return getPosition()
+		end
+		function mouse.getX() return (mouse.getPosition()) end
+		function mouse.getY() return select(2, mouse.getPosition()) end
 		---How far the mouse moved this frame: dx, dy (also while it's captured).
 		function mouse.getDelta() return input._mouseDelta() end
 		---True while the pointer is over a UI button or panel.
@@ -132,20 +142,49 @@ end
 local INPUT_EVENTS = {
 	"keypressed", "keyreleased", "mousepressed", "mousereleased", "mousemoved", "wheelmoved", "textinput",
 	"gamepadpressed", "gamepadreleased", "gamepadaxis", "focus",
+	"touchpressed", "touchmoved", "touchreleased", "joystickadded", "joystickremoved",
 }
+
+-- What a pointer does: the touch pieces (scene/touch.lua) see these first.
+local POINTER = {
+	mousepressed = true, mousereleased = true, mousemoved = true,
+	touchpressed = true, touchmoved = true, touchreleased = true,
+}
+
+---A mouse event for the game and its UI: a real one, or one made from a
+---finger by scene/touch.lua. x, y are the window's.
+function engine._mouse(name, x, y, c, d, e)
+	require("love.input")._event(name, x, y, c, d, e)
+	if (name == "mousepressed" or name == "mousereleased") and scene() then
+		local gx, gy = require("love.display").toGame(x, y)
+		scene()._uiInput(name == "mousepressed" and "pressed" or "released", gx, gy, c)
+	end
+end
 
 local function hookHandlers()
 	local input = require("love.input")
-	local display = require("love.display")
 	local handlers = love.handlers
+	local loaded = package.loaded
 	for _, name in ipairs(INPUT_EVENTS) do
 		local orig = handlers[name]
+		local pointer = POINTER[name]
+		local mouse = name == "mousepressed" or name == "mousereleased"
 		if orig then
 			handlers[name] = function(a, b, c, d, e, f, ...)
-				input._event(name, a, b, c, d, e)
-				if (name == "mousepressed" or name == "mousereleased") and scene() then
-					local gx, gy = display.toGame(a, b)
-					scene()._uiInput(name == "mousepressed" and "pressed" or "released", gx, gy, c)
+				-- A scene with touch pieces: a touch on one of them is theirs,
+				-- and not a click as well.
+				local touch = loaded["love.scene.touch"]
+				if touch and touch.count > 0 then
+					if pointer then
+						if touch.event(name, a, b, c, d, e) then return end
+					elseif name == "focus" and not a then
+						touch.releaseAll()
+					end
+				end
+				if mouse then
+					engine._mouse(name, a, b, c, d, e)
+				else
+					input._event(name, a, b, c, d, e)
 				end
 				return orig(a, b, c, d, e, f, ...)
 			end
@@ -257,6 +296,7 @@ end
 
 ---Starts the main scene (love.run calls it before the first frame).
 function engine.start()
+	require("love.input")._start()
 	if not engine.project then return end
 	local path = startScene()
 	if not path then
