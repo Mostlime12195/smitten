@@ -45,6 +45,10 @@ jobs:
       - name: Sound file tests
         run: node web/editor/tools/wav/wav.test.mjs
 
+      # Clips: the GIF encoder, WebM joining and cutting, the ring of recordings.
+      - name: Clip tests
+        run: node tools/clip-tests/test.mjs
+
       - name: Sharing site tests
         run: node tools/platform-tests/test.mjs
 
