@@ -313,6 +313,14 @@ export class InspectorPanel {
       return h('div', { style: 'display: flex; flex-direction: column; gap: 2px; width: 100%' }, sel,
         h('span', { class: 'num-unit' }, `No ${kinds.join(' or ')} files yet: drop one into Files.`));
     }
+    // An image or a sprite opens in the sprite editor.
+    if (this.ctx.openFile && /\.(png|sprite)$/i.test(value || '')) {
+      const edit = h('button', { type: 'button', class: 'icon-btn', title: `Edit ${value} in the sprite editor`, 'aria-label': 'Edit in the sprite editor' }, icon('pencil', 14));
+      edit.addEventListener('click', () => this.ctx.openFile(value));
+      sel.style.flex = '1 1 auto';
+      sel.style.minWidth = '0';
+      return h('div', { style: 'display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0' }, sel, edit);
+    }
     return sel;
   }
 

@@ -39,7 +39,7 @@ const NAV = [
   { title: 'Start', pages: [['reference', 'Overview'], ['getting-started', 'Getting started']] },
   {
     title: 'Making games',
-    pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'],
+    pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'], ['sprite-editor', 'Sprite editor'],
       ['camera', 'Camera'], ['backgrounds', 'Backgrounds'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['text', 'Text'], ['ui', 'UI'], ['animation', 'Animation'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['random', 'Random and noise'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
   { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['leaderboards', 'Leaderboards'], ['older-projects', 'Older projects']] },

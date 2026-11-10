@@ -43,7 +43,8 @@ const app = document.getElementById('app');
 const WORKSPACES = [
   { id: 'scene', label: 'Scene', icon: 'scene' },
   { id: 'script', label: 'Script', icon: 'code' },
-  { id: 'paint', label: 'Paint', icon: 'brush' },
+  // The sprite editor. Its id stays 'paint' (saved layouts and editor state use it).
+  { id: 'paint', label: 'Sprites', icon: 'brush', title: 'Sprites: the sprite editor. Draw and animate sprites, tiles and other images' },
   { id: 'sound', label: 'Sound', icon: 'wave' },
   { id: 'music', label: 'Music', icon: 'music' },
 ];
@@ -185,7 +186,7 @@ async function openProject(id) {
     projectBtn, h('span', { class: 'tb-sep' }), ed.undoBtn, ed.redoBtn);
   const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' }, ed.wsIndicator = h('span', { class: 'ws-indicator' }));
   WORKSPACES.forEach((w, i) => {
-    const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
+    const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.title || w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
     b.addEventListener('click', () => goToWorkspace(w.id));
     switcher.append(b);
   });
@@ -263,6 +264,7 @@ async function openProject(id) {
     openScript: (node) => openFile(sceneWs().doc.scriptOf(node)),
     attachScript: (node) => attachScript(node),
     openScene: (path) => openFile(path),
+    openFile: (path) => openFile(path),
     openDocs: (type) => openDocs('pieces', type),
   });
   buildFilesPanel(panels.files.el);
@@ -297,7 +299,7 @@ async function openProject(id) {
     else if (w.id === 'script') ed.workspaces.script = new ScriptWorkspace(el, wsApp);
     else {
       const defs = {
-        paint: { toolId: 'sprite', untitledBase: 'image', untitledLabel: 'New image', icon: 'image' },
+        paint: { toolId: 'sprite', untitledBase: 'sprite', untitledLabel: 'New sprite', icon: 'image' },
         sound: {
           toolId: 'sfx', untitledBase: 'sound', untitledLabel: 'New sound', newLabel: 'New sound effect', icon: 'wave',
           more: [{ toolId: 'wav', untitledBase: 'recording', untitledLabel: 'New recording', newLabel: 'Record a sound', icon: 'record', start: true }],
@@ -668,10 +670,10 @@ function newMenuItems(dir) {
   return [
     { label: 'Scene', icon: 'box', action: () => newScene(null, inDir('scenes')) },
     { label: 'Script', icon: 'code', action: () => newScript(null, inDir('scripts')) },
-    { label: 'Image', icon: 'image', action: () => { switchWorkspace('paint'); ed.workspaces.paint.newUntitled(); } },
-    { label: 'Sound effect', icon: 'wave', action: () => { switchWorkspace('sound'); ed.workspaces.sound.newUntitled(); } },
+    { label: 'Sprite', icon: 'image', action: () => newInWorkspace('paint') },
+    { label: 'Sound effect', icon: 'wave', action: () => newInWorkspace('sound') },
     { label: 'Recording', icon: 'record', action: () => newRecording() },
-    { label: 'Song', icon: 'music', action: () => { switchWorkspace('music'); ed.workspaces.music.newUntitled(); } },
+    { label: 'Song', icon: 'music', action: () => newInWorkspace('music') },
     '-',
     { label: 'Folder', icon: 'folderPlus', action: async () => {
       const name = await promptDialog({ title: 'New folder', label: 'Name', okLabel: 'Create' });
@@ -681,10 +683,18 @@ function newMenuItems(dir) {
   ];
 }
 
+/** A new document in a tool workspace. A workspace with no tabs makes one when it opens: that one is enough. */
+function newInWorkspace(id) {
+  const ws = ed.workspaces[id];
+  const hadTabs = ws.order.length > 0;
+  switchWorkspace(id);
+  if (hadTabs) ws.newUntitled();
+}
+
 function fileMenu(path, kind, at) {
   const items = [];
   if (kind === 'file') {
-    items.push({ label: 'Open', action: () => openFile(path) });
+    items.push({ label: ed.workspaces.paint.canOpen(path) ? 'Open in the sprite editor' : 'Open', action: () => openFile(path) });
     if (path.endsWith('.scene')) {
       items.push({ label: 'Play this scene', icon: 'play', action: () => play(path) });
       items.push({ label: 'Make it the main scene', action: () => ed.project.updateSettings({ main: path }) });

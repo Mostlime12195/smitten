@@ -1,4 +1,4 @@
-// Image editor: paints a PNG (one image, or a sheet of frames) and its
+// The sprite editor (the Sprites workspace): paints a PNG (one image, or a sheet of frames) and its
 // .sprite file (frame size, origin, animations). Opens .png, .sprite and the
 // older .sprite.json. See docs/formats.md ("Sprites") and docs/editor-tools.md.
 
@@ -9,7 +9,7 @@ export const NEW_IMAGE_SIZE = 256;
 
 export default {
   id: 'sprite',
-  label: 'Image editor',
+  label: 'Sprite editor',
   match: (path) => /\.(png|sprite|sprite\.json)$/i.test(path),
   newAssets: [{
     label: 'Sprite',

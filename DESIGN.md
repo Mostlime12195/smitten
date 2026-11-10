@@ -219,15 +219,15 @@ the public API, so they double as examples of how things are done.
 
 ## 6. Editor
 
-Rules: nothing waits for you to make something first (Paint opens on a new
-image, Sound on a new effect); one place for each thing; panels that don't
+Rules: nothing waits for you to make something first (Sprites opens on a new
+sprite, Sound on a new effect); one place for each thing; panels that don't
 apply are hidden; the layout is yours (drag panel tabs between docks, hide
 and show panels, per-workspace layouts, reset); everything explains itself
 in place; standard conventions; neutral looks with icons from
 [Lucide](https://lucide.dev) (generated into `web/editor/icons.js` by
 `tools/gen-icons.mjs`).
 
-- **Workspaces**: Scene, Script, Paint, Sound, Music.
+- **Workspaces**: Scene, Script, Sprites (the sprite editor), Sound, Music.
 - **Panels**: Scene (the pieces), Files, Inspector, Output; the tile panel
   appears under the scene view while a Tiles piece is selected; the Animate
   panel (next to Output) edits an Animator's animations on a timeline, with

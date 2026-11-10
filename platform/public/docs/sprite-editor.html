@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite editor · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Sprite editor.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor" aria-current="page">Sprite editor</a><ul class="nav-sub"><li><a href="#open-the-sprite-editor">Open the sprite editor</a></li><li><a href="#the-parts-of-the-sprite-editor">The parts of the sprite editor</a></li></ul></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Sprite editor</h1>
+<p>The sprite editor is the <strong>Sprites</strong> workspace of the editor. Use it to draw and animate the images of a game: sprites, tiles and backgrounds. It saves each image as a PNG file. For an image with more than one animation frame, it also saves a <code>.sprite</code> file. <a href="formats#sprites">File formats</a> tells about this file.</p>
+<h2 id="open-the-sprite-editor"><a class="anchor" href="#open-the-sprite-editor" aria-hidden="true">#</a>Open the sprite editor</h2>
+<p>You can open the sprite editor in four ways:</p>
+<ul><li>Click <strong>Sprites</strong> at the top of the editor, or press Alt+3. The workspace shows a new sprite. When you draw on it, the editor saves it as <code>sprites/sprite.png</code>.</li><li>In the <strong>Files</strong> panel, click a <code>.png</code> file or a <code>.sprite</code> file.</li><li>In the <strong>Files</strong> panel, click <strong>New</strong>. Then click <strong>Sprite</strong>.</li><li>Select a piece that shows an image, for example a <code>Sprite</code>. In the <strong>Inspector</strong>, click the pencil button next to <code>image</code>.</li></ul>
+<p>Each image opens in a tab at the top of the workspace. To start one more new sprite, click <strong>+</strong> at the right of the tabs.</p>
+<h2 id="the-parts-of-the-sprite-editor"><a class="anchor" href="#the-parts-of-the-sprite-editor" aria-hidden="true">#</a>The parts of the sprite editor</h2>
+<div class="table"><table>
+<thead><tr><th>Part</th><th>Where</th><th>What it does</th></tr></thead>
+<tbody><tr><td>Tools</td><td>The column at the left</td><td>Brush, eraser, fill, color picker, line, rectangle, ellipse and select</td></tr>
+<tr><td>Tool options</td><td>The bar at the top</td><td>The size, the opacity and the other options of the tool. At the right: the mirror buttons, the image size, undo, redo and <strong>More</strong> (the menu with the other commands)</td></tr>
+<tr><td>Canvas</td><td>The middle</td><td>The image. Scroll to zoom. To move the view, drag while you hold Space</td></tr>
+<tr><td>Color</td><td>The panel at the right</td><td>The color of the left mouse button, the color of the right mouse button, the recent colors and a palette</td></tr>
+<tr><td>Preview and animations</td><td>The panel at the right</td><td>The animation as the game plays it, and the list of animations</td></tr>
+<tr><td>Frames</td><td>The bar at the bottom</td><td>The animation frames of the image. Drag a frame to move it</td></tr></tbody>
+</table></div>
+<p>The editor saves your changes automatically, a short time after each change. To save immediately, press Ctrl+S.</p>
+<p>To use an image in a scene, drag the file from the <strong>Files</strong> panel into the scene view. The editor makes a <code>Sprite</code> piece that shows it.</p>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="sound"><span>Previous</span>Sound and music</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>
+  </main>
+</div>
+</body>
+</html>

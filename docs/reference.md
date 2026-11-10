@@ -15,7 +15,8 @@ all the steps of a small game, in approximately fifteen minutes.
 - [Scenes and pieces](scenes.md) tells how to make scenes from a script,
   how to use tags, how to change scenes and how to pause.
 - Some pages each tell about one part of a game. These pages are
-  [Input](input.md), [Sound and music](sound.md), [Camera](camera.md),
+  [Input](input.md), [Sound and music](sound.md),
+  [Sprite editor](sprite-editor.md), [Camera](camera.md),
   [Backgrounds](backgrounds.md), [Tiles](tiles.md), [Lights](lights.md),
   [Text](text.md), [UI](ui.md), [Animation](animation.md),
   [Physics](physics.md), [Pathfinding](pathfinding.md),

@@ -113,6 +113,13 @@ jobs:
         env:
           CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
 
+      # The sprite editor in the built editor: finding it, and strokes while
+      # it saves by itself.
+      - name: Sprite editor test
+        run: node tools/editor-tests/paint.mjs
+        env:
+          CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

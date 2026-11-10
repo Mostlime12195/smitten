@@ -323,6 +323,10 @@ Tests:
   and saves a sound, and checks the WAV file. Then it uses the recording
   in a song. It also checks the messages for a blocked microphone and for
   a page that is not secure.
+- `node tools/editor-tests/paint.mjs`: the sprite editor in the built
+  editor, in a headless Chrome. It finds the **Sprites** workspace and
+  **New** > **Sprite**. It draws two strokes while the editor saves, and
+  checks that the saved PNG has all of each stroke.
 - `tools/scene-tests/`: scenes that run in the engine.
   - `smoke`: pieces, bodies and zones, scripts and all of the script API.
     The script API includes input, tiles, camera, sprites, particles,
@@ -399,9 +403,9 @@ The editor is `dist/index.html`. It keeps all files in the browser
 (IndexedDB). It does not upload anything, until you share or publish.
 
 - **Workspaces** across the top (Alt+1 to 5): **Scene**, **Script**,
-  **Paint** (images and sprite sheets), **Sound** (sound effects and
+  **Sprites** (the sprite editor: images and sprite sheets), **Sound** (sound effects and
   recordings) and **Music** (songs). Each workspace has its own tabs, and it opens ready
-  to use. For example, Paint starts on a new image, and Sound starts on
+  to use. For example, Sprites starts on a new sprite, and Sound starts on
   a new sound effect. New work becomes a file the first time that you change it.
 - **Panels**: the Scene panel (the pieces), the Files panel, the Inspector
   and Output.
