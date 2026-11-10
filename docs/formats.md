@@ -66,6 +66,38 @@ bottom. `image` is relative to the `.sprite` file. If the `image` of a
 ready-made player scripts play `idle`, `run` or `walk`, `jump` and `fall`,
 if the file has them (`sprite:hasAnimation(name)`).
 
+### Layers
+
+A sprite that has layers in the sprite editor has one more field,
+`layers`. It is optional.
+
+```json
+{
+  "format": "smitten.sprite",
+  "version": 1,
+  "image": "hero.png",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "layers": [
+    { "name": "Body", "image": "data:image/png;base64,iVBORw0KGgo..." },
+    { "name": "Shade", "opacity": 0.5, "image": "data:image/png;base64,iVBORw0KGgo..." },
+    { "name": "Sketch", "hidden": true, "image": "data:image/png;base64,iVBORw0KGgo..." }
+  ]
+}
+```
+
+- The bottom layer is first.
+- `image` of a layer is a PNG in a `data:` URL. It has the same size and
+  the same grid of frames as the `image` of the sprite.
+- `opacity` (0 to 1) and `hidden` are optional. The defaults are 1 and
+  `false`.
+
+The engine does not read `layers`. It draws the `image` of the sprite, which
+the editor saves as the layers flattened (the layers that show, at their
+opacity). Because of this, a sprite with layers works in all versions of
+Smitten. The editor writes `layers` only when a sprite has more than one
+layer, one hidden layer, or one layer that is not fully opaque.
+
 ## Tilesets
 
 ```json

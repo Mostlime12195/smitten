@@ -61,6 +61,22 @@
   }
 }</code></pre>
 <p>Frame numbers start at 0, and go from left to right and from top to bottom. <code>image</code> is relative to the <code>.sprite</code> file. If the <code>image</code> of a <code>Sprite</code> is a <code>.sprite</code> file, the Sprite plays its animations. The ready-made player scripts play <code>idle</code>, <code>run</code> or <code>walk</code>, <code>jump</code> and <code>fall</code>, if the file has them (<code>sprite:hasAnimation(name)</code>).</p>
+<h3 id="layers"><a class="anchor" href="#layers" aria-hidden="true">#</a>Layers</h3>
+<p>A sprite that has layers in the sprite editor has one more field, <code>layers</code>. It is optional.</p>
+<pre><code class="lang-json">{
+  &quot;format&quot;: &quot;smitten.sprite&quot;,
+  &quot;version&quot;: 1,
+  &quot;image&quot;: &quot;hero.png&quot;,
+  &quot;frameWidth&quot;: 32,
+  &quot;frameHeight&quot;: 32,
+  &quot;layers&quot;: [
+    { &quot;name&quot;: &quot;Body&quot;, &quot;image&quot;: &quot;data:image/png;base64,iVBORw0KGgo...&quot; },
+    { &quot;name&quot;: &quot;Shade&quot;, &quot;opacity&quot;: 0.5, &quot;image&quot;: &quot;data:image/png;base64,iVBORw0KGgo...&quot; },
+    { &quot;name&quot;: &quot;Sketch&quot;, &quot;hidden&quot;: true, &quot;image&quot;: &quot;data:image/png;base64,iVBORw0KGgo...&quot; }
+  ]
+}</code></pre>
+<ul><li>The bottom layer is first.</li><li><code>image</code> of a layer is a PNG in a <code>data:</code> URL. It has the same size and the same grid of frames as the <code>image</code> of the sprite.</li><li><code>opacity</code> (0 to 1) and <code>hidden</code> are optional. The defaults are 1 and <code>false</code>.</li></ul>
+<p>The engine does not read <code>layers</code>. It draws the <code>image</code> of the sprite, which the editor saves as the layers flattened (the layers that show, at their opacity). Because of this, a sprite with layers works in all versions of Smitten. The editor writes <code>layers</code> only when a sprite has more than one layer, one hidden layer, or one layer that is not fully opaque.</p>
 <h2 id="tilesets"><a class="anchor" href="#tilesets" aria-hidden="true">#</a>Tilesets</h2>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.tileset&quot;,

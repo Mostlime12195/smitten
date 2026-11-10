@@ -317,6 +317,14 @@ Tests:
   `node tools/scene-tests/make-anim-fixture.mjs` writes these cases.
 - `node web/editor/tools/sprite/draw.test.mjs`: the drawing helpers of the
   sprite editor (flood fill and pixel lines).
+- `node web/editor/tools/sprite/sprite.test.mjs`: the parts of the sprite
+  editor without a browser. It tests layers and how they flatten (opacity,
+  hidden layers), mirror drawing and the selection (lift, move, paste,
+  turn). It also tests palettes, the nearest palette color, and how the
+  editor cuts a sprite sheet.
+  It also tests that `.sprite` files stay the same when the editor reads
+  and saves them, and that the editor keeps the layers. Give it folders of real
+  projects to test their sprites too.
 - `node web/editor/tools/wav/wav.test.mjs`: WAV files and the changes
   that the sound file editor makes (trim, volume, normalize, speed), and
   sample instruments in the song model.
@@ -346,6 +354,11 @@ Tests:
   - `rigid`: physics Bodies and tag filtering.
   - `physics`: scene physics.
   - `lights`: Lights, Occluders and the Tint. It reads pixels back.
+  - `sprites`: sprites that the sprite editor made
+    (`make-sprites-fixture.mjs` writes them with the code of the editor).
+    It reads pixels back. A sprite with layers draws as the layers
+    flattened, and a walk cycle cut from a sprite sheet has the right frames
+    and plays.
   - `paths`: `smitten.paths` in the engine.
   - `levels`: terrains, animated tiles and Backgrounds. It reads tiles and
     pixels back.
