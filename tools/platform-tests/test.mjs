@@ -2716,6 +2716,507 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  section('Leaderboards');
+  {
+    const owner = await person({ displayName: 'Board Owner' });
+    const other = await person();
+    const game = (await publish({ title: `Boards ${tag}` }, tinyGame(), null, { token: owner.token })).data;
+    const boardsUrl = `/api/games/${game.id}/boards`;
+    /** Sends a score as the game's page does (same origin); who: {session} or {ip}. */
+    const submit = (key, value, who = {}, name) => call('POST', `${boardsUrl}/${key}/scores`, { body: { value, name }, site: true, ...who });
+    const top = async (key, query = '', who = {}) => (await call('GET', `${boardsUrl}/${key}${query}`, who)).data;
+    const makeBoard = async (body) => {
+      const r = await call('POST', boardsUrl, { body, token: owner.token });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      return r.data.board;
+    };
+
+    await test('a game has no leaderboards until its owner makes one', async () => {
+      assert.deepEqual((await call('GET', `/api/games/${game.id}`)).data.game.boards, []);
+      const list = await call('GET', boardsUrl);
+      assert.equal(list.status, 200);
+      assert.deepEqual(list.data.boards, []);
+      assert.equal(list.data.limit, 10);
+      const r = await submit('best', 10);
+      assert.equal(r.status, 404);
+      assert.equal(r.data.code, 'no-board');
+      assert.equal((await call('GET', `${boardsUrl}/best`)).status, 404);
+      const config = (await call('GET', '/api/config')).data;
+      assert.deepEqual(config.boards, { perGame: 10, maxScores: 1000 });
+    });
+    await test('the owner makes a board, with an editor token or on the site', async () => {
+      const board = await makeBoard({ key: 'best', title: ' High  scores ' });
+      assert.deepEqual(board, { key: 'best', title: 'High scores', order: 'high', keep: 'best', format: 'number', unit: '', min: null, max: null, scores: 0 });
+      const r = await call('POST', boardsUrl, { body: { key: 'time', title: 'Fastest', order: 'low', format: 'time', min: 0, max: 3600 }, session: owner.session });
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      assert.equal(r.data.board.order, 'low');
+      assert.equal(r.data.board.max, 3600);
+      assert.deepEqual((await call('GET', `/api/games/${game.id}`)).data.game.boards.map((b) => b.key), ['best', 'time']);
+      assert.deepEqual((await call('GET', boardsUrl)).data.boards.map((b) => [b.key, b.scores]), [['best', 0], ['time', 0]]);
+    });
+    await test('only the owner (or a moderator) can make boards; CSRF applies to the cookie', async () => {
+      assert.equal((await call('POST', boardsUrl, { body: { key: 'x', title: 'X' } })).status, 401);
+      assert.equal((await call('POST', boardsUrl, { body: { key: 'x', title: 'X' }, token: other.token })).status, 403);
+      assert.equal((await call('POST', boardsUrl, { body: { key: 'x', title: 'X' }, session: other.session })).status, 403);
+      const forged = await call('POST', boardsUrl, { body: { key: 'x', title: 'X' }, session: owner.session, headers: { Origin: 'https://evil.example' } });
+      assert.equal(forged.status, 403);
+      if (ADMIN) {
+        const r = await call('POST', boardsUrl, { body: { key: 'mod', title: 'Made by a moderator' }, token: ADMIN });
+        assert.equal(r.status, 201);
+        assert.equal((await call('DELETE', `${boardsUrl}/mod`, { token: ADMIN })).status, 200);
+        const log = (await call('GET', '/api/admin/log', { token: ADMIN })).data;
+        assert.ok(JSON.stringify(log).includes('board-create'));
+      }
+      assert.equal((await call('GET', boardsUrl)).data.boards.length, 2);
+    });
+    await test('board keys, titles and settings are checked', async () => {
+      const bad = async (body, field) => {
+        const r = await call('POST', boardsUrl, { body: { key: 'ok', title: 'Fine', ...body }, token: owner.token });
+        assert.equal(r.status, 422, JSON.stringify(body));
+        assert.equal(r.data.field, field);
+      };
+      await bad({ key: 'Best' }, 'key');
+      await bad({ key: '' }, 'key');
+      await bad({ key: 'a'.repeat(25) }, 'key');
+      await bad({ key: '../x' }, 'key');
+      await bad({ title: '' }, 'title');
+      await bad({ title: 'x'.repeat(41) }, 'title');
+      await bad({ title: 'Sh1t scores' }, 'title');
+      await bad({ unit: 'f.u.c.k' }, 'unit');
+      await bad({ unit: 'x'.repeat(13) }, 'unit');
+      await bad({ order: 'sideways' }, 'order');
+      await bad({ keep: 'some' }, 'keep');
+      await bad({ format: 'html' }, 'format');
+      await bad({ min: 'zero' }, 'min');
+      await bad({ max: 1e300 }, 'max');
+      await bad({ min: 10, max: 5 }, 'min');
+      const dup = await call('POST', boardsUrl, { body: { key: 'best', title: 'Again' }, token: owner.token });
+      assert.equal(dup.status, 409);
+      assert.equal(dup.data.field, 'key');
+    });
+
+    const ada = await signUp({ displayName: 'Ada L' });
+    const guestIp = freshIp();
+    await test('a guest\'s score goes up under the name the game gives', async () => {
+      const r = await submit('best', 120, { ip: guestIp }, '  Zed  ');
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      assert.deepEqual(r.data, { ok: true, value: 120, rank: 1, improved: true, kept: true });
+      const board = await top('best');
+      assert.equal(board.board.title, 'High scores');
+      assert.equal(board.scores.length, 1);
+      const [row] = board.scores;
+      assert.equal(row.rank, 1);
+      assert.equal(row.name, 'Zed');
+      assert.equal(row.value, 120);
+      assert.equal(row.guest, true);
+      assert.ok(Math.abs(row.at - Date.now()) < 60_000);
+      assert.equal(row.me, undefined);
+      assert.equal(board.you, null);
+      // The same guest, asking with their name from their address, is "me".
+      const mine = await top('best', '?name=zed', { ip: guestIp });
+      assert.equal(mine.scores[0].me, true);
+      assert.deepEqual(mine.you, { rank: 1, value: 120 });
+      assert.equal((await top('best', '?name=zed')).scores[0].me, undefined);
+      // No name is "Guest".
+      const anon = await submit('best', 5);
+      assert.equal(anon.status, 201);
+      assert.equal((await top('best')).scores[1].name, 'Guest');
+    });
+    await test('signed in, the score is the account\'s, under its display name', async () => {
+      const r = await submit('best', 300, { session: ada.session }, 'Ignored');
+      assert.equal(r.status, 201, JSON.stringify(r.data));
+      assert.equal(r.data.rank, 1);
+      const board = await top('best', '', { session: ada.session });
+      assert.deepEqual(board.scores.map((s) => [s.rank, s.name, s.value]), [[1, 'Ada L', 300], [2, 'Zed', 120], [3, 'Guest', 5]]);
+      assert.equal(board.scores[0].username, ada.username);
+      assert.equal(board.scores[0].guest, undefined);
+      assert.equal(board.scores[0].me, true);
+      assert.deepEqual(board.you, { rank: 1, value: 300 });
+      // A new display name shows on old scores.
+      await call('PATCH', '/api/account', { body: { displayName: 'Ada Lovelace' }, session: ada.session });
+      assert.equal((await top('best')).scores[0].name, 'Ada Lovelace');
+    });
+    await test('scores only come from the site\'s own pages, as JSON', async () => {
+      const noOrigin = await call('POST', `${boardsUrl}/best/scores`, { body: { value: 1 } });
+      assert.equal(noOrigin.status, 403);
+      const elsewhere = await call('POST', `${boardsUrl}/best/scores`, { body: { value: 1 }, headers: { Origin: 'https://evil.example' }, session: ada.session });
+      assert.equal(elsewhere.status, 403);
+      const editor = await call('POST', `${boardsUrl}/best/scores`, { body: { value: 1 }, headers: { Origin: EDITOR_ORIGIN } });
+      assert.equal(editor.status, 403);
+      const text = await call('POST', `${boardsUrl}/best/scores`, { body: '{"value":1}', headers: { 'Content-Type': 'text/plain', Origin: BASE } });
+      assert.equal(text.status, 415);
+      assert.equal((await top('best')).scores.length, 3);
+    });
+    await test('a "best" board keeps one score per player: their best', async () => {
+      const worse = await submit('best', 200, { session: ada.session });
+      assert.equal(worse.status, 201);
+      assert.deepEqual(worse.data, { ok: true, value: 300, rank: 1, improved: false, kept: true });
+      const same = await submit('best', 300, { session: ada.session });
+      assert.equal(same.data.improved, false);
+      const better = await submit('best', 450.5, { session: ada.session });
+      assert.deepEqual(better.data, { ok: true, value: 450.5, rank: 1, improved: true, kept: true });
+      const zed = await submit('best', 100, { ip: guestIp }, 'ZED');
+      assert.equal(zed.data.improved, false);
+      assert.equal(zed.data.value, 120);
+      const board = await top('best');
+      assert.deepEqual(board.scores.map((s) => [s.name, s.value]), [['Ada Lovelace', 450.5], ['Zed', 120], ['Guest', 5]]);
+      // Another name at the same address, or the same name elsewhere, is someone else.
+      await submit('best', 50, { ip: guestIp }, 'Yan');
+      await submit('best', 60, {}, 'Zed');
+      assert.equal((await top('best')).scores.length, 5);
+    });
+    await test('scores must be numbers, within reason and the board\'s range, kept to two decimals', async () => {
+      const bad = async (key, value, code) => {
+        const r = await call('POST', `${boardsUrl}/${key}/scores`, { body: JSON.stringify({ value }).replace('"HUGE"', '1e999'), headers: { 'Content-Type': 'application/json' }, site: true });
+        assert.equal(r.status, 422, `${JSON.stringify(value)}: ${JSON.stringify(r.data)}`);
+        assert.equal(r.data.code, code);
+      };
+      await bad('best', null, 'bad-value');       // what NaN and Infinity become in JSON
+      await bad('best', 'HUGE', 'bad-value');     // 1e999 parses as Infinity
+      await bad('best', '120', 'bad-value');
+      await bad('best', [1], 'bad-value');
+      await bad('best', { n: 1 }, 'bad-value');
+      await bad('best', true, 'bad-value');
+      await bad('best', 1e13, 'bad-value');
+      await bad('best', -1e13, 'bad-value');
+      await bad('best', undefined, 'bad-value');
+      await bad('time', -0.5, 'out-of-range');
+      await bad('time', 3600.01, 'out-of-range');
+      assert.equal((await submit('time', 3600, {}, 'Slow')).status, 201);
+      const r = await submit('time', 12.3456, {}, 'Round');
+      assert.equal(r.data.value, 12.35);
+      assert.equal((await submit('time', 0, {}, 'Zero')).data.value, 0);
+      assert.equal((await top('best')).scores.length, 5);
+    });
+    await test('a "low" board ranks the smallest first, and equal scores share a rank', async () => {
+      await submit('time', 12.35, {}, 'Tie');
+      await submit('time', 40, {}, 'Mid');
+      const board = await top('time');
+      assert.deepEqual(board.scores.map((s) => [s.rank, s.name, s.value]),
+        [[1, 'Zero', 0], [2, 'Round', 12.35], [2, 'Tie', 12.35], [4, 'Mid', 40], [5, 'Slow', 3600]]);
+      // A slower time doesn't replace a faster one; a faster one does.
+      const ip = freshIp();
+      assert.equal((await submit('time', 50, { ip }, 'Bea')).data.rank, 5);
+      assert.equal((await submit('time', 70, { ip }, 'Bea')).data.improved, false);
+      const faster = await submit('time', 11, { ip }, 'Bea');
+      assert.deepEqual([faster.data.value, faster.data.rank, faster.data.improved], [11, 2, true]);
+    });
+    await test('guest names are short, plain and go through the word filter', async () => {
+      const bad = async (name) => {
+        const r = await submit('best', 1, {}, name);
+        assert.equal(r.status, 422, JSON.stringify(name));
+        assert.equal(r.data.code, 'bad-name');
+        assert.equal(r.data.field, 'name');
+      };
+      await bad('x'.repeat(13));
+      await bad('<b>bold</b>');
+      await bad('a@b.c');
+      await bad('---');
+      await bad('Sh1t');
+      await bad('f_u_c_k');
+      await bad(42);
+      await bad('y'.repeat(5000).slice(0, 400));
+      const ok = await submit('best', 1, {}, 'Zoë_the-2nd');
+      assert.equal(ok.status, 201, JSON.stringify(ok.data));
+      const invisible = await submit('best', 2, {}, 'Ze\u200bro\u0007');
+      assert.equal(invisible.status, 201);
+      const names = (await top('best', '?limit=50')).scores.map((s) => s.name);
+      assert.ok(names.includes('Zoë_the-2nd') && names.includes('Zero'));
+    });
+    await test('a score request is tiny: bigger bodies are refused', async () => {
+      const big = await call('POST', `${boardsUrl}/best/scores`, { body: { value: 1, name: 'Pad', padding: 'x'.repeat(2000) }, site: true });
+      assert.equal(big.status, 413);
+      const huge = await call('POST', `${boardsUrl}/best/scores`, { body: { value: 1, padding: 'x'.repeat(200_000) }, site: true }).catch(() => ({ status: 413 }));
+      assert.equal(huge.status, 413);
+      const notObject = await call('POST', `${boardsUrl}/best/scores`, { body: '[1]', headers: { 'Content-Type': 'application/json' }, site: true });
+      assert.equal(notObject.status, 400);
+      assert.equal((await call('GET', boardsUrl)).status, 200, 'the server is still fine');
+    });
+    await test('an "all" board keeps every score; changing it to "best" keeps each player\'s best', async () => {
+      await makeBoard({ key: 'runs', title: 'Every run', keep: 'all', unit: 'points' });
+      const ip = freshIp();
+      for (const v of [10, 30, 20]) assert.equal((await submit('runs', v, { ip }, 'Ren')).status, 201);
+      const second = await submit('runs', 25, {}, 'Sol');
+      assert.deepEqual([second.data.value, second.data.rank], [25, 2]);
+      const board = await top('runs', '?name=Ren', { ip });
+      assert.deepEqual(board.scores.map((s) => [s.rank, s.name, s.value, Boolean(s.me)]),
+        [[1, 'Ren', 30, true], [2, 'Sol', 25, false], [3, 'Ren', 20, true], [4, 'Ren', 10, true]]);
+      assert.deepEqual(board.you, { rank: 1, value: 30 });
+      assert.equal(board.board.unit, 'points');
+      const r = await call('PATCH', `${boardsUrl}/runs`, { body: { keep: 'best' }, token: owner.token });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.board.scores, 2);
+      assert.deepEqual((await top('runs')).scores.map((s) => [s.name, s.value]), [['Ren', 30], ['Sol', 25]]);
+    });
+    await test('the top is 10 by default, 100 at most, and "around" centres on the asker', async () => {
+      await makeBoard({ key: 'many', title: 'Many' });
+      const meIp = freshIp();
+      for (let i = 1; i <= 30; i++) await submit('many', i * 10, i === 12 ? { ip: meIp } : {}, i === 12 ? 'Me' : `P${i}`);
+      assert.equal((await top('many')).scores.length, 10);
+      assert.equal((await top('many', '?limit=1000')).scores.length, 30);
+      assert.equal((await top('many', '?limit=0')).scores.length, 10);
+      assert.equal((await top('many', '?limit=3')).scores.length, 3);
+      const around = await top('many', '?around=1&limit=5&name=Me', { ip: meIp });
+      assert.deepEqual(around.scores.map((s) => s.rank), [17, 18, 19, 20, 21]);
+      assert.equal(around.scores[2].me, true);
+      assert.deepEqual(around.you, { rank: 19, value: 120 });
+      // Someone without a score gets the top.
+      assert.deepEqual((await top('many', '?around=1&limit=3')).scores.map((s) => s.rank), [1, 2, 3]);
+    });
+    await test('the owner renames a board and changes its settings; the key and a board with scores keep their order', async () => {
+      const r = await call('PATCH', `${boardsUrl}/best`, { body: { title: 'Top scores', unit: 'pts', max: 100000 }, session: owner.session });
+      assert.equal(r.status, 200, JSON.stringify(r.data));
+      assert.equal(r.data.board.title, 'Top scores');
+      assert.equal(r.data.board.unit, 'pts');
+      assert.equal(r.data.board.max, 100000);
+      assert.equal(r.data.board.order, 'high');
+      assert.ok(r.data.board.scores >= 5);
+      assert.equal((await call('PATCH', `${boardsUrl}/best`, { body: { title: '' }, token: owner.token })).status, 422);
+      const flip = await call('PATCH', `${boardsUrl}/best`, { body: { order: 'low' }, token: owner.token });
+      assert.equal(flip.status, 409);
+      assert.equal(flip.data.code, 'not-empty');
+      assert.equal((await call('PATCH', `${boardsUrl}/nope`, { body: { title: 'x' }, token: owner.token })).status, 404);
+      // Clearing a bound.
+      const clear = await call('PATCH', `${boardsUrl}/best`, { body: { max: null }, token: owner.token });
+      assert.equal(clear.data.board.max, null);
+      assert.equal(clear.data.board.title, 'Top scores');
+    });
+    await test('someone else can\'t change, reset or delete a board or its scores', async () => {
+      const score = (await top('best')).scores[0];
+      for (const who of [{ token: other.token }, { session: other.session }, {}]) {
+        const expected = who.token || who.session ? 403 : 401;
+        assert.equal((await call('PATCH', `${boardsUrl}/best`, { body: { title: 'Mine now' }, ...who })).status, expected);
+        assert.equal((await call('POST', `${boardsUrl}/best/reset`, who)).status, expected);
+        assert.equal((await call('DELETE', `${boardsUrl}/best`, who)).status, expected);
+        assert.equal((await call('DELETE', `${boardsUrl}/best/scores/${score.id}`, who)).status, expected);
+      }
+      const board = await top('best');
+      assert.equal(board.board.title, 'Top scores');
+      assert.equal(board.scores[0].id, score.id);
+    });
+    await test('the owner (or a moderator) removes one score', async () => {
+      const before = (await top('best', '?limit=50')).scores;
+      const r = await call('DELETE', `${boardsUrl}/best/scores/${before[0].id}`, { session: owner.session });
+      assert.equal(r.status, 200);
+      assert.equal((await call('DELETE', `${boardsUrl}/best/scores/${before[0].id}`, { token: owner.token })).status, 404);
+      // A score id from another board isn't this board's.
+      const elsewhere = (await top('time')).scores[0];
+      assert.equal((await call('DELETE', `${boardsUrl}/best/scores/${elsewhere.id}`, { token: owner.token })).status, 404);
+      if (ADMIN) assert.equal((await call('DELETE', `${boardsUrl}/best/scores/${before[1].id}`, { token: ADMIN })).status, 200);
+      const after = (await top('best', '?limit=50')).scores;
+      assert.equal(after.length, before.length - (ADMIN ? 2 : 1));
+      assert.ok(!after.some((s) => s.id === before[0].id));
+    });
+    await test('resetting a board removes its scores; then its order can change', async () => {
+      const r = await call('POST', `${boardsUrl}/best/reset`, { session: owner.session });
+      assert.equal(r.status, 200);
+      assert.ok(r.data.removed >= 3);
+      assert.deepEqual((await top('best')).scores, []);
+      const flip = await call('PATCH', `${boardsUrl}/best`, { body: { order: 'low' }, token: owner.token });
+      assert.equal(flip.status, 200);
+      assert.equal(flip.data.board.order, 'low');
+      await call('PATCH', `${boardsUrl}/best`, { body: { order: 'high' }, token: owner.token });
+      assert.ok((await top('time')).scores.length > 0, 'other boards are untouched');
+    });
+    await test('a game can have 10 boards at most', async () => {
+      const capped = (await publish({ title: `Board cap ${tag}` }, tinyGame(), null, { token: owner.token })).data;
+      for (let i = 0; i < 10; i++) {
+        const r = await call('POST', `/api/games/${capped.id}/boards`, { body: { key: `b${i}`, title: `Board ${i}` }, token: owner.token });
+        assert.equal(r.status, 201);
+      }
+      const r = await call('POST', `/api/games/${capped.id}/boards`, { body: { key: 'b10', title: 'One too many' }, token: owner.token });
+      assert.equal(r.status, 409);
+      assert.equal(r.data.code, 'too-many-boards');
+      assert.equal((await call('DELETE', `/api/games/${capped.id}/boards/b0`, { token: owner.token })).status, 200);
+      assert.equal((await call('POST', `/api/games/${capped.id}/boards`, { body: { key: 'b10', title: 'Fits now' }, token: owner.token })).status, 201);
+    });
+    if (external) skip('a board keeps its best 1000 scores', 'needs the database');
+    else {
+      await test('a board keeps its best 1000 scores', async () => {
+        await makeBoard({ key: 'full', title: 'Full', keep: 'all' });
+        const boardId = db.prepare('SELECT id FROM boards WHERE game_id = ? AND key = ?').get(game.id, 'full').id;
+        const insert = db.prepare("INSERT INTO scores (board_id, player, name, value, created_at) VALUES (?, ?, 'Filler', ?, ?)");
+        db.exec('BEGIN');
+        for (let i = 0; i < 1000; i++) insert.run(boardId, `g:filler${i}`, 1000 + i, Date.now());
+        db.exec('COMMIT');
+        const count = () => db.prepare('SELECT COUNT(*) AS n FROM scores WHERE board_id = ?').get(boardId).n;
+        const low = await submit('full', 5, {}, 'Low');
+        assert.equal(low.status, 201);
+        assert.deepEqual(low.data, { ok: true, value: 5, rank: null, improved: false, kept: false });
+        assert.equal(count(), 1000);
+        const high = await submit('full', 5000, {}, 'High');
+        assert.deepEqual([high.data.rank, high.data.kept], [1, true]);
+        assert.equal(count(), 1000);
+        assert.equal(db.prepare('SELECT MIN(value) AS v FROM scores WHERE board_id = ?').get(boardId).v, 1001);
+      });
+      await test('scores are stored without addresses', async () => {
+        const rows = db.prepare('SELECT player, name FROM scores').all();
+        assert.ok(rows.length > 10);
+        for (const r of rows) assert.match(r.player, /^(u:\d+|g:[0-9a-z]+)$/);
+        assert.ok(!JSON.stringify(rows).includes(guestIp));
+      });
+    }
+    await test('sending scores is limited per address and per account (429)', async () => {
+      const ip = freshIp();
+      let last;
+      for (let i = 0; i < 301; i++) last = await submit('many', 1, { ip }, 'Spam');
+      assert.equal(last.status, 429);
+      assert.ok(Number(last.headers.get('retry-after')) > 0);
+      // Someone else still can; and reading isn't limited.
+      assert.equal((await submit('many', 1, {}, 'Calm')).status, 201);
+      assert.equal((await call('GET', `${boardsUrl}/many`, { ip })).status, 200);
+      // An account moving between addresses has its own limit.
+      const busy = await signUp();
+      for (let i = 0; i < 121; i++) last = await submit('many', 2, { session: busy.session });
+      assert.equal(last.status, 429);
+      assert.equal((await submit('many', 2, { session: ada.session })).status, 201);
+    });
+    if (ADMIN) {
+      await test('a banned network can\'t send scores', async () => {
+        const network = '198.51.100.77';
+        await call('POST', '/api/admin/addresses/ban', { body: { ip: network, reason: 'test' }, token: ADMIN });
+        const r = await submit('many', 99999, { ip: network }, 'Banned');
+        assert.equal(r.status, 403);
+        assert.equal(r.data.code, 'address-banned');
+        await call('POST', '/api/admin/addresses/unban', { body: { ip: network }, token: ADMIN });
+        assert.equal((await submit('many', 3, { ip: network }, 'Back')).status, 201);
+      });
+      await test('a hidden game\'s boards are hidden too, and take no scores', async () => {
+        await call('POST', `/api/admin/games/${game.id}/hide`, { token: ADMIN });
+        const list = await call('GET', boardsUrl);
+        assert.equal(list.status, 404);
+        assert.equal(list.data.hidden, true);
+        assert.equal((await call('GET', `${boardsUrl}/many`)).status, 404);
+        assert.equal((await submit('many', 5, {}, 'Sneaky')).status, 404);
+        // Its owner still sees and manages them, but scores wait for the game to be back.
+        assert.equal((await call('GET', boardsUrl, { session: owner.session })).status, 200);
+        const own = await submit('many', 5, { session: owner.session });
+        assert.equal(own.status, 404);
+        assert.equal(own.data.code, 'hidden');
+        assert.equal((await call('PATCH', `${boardsUrl}/many`, { body: { title: 'Many scores' }, token: owner.token })).status, 200);
+        await call('POST', `/api/admin/games/${game.id}/restore`, { token: ADMIN });
+        assert.equal((await call('GET', `${boardsUrl}/many`)).data.board.title, 'Many scores');
+      });
+      await test('a banned account\'s scores disappear from boards, and come back with it', async () => {
+        const cheat = await signUp({ displayName: 'Cheater' });
+        assert.equal((await submit('many', 99999, { session: cheat.session })).data.rank, 1);
+        assert.equal((await top('many')).scores[0].name, 'Cheater');
+        await call('POST', `/api/admin/users/${cheat.username}/ban`, { body: { reason: 'test' }, token: ADMIN });
+        const board = await top('many');
+        assert.notEqual(board.scores[0].name, 'Cheater');
+        assert.equal(board.scores[0].rank, 1);
+        // Signed out by the ban, they'd be a guest like anyone else.
+        const asGuest = await submit('many', 4, { session: cheat.session }, 'Cheater');
+        assert.equal(asGuest.status, 201);
+        assert.notEqual(asGuest.data.rank, 1);
+        await call('POST', `/api/admin/users/${cheat.username}/unban`, { token: ADMIN });
+        assert.equal((await top('many')).scores[0].name, 'Cheater');
+      });
+    }
+    await test('the game\'s page has a place for its boards, with no inline script or style', async () => {
+      const html = new TextDecoder().decode((await call('GET', `/play/${game.id}`)).data);
+      assert.match(html, /<section class="boards" id="boards" hidden>/);
+      assert.ok(!/<script(?![^>]*\bsrc=)/.test(html) && !/\sstyle=/.test(html));
+      const js = new TextDecoder().decode((await call('GET', '/play.js')).data);
+      assert.match(js, /\/boards\//);
+      assert.ok(!js.includes('innerHTML'));
+      const account = new TextDecoder().decode((await call('GET', '/account-page.js')).data);
+      assert.match(account, /Leaderboards/);
+    });
+    await test('deleting a board takes its scores; deleting an account takes its scores elsewhere', async () => {
+      const leaver = await signUp({ displayName: 'Leaver' });
+      await submit('many', 77777, { session: leaver.session });
+      assert.ok((await top('many', '?limit=100')).scores.some((s) => s.name === 'Leaver'));
+      const leaverId = external ? null : db.prepare('SELECT id FROM users WHERE username = ?').get(leaver.username).id;
+      if (!external) assert.equal(db.prepare('SELECT COUNT(*) AS n FROM scores WHERE user_id = ?').get(leaverId).n, 1);
+      const r = await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: leaver.session });
+      assert.equal(r.status, 200);
+      assert.ok(!(await top('many', '?limit=100')).scores.some((s) => s.name === 'Leaver'));
+      if (!external) assert.equal(db.prepare('SELECT COUNT(*) AS n FROM scores WHERE user_id = ?').get(leaverId).n, 0);
+
+      assert.equal((await call('DELETE', `${boardsUrl}/time`, { session: owner.session })).status, 200);
+      assert.equal((await call('GET', `${boardsUrl}/time`)).status, 404);
+      assert.equal((await call('DELETE', `${boardsUrl}/time`, { token: owner.token })).status, 404);
+      assert.ok(!(await call('GET', boardsUrl)).data.boards.some((b) => b.key === 'time'));
+      if (!external) {
+        assert.equal(db.prepare('SELECT COUNT(*) AS n FROM scores WHERE board_id NOT IN (SELECT id FROM boards)').get().n, 0);
+      }
+    });
+    await test('deleting a game (or its owner\'s account) takes its boards and scores', async () => {
+      const temp = await person();
+      const one = (await publish({ title: `Boards go ${tag}` }, tinyGame(), null, { token: temp.token })).data;
+      const two = (await publish({ title: `Boards go too ${tag}` }, tinyGame(), null, { token: temp.token })).data;
+      for (const g of [one, two]) {
+        assert.equal((await call('POST', `/api/games/${g.id}/boards`, { body: { key: 'best', title: 'Best' }, token: temp.token })).status, 201);
+        assert.equal((await call('POST', `/api/games/${g.id}/boards/best/scores`, { body: { value: 7, name: 'Gone' }, site: true })).status, 201);
+        assert.equal((await call('POST', `/api/games/${g.id}/boards/best/scores`, { body: { value: 9 }, session: ada.session })).status, 201);
+      }
+      const left = (id) => [
+        db.prepare('SELECT COUNT(*) AS n FROM boards WHERE game_id = ?').get(id).n,
+        db.prepare('SELECT COUNT(*) AS n FROM scores WHERE board_id NOT IN (SELECT id FROM boards)').get().n,
+      ];
+      assert.equal((await call('DELETE', `/api/games/${one.id}`, { token: temp.token })).status, 200);
+      assert.equal((await call('GET', `/api/games/${one.id}/boards`)).status, 404);
+      assert.equal((await call('GET', `/api/games/${one.id}/boards/best`)).status, 404);
+      if (!external) assert.deepEqual(left(one.id), [0, 0]);
+      assert.equal((await call('DELETE', '/api/account', { body: { password: PASSWORD }, session: temp.session })).status, 200);
+      assert.equal((await call('GET', `/api/games/${two.id}/boards`)).status, 404);
+      if (!external) assert.deepEqual(left(two.id), [0, 0]);
+      // Ada's scores on other games are still there.
+      assert.ok((await top('many', '?limit=100')).scores.some((s) => s.username === ada.username));
+    });
+    if (external) skip('a database from before leaderboards gets them on start', 'starts its own server');
+    else {
+      await test('a database from before leaderboards gets them on start, keeping what it has', async () => {
+        const port = PORT + 1;
+        const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-old-'));
+        let child;
+        try {
+          // The schema as it was (migrations 1 to 4), with an account, a game and a play.
+          const old = new DatabaseSync(join(dir, 'smitten.db'));
+          for (const file of ['0001_schema.sql', '0002_address_bans.sql', '0003_hackatime.sql', '0004_email.sql']) {
+            old.exec(readFileSync(`${ROOT}platform/migrations/${file}`, 'utf8'));
+          }
+          old.exec('PRAGMA user_version = 4');
+          const now = Date.now();
+          old.prepare("INSERT INTO users (id, username, display_name, created_at, updated_at) VALUES (7, 'oldtimer', 'Old Timer', ?, ?)").run(now, now);
+          old.prepare("INSERT INTO games (id, owner_id, title, plays, created_at, updated_at) VALUES ('0ddba11000', 7, 'Old game', 41, ?, ?)").run(now, now);
+          old.prepare("INSERT INTO plays (game_id, viewer, day) VALUES ('0ddba11000', 'u:7', 1)").run();
+          old.close();
+          const token = 'old-admin-token';
+          child = await spawnServer(port, dir, { ADMIN_TOKEN: token });
+          const at = async (method, path, body, headers = {}) => {
+            const res = await fetch(`http://127.0.0.1:${port}${path}`, {
+              method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined,
+            });
+            return { status: res.status, data: await res.json() };
+          };
+          const g = await at('GET', '/api/games/0ddba11000');
+          assert.equal(g.status, 200);
+          assert.equal(g.data.game.title, 'Old game');
+          assert.equal(g.data.game.plays, 41);
+          assert.equal(g.data.game.owner.username, 'oldtimer');
+          assert.deepEqual(g.data.game.boards, []);
+          const made = await at('POST', '/api/games/0ddba11000/boards', { key: 'best', title: 'Best' }, { Authorization: `Bearer ${token}` });
+          assert.equal(made.status, 201, JSON.stringify(made.data));
+          const sent = await at('POST', '/api/games/0ddba11000/boards/best/scores', { value: 3, name: 'New' }, { Origin: `http://127.0.0.1:${port}` });
+          assert.equal(sent.status, 201, JSON.stringify(sent.data));
+          assert.equal((await at('GET', '/api/games/0ddba11000/boards/best')).data.scores[0].name, 'New');
+          child.kill();
+          await new Promise((r) => child.once('exit', r));
+          child = null;
+          const after = new DatabaseSync(join(dir, 'smitten.db'));
+          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 5);
+          assert.equal(after.prepare('SELECT COUNT(*) AS n FROM plays').get().n, 1);
+          after.close();
+        } finally {
+          child?.kill();
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+    }
+  }
+
   section('Deleting');
   await test('deleting a game needs its owner', async () => {
     assert.equal((await call('DELETE', `/api/games/${game.id}`)).status, 401);

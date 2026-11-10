@@ -418,6 +418,32 @@ a:hover { text-decoration: underline; }
 }
 .fineprint { margin: 18px 0 0; color: var(--fg-subtle); font-size: 13px; }
 
+/* A game's leaderboards, under its details. */
+.boards { width: var(--stage-w); margin: 28px auto 0; padding-top: 20px; border-top: 1px solid var(--border); }
+.boards-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+.boards h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.board-tabs { flex-wrap: wrap; }
+.board-tabs.single { background: transparent; padding: 0; }
+.board-tabs.single button, .board-tabs.single button[aria-selected="true"] { padding: 0; background: transparent; box-shadow: none; color: var(--fg-muted); cursor: default; }
+.scores { max-width: 560px; margin: 14px 0 12px; padding: 0; list-style: none; }
+.score { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 8px; border-radius: 7px; font-size: 15px; }
+.score + .score { border-top: 1px solid var(--border); border-top-left-radius: 0; border-top-right-radius: 0; }
+.score.me { background: var(--accent-soft); font-weight: 600; }
+.score.empty { color: var(--fg-subtle); }
+.score-rank { flex: 0 0 2.6em; color: var(--fg-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.score-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-name.guest { color: var(--fg-muted); }
+.score-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The account page's leaderboard manager, under a game. */
+.board-manager { padding: 4px 0 14px 14px; margin-left: 2px; border-left: 2px solid var(--border); }
+.board-manager .list-row { padding: 8px 0; }
+.board-manager .list-row:first-child { border-top: 0; }
+.board-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.board-form .input { flex: 1 1 140px; width: auto; min-width: 0; }
+.board-form select.input { flex: 0 1 150px; }
+.board-form .field-error { flex-basis: 100%; }
+
 .notice {
   display: flex;
   flex-direction: column;

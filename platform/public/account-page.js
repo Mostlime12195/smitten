@@ -44,6 +44,82 @@ function renderHead() {
     h('span', {}, `Joined ${timeAgo(user.createdAt)}`));
 }
 
+// ---------------------------------------------------------------------------
+// Leaderboards, per game: make, rename, reset and delete boards. Scripts
+// use a board by its key: smitten.boards.submit("best", score).
+
+async function loadBoards(game, panel) {
+  const url = `/api/games/${game.id}/boards`;
+  const act = async (fn) => {
+    try {
+      await fn();
+      await loadBoards(game, panel);
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+  let data;
+  try {
+    data = await api(url);
+  } catch (err) {
+    panel.replaceChildren(h('p', { class: 'field-error' }, err.message));
+    return;
+  }
+  const rows = data.boards.map((b) => {
+    const button = (label, fn) => {
+      const el = h('button', { type: 'button', class: 'btn ghost small' }, label);
+      el.addEventListener('click', fn);
+      return el;
+    };
+    const facts = [
+      `key "${b.key}"`,
+      b.order === 'low' ? 'lowest wins' : 'highest wins',
+      b.format === 'time' ? 'times' : null,
+      b.keep === 'all' ? 'every score kept' : null,
+      `${b.scores} score${b.scores === 1 ? '' : 's'}`,
+    ].filter(Boolean).join(' · ');
+    return h('div', { class: 'list-row' },
+      h('div', { class: 'grow' }, h('strong', {}, b.title), h('div', { class: 'fine' }, facts)),
+      button('Rename', () => {
+        const title = prompt('The leaderboard’s title:', b.title);
+        if (title && title.trim() && title !== b.title) act(() => send(`${url}/${b.key}`, { title }, 'PATCH'));
+      }),
+      button('Reset', () => {
+        if (confirm(`Remove all ${b.scores} scores from “${b.title}”? This can’t be undone.`)) act(() => send(`${url}/${b.key}/reset`));
+      }),
+      button('Delete', () => {
+        if (confirm(`Delete the leaderboard “${b.title}” and its scores? The game’s scripts using "${b.key}" get nothing back.`)) act(() => send(`${url}/${b.key}`, undefined, 'DELETE'));
+      }));
+  });
+
+  const form = h('form', { class: 'board-form' },
+    h('input', { class: 'input', name: 'title', placeholder: 'Title (High scores)', maxlength: '40', required: true, 'aria-label': 'Title' }),
+    h('input', { class: 'input', name: 'key', placeholder: 'key (best)', maxlength: '24', required: true, pattern: '[a-z0-9][a-z0-9_\\-]*', autocapitalize: 'none', spellcheck: 'false', 'aria-label': 'Key for scripts' }),
+    h('select', { class: 'input', name: 'kind', 'aria-label': 'What wins' },
+      h('option', { value: 'high' }, 'Highest score wins'),
+      h('option', { value: 'low' }, 'Lowest score wins'),
+      h('option', { value: 'time' }, 'Fastest time wins')),
+    h('button', { type: 'submit', class: 'btn small' }, 'Add leaderboard'),
+    h('p', { class: 'field-error', 'data-error-for': 'form', role: 'alert' }));
+  onSubmit(form, async () => {
+    const kind = form.elements.kind.value;
+    await send(url, {
+      title: form.elements.title.value,
+      key: form.elements.key.value.trim(),
+      order: kind === 'high' ? 'high' : 'low',
+      format: kind === 'time' ? 'time' : 'number',
+    });
+    await loadBoards(game, panel);
+  });
+
+  panel.replaceChildren(
+    ...rows,
+    data.boards.length >= data.limit ? h('p', { class: 'fine' }, `A game can have ${data.limit} leaderboards.`) : form,
+    h('p', { class: 'fine' },
+      'The game sends scores with smitten.boards.submit("key", score) and they show under the game. Scores come from players’ browsers, so they can be faked: remove one from the game’s page, or reset the board. ',
+      h('a', { href: '/docs/leaderboards' }, 'How leaderboards work')));
+}
+
 async function loadGames() {
   const list = $('#games');
   try {
@@ -64,13 +140,21 @@ async function loadGames() {
           toast(err.message);
         }
       });
-      return h('div', { class: 'list-row' },
+      const panel = h('div', { class: 'board-manager', hidden: true });
+      const boards = h('button', { type: 'button', class: 'btn ghost small', 'aria-expanded': 'false' }, 'Leaderboards');
+      boards.addEventListener('click', () => {
+        panel.hidden = !panel.hidden;
+        boards.setAttribute('aria-expanded', String(!panel.hidden));
+        if (!panel.hidden) loadBoards(g, panel);
+      });
+      return [h('div', { class: 'list-row' },
         h('div', { class: 'grow' },
           h('a', { href: `/play/${g.id}` }, g.title),
           h('div', { class: 'fine' }, `${plays(g.plays)} · ${g.version > 1 ? 'updated' : 'published'} ${timeAgo(g.updatedAt)}`)),
         g.status !== 'public' ? h('span', { class: 'badge warn', title: 'Hidden while a moderator reviews it' }, 'Hidden') : null,
-        remove);
-    }));
+        boards,
+        remove), panel];
+    }).flat());
   } catch (err) {
     list.replaceChildren(h('p', { class: 'field-error' }, err.message));
   }

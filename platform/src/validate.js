@@ -13,6 +13,12 @@ export const LIMITS = {
   description: 1000,
   note: 500,
   thumbnailSide: 4096,
+  boardKey: 24,
+  boardTitle: 40,
+  boardUnit: 12,
+  guestName: 12,
+  // No score is further from zero than this, whatever a board allows.
+  scoreValue: 1e12,
 };
 
 // The optional engine modules a game can ask the player to load
@@ -164,6 +170,75 @@ export function checkPassword(value, username, field = 'password') {
     throw invalid(field, 'That password is too easy to guess. Try a few words together, like a short sentence.');
   }
   return value;
+}
+
+// ---------------------------------------------------------------------------
+// Leaderboards (boards.js)
+
+export const BOARD_KEY_RULES = `1 to ${LIMITS.boardKey} characters: lower-case letters, numbers, - and _, starting with a letter or number.`;
+
+export function cleanBoardKey(value) {
+  if (typeof value !== 'string' || !new RegExp(`^[a-z0-9][a-z0-9_-]{0,${LIMITS.boardKey - 1}}$`).test(value)) {
+    throw invalid('key', `A leaderboard's key is ${BOARD_KEY_RULES}`);
+  }
+  return value;
+}
+
+export function cleanBoardTitle(value) {
+  if (typeof value !== 'string') throw invalid('title', 'Give the leaderboard a title.');
+  const title = value.normalize('NFC').replace(CONTROL, '').replace(/\s+/g, ' ').trim();
+  if (!title) throw invalid('title', 'Give the leaderboard a title.');
+  if ([...title].length > LIMITS.boardTitle) throw invalid('title', `The title is too long (${LIMITS.boardTitle} characters at most).`);
+  checkWords('title', title);
+  return title;
+}
+
+/** What follows a score: "points", "m", "coins". */
+export function cleanBoardUnit(value) {
+  if (value == null) return '';
+  if (typeof value !== 'string') throw invalid('unit', 'The unit must be text.');
+  const unit = value.normalize('NFC').replace(CONTROL, '').replace(/\s+/g, ' ').trim();
+  if ([...unit].length > LIMITS.boardUnit) throw invalid('unit', `The unit is too long (${LIMITS.boardUnit} characters at most).`);
+  checkWords('unit', unit);
+  return unit;
+}
+
+/** A bound on a board's scores: a number, or null for none. */
+export function cleanBound(field, value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > LIMITS.scoreValue) {
+    throw invalid(field, `${field} must be a number (or left out).`);
+  }
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * A score: a finite number, kept to two decimals. Text, NaN, Infinity and
+ * numbers too big to mean anything are refused.
+ */
+export function cleanScore(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > LIMITS.scoreValue) {
+    throw new HttpError(422, 'A score must be a number.', { field: 'value', code: 'bad-value' });
+  }
+  // + 0 so -0 is 0.
+  return Math.round(value * 100) / 100 + 0;
+}
+
+/**
+ * The name a game gives for someone who isn't signed in: 1 to 12 letters,
+ * numbers, spaces, - and _, through the word filter. Nothing given is "Guest".
+ */
+export function cleanGuestName(value) {
+  if (value == null || value === '') return 'Guest';
+  const bad = (message) => new HttpError(422, message, { field: 'name', code: 'bad-name' });
+  if (typeof value !== 'string' || value.length > 200) throw bad('The name must be short text.');
+  const name = value.normalize('NFC').replace(CONTROL, '').replace(/\s+/g, ' ').trim();
+  if (!name) return 'Guest';
+  if ([...name].length > LIMITS.guestName || !/^[\p{L}\p{N} _-]+$/u.test(name) || !/[\p{L}\p{N}]/u.test(name)) {
+    throw bad(`Names are 1 to ${LIMITS.guestName} letters, numbers, spaces, - and _.`);
+  }
+  if (findBlockedWord(name) || findBlockedWord(name.replace(/[_-]/g, ' '))) throw bad("That name has a word that isn't allowed on Smitten.");
+  return name;
 }
 
 // ---------------------------------------------------------------------------

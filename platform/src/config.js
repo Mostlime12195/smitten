@@ -62,6 +62,11 @@ export function loadConfig(env = null) {
     reportLimit: int(env.REPORT_LIMIT_PER_HOUR, 20),
     signupLimit: int(env.SIGNUP_LIMIT_PER_HOUR, 5),
     signinLimit: int(env.SIGNIN_LIMIT_PER_HOUR, 30),
+    // Leaderboards (src/boards.js).
+    boardsPerGame: Math.max(0, int(env.BOARDS_PER_GAME, 10)),
+    boardMaxScores: Math.max(10, int(env.BOARD_MAX_SCORES, 1000)),
+    scoreLimit: int(env.SCORE_LIMIT_PER_HOUR, 120),
+    scoreAddressLimit: int(env.SCORE_ADDRESS_LIMIT_PER_HOUR, 300),
     gameNetwork: env.GAME_NETWORK === 'https' ? 'https' : 'self',
 
     // "Sign in with Hack Club" (https://auth.hackclub.com/docs/oidc-guide).

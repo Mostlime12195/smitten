@@ -33,6 +33,7 @@ import {
   getConfig, listGames, publishGame, getGame, updateGame, deleteGame,
   getGameFile, getThumbnail, countPlay, reportGame, uploadLimit,
 } from './games.js';
+import { listBoards, getBoard, submitScore, createBoard, updateBoard, resetBoard, deleteBoard, deleteScore } from './boards.js';
 import {
   signUp, signIn, signOut, recover, me, updateAccount, changePassword, regenerateRecoveryCodes, deleteAccount,
   listSessions, revokeSession, revokeOtherSessions, myGames, claimGames, getProfile,
@@ -52,6 +53,7 @@ import { MODULES } from './validate.js';
 const ID = `(${ID_PATTERN})`;
 const NAME = '([^/]{1,60})';
 const SESSION = '([0-9a-z]{16})';
+const BOARD = '([a-z0-9][a-z0-9_-]{0,23})';
 
 // [method, path pattern, handler(ctx, ...params)]
 const API = [
@@ -65,6 +67,14 @@ const API = [
   ['GET', new RegExp(`^/api/games/${ID}/thumbnail\\.png$`), getThumbnail],
   ['POST', new RegExp(`^/api/games/${ID}/play$`), countPlay],
   ['POST', new RegExp(`^/api/games/${ID}/report$`), reportGame],
+  ['GET', new RegExp(`^/api/games/${ID}/boards$`), listBoards],
+  ['POST', new RegExp(`^/api/games/${ID}/boards$`), createBoard],
+  ['GET', new RegExp(`^/api/games/${ID}/boards/${BOARD}$`), getBoard],
+  ['PATCH', new RegExp(`^/api/games/${ID}/boards/${BOARD}$`), updateBoard],
+  ['DELETE', new RegExp(`^/api/games/${ID}/boards/${BOARD}$`), deleteBoard],
+  ['POST', new RegExp(`^/api/games/${ID}/boards/${BOARD}/reset$`), resetBoard],
+  ['POST', new RegExp(`^/api/games/${ID}/boards/${BOARD}/scores$`), submitScore],
+  ['DELETE', new RegExp(`^/api/games/${ID}/boards/${BOARD}/scores/(\\d{1,15})$`), deleteScore],
   ['GET', new RegExp(`^/api/users/${NAME}$`), getProfile],
 
   ['POST', /^\/api\/auth\/signup$/, signUp],
@@ -363,7 +373,8 @@ export function createApp(config) {
     const headers = new Headers();
     for (let i = 0; i < req.rawHeaders.length; i += 2) headers.append(req.rawHeaders[i], req.rawHeaders[i + 1]);
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS';
-    const isUpload = url.pathname.startsWith('/api/games') && (req.method === 'POST' || req.method === 'PUT');
+    // Publishing and updating a game; everything else is small JSON.
+    const isUpload = (req.method === 'POST' && url.pathname === '/api/games') || (req.method === 'PUT' && /^\/api\/games\/[^/]+$/.test(url.pathname));
     ctx.request = new Request(url, {
       method: req.method,
       headers,

@@ -38,19 +38,19 @@ export function errorResponse(e) {
   return json({ error: 'Something went wrong on our side. Please try again.' }, 500);
 }
 
-/** The request's JSON body (at most 16 KB), or a 4xx. */
-export async function readJson(request) {
+/** The request's JSON body (at most 16 KB, or max bytes), or a 4xx. */
+export async function readJson(request, max = 16 * 1024) {
   if (!/^application\/json/i.test(request.headers.get('Content-Type') || '')) {
     throw new HttpError(415, 'Send JSON (Content-Type: application/json).');
   }
-  if (Number(request.headers.get('Content-Length') || 0) > 16 * 1024) throw new HttpError(413, 'That request is too big.');
+  if (Number(request.headers.get('Content-Length') || 0) > max) throw new HttpError(413, 'That request is too big.');
   let text;
   try {
     text = await request.text();
   } catch {
     throw new HttpError(400, "The request couldn't be read.");
   }
-  if (text.length > 16 * 1024) throw new HttpError(413, 'That request is too big.');
+  if (text.length > max) throw new HttpError(413, 'That request is too big.');
   try {
     const body = JSON.parse(text);
     if (body && typeof body === 'object' && !Array.isArray(body)) return body;

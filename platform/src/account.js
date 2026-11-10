@@ -250,7 +250,11 @@ export async function deleteAccount(ctx) {
 export async function deleteUser(userId, config) {
   const user = db.get('SELECT id, hackatime_token FROM users WHERE id = ?', userId);
   for (const { id } of db.all('SELECT id FROM games WHERE owner_id = ?', userId)) await removeGame(id);
-  db.run('DELETE FROM users WHERE id = ?', userId);
+  db.tx(() => {
+    // Their scores on other people's leaderboards go with them.
+    db.run('DELETE FROM scores WHERE user_id = ?', userId);
+    db.run('DELETE FROM users WHERE id = ?', userId);
+  });
   if (config && user) await forgetUser(config, user);
 }
 

@@ -9,6 +9,7 @@ import { GAME_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFile
 import { inspectZip } from './zip.js';
 import { checkAddress, noteAddress } from './bans.js';
 import { gameHours, refreshGameHours } from './hackatime.js';
+import { boardsOf, removeBoards } from './boards.js';
 import {
   LIMITS, MODULES, REPORT_REASONS, USERNAME_RULES,
   cleanTitle, cleanDescription, cleanNote, cleanModules, cleanEngineVersion, inspectPng,
@@ -75,7 +76,7 @@ const isOwner = (ctx, row) => {
 };
 
 /** The row, if the game exists and this request may see it (hidden games: only the owner and admins). */
-function visibleRow(ctx, id) {
+export function visibleRow(ctx, id) {
   const row = getRow(id);
   if (!row) throw new HttpError(404, "This game doesn't exist, or it was deleted.");
   if (row.status !== 'public' && !isOwner(ctx, row) && !isAdmin(ctx)) {
@@ -85,7 +86,7 @@ function visibleRow(ctx, id) {
 }
 
 /** The row, if the signed-in user owns the game. */
-function ownedRow(ctx, id) {
+export function ownedRow(ctx, id) {
   const user = requireUser(ctx, { editor: true });
   const row = getRow(id);
   if (!row) throw new HttpError(404, "This game doesn't exist, or it was deleted.");
@@ -183,6 +184,7 @@ export function getConfig(ctx) {
     reportReasons: REPORT_REASONS,
     modules: MODULES,
     limits: limits(config),
+    boards: { perGame: config.boardsPerGame, maxScores: config.boardMaxScores },
     accounts: { hackclub: Boolean(config.hackclub), hackatime: Boolean(config.hackatime), email: Boolean(config.email), usernameRules: USERNAME_RULES },
   });
 }
@@ -249,6 +251,7 @@ export async function removeGame(id) {
     db.run('DELETE FROM games WHERE id = ?', id);
     db.run('DELETE FROM reports WHERE game_id = ?', id);
     db.run('DELETE FROM plays WHERE game_id = ?', id);
+    removeBoards(id);
   });
   await removeGameFiles(id);
 }
@@ -295,6 +298,8 @@ export function getGame(ctx, id) {
       : null;
   }
   game.remixes = db.get("SELECT COUNT(*) AS n FROM games WHERE remix_of = ? AND status = 'public'", id).n;
+  // Its leaderboards, if its owner made any (boards.js).
+  game.boards = boardsOf(id);
   if (row.status !== 'public') game.status = row.status;
   if (isOwner(ctx, row)) game.yours = true;
   return json({ game });

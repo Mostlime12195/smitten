@@ -1,6 +1,6 @@
 // A game's page: the game in Smitten's player, its details, Remix and Report.
 
-import { $, h, icon, plays, timeAgo, formatBytes, editorUrl, api, toast } from './site.js';
+import { $, h, icon, plays, timeAgo, formatBytes, editorUrl, api, send, toast } from './site.js';
 
 const MODULE_NAMES = {
   physics2d: 'physics',
@@ -29,6 +29,8 @@ function mountPlayer() {
   const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
   p.set('title', game.title);
+  // A game with leaderboards gets the bridge to them (below).
+  if (game.boards?.length) p.set('site', '1');
   const frame = h('iframe', {
     id: 'player',
     src: `/player/player.html?${p}`,
@@ -67,7 +69,12 @@ function showStartCard() {
 window.addEventListener('message', (e) => {
   const frame = $('#player');
   const msg = e.data;
-  if (!frame || e.source !== frame.contentWindow || msg?.source !== 'love-player' || msg.type !== 'display') return;
+  if (!frame || e.source !== frame.contentWindow || msg?.source !== 'love-player') return;
+  if (msg.type === 'site') {
+    if (e.origin === location.origin) fromGame(frame, msg.message);
+    return;
+  }
+  if (msg.type !== 'display') return;
   const w = Number(msg.width);
   const hgt = Number(msg.height);
   if (!(w > 0 && hgt > 0)) return;
@@ -128,6 +135,182 @@ function render() {
   ].filter(Boolean).join(' · ');
 
   if (reported().includes(game.id)) markReported();
+  renderBoards();
+}
+
+// ---------------------------------------------------------------------------
+// Leaderboards: the game's boards under it, and the bridge that lets the
+// game's scripts (smitten.boards) send and read scores.
+//
+// The game has no network access. Its player passes on small messages
+// ({type: 'request', id, call, key, ...}); this page, and only this page,
+// turns them into requests to this game's leaderboard endpoints and passes
+// the answer back. The game never chooses a URL and never sees a cookie, a
+// header or anything but the rows.
+
+const BOARD_KEY = /^[a-z0-9][a-z0-9_-]{0,23}$/;
+let shownBoard = null;
+// The name the game last sent a guest's score under, to mark "me" in lists.
+let guestName = null;
+let inFlight = 0;
+
+const two = (n) => String(n).padStart(2, '0');
+
+/** 83.5 on a "time" board → "1:23.50"; 1200 with unit "points" → "1,200 points". */
+function formatScore(board, value) {
+  if (board.format === 'time') {
+    const cs = Math.round(Math.abs(value) * 100);
+    return `${value < 0 ? '-' : ''}${Math.floor(cs / 6000)}:${two(Math.floor((cs % 6000) / 100))}.${two(cs % 100)}`;
+  }
+  const text = Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return board.unit ? `${text} ${board.unit}` : text;
+}
+
+const boardUrl = (key, query = '') => `/api/games/${game.id}/boards/${encodeURIComponent(key)}${query}`;
+
+function scoreRow(board, s) {
+  const name = s.username
+    ? h('a', { class: 'score-name', href: `/u/${s.username}` }, s.name)
+    : h('span', { class: 'score-name guest', title: 'Not signed in' }, s.name);
+  const row = h('li', { class: s.me ? 'score me' : 'score' },
+    h('span', { class: 'score-rank' }, `${s.rank}.`),
+    name,
+    h('span', { class: 'score-value' }, formatScore(board, s.value)));
+  if (game.yours) {
+    // The owner takes down a fake score or a rude name.
+    const remove = h('button', { type: 'button', class: 'btn ghost small', title: 'Remove this score' }, 'Remove');
+    remove.addEventListener('click', async () => {
+      if (!confirm(`Remove ${s.name}'s score from the leaderboard?`)) return;
+      try {
+        await send(`${boardUrl(board.key)}/scores/${s.id}`, undefined, 'DELETE');
+        showBoard(board.key);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    row.append(remove);
+  }
+  return row;
+}
+
+async function showBoard(key) {
+  shownBoard = key;
+  for (const tab of $('#board-tabs').children) tab.setAttribute('aria-selected', String(tab.dataset.key === key));
+  const list = $('#scores');
+  try {
+    const query = new URLSearchParams({ limit: '10' });
+    if (guestName) query.set('name', guestName);
+    const { board, scores, you } = await api(boardUrl(key, `?${query}`));
+    if (shownBoard !== key) return;
+    if (!scores.length) {
+      list.replaceChildren(h('li', { class: 'score empty' }, 'No scores yet. Play to set the first one.'));
+      return;
+    }
+    const rows = scores.map((s) => scoreRow(board, s));
+    // Your own place, when it's below the ones shown.
+    if (you && !scores.some((s) => s.me)) {
+      rows.push(h('li', { class: 'score me' },
+        h('span', { class: 'score-rank' }, `${you.rank}.`),
+        h('span', { class: 'score-name' }, 'You'),
+        h('span', { class: 'score-value' }, formatScore(board, you.value))));
+    }
+    list.replaceChildren(...rows);
+  } catch (err) {
+    if (shownBoard === key) list.replaceChildren(h('li', { class: 'score empty' }, `The scores couldn't be loaded: ${err.message}`));
+  }
+}
+
+function renderBoards() {
+  const boards = game.boards || [];
+  $('#boards').hidden = !boards.length;
+  if (!boards.length) return;
+  const tabs = $('#board-tabs');
+  tabs.replaceChildren(...boards.map((b) => {
+    const tab = h('button', { type: 'button', role: 'tab', 'data-key': b.key }, b.title);
+    tab.addEventListener('click', () => showBoard(b.key));
+    return tab;
+  }));
+  // One board needs no tabs: its title is enough.
+  tabs.classList.toggle('single', boards.length === 1);
+  showBoard(boards[0].key);
+}
+
+/** Why a request failed, as one word for the game's script. */
+function reasonOf(err) {
+  if (err?.name === 'TimeoutError' || err?.name === 'AbortError') return 'timeout';
+  if (!err?.status) return 'offline';
+  if (err.status === 429) return 'too-many';
+  if (err.data?.hidden) return 'hidden';
+  return err.data?.code || 'error';
+}
+
+const gameRow = (s) => {
+  const row = { rank: s.rank, name: s.name, value: s.value };
+  if (s.me) row.me = true;
+  if (s.guest) row.guest = true;
+  return row;
+};
+
+/** One call from the game: resolves with what its script gets back. */
+async function boardCall(msg) {
+  const signal = AbortSignal.timeout(8000);
+  if (msg.call === 'list') {
+    const { boards } = await api(`/api/games/${game.id}/boards`, { signal });
+    return boards.map((b) => ({ key: b.key, title: b.title, order: b.order, format: b.format, unit: b.unit, scores: b.scores }));
+  }
+  if (typeof msg.key !== 'string' || !BOARD_KEY.test(msg.key)) {
+    const err = new Error('No such board.');
+    err.status = 404;
+    err.data = { code: 'no-board' };
+    throw err;
+  }
+  if (msg.call === 'submit') {
+    const name = typeof msg.name === 'string' ? msg.name.slice(0, 200) : undefined;
+    const res = await api(`${boardUrl(msg.key)}/scores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: msg.value, name }),
+      signal,
+    });
+    if (name) guestName = name;
+    if (shownBoard === msg.key) showBoard(msg.key);
+    const result = { value: res.value, improved: res.improved };
+    if (res.rank != null) result.rank = res.rank;
+    return result;
+  }
+  if (msg.call === 'top' || msg.call === 'around') {
+    const query = new URLSearchParams({ limit: String(Math.min(100, Math.max(1, Math.floor(Number(msg.count)) || 10))) });
+    if (msg.call === 'around') query.set('around', '1');
+    if (guestName) query.set('name', guestName);
+    const { scores } = await api(boardUrl(msg.key, `?${query}`), { signal });
+    return scores.map(gameRow);
+  }
+  throw new Error('Unknown call.');
+}
+
+/** A message from the game, through its player (web/player/player.js). */
+function fromGame(frame, msg) {
+  if (!game || !msg || typeof msg !== 'object') return;
+  const reply = (message) => frame.contentWindow?.postMessage({ type: 'site', message }, location.origin);
+  if (msg.type === 'hello') {
+    reply({ type: 'hello', boards: (game.boards || []).length > 0 });
+    return;
+  }
+  if (msg.type !== 'request' || !Number.isSafeInteger(msg.id)) return;
+  if (!game.boards?.length) {
+    reply({ type: 'reply', id: msg.id, ok: false, reason: 'unavailable' });
+    return;
+  }
+  // A game that asks faster than answers come back waits its turn.
+  if (inFlight >= 4) {
+    reply({ type: 'reply', id: msg.id, ok: false, reason: 'busy' });
+    return;
+  }
+  inFlight++;
+  boardCall(msg)
+    .then((result) => reply({ type: 'reply', id: msg.id, ok: true, result }))
+    .catch((err) => reply({ type: 'reply', id: msg.id, ok: false, reason: reasonOf(err) }))
+    .finally(() => { inFlight--; });
 }
 
 async function countPlay() {
