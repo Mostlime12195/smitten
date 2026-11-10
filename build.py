@@ -496,6 +496,10 @@ SCRIPT_LIBRARY = [
     ("spin.lua", "Spin", "Keeps turning. For coins, fans and saws.", ["Sprite", "Shape", "Group", "Body", "Zone"]),
     ("bob.lua", "Bob up and down", "Floats gently. For pickups and signs.", ["Sprite", "Shape", "Group", "Zone"]),
     ("drag.lua", "Drag with the mouse", "Pick it up and move it with the mouse or a finger.", ["Sprite", "Shape", "Group", "Body"]),
+    ("health.lua", "Health", "Hit points with hurt() and heal(), a short time with no damage after each hit, and the event died.", ["Body", "Zone", "Group", "Sprite", "Shape"]),
+    ("spawner.lua", "Spawner", "Makes copies of a scene at its position, at an interval, up to a maximum number.", ["Group", "Sprite", "Shape"]),
+    ("moving-platform.lua", "Moving platform", "Moves along a route of points and stops at each point. Bodies on it move with it.", ["Body", "Group", "Shape"]),
+    ("countdown.lua", "Countdown", "Counts down on a Label or a Text, and sends the event timeUp at 0.", ["Label", "Text"]),
 ]
 
 

@@ -105,5 +105,54 @@ export const SCRIPT_LIBRARY = [
    "Body"
   ],
   "source": "-- Drag: the player can pick this piece up with the mouse (or a finger) and\n-- move it. A physics Body is held by a spring at the point you grabbed, so\n-- it swings, bumps into things and flies off when you let go: throw it!\n-- Other pieces follow the pointer exactly. For toys, puzzles, card games\n-- and level editors.\n\ngrabRadius = 32   -- how close the pointer has to be, if it has no shape\nstrength = 0      -- how hard a physics body is pulled (0: right for its mass)\n\nlocal dragging, grabX, grabY = false, 0, 0\n\nlocal function underPointer(wx, wy)\n  if isTouching then\n    -- A Body or Zone: is the point inside one of its shapes?\n    for _, p in ipairs(piecesAt(wx, wy)) do\n      if p == self then return true end\n    end\n    if getSize then\n      local w = getSize()\n      if w > 0 then return false end\n    end\n  end\n  return distanceTo(wx, wy) <= grabRadius\nend\n\nfunction update(dt)\n  local m = smitten.mouse\n  local mx, my = mouse()\n  if dragging then\n    if m.down(1) then\n      if grab then dragTo(mx, my) else setWorldPosition(mx + grabX, my + grabY) end\n    else\n      dragging = false\n      if grab then drop() end\n      emit(\"dropped\")\n    end\n  elseif m.pressed(1) and not m.isOverUI() and underPointer(mx, my) then\n    dragging = true\n    if grab then\n      grab(mx, my, strength > 0 and strength or nil)\n    else\n      local px, py = worldPosition()\n      grabX, grabY = px - mx, py - my\n    end\n    emit(\"pickedUp\")\n  end\nend\n"
+ },
+ {
+  "id": "health",
+  "file": "health.lua",
+  "name": "Health",
+  "description": "Hit points with hurt() and heal(), a short time with no damage after each hit, and the event died.",
+  "suits": [
+   "Body",
+   "Zone",
+   "Group",
+   "Sprite",
+   "Shape"
+  ],
+  "source": "-- Health: hit points for a player, an enemy or a crate.\n-- Other scripts call hurt() and heal() on the piece: other:hurt(1).\n-- The piece sends the events \"damaged\", \"healed\" and \"died\". Add\n-- function died() to this script, or listen from a different script with\n-- piece:on(\"died\", function() ... end).\n\nhealth = 3              -- the hit points now\nmaxHealth = 3           -- heal() does not go above this number\ninvincibleTime = 1      -- seconds after a hit when more hits do nothing\nblink = true            -- blink while more hits do nothing\nremoveOnDeath = true    -- remove the piece when its health gets to 0\n\nlocal safeFor = 0\n\n-- Returns true if the hit counted.\nfunction hurt(amount)\n  amount = amount or 1\n  if safeFor > 0 or health <= 0 then return false end\n  health = math.max(health - amount, 0)\n  safeFor = invincibleTime\n  emit(\"damaged\", amount)\n  if health <= 0 then\n    emit(\"died\")\n    if removeOnDeath then destroy() end\n  end\n  return true\nend\n\nfunction heal(amount)\n  health = math.min(health + (amount or 1), maxHealth)\n  emit(\"healed\", health)\nend\n\nfunction isInvincible()\n  return safeFor > 0\nend\n\nfunction update(dt)\n  if safeFor <= 0 then return end\n  safeFor -= dt\n  if blink then visible = safeFor <= 0 or math.floor(safeFor * 10) % 2 == 0 end\nend\n"
+ },
+ {
+  "id": "spawner",
+  "file": "spawner.lua",
+  "name": "Spawner",
+  "description": "Makes copies of a scene at its position, at an interval, up to a maximum number.",
+  "suits": [
+   "Group",
+   "Sprite",
+   "Shape"
+  ],
+  "source": "-- Spawner: makes a copy of a scene at its position, again and again.\n-- Use it for enemies, falling rocks or coins.\n-- It sends the event \"spawned\" with each new copy.\n\nsceneFile = \"\"          -- the scene to copy, for example \"scenes/enemy.scene\"\ninterval = 2            -- seconds between two copies\nmaxAlive = 5            -- it waits while this number of its copies are in the scene (0: no limit)\nspreadX = 0             -- each copy goes a random distance to the side, up to this number of pixels\nspreadY = 0             -- the same, up and down\nstartNow = true         -- make the first copy when the scene starts\nspawning = true         -- set it to false to stop, and to true to start again\n\nlocal left = 0\nlocal alive = {}\n\nlocal function aliveCount()\n  for i = #alive, 1, -1 do\n    if not alive[i]:isAlive() then table.remove(alive, i) end\n  end\n  return #alive\nend\n\n-- Makes one copy now. Returns the copy, or nil.\nfunction spawnOne()\n  if sceneFile == \"\" then return nil end\n  if maxAlive > 0 and aliveCount() >= maxAlive then return nil end\n  local px, py = worldPosition()\n  local copy = spawn(sceneFile, { x = px + (rnd(2) - 1) * spreadX, y = py + (rnd(2) - 1) * spreadY })\n  alive[#alive + 1] = copy\n  emit(\"spawned\", copy)\n  return copy\nend\n\nfunction ready()\n  left = if startNow then 0 else interval\nend\n\nfunction update(dt)\n  if not spawning then return end\n  left -= dt\n  if left <= 0 then\n    left = math.max(interval, 0.05)\n    spawnOne()\n  end\nend\n"
+ },
+ {
+  "id": "moving-platform",
+  "file": "moving-platform.lua",
+  "name": "Moving platform",
+  "description": "Moves along a route of points and stops at each point. Bodies on it move with it.",
+  "suits": [
+   "Body",
+   "Group",
+   "Shape"
+  ],
+  "source": "-- Moving platform: moves along a route of points, and stops for a time at\n-- each point. Attach it to a Body whose motion is \"still\". The bodies that\n-- stand on it move with it. It also moves pieces of other types.\n-- It sends the event \"arrived\" with the number of the point.\n\nroute = \"200, 0\"        -- the points, as x, y pairs from its start position: \"200, 0, 200, -120\"\nspeed = 80              -- pixels per second\nstopTime = 0.5          -- seconds that it stops at each point\nbackAndForth = true     -- true: it goes back along the route. false: from the last point, it goes to the start\n\nlocal stops = {}\nlocal target, direction, waiting = 2, 1, 0\n\nfunction ready()\n  stops = { { x, y } }\n  local numbers = {}\n  for n in route:gmatch(\"-?%d+%.?%d*\") do numbers[#numbers + 1] = tonumber(n) end\n  for i = 1, #numbers - 1, 2 do\n    stops[#stops + 1] = { stops[1][1] + numbers[i], stops[1][2] + numbers[i + 1] }\n  end\nend\n\nlocal function nextStop()\n  if backAndForth then\n    if target + direction > #stops or target + direction < 1 then direction = -direction end\n    target += direction\n  else\n    target = target % #stops + 1\n  end\nend\n\n-- Physics steps move it, so that the bodies on it move at the same time.\nfunction physicsUpdate(dt)\n  if #stops < 2 then return end\n  if waiting > 0 then\n    waiting -= dt\n    return\n  end\n  local tx, ty = stops[target][1], stops[target][2]\n  local dx, dy = tx - x, ty - y\n  local d = math.sqrt(dx * dx + dy * dy)\n  local length = speed * dt\n  if d <= length then\n    x, y = tx, ty\n    waiting = stopTime\n    emit(\"arrived\", target)\n    nextStop()\n  else\n    x += dx / d * length\n    y += dy / d * length\n  end\nend\n"
+ },
+ {
+  "id": "countdown",
+  "file": "countdown.lua",
+  "name": "Countdown",
+  "description": "Counts down on a Label or a Text, and sends the event timeUp at 0.",
+  "suits": [
+   "Label",
+   "Text"
+  ],
+  "source": "-- Countdown: counts down from a number of seconds and shows the time that\n-- remains. Attach it to a Label or a Text. At 0, the root piece of the\n-- scene gets the event \"timeUp\": add function timeUp() to its script.\n\nduration = 60           -- the seconds to count down from\nprefix = \"Time: \"       -- the words before the number\nshowTenths = false      -- show 9.5, not 10\nstartNow = true         -- start when the scene starts. If false, a script calls startCountdown()\n\nlocal left, running = 0, false\n\nlocal function show()\n  local shown = if showTenths then string.format(\"%.1f\", left) else tostring(math.ceil(left))\n  text = prefix .. shown\nend\n\n-- Starts again from duration (or from the seconds that you give).\nfunction startCountdown(seconds)\n  left = seconds or duration\n  running = true\n  show()\nend\n\nfunction stopCountdown()\n  running = false\nend\n\nfunction timeLeft()\n  return left\nend\n\nfunction ready()\n  left = duration\n  show()\n  if startNow then startCountdown() end\nend\n\nfunction update(dt)\n  if not running then return end\n  left = math.max(left - dt, 0)\n  show()\n  if left == 0 then\n    running = false\n    root():emit(\"timeUp\", self)\n  end\nend\n"
  }
 ];
