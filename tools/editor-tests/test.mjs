@@ -17,6 +17,7 @@ schemaLib.setSchema(JSON.parse(readFileSync(join(root, 'love', 'src', 'modules',
 const { SceneDoc } = await import(editor('core/scene-doc.js'));
 const { detectModules } = await import(editor('core/modules.js'));
 const { TEMPLATES } = await import(editor('core/templates.js'));
+const { EXAMPLES } = await import(editor('core/examples.js'));
 const { scriptVariables, isOldStyleScript } = await import(editor('core/script-vars.js'));
 const { SCRIPT_API_NAMES } = await import(editor('core/script-api.js'));
 const { SCRIPT_LIBRARY } = await import(editor('core/script-library.js'));
@@ -199,8 +200,8 @@ let threw = false;
 try { doc.add(doc.root, doc.createInstance('level.scene')); } catch { threw = true; }
 check('a scene can\'t contain itself', threw);
 
-// --- Templates and module detection ----------------------------------------------
-for (const t of TEMPLATES) {
+// --- Templates, examples and module detection --------------------------------------
+for (const t of [...TEMPLATES, ...EXAMPLES]) {
   const out = t.build('Test');
   const project = {
     files: out,
@@ -230,8 +231,55 @@ for (const t of TEMPLATES) {
   }
   const mods = detectModules(project);
   const incl = Object.values(mods).filter((m) => m.included).map((m) => m.id).sort();
-  const expected = { empty: [] }[t.id] || ['physics2d'];
+  const expected = { empty: [], text: [], ui: [], sound: ['synth'] }[t.id] || ['physics2d'];
   check(`${t.id}: modules`, eq(incl, expected), incl.join(','));
+}
+
+// The examples: small, with their own art and sounds, and links to the docs.
+{
+  const ids = [...TEMPLATES, ...EXAMPLES].map((t) => t.id);
+  check('templates and examples have different ids', new Set(ids).size === ids.length, ids.join(' '));
+  // A ready-made script, or one made from it (its first line is in it).
+  const fromLibrary = (src) => SCRIPT_LIBRARY.some((sc) => src.includes(sc.source.split('\n')[0]));
+  for (const ex of EXAMPLES) {
+    const out = ex.build('Test');
+    const words = ex.description.split(/\s+/).length;
+    check(`${ex.id}: a short description`, words >= 5 && words <= 25, `${words} words`);
+    check(`${ex.id}: its docs page exists`, (() => { try { readFileSync(join(root, 'docs', `${ex.page}.md`)); return true; } catch { return false; } })(), ex.page);
+    check(`${ex.id}: its icon exists`, typeof ex.icon === 'string' && readFileSync(join(root, 'web', 'editor', 'icons.js'), 'utf8').includes(`"${ex.icon}"`), ex.icon);
+    const own = Object.entries(out).filter(([p, src]) => p.endsWith('.lua') && !fromLibrary(src));
+    check(`${ex.id}: 1 to 3 scripts of its own`, own.length >= 1 && own.length <= 3, own.map(([p]) => p).join(' '));
+    for (const [p, src] of own) check(`${ex.id}: ${p} is short`, src.split('\n').length <= 70, `${src.split('\n').length} lines`);
+    for (const [p, data] of Object.entries(out)) {
+      if (p.endsWith('.png')) check(`${ex.id}: ${p} is a PNG`, data instanceof Uint8Array && data[0] === 137 && data[1] === 80, p);
+      if (p.endsWith('.wav')) check(`${ex.id}: ${p} is a WAV`, data instanceof Uint8Array && String.fromCharCode(...data.slice(0, 4)) === 'RIFF' && data.length < 64000, p);
+      if (typeof data !== 'string' && !/\.(png|wav)$/.test(p)) check(`${ex.id}: ${p} is text`, false);
+    }
+    // Every file that a scene, a tileset or a song names is in the project.
+    const exists = (from, file) => {
+      const parts = [...from.split('/').slice(0, -1), ...file.split('/')];
+      const path = [];
+      for (const part of parts) part === '..' ? path.pop() : path.push(part);
+      return file.startsWith('scenes/') || file.startsWith('sounds/') || file.startsWith('art/') || file.startsWith('music/') ? !!out[file] : !!out[path.join('/')];
+    };
+    for (const [p, data] of Object.entries(out)) {
+      if (p.endsWith('.scene')) {
+        const visit = (e) => {
+          for (const [k, v] of Object.entries(e.properties || {})) {
+            const def = schemaLib.propertyDef(e.type, k);
+            if ((def?.type === 'resource' || k === 'sceneFile') && v) check(`${ex.id}: ${p}: ${e.name}.${k} is in the project`, !!out[v], v);
+          }
+          (e.children || []).forEach(visit);
+        };
+        visit(JSON.parse(data).root);
+      }
+      if (p.endsWith('.tileset')) check(`${ex.id}: ${p}: its image is in the project`, exists(p, JSON.parse(data).image), JSON.parse(data).image);
+      if (p.endsWith('.song')) for (const ins of JSON.parse(data).instruments) if (ins.sample) check(`${ex.id}: ${p}: ${ins.name} is in the project`, exists(p, ins.sample), ins.sample);
+      if (p.endsWith('.lua')) for (const m of data.matchAll(/(?:music|sfx)\("([^"]+)"/g)) check(`${ex.id}: ${p}: the sound ${m[1]} is in the project`, Object.keys(out).some((q) => q === m[1] || q.split('/').pop().replace(/\.\w+$/, '') === m[1]), m[1]);
+    }
+    const size = Object.values(out).reduce((n, d) => n + d.length, 0);
+    check(`${ex.id}: small`, size < 200000, `${size} bytes`);
+  }
 }
 const overrides = { paths: () => [], readText: () => '', readJSON: () => null, settings: () => ({ modules: { video: 'always', physics2d: 'never' } }) };
 const om = detectModules(overrides);
@@ -257,6 +305,22 @@ for (const sc of SCRIPT_LIBRARY) {
     check(`${sc.id}: ${name}() exists`, known);
   }
   check(`${sc.id}: has script variables`, scriptVariables(sc.source).length > 0 || sc.id === 'drag');
+  // A variable with the name of a property sets that property, and a
+  // function with the name of a method takes its place (a warning when the
+  // game runs). Short API names would hide the API. chase and fly were
+  // there before this check: their speed is also a Sprite's animation speed.
+  const lineage = (t) => { const out = []; while (t) { out.push(t); t = types[t]?.extends; } return out; };
+  const known = { chase: ['Sprite.speed'], fly: ['Sprite.speed'] }[sc.id] || [];
+  const names = [...scriptVariables(sc.source).map((v) => v.name), ...[...sc.source.matchAll(/^function (\w+)\(/gm)].map((m) => m[1])];
+  for (const t of sc.suits) {
+    for (const l of lineage(t)) {
+      for (const n of names) {
+        if (known.includes(`${t}.${n}`)) continue;
+        check(`${sc.id}: ${n} is not a property or a method of a ${t}`, !types[l].properties?.[n] && !types[l].methods?.[n]);
+      }
+    }
+  }
+  for (const n of names) check(`${sc.id}: ${n} is not in the short API`, !SCRIPT_API_NAMES.has(n));
   for (const m of sc.source.matchAll(/self:(\w+)\(/g)) {
     const known = Object.values(types).some((d) => d.methods && d.methods[m[1]]) || new RegExp(`function \\w+:${m[1]}\\(`).test(sc.source);
     check(`${sc.id}: self:${m[1]}() exists`, known);
@@ -638,7 +702,7 @@ check('different share links have different ids', new Set(['', 'a', 'b', 'ab', '
   }
 
   // New projects play by the new rules, with scripts written for them.
-  for (const t of TEMPLATES) {
+  for (const t of [...TEMPLATES, ...EXAMPLES]) {
     const out = t.build('Test');
     check(`${t.id}: is version 3`, JSON.parse(out['smitten.json']).version === 3);
     check(`${t.id}: its scenes are version 3`, Object.keys(out).filter((x) => x.endsWith('.scene')).every((x) => !up.isOldScene(JSON.parse(out[x]))));

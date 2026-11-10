@@ -3,24 +3,28 @@
 import { h, icon, showMenu, timeAgo, promptDialog, confirmDialog, toast } from '../ui.js';
 import * as store from '../fs-store.js';
 import { TEMPLATES } from '../core/templates.js';
+import { EXAMPLES } from '../core/examples.js';
 
 /** ctx: { openProject(id), importZip(file) } */
 export async function renderHome(root, ctx) {
   const projects = await store.listProjects();
-  const create = async (template) => {
-    const name = await promptDialog({ title: `New ${template.name.toLowerCase()} game`, label: 'Name', value: template.id === 'empty' ? 'My game' : `My ${template.name.toLowerCase()} game`, okLabel: 'Create' });
+  const create = async (template, title, value) => {
+    const name = await promptDialog({ title, label: 'Name', value, okLabel: 'Create' });
     if (!name) return;
     const p = await store.createProject(name, template.build(name), ['art', 'sounds', 'scripts']);
     ctx.openProject(p.id);
   };
-
-  const newCards = TEMPLATES.map((t) => {
-    const card = h('button', { type: 'button', class: 'card' },
+  const card = (t, onClick) => {
+    const c = h('button', { type: 'button', class: 'card' },
       h('span', { class: 'card-title' }, icon(t.icon, 16), t.name),
       h('span', { class: 'card-desc' }, t.description));
-    card.addEventListener('click', () => create(t));
-    return card;
-  });
+    c.addEventListener('click', onClick);
+    return c;
+  };
+
+  const newCards = TEMPLATES.map((t) => card(t, () => create(t, `New ${t.name.toLowerCase()} game`, t.id === 'empty' ? 'My game' : `My ${t.name.toLowerCase()} game`)));
+  // Examples: one small project for each part of the engine (core/examples.js).
+  const exampleCards = EXAMPLES.map((ex) => card(ex, () => create(ex, `Open the ${ex.name} example`, `${ex.name} example`)));
 
   const projectCards = projects.map((p) => {
     const more = h('span', { class: 'icon-btn card-more', role: 'button', title: 'More', 'aria-label': `More for ${p.name}` }, icon('more', 16));
@@ -73,6 +77,9 @@ export async function renderHome(root, ctx) {
       h('h1', {}, h('span', { class: 'brand-mark' }, icon('heart', 22)), 'Smitten'),
       h('span', { class: 'spacer' }), importBtn, importInput),
     h('section', {}, h('h2', {}, 'Start a new game'), h('div', { class: 'card-grid' }, ...newCards)),
+    h('section', { class: 'home-examples' }, h('h2', {}, 'Examples'),
+      h('p', { class: 'insp-desc' }, 'Small projects that show how one part of Smitten works. Each one is a copy for you: read its scripts and change them.'),
+      h('div', { class: 'card-grid' }, ...exampleCards)),
     h('section', {}, h('h2', {}, projects.length ? 'Your games' : 'Your games will appear here'),
       projects.length ? h('div', { class: 'card-grid' }, ...projectCards)
         : h('p', { class: 'insp-desc' }, 'Projects are saved in this browser. Export them as a zip to keep a copy.')),

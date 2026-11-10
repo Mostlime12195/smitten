@@ -5,8 +5,8 @@
 
 import { SCRIPT_LIBRARY } from './script-library.js';
 
-const json = (v) => JSON.stringify(v, null, 2) + '\n';
-const scene = (root) => json({ format: 'smitten.scene', version: 3, root });
+export const json = (v) => JSON.stringify(v, null, 2) + '\n';
+export const scene = (root) => json({ format: 'smitten.scene', version: 3, root });
 const settings = (name, main, display = {}) => json({
   format: 'smitten.project', version: 3, name, main,
   display: { width: 1280, height: 720, stretch: 'expand', ...display },
@@ -41,11 +41,11 @@ function extend(id, extra) {
   return `${libraryScript(id).trimEnd()}\n\n${extra.trim()}\n`;
 }
 
-const p = (name, type, properties, children, extra = {}) => ({
+export const p = (name, type, properties, children, extra = {}) => ({
   name, type, ...(properties && Object.keys(properties).length ? { properties } : {}), ...extra,
   ...(children && children.length ? { children } : {}),
 });
-const look = (w, h, color, extra = {}) => p('Look', 'Shape', { width: w, height: h, color, ...extra });
+export const look = (w, h, color, extra = {}) => p('Look', 'Shape', { width: w, height: h, color, ...extra });
 
 // ---------------------------------------------------------------------------
 
