@@ -25,7 +25,7 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts" aria-current="page">Scripts</a><ul class="nav-sub"><li><a href="#how-names-are-found">How names are found</a></li><li><a href="#script-variables">Script variables</a></li><li><a href="#what-the-engine-calls">What the engine calls</a></li><li><a href="#your-own-events">Your own events</a></li><li><a href="#waiting">Waiting</a></li><li><a href="#math-helpers">Math helpers</a></li><li><a href="#smitten-s-lua">Smitten's Lua</a></li><li><a href="#ready-made-scripts">Ready-made scripts</a></li></ul></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts" aria-current="page">Scripts</a><ul class="nav-sub"><li><a href="#how-names-are-found">How names are found</a></li><li><a href="#making-variables">Making variables</a></li><li><a href="#script-variables">Script variables</a></li><li><a href="#what-the-engine-calls">What the engine calls</a></li><li><a href="#your-own-events">Your own events</a></li><li><a href="#waiting">Waiting</a></li><li><a href="#math-helpers">Math helpers</a></li><li><a href="#smitten-s-lua">Smitten's Lua</a></li><li><a href="#ready-made-scripts">Ready-made scripts</a></li></ul></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Scripts</h1>
@@ -57,6 +57,22 @@ speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script va
 <p>When a script uses a name, Smitten looks for it in this order:</p>
 <ol><li>functions defined in the script itself;</li><li>the piece's own properties, script variables and methods (<code>x</code>, <code>vx</code>, <code>move()</code>);</li><li>the piece's children, for names that start with a capital letter (<code>Look.color</code>, <code>Camera.zoom</code>);</li><li>the <a href="api">Script API</a>: <code>pressed</code>, <code>spawn</code>, <code>sfx</code>, <code>wait</code> and the rest;</li><li>Lua's built-ins, such as <code>math</code>, <code>string</code> and <code>print</code>.</li></ol>
 <p>Assigning to a name that isn't <code>local</code> stores it on the piece, where other scripts can read it (<code>other.hp</code>). <code>self</code> is the piece itself, for when you need to pass it somewhere.</p>
+<h2 id="making-variables"><a class="anchor" href="#making-variables" aria-hidden="true">#</a>Making variables</h2>
+<p>A script's variables are made at its top level, outside any function:</p>
+<pre><code class="lang-lua">score = <span class="tk-n">0</span>          <span class="tk-c">-- a variable, starting at 0</span>
+target = <span class="tk-k">nil</span>       <span class="tk-c">-- one with no value yet</span>
+<span class="tk-k">local</span> timer = <span class="tk-n">0</span>    <span class="tk-c">-- one only this script sees</span>
+
+<span class="tk-k">function</span> <span class="tk-f">hit</span>(other)
+  score += <span class="tk-n">1</span>       <span class="tk-c">-- fine: score was made above</span>
+  target = other   <span class="tk-c">-- fine</span>
+  scroe = <span class="tk-n">0</span>        <span class="tk-c">-- a typing mistake: the game stops here and says so</span>
+<span class="tk-k">end</span></code></pre>
+<p>Inside a function you can set a variable from the top of the script, one of the piece's properties (<code>x</code>, <code>vx</code>, <code>text</code>), or a <code>local</code>. Setting any other name is taken for a typing mistake, and the game stops with</p>
+<pre><code>scripts/player.lua:9: there's no variable called &quot;scroe&quot; here (did you mean &quot;score&quot;?).
+To make a new one, write scroe = 0 at the top of the script (or local scroe = 0
+right here, if only this function uses it).</code></pre>
+<p>Without this, a mistyped name would quietly make a second variable, and the score would just never go up. A few things count as made already: a value given to the piece in the Inspector or by <code>spawn(&quot;...&quot;, { hp = 3 })</code>, and anything set with <code>self.name = ...</code>, which is always allowed.</p>
 <p>A function of yours with the name of something the piece already does replaces it: <code>function move()</code> on a Body means <code>move()</code> is yours, and the body no longer moves by itself. Smitten says so in Output when the game starts. If that isn't what you meant, pick another name, like <code>walk()</code>.</p>
 <p>A few details: <code>spawn()</code> adds a new piece to the scene, while <code>self:spawn()</code> adds it inside this piece; <code>type()</code> is Lua's function, so a piece's type is <code>self.type</code>; and <code>load()</code> reads a <a href="saving">saved value</a>, so Lua's own <code>load</code> is <code>_G.load</code>.</p>
 <h2 id="script-variables"><a class="anchor" href="#script-variables" aria-hidden="true">#</a>Script variables</h2>
@@ -72,7 +88,7 @@ speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script va
 <tr><td><code>draw()</code></td><td>After the piece draws itself, in its own coordinates (see <a href="drawing">Drawing</a>)</td></tr>
 <tr><td><code>removed()</code></td><td>When the piece leaves the scene</td></tr></tbody>
 </table></div>
-<p>Pieces also call <strong>events</strong> when things happen to them: a Body's <code>hit(other)</code>, a Zone's <code>entered(other)</code>, a Button's <code>pressed()</code>, a Timer's <code>tick()</code>, and so on. <a href="pieces">Pieces</a> lists every piece's events.</p>
+<p>Pieces also call <strong>events</strong> when things happen to them: a Body's <code>hit(other)</code>, a Zone's <code>entered(other)</code>, a Button's <code>clicked()</code>, a Timer's <code>tick()</code>, and so on. <a href="pieces">Pieces</a> lists every piece's events.</p>
 <h2 id="your-own-events"><a class="anchor" href="#your-own-events" aria-hidden="true">#</a>Your own events</h2>
 <p><code>emit(name, ...)</code> sends an event of your own: it calls the piece's function with that name, and anyone listening. <code>piece:on(name, fn)</code> listens, and returns a handle whose <code>:off()</code> stops listening.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On the player, when it lands:</span>
@@ -113,7 +129,7 @@ speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script va
 <tr><td><code>rnd(n)</code></td><td>rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items.</td></tr>
 <tr><td><code>choose(...)</code></td><td>One of its arguments, at random.</td></tr>
 <tr><td><code>dist(a, b)</code></td><td>The distance between two pieces, or dist(x1, y1, x2, y2).</td></tr>
-<tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high (with the piece's gravity).</td></tr></tbody>
+<tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither).</td></tr></tbody>
 </table></div>
 <p>There's more in <a href="engine"><code>smitten.math</code></a>.</p>
 <h2 id="smitten-s-lua"><a class="anchor" href="#smitten-s-lua" aria-hidden="true">#</a>Smitten's Lua</h2>

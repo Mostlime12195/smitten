@@ -134,18 +134,18 @@ read it yourself, for a second stick that aims:
 
 ```lua
 local x, y = Aim:getValue()          -- -1 to 1 each way; 0, 0 when let go
-if Aim:isActive() then rotation = math.atan2(y, x) end
+if Aim:isActive() then rotation = smitten.math.angle(x, y) end
 ```
 
 ### Buttons
 
 A TouchButton holds its **action** down while a finger is on it. Its
-script also gets `pressed()` and `released()`, so a button with no action
+script also gets `touched()` and `untouched()`, so a button with no action
 can do anything:
 
 ```lua
 -- On a TouchButton
-function pressed()
+function touched()
   pauseGame()
 end
 ```

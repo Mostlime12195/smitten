@@ -61,7 +61,7 @@ A Light's `kind` is **point** or **sun**.
   Light to aim it), a window-shaped one makes light through a window.
   Scaling the Light stretches it.
 - A **sun** lights the whole view evenly. It only has a direction, the way
-  the piece is turned (`rotation` 0 shines to the right), which is where its
+  the piece is turned (`rotation` 0 shines to the right, 90 down), which is where its
   shadows point. `shadowLength` keeps a sun's shadows short, which suits
   games seen from above.
 
@@ -145,7 +145,7 @@ local night = { 0.2, 0.25, 0.45 }
 function ready()
   while true do
     tween(Sky.color, 8, dusk)
-    tween(Sun, 8, { brightness = 0.2, rotation = math.pi })
+    tween(Sun, 8, { brightness = 0.2, rotation = 180 })
     wait(8)
     tween(Sky.color, 8, night)
     tween(Sun, 8, { brightness = 0 })

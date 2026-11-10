@@ -24,3 +24,5 @@ through a whole small game in about fifteen minutes.
   and [Leaderboards](leaderboards.md) adding shared high scores to it there.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference:
   every function a script can call, and every piece's settings.
+- [Older projects](older-projects.md) says what changed for projects made
+  before version 3, and what "Update this project" does.

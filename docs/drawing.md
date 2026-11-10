@@ -32,7 +32,7 @@ end
 | `line(x1, y1, x2, y2, ...)` | A line through points. |
 | `dot(x, y)` | One pixel. |
 | `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height. |
-| `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }). |
+| `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
 <!-- end -->
 
 ## Colors
@@ -67,7 +67,7 @@ options table picks a frame or transforms it:
 | --- | --- |
 | `frame` | A frame of a `.sprite` file, or of a sheet cut with `columns` and `rows` (counting from 0) |
 | `columns`, `rows` | Cut a plain picture into frames |
-| `rotation`, `scale`, `scaleX`, `scaleY` | Turn and size |
+| `rotation`, `scale`, `scaleX`, `scaleY` | Turn (in degrees) and size |
 | `flipX`, `flipY` | Mirror it |
 | `centered` | Center it on x, y |
 

@@ -11,7 +11,7 @@ A scene is a tree of pieces in a `.scene` file (JSON):
 ```json
 {
   "format": "smitten.scene",
-  "version": 2,
+  "version": 3,
   "root": {
     "name": "Level", "type": "Group", "script": "scripts/level.lua",
     "children": [
@@ -30,6 +30,9 @@ A scene is a tree of pieces in a `.scene` file (JSON):
 - A placed scene's `properties` override its scene's root; its `children`
   are added to the ones its scene has.
 - Paths are relative to the project's folder.
+- Angles are in degrees. (`"version": 2` scenes hold radians, and a Body's
+  `gravityScale` under the name `gravity`; they still load, and the editor
+  saves them as version 3: see [Older projects](older-projects.md).)
 - Tiles `cells` are one rectangle of tile numbers, row by row; `-1` is
   empty and `n*k` repeats `n` `k` times.
 

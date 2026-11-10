@@ -25,11 +25,11 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#light-and-shadow">Light and shadow</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#light-and-shadow">Light and shadow</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Pieces</h1>
-<p>Each piece has its own properties plus its base type's. In its own script: <code>x = 10</code>, <code>move()</code>, <code>function pressed() end</code>. On another piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;pressed&quot;, fn)</code>. Angles are radians in code, degrees in the Inspector.</p>
+<p>Each piece has its own properties plus its base type's. In its own script: <code>x = 10</code>, <code>move()</code>, <code>function clicked() end</code>. On another piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;clicked&quot;, fn)</code>. Angles are degrees, in code and in the Inspector.</p>
 <h2 id="basic"><a class="anchor" href="#basic" aria-hidden="true">#</a>Basic</h2>
 <h3 id="piece"><a class="anchor" href="#piece" aria-hidden="true">#</a>Piece</h3>
 <p>Everything in a scene is a piece. Pieces nest: a piece's children belong to it.</p>
@@ -73,7 +73,7 @@
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent.</td></tr>
 <tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent. y grows downwards.</td></tr>
-<tr><td><code>rotation</code></td><td>angle</td><td>0°</td><td>Turn, clockwise: radians in code, degrees in the inspector.</td></tr>
+<tr><td><code>rotation</code></td><td>angle (°)</td><td>0°</td><td>Turn, clockwise, in degrees: 90 is a quarter turn.</td></tr>
 <tr><td><code>scaleX</code></td><td>number</td><td>1</td><td>Width multiplier. Negative mirrors it.</td></tr>
 <tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Height multiplier. Negative flips it.</td></tr>
 <tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
@@ -89,7 +89,7 @@
 <tr><td><code>fromWorld(x, y)</code></td><td>A point in the scene, measured from this piece.</td></tr>
 <tr><td><code>lookAt(x, y)</code></td><td>Turns the piece to face a point in the scene.</td></tr>
 <tr><td><code>distanceTo(pieceOrX, y?)</code></td><td>Distance in pixels to another piece or a point.</td></tr>
-<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>Angle in radians towards another piece or a point.</td></tr>
+<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it.</td></tr>
 <tr><td><code>moveToward(x, y, distance)</code></td><td>Moves at most distance pixels towards a point; true once it's there.</td></tr>
 <tr><td><code>translate(dx, dy)</code></td><td>Moves the piece by an offset.</td></tr></tbody>
 </table></div>
@@ -301,8 +301,8 @@
 <tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The particle picture; empty draws soft dots.</td></tr>
 <tr><td><code>speed</code></td><td>number (px/s)</td><td>100</td><td>Starting speed.</td></tr>
 <tr><td><code>speedRandom</code></td><td>number</td><td>0.5</td><td>How much the speed varies (0 to 1).</td></tr>
-<tr><td><code>direction</code></td><td>angle</td><td>-90°</td><td>Direction particles fly in.</td></tr>
-<tr><td><code>spread</code></td><td>angle</td><td>28.65°</td><td>How far directions vary either side.</td></tr>
+<tr><td><code>direction</code></td><td>angle (°)</td><td>-5156.62°</td><td>Direction particles fly in, in degrees: 0 is right, 90 is down, -90 is up.</td></tr>
+<tr><td><code>spread</code></td><td>angle (°)</td><td>1718.87°</td><td>How far directions vary either side, in degrees.</td></tr>
 <tr><td><code>gravityX</code></td><td>number (px/s²)</td><td>0</td><td>Constant pull, sideways.</td></tr>
 <tr><td><code>gravityY</code></td><td>number (px/s²)</td><td>0</td><td>Constant pull, down.</td></tr>
 <tr><td><code>sizeStart</code></td><td>number (px)</td><td>8</td><td>Size when born.</td></tr>
@@ -382,12 +382,12 @@
 <tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).</td></tr>
 <tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>Horizontal speed (px/s).</td></tr>
 <tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.</td></tr>
-<tr><td><code>spin</code></td><td>number (rad/s)</td><td>0</td><td>How fast it turns (clockwise is positive). Scripted: move() turns it this fast.</td></tr>
-<tr><td><code>slope</code></td><td>angle</td><td>45°</td><td>The steepest surface that still counts as ground: move() walks up it without sliding back.</td></tr>
+<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast.</td></tr>
+<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back.</td></tr>
 <tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>Kilograms. A scripted body pushes physics bodies by its mass against theirs.</td></tr>
 <tr><td><code>friction</code></td><td>number</td><td>0.3</td><td>How much it grips what it touches: 0 is ice.</td></tr>
 <tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 none, 1 forever.</td></tr>
-<tr><td><code>gravity</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it; 0 floats, -1 falls up.</td></tr>
+<tr><td><code>gravityScale</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up.</td></tr>
 <tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: slows its movement down.</td></tr>
 <tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows its turning down.</td></tr>
 <tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>Never tip over or spin.</td></tr>
@@ -472,11 +472,11 @@
 <tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is: wobbles per second.</td></tr>
 <tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How quickly the spring stops wobbling: 1 doesn't overshoot.</td></tr>
 <tr><td><code>motor</code></td><td>bool</td><td>false</td><td>Drive it: turn a pin or wheel, or move a slider, at motorSpeed.</td></tr>
-<tr><td><code>motorSpeed</code></td><td>number</td><td>2</td><td>Radians per second (pin, wheel) or pixels per second (slider, distance).</td></tr>
+<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>Degrees a second (pin, wheel) or pixels a second (slider, distance).</td></tr>
 <tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The most torque (pin, wheel) or force (slider, distance) the motor uses.</td></tr>
 <tr><td><code>limit</code></td><td>bool</td><td>false</td><td>Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.</td></tr>
-<tr><td><code>minAngle</code></td><td>angle</td><td>-45°</td><td>The furthest a pin turns anticlockwise.</td></tr>
-<tr><td><code>maxAngle</code></td><td>angle</td><td>45°</td><td>The furthest a pin turns clockwise.</td></tr>
+<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The furthest a pin turns anticlockwise, in degrees.</td></tr>
+<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The furthest a pin turns clockwise, in degrees.</td></tr>
 <tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The furthest a slider or wheel goes back.</td></tr>
 <tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The furthest a slider or wheel goes forward.</td></tr>
 <tr><td><code>strength</code></td><td>number</td><td>0</td><td>The most force a mouse joint pulls with; 0 is plenty for the body's mass.</td></tr>
@@ -485,10 +485,10 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned (radians).</td></tr>
+<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned, in degrees.</td></tr>
 <tr><td><code>getTranslation()</code></td><td>How far a slider has slid (pixels).</td></tr>
 <tr><td><code>getLength()</code></td><td>How far apart a rope, spring or distance joint's ends are.</td></tr>
-<tr><td><code>getSpeed()</code></td><td>How fast a pin turns or a slider slides.</td></tr>
+<tr><td><code>getSpeed()</code></td><td>How fast a pin turns (degrees a second) or a slider slides (pixels a second).</td></tr>
 <tr><td><code>getForce()</code></td><td>How hard the joint pulls now.</td></tr>
 <tr><td><code>getTorque()</code></td><td>How hard the joint twists now.</td></tr>
 <tr><td><code>isBroken()</code></td><td>True once breakForce broke it.</td></tr></tbody>
@@ -577,7 +577,7 @@
 <tr><td><code>function linkPressed(name)</code></td><td>A [link=name] in the text was clicked or tapped.</td></tr></tbody>
 </table></div>
 <h3 id="button"><a class="anchor" href="#button" aria-hidden="true">#</a>Button</h3>
-<p>A button to click or tap. Its script gets pressed().</p>
+<p>A button to click or tap. Its script gets clicked().</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
@@ -600,7 +600,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
 </table></div>
 <h3 id="panel"><a class="anchor" href="#panel" aria-hidden="true">#</a>Panel</h3>
 <p>A colored box behind other UI: a dialog, a HUD background.</p>
@@ -614,7 +614,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
 </table></div>
 <h3 id="picture"><a class="anchor" href="#picture" aria-hidden="true">#</a>Picture</h3>
 <p>A picture on the screen: an icon, a portrait, a logo.</p>
@@ -627,7 +627,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
 </table></div>
 <h3 id="bar"><a class="anchor" href="#bar" aria-hidden="true">#</a>Bar</h3>
 <p>A bar that fills up: health, loading, a countdown.</p>
@@ -668,15 +668,15 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>A finger landed on the stick.</td></tr>
-<tr><td><code>function released()</code></td><td>The finger let go of the stick.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>A finger landed on the stick.</td></tr>
+<tr><td><code>function untouched()</code></td><td>The finger let go of the stick.</td></tr></tbody>
 </table></div>
 <h3 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h3>
 <p>A button for a finger on a touch screen. It holds an input action down while it's held, so pressed(&quot;jump&quot;) reads it with no extra code.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()).</td></tr>
+<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()).</td></tr>
 <tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
 <tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle.</td></tr>
 <tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>Words or a letter on the button.</td></tr>
@@ -694,8 +694,8 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
-<tr><td><code>function released()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
+<tr><td><code>function untouched()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
 </table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
 <h3 id="sound-2"><a class="anchor" href="#sound-2" aria-hidden="true">#</a>Sound</h3>

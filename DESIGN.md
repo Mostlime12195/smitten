@@ -124,7 +124,7 @@ What makes these Smitten's own rather than another engine's:
 ```json
 {
   "format": "smitten.scene",
-  "version": 2,
+  "version": 3,
   "root": {
     "name": "Level", "type": "Group", "script": "scripts/level.lua",
     "children": [
@@ -171,7 +171,19 @@ end
   piece (properties, variables, methods bound to it: `move()` is
   `self:move()`), then children for capitalized names (`Look.color`,
   `Camera.zoom`), then the short API, then Lua's globals. Assigning a name
-  that isn't `local` sets it on the piece. `self` is there too.
+  that isn't `local` sets it on the piece; inside a function the name has
+  to exist already (made at the script's top level, a property, or set on
+  the piece before), so a mistyped name is an error with a did-you-mean
+  and not a silent second variable. `self` is there too.
+- **Angles are degrees** wherever a script or the Inspector meets one
+  (`rotation`, `spin`, `angleTo()`, `smitten.math.direction(angle)`).
+- **Old projects keep their rules.** `smitten.json`'s `"version"` says
+  which rules a game plays by. Version 3 brought degrees, `clicked()`,
+  the undeclared-name error and `gravityScale`; a project of version 2
+  (every game published before) runs as it always did, through the one
+  module that knows the difference (`love/src/modules/engine/compat.lua`),
+  until its maker chooses "Update this project" in the editor
+  (`web/editor/core/update-project.js`, `docs/older-projects.md`).
 - **The short API** (`love/src/modules/scene/script.lua`): `pressed`,
   `down`, `released`, `axis`, `vector`; `go`, `reload`, `spawn`, `make`,
   `tagged`, `first`, `root`; `sfx("coin")`, `music("theme")`, `stopMusic`;
@@ -184,9 +196,9 @@ end
   the scene, `self:spawn()` inside the piece.
 - **Callbacks**: `ready()`, `update(dt)`, `physicsUpdate(dt)` (60 a
   second), `draw()`, `removed()`, and events named after what happened:
-  `hit(other)`, `entered(other)` / `exited(other)`, `pressed()`,
+  `hit(other)`, `entered(other)` / `exited(other)`, `clicked()`,
   `finished()`, `tick()`. Any piece can `emit("name", ...)` its own;
-  `piece:on("pressed", fn)` listens from elsewhere. Another script calls a
+  `piece:on("clicked", fn)` listens from elsewhere. Another script calls a
   script's function as a method: `other:hurt(5)`.
 - **Waiting**: `ready()` and events run as tasks (pooled coroutines), so
   they can `wait(1)`; `task(function() ... end)` runs anything as one.

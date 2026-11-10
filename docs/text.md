@@ -119,7 +119,7 @@ scene's script is a good place.
 | Change these | |
 | --- | --- |
 | `c.x`, `c.y` | Moves the letter this many pixels (both start at 0) |
-| `c.rotation` | Turns it, in radians, around its middle |
+| `c.rotation` | Turns it, in degrees, around its middle |
 | `c.scale` | Makes it bigger or smaller (1 is normal) |
 | `c.color` | Its color, `{r, g, b, a}`: change the numbers or set a new table |
 | `c.alpha` | 0 is invisible, 1 is solid |
@@ -317,7 +317,7 @@ function revealed(index, char)
 end
 
 function update()
-  if not parent.visible or not smitten.input.pressed("accept") then return end
+  if not parent.visible or not pressed("accept") then return end
   if visibleCharacters >= 0 then
     skip()                  -- still typing: show the whole line
   elseif at < #lines then

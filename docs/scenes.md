@@ -164,16 +164,38 @@ Every piece also has `name`, `type`, `parent`, `children` and `script`.
 ## Position, size and drawing order
 
 Pieces that appear in the world (Group and everything based on it) have
-`x`, `y`, `rotation` (in radians), `scaleX`, `scaleY`, `visible`, `tint`
-and `layer`. Positions are measured from the parent piece, and `y` grows
-downwards. Higher layers draw on top.
+`x`, `y`, `rotation`, `scaleX`, `scaleY`, `visible`, `tint` and `layer`.
+Positions are measured from the parent piece, and `y` grows downwards.
+Higher layers draw on top.
+
+### Angles
+
+Every angle is in degrees, clockwise: `rotation = 90` is a quarter turn,
+and 0 points right. That goes for everything a script meets: `rotation`,
+`angleTo()`, a Body's `spin` (degrees a second), a Joint's `minAngle`, a
+Particles piece's `direction`, and the Inspector shows the same numbers.
+
+```lua
+rotation = angleTo(first("player"))           -- face the player
+rotation += 180 * dt                            -- half a turn a second
+
+-- Fly the way the piece faces: the x and y of a step at an angle.
+vx, vy = smitten.math.direction(rotation, 300)
+
+-- And back: the angle of a direction.
+rotation = smitten.math.angle(vx, vy)
+```
+
+Lua's own `math.sin` and `math.cos` take radians, so give them
+`math.rad(angle)`; `math.deg(radians)` goes the other way. The low-level
+`smitten.graphics` calls (`rotate`, `draw`) take radians too.
 
 <!-- piece:Group -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
 | `x` | number (px) | 0 | Position, measured from the parent. |
 | `y` | number (px) | 0 | Position, measured from the parent. y grows downwards. |
-| `rotation` | angle | 0° | Turn, clockwise: radians in code, degrees in the inspector. |
+| `rotation` | angle (°) | 0° | Turn, clockwise, in degrees: 90 is a quarter turn. |
 | `scaleX` | number | 1 | Width multiplier. Negative mirrors it. |
 | `scaleY` | number | 1 | Height multiplier. Negative flips it. |
 | `visible` | bool | true | Show this piece and everything inside it. |
@@ -189,7 +211,7 @@ downwards. Higher layers draw on top.
 | `fromWorld(x, y)` | A point in the scene, measured from this piece. |
 | `lookAt(x, y)` | Turns the piece to face a point in the scene. |
 | `distanceTo(pieceOrX, y?)` | Distance in pixels to another piece or a point. |
-| `angleTo(pieceOrX, y?)` | Angle in radians towards another piece or a point. |
+| `angleTo(pieceOrX, y?)` | The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it. |
 | `moveToward(x, y, distance)` | Moves at most distance pixels towards a point; true once it's there. |
 | `translate(dx, dy)` | Moves the piece by an offset. |
 <!-- end -->

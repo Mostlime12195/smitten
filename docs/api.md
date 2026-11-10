@@ -92,7 +92,7 @@ See [Scripts](scripts.md).
 | `rnd(n)` | rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items. |
 | `choose(...)` | One of its arguments, at random. |
 | `dist(a, b)` | The distance between two pieces, or dist(x1, y1, x2, y2). |
-| `jumpSpeed(height, gravity)` | How fast to go up to jump this high (with the piece's gravity). |
+| `jumpSpeed(height, gravity)` | How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither). |
 
 ## Physics
 
@@ -133,7 +133,7 @@ See [Drawing](drawing.md).
 | `line(x1, y1, x2, y2, ...)` | A line through points. |
 | `dot(x, y)` | One pixel. |
 | `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height. |
-| `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }). |
+| `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
 
 ## Script functions
 
@@ -149,8 +149,9 @@ Called by the engine when a script defines them.
 | `function hit(other, contact)` | Body | Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse. |
 | `function entered(zone)` | Body, Zone | Body: It went into a zone. Zone: A body or zone came in. |
 | `function exited(zone)` | Body, Zone | Body: It left a zone. Zone: A body or zone left. |
-| `function pressed()` | Button, Panel, Picture, TouchStick, TouchButton | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it). |
-| `function released()` | TouchStick, TouchButton | TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off. |
+| `function clicked()` | Button, Panel, Picture | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. |
+| `function touched()` | TouchStick, TouchButton | TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it). |
+| `function untouched()` | TouchStick, TouchButton | TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off. |
 | `function tick()` | Timer | The countdown reached zero. |
 | `function finished(animation)` | Sprite, Text, Particles, Label, Sound | Sprite: A non-looping animation reached its last frame. Text: reveal() has shown the whole text. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Label: reveal() has shown the whole text. Sound: The sound reached its end (not when looping). |
 | `function hovered()` | UI | The pointer came over it (not Labels). |

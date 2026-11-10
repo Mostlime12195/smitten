@@ -25,7 +25,7 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li><li><a href="#touchstick">TouchStick</a></li><li><a href="#touchbutton">TouchButton</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li><li><a href="#touchstick">TouchStick</a></li><li><a href="#touchbutton">TouchButton</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
@@ -37,12 +37,12 @@
 <span class="tk-f">tween</span>(Message, <span class="tk-n">0.3</span>, { opacity = <span class="tk-n">1</span> })</code></pre>
 <p><code>getRect()</code> returns where a UI piece is on the screen right now, and <code>visible</code> and <code>opacity</code> hide or fade it along with everything inside it.</p>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
-<p>When a Button is clicked or tapped, its script's <code>pressed()</code> runs (Pictures and Panels get it too):</p>
+<p>When a Button is clicked or tapped, its script's <code>clicked()</code> runs (Pictures and Panels get it too):</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On a &quot;Play&quot; button</span>
-<span class="tk-k">function</span> <span class="tk-f">pressed</span>()
+<span class="tk-k">function</span> <span class="tk-f">clicked</span>()
   <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>)
 <span class="tk-k">end</span></code></pre>
-<p>In a Button's own script, <code>pressed</code> means that event, so read input there with <code>smitten.input.pressed(...)</code>.</p>
+<p>From another script, listen with <code>Play:on(&quot;clicked&quot;, function() ... end)</code>. <code>pressed(&quot;jump&quot;)</code> is always the input call, in a Button's script as anywhere else.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>disabled</code></td><td>Can't be pressed; drawn faded</td></tr>
@@ -140,7 +140,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
 </table></div>
 <h2 id="bar"><a class="anchor" href="#bar" aria-hidden="true">#</a>Bar</h2>
 <div class="table"><table>
@@ -163,7 +163,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
 </table></div>
 <h2 id="picture"><a class="anchor" href="#picture" aria-hidden="true">#</a>Picture</h2>
 <div class="table"><table>
@@ -174,7 +174,7 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
 </table></div>
 <h2 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h2>
 <p>A stick for a thumb: it pushes input actions like a gamepad's stick. <a href="input#touch">Input: Touch</a> shows how to lay out touch controls.</p>
@@ -201,14 +201,14 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>A finger landed on the stick.</td></tr>
-<tr><td><code>function released()</code></td><td>The finger let go of the stick.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>A finger landed on the stick.</td></tr>
+<tr><td><code>function untouched()</code></td><td>The finger let go of the stick.</td></tr></tbody>
 </table></div>
 <h2 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h2>
 <p>A button for a finger: it holds an input action down while it's held.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()).</td></tr>
+<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()).</td></tr>
 <tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
 <tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle.</td></tr>
 <tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>Words or a letter on the button.</td></tr>
@@ -226,8 +226,8 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function pressed()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
-<tr><td><code>function released()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
+<tr><td><code>function untouched()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="text"><span>Previous</span>Text</a><a class="next" href="physics"><span>Next</span>Physics</a></nav>

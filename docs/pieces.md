@@ -1,9 +1,9 @@
 # Pieces
 
 Each piece has its own properties plus its base type's. In its own script:
-`x = 10`, `move()`, `function pressed() end`. On another piece: `other.x`,
-`other:move()`, `other:on("pressed", fn)`. Angles are radians in code,
-degrees in the Inspector.
+`x = 10`, `move()`, `function clicked() end`. On another piece: `other.x`,
+`other:move()`, `other:on("clicked", fn)`. Angles are degrees, in code and
+in the Inspector.
 
 ## Basic
 
@@ -55,7 +55,7 @@ Extends [Piece](#piece).
 | --- | --- | --- | --- |
 | `x` | number (px) | 0 | Position, measured from the parent. |
 | `y` | number (px) | 0 | Position, measured from the parent. y grows downwards. |
-| `rotation` | angle | 0° | Turn, clockwise: radians in code, degrees in the inspector. |
+| `rotation` | angle (°) | 0° | Turn, clockwise, in degrees: 90 is a quarter turn. |
 | `scaleX` | number | 1 | Width multiplier. Negative mirrors it. |
 | `scaleY` | number | 1 | Height multiplier. Negative flips it. |
 | `visible` | bool | true | Show this piece and everything inside it. |
@@ -71,7 +71,7 @@ Extends [Piece](#piece).
 | `fromWorld(x, y)` | A point in the scene, measured from this piece. |
 | `lookAt(x, y)` | Turns the piece to face a point in the scene. |
 | `distanceTo(pieceOrX, y?)` | Distance in pixels to another piece or a point. |
-| `angleTo(pieceOrX, y?)` | Angle in radians towards another piece or a point. |
+| `angleTo(pieceOrX, y?)` | The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it. |
 | `moveToward(x, y, distance)` | Moves at most distance pixels towards a point; true once it's there. |
 | `translate(dx, dy)` | Moves the piece by an offset. |
 
@@ -309,8 +309,8 @@ Extends [Group](#group).
 | `image` | resource | "" | The particle picture; empty draws soft dots. |
 | `speed` | number (px/s) | 100 | Starting speed. |
 | `speedRandom` | number | 0.5 | How much the speed varies (0 to 1). |
-| `direction` | angle | -90° | Direction particles fly in. |
-| `spread` | angle | 28.65° | How far directions vary either side. |
+| `direction` | angle (°) | -5156.62° | Direction particles fly in, in degrees: 0 is right, 90 is down, -90 is up. |
+| `spread` | angle (°) | 1718.87° | How far directions vary either side, in degrees. |
 | `gravityX` | number (px/s²) | 0 | Constant pull, sideways. |
 | `gravityY` | number (px/s²) | 0 | Constant pull, down. |
 | `sizeStart` | number (px) | 8 | Size when born. |
@@ -404,12 +404,12 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in). |
 | `vx` | number (px/s) | 0 | Horizontal speed (px/s). |
 | `vy` | number (px/s) | 0 | Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now. |
-| `spin` | number (rad/s) | 0 | How fast it turns (clockwise is positive). Scripted: move() turns it this fast. |
-| `slope` | angle | 45° | The steepest surface that still counts as ground: move() walks up it without sliding back. |
+| `spin` | angle (°/s) | 0° | How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast. |
+| `slope` | angle (°) | 2578.31° | The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back. |
 | `mass` | number (kg) | 1 | Kilograms. A scripted body pushes physics bodies by its mass against theirs. |
 | `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
 | `bounce` | number | 0 | How much it bounces: 0 none, 1 forever. |
-| `gravity` | number | 1 | How strongly gravity pulls it; 0 floats, -1 falls up. |
+| `gravityScale` | number | 1 | How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up. |
 | `drag` | number | 0 | Air resistance: slows its movement down. |
 | `spinDrag` | number | 0 | Slows its turning down. |
 | `fixedRotation` | bool | false | Never tip over or spin. |
@@ -503,11 +503,11 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | `stiffness` | number (Hz) | 4 | How stiff the spring is: wobbles per second. |
 | `damping` | number | 0.5 | How quickly the spring stops wobbling: 1 doesn't overshoot. |
 | `motor` | bool | false | Drive it: turn a pin or wheel, or move a slider, at motorSpeed. |
-| `motorSpeed` | number | 2 | Radians per second (pin, wheel) or pixels per second (slider, distance). |
+| `motorSpeed` | number | 90 | Degrees a second (pin, wheel) or pixels a second (slider, distance). |
 | `motorStrength` | number | 100000 | The most torque (pin, wheel) or force (slider, distance) the motor uses. |
 | `limit` | bool | false | Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper. |
-| `minAngle` | angle | -45° | The furthest a pin turns anticlockwise. |
-| `maxAngle` | angle | 45° | The furthest a pin turns clockwise. |
+| `minAngle` | angle (°) | -2578.31° | The furthest a pin turns anticlockwise, in degrees. |
+| `maxAngle` | angle (°) | 2578.31° | The furthest a pin turns clockwise, in degrees. |
 | `lower` | number (px) | -50 | The furthest a slider or wheel goes back. |
 | `upper` | number (px) | 50 | The furthest a slider or wheel goes forward. |
 | `strength` | number | 0 | The most force a mouse joint pulls with; 0 is plenty for the body's mass. |
@@ -516,10 +516,10 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 | Method | |
 | --- | --- |
-| `getAngle()` | How far a pin has turned (radians). |
+| `getAngle()` | How far a pin has turned, in degrees. |
 | `getTranslation()` | How far a slider has slid (pixels). |
 | `getLength()` | How far apart a rope, spring or distance joint's ends are. |
-| `getSpeed()` | How fast a pin turns or a slider slides. |
+| `getSpeed()` | How fast a pin turns (degrees a second) or a slider slides (pixels a second). |
 | `getForce()` | How hard the joint pulls now. |
 | `getTorque()` | How hard the joint twists now. |
 | `isBroken()` | True once breakForce broke it. |
@@ -619,7 +619,7 @@ Extends [UI](#ui).
 
 ### Button
 
-A button to click or tap. Its script gets pressed().
+A button to click or tap. Its script gets clicked().
 
 Extends [UI](#ui).
 
@@ -644,7 +644,7 @@ Extends [UI](#ui).
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The button was clicked, tapped, or pressed with accept while focused. |
+| `function clicked()` | The button was clicked, tapped, or pressed with accept while focused. |
 
 ### Panel
 
@@ -661,7 +661,7 @@ Extends [UI](#ui).
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The panel was clicked or tapped (not on a button inside it). |
+| `function clicked()` | The panel was clicked or tapped (not on a button inside it). |
 
 ### Picture
 
@@ -677,7 +677,7 @@ Extends [UI](#ui).
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The picture was clicked or tapped. |
+| `function clicked()` | The picture was clicked or tapped. |
 
 ### Bar
 
@@ -724,8 +724,8 @@ Extends [UI](#ui).
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | A finger landed on the stick. |
-| `function released()` | The finger let go of the stick. |
+| `function touched()` | A finger landed on the stick. |
+| `function untouched()` | The finger let go of the stick. |
 
 ### TouchButton
 
@@ -735,7 +735,7 @@ Extends [UI](#ui).
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `action` | action | "jump" | The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()). |
+| `action` | action | "jump" | The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()). |
 | `player` | int | 0 | Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1. |
 | `shape` | enum | "circle" | circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle. |
 | `text` | text | "" | Words or a letter on the button. |
@@ -753,8 +753,8 @@ Extends [UI](#ui).
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | A finger pressed the button (or slid onto it). |
-| `function released()` | The finger let go, or slid off. |
+| `function touched()` | A finger pressed the button (or slid onto it). |
+| `function untouched()` | The finger let go, or slid off. |
 
 ## Sound
 

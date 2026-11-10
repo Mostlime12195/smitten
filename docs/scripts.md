@@ -47,6 +47,37 @@ Assigning to a name that isn't `local` stores it on the piece, where other
 scripts can read it (`other.hp`). `self` is the piece itself, for when you
 need to pass it somewhere.
 
+## Making variables
+
+A script's variables are made at its top level, outside any function:
+
+```lua
+score = 0          -- a variable, starting at 0
+target = nil       -- one with no value yet
+local timer = 0    -- one only this script sees
+
+function hit(other)
+  score += 1       -- fine: score was made above
+  target = other   -- fine
+  scroe = 0        -- a typing mistake: the game stops here and says so
+end
+```
+
+Inside a function you can set a variable from the top of the script, one
+of the piece's properties (`x`, `vx`, `text`), or a `local`. Setting any
+other name is taken for a typing mistake, and the game stops with
+
+```
+scripts/player.lua:9: there's no variable called "scroe" here (did you mean "score"?).
+To make a new one, write scroe = 0 at the top of the script (or local scroe = 0
+right here, if only this function uses it).
+```
+
+Without this, a mistyped name would quietly make a second variable, and
+the score would just never go up. A few things count as made already: a
+value given to the piece in the Inspector or by `spawn("...", { hp = 3 })`,
+and anything set with `self.name = ...`, which is always allowed.
+
 A function of yours with the name of something the piece already does
 replaces it: `function move()` on a Body means `move()` is yours, and the
 body no longer moves by itself. Smitten says so in Output when the game
@@ -82,7 +113,7 @@ Define any of these and the engine calls them at the right time:
 | `removed()` | When the piece leaves the scene |
 
 Pieces also call **events** when things happen to them: a Body's
-`hit(other)`, a Zone's `entered(other)`, a Button's `pressed()`, a
+`hit(other)`, a Zone's `entered(other)`, a Button's `clicked()`, a
 Timer's `tick()`, and so on. [Pieces](pieces.md) lists every piece's
 events.
 
@@ -156,7 +187,7 @@ Easings: `linear`, `outQuad` (the default), `inQuad`, `inOutQuad`,
 | `rnd(n)` | rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items. |
 | `choose(...)` | One of its arguments, at random. |
 | `dist(a, b)` | The distance between two pieces, or dist(x1, y1, x2, y2). |
-| `jumpSpeed(height, gravity)` | How fast to go up to jump this high (with the piece's gravity). |
+| `jumpSpeed(height, gravity)` | How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither). |
 <!-- end -->
 
 There's more in [`smitten.math`](engine.md).

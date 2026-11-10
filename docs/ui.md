@@ -27,18 +27,19 @@ tween(Message, 0.3, { opacity = 1 })
 
 ## Buttons
 
-When a Button is clicked or tapped, its script's `pressed()` runs
+When a Button is clicked or tapped, its script's `clicked()` runs
 (Pictures and Panels get it too):
 
 ```lua
 -- On a "Play" button
-function pressed()
+function clicked()
   go("scenes/level1.scene")
 end
 ```
 
-In a Button's own script, `pressed` means that event, so read input there
-with `smitten.input.pressed(...)`.
+From another script, listen with `Play:on("clicked", function() ... end)`.
+`pressed("jump")` is always the input call, in a Button's script as
+anywhere else.
 
 | | |
 | --- | --- |
@@ -156,7 +157,7 @@ and links that call `linkPressed(name)`.
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The button was clicked, tapped, or pressed with accept while focused. |
+| `function clicked()` | The button was clicked, tapped, or pressed with accept while focused. |
 <!-- end -->
 
 ## Bar
@@ -185,7 +186,7 @@ and links that call `linkPressed(name)`.
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The panel was clicked or tapped (not on a button inside it). |
+| `function clicked()` | The panel was clicked or tapped (not on a button inside it). |
 <!-- end -->
 
 ## Picture
@@ -199,7 +200,7 @@ and links that call `linkPressed(name)`.
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | The picture was clicked or tapped. |
+| `function clicked()` | The picture was clicked or tapped. |
 <!-- end -->
 
 ## TouchStick
@@ -231,8 +232,8 @@ A stick for a thumb: it pushes input actions like a gamepad's stick.
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | A finger landed on the stick. |
-| `function released()` | The finger let go of the stick. |
+| `function touched()` | A finger landed on the stick. |
+| `function untouched()` | The finger let go of the stick. |
 <!-- end -->
 
 ## TouchButton
@@ -242,7 +243,7 @@ A button for a finger: it holds an input action down while it's held.
 <!-- piece:TouchButton -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `action` | action | "jump" | The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()). |
+| `action` | action | "jump" | The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()). |
 | `player` | int | 0 | Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1. |
 | `shape` | enum | "circle" | circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle. |
 | `text` | text | "" | Words or a letter on the button. |
@@ -260,6 +261,6 @@ A button for a finger: it holds an input action down while it's held.
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function pressed()` | A finger pressed the button (or slid onto it). |
-| `function released()` | The finger let go, or slid off. |
+| `function touched()` | A finger pressed the button (or slid onto it). |
+| `function untouched()` | The finger let go, or slid off. |
 <!-- end -->

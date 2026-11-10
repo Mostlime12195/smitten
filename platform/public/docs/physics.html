@@ -25,12 +25,12 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics" aria-current="page">Physics</a><ul class="nav-sub"><li><a href="#bodies">Bodies</a></li><li><a href="#moving-players-and-enemies">Moving players and enemies</a></li><li><a href="#physics-bodies">Physics bodies</a></li><li><a href="#collisions">Collisions</a></li><li><a href="#zones">Zones</a></li><li><a href="#tiles">Tiles</a></li><li><a href="#queries">Queries</a></li><li><a href="#gravity">Gravity</a></li><li><a href="#joints">Joints</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics" aria-current="page">Physics</a><ul class="nav-sub"><li><a href="#bodies">Bodies</a></li><li><a href="#moving-players-and-enemies">Moving players and enemies</a></li><li><a href="#physics-bodies">Physics bodies</a></li><li><a href="#collisions">Collisions</a></li><li><a href="#zones">Zones</a></li><li><a href="#tiles">Tiles</a></li><li><a href="#queries">Queries</a></li><li><a href="#gravity">Gravity</a></li><li><a href="#joints">Joints</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Physics</h1>
 <p>Every scene has a physics world, powered by Box2D. <strong>Bodies</strong> are solid things that bump into each other, <strong>Zones</strong> notice when things go in and out, <strong>Hitboxes</strong> give either one extra shapes, <strong>Joints</strong> connect bodies together, and solid <strong>tiles</strong> act as walls and floors. Physics updates 60 times a second, right after every piece's <code>physicsUpdate(dt)</code>.</p>
-<p>Lengths are in pixels, speeds in pixels per second, angles in radians (clockwise), and mass in kilograms. As everywhere in Smitten, <code>y</code> points down, so <code>vy = -400</code> moves up.</p>
+<p>Lengths are in pixels, speeds in pixels per second, angles in degrees (clockwise; <code>spin</code> is degrees per second), and mass in kilograms. As everywhere in Smitten, <code>y</code> points down, so <code>vy = -400</code> moves up.</p>
 <h2 id="bodies"><a class="anchor" href="#bodies" aria-hidden="true">#</a>Bodies</h2>
 <p>A Body's <strong>motion</strong> decides what moves it:</p>
 <div class="table"><table>
@@ -53,12 +53,15 @@
 <p>Shapes move, turn and scale with the piece. A <strong>Hitbox</strong> inside a Body or Zone adds another shape, for things <code>auto</code> can't make, like an L shape or a sword's reach; set its <code>off</code> to disable it.</p>
 <h2 id="moving-players-and-enemies"><a class="anchor" href="#moving-players-and-enemies" aria-hidden="true">#</a>Moving players and enemies</h2>
 <p>Scripted bodies are moved by their script. Set the speed you want, then call <code>move()</code>:</p>
-<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
+<pre><code class="lang-lua">gravity = <span class="tk-n">1800</span>       <span class="tk-c">-- how fast it falls</span>
+
+<span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
   vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * <span class="tk-n">220</span>
-  vy = math.<span class="tk-f">min</span>(vy + <span class="tk-n">1800</span> * dt, <span class="tk-n">1000</span>)            <span class="tk-c">-- gravity, with a top speed</span>
+  vy = math.<span class="tk-f">min</span>(vy + gravity * dt, <span class="tk-n">1000</span>)         <span class="tk-c">-- gravity, with a top speed</span>
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
   <span class="tk-f">move</span>()
 <span class="tk-k">end</span></code></pre>
+<p><code>jumpSpeed(height)</code> works out the speed for a jump that high from the script's <code>gravity</code> (or give it one: <code>jumpSpeed(96, 1200)</code>).</p>
 <p><code>move()</code> does the hard parts of platformer movement for you: it slides along walls, walks up and down slopes up to <code>slope</code> degrees, stays on the ground over small bumps, rides moving platforms, pushes physics bodies (harder the heavier its <code>mass</code>), jumps up through one-way tiles and lands on them.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
@@ -72,14 +75,14 @@
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>applyImpulse(ix, iy)</code></td><td>A sudden push, like a jump or a kick. Applied at a point (<code>applyImpulse(ix, iy, x, y)</code>), it also spins the body</td></tr>
 <tr><td><code>applyForce(fx, fy)</code></td><td>A steady push for one step; call it every <code>physicsUpdate</code> for wind or thrusters</td></tr>
-<tr><td><code>applyTorque(t)</code>, <code>applyAngularImpulse(i)</code></td><td>The same for turning</td></tr>
+<tr><td><code>applyTorque(t)</code>, <code>applyAngularImpulse(i)</code></td><td>The same for turning (twisting strengths, not angles)</td></tr>
 <tr><td><code>grab(x, y)</code>, <code>dragTo(x, y)</code>, <code>drop()</code></td><td>Hold the body by a point, move it, and let go (it keeps its momentum)</td></tr>
 <tr><td><code>wake()</code></td><td>Wake a body that has come to rest</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Setting</th><th></th></tr></thead>
 <tbody><tr><td><code>mass</code></td><td>How heavy it is, in kilograms</td></tr>
-<tr><td><code>gravity</code></td><td>How strongly gravity pulls it: 0 floats, -1 falls up</td></tr>
+<tr><td><code>gravityScale</code></td><td>How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up</td></tr>
 <tr><td><code>friction</code>, <code>bounce</code></td><td>From 0 to 1: grip, and bounciness</td></tr>
 <tr><td><code>drag</code>, <code>spinDrag</code></td><td>Slow its movement and its turning, like air resistance</td></tr>
 <tr><td><code>fixedRotation</code></td><td>Never turns over</td></tr>
@@ -160,12 +163,12 @@
 <tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).</td></tr>
 <tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>Horizontal speed (px/s).</td></tr>
 <tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.</td></tr>
-<tr><td><code>spin</code></td><td>number (rad/s)</td><td>0</td><td>How fast it turns (clockwise is positive). Scripted: move() turns it this fast.</td></tr>
-<tr><td><code>slope</code></td><td>angle</td><td>45°</td><td>The steepest surface that still counts as ground: move() walks up it without sliding back.</td></tr>
+<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast.</td></tr>
+<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back.</td></tr>
 <tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>Kilograms. A scripted body pushes physics bodies by its mass against theirs.</td></tr>
 <tr><td><code>friction</code></td><td>number</td><td>0.3</td><td>How much it grips what it touches: 0 is ice.</td></tr>
 <tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 none, 1 forever.</td></tr>
-<tr><td><code>gravity</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it; 0 floats, -1 falls up.</td></tr>
+<tr><td><code>gravityScale</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up.</td></tr>
 <tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: slows its movement down.</td></tr>
 <tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows its turning down.</td></tr>
 <tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>Never tip over or spin.</td></tr>
@@ -241,11 +244,11 @@
 <tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is: wobbles per second.</td></tr>
 <tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How quickly the spring stops wobbling: 1 doesn't overshoot.</td></tr>
 <tr><td><code>motor</code></td><td>bool</td><td>false</td><td>Drive it: turn a pin or wheel, or move a slider, at motorSpeed.</td></tr>
-<tr><td><code>motorSpeed</code></td><td>number</td><td>2</td><td>Radians per second (pin, wheel) or pixels per second (slider, distance).</td></tr>
+<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>Degrees a second (pin, wheel) or pixels a second (slider, distance).</td></tr>
 <tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The most torque (pin, wheel) or force (slider, distance) the motor uses.</td></tr>
 <tr><td><code>limit</code></td><td>bool</td><td>false</td><td>Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.</td></tr>
-<tr><td><code>minAngle</code></td><td>angle</td><td>-45°</td><td>The furthest a pin turns anticlockwise.</td></tr>
-<tr><td><code>maxAngle</code></td><td>angle</td><td>45°</td><td>The furthest a pin turns clockwise.</td></tr>
+<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The furthest a pin turns anticlockwise, in degrees.</td></tr>
+<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The furthest a pin turns clockwise, in degrees.</td></tr>
 <tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The furthest a slider or wheel goes back.</td></tr>
 <tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The furthest a slider or wheel goes forward.</td></tr>
 <tr><td><code>strength</code></td><td>number</td><td>0</td><td>The most force a mouse joint pulls with; 0 is plenty for the body's mass.</td></tr>
@@ -254,10 +257,10 @@
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned (radians).</td></tr>
+<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned, in degrees.</td></tr>
 <tr><td><code>getTranslation()</code></td><td>How far a slider has slid (pixels).</td></tr>
 <tr><td><code>getLength()</code></td><td>How far apart a rope, spring or distance joint's ends are.</td></tr>
-<tr><td><code>getSpeed()</code></td><td>How fast a pin turns or a slider slides.</td></tr>
+<tr><td><code>getSpeed()</code></td><td>How fast a pin turns (degrees a second) or a slider slides (pixels a second).</td></tr>
 <tr><td><code>getForce()</code></td><td>How hard the joint pulls now.</td></tr>
 <tr><td><code>getTorque()</code></td><td>How hard the joint twists now.</td></tr>
 <tr><td><code>isBroken()</code></td><td>True once breakForce broke it.</td></tr></tbody>

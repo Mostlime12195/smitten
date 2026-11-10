@@ -6,6 +6,9 @@ been saved under that name yet. That's all you need for high scores,
 settings and progress:
 
 ```lua
+score = 0
+best = 0
+
 function ready()
   best = load("best", 0)
 end

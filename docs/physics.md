@@ -6,8 +6,8 @@ out, **Hitboxes** give either one extra shapes, **Joints** connect bodies
 together, and solid **tiles** act as walls and floors. Physics updates 60
 times a second, right after every piece's `physicsUpdate(dt)`.
 
-Lengths are in pixels, speeds in pixels per second, angles in radians
-(clockwise), and mass in kilograms. As everywhere in Smitten, `y` points
+Lengths are in pixels, speeds in pixels per second, angles in degrees
+(clockwise; `spin` is degrees per second), and mass in kilograms. As everywhere in Smitten, `y` points
 down, so `vy = -400` moves up.
 
 ## Bodies
@@ -44,13 +44,18 @@ Scripted bodies are moved by their script. Set the speed you want, then
 call `move()`:
 
 ```lua
+gravity = 1800       -- how fast it falls
+
 function physicsUpdate(dt)
   vx = axis("left", "right") * 220
-  vy = math.min(vy + 1800 * dt, 1000)            -- gravity, with a top speed
+  vy = math.min(vy + gravity * dt, 1000)         -- gravity, with a top speed
   if pressed("jump") and onGround() then vy = -jumpSpeed(96) end
   move()
 end
 ```
+
+`jumpSpeed(height)` works out the speed for a jump that high from the
+script's `gravity` (or give it one: `jumpSpeed(96, 1200)`).
 
 `move()` does the hard parts of platformer movement for you: it slides
 along walls, walks up and down slopes up to `slope` degrees, stays on the
@@ -75,14 +80,14 @@ velocity; set them to throw something. To push them around:
 | --- | --- |
 | `applyImpulse(ix, iy)` | A sudden push, like a jump or a kick. Applied at a point (`applyImpulse(ix, iy, x, y)`), it also spins the body |
 | `applyForce(fx, fy)` | A steady push for one step; call it every `physicsUpdate` for wind or thrusters |
-| `applyTorque(t)`, `applyAngularImpulse(i)` | The same for turning |
+| `applyTorque(t)`, `applyAngularImpulse(i)` | The same for turning (twisting strengths, not angles) |
 | `grab(x, y)`, `dragTo(x, y)`, `drop()` | Hold the body by a point, move it, and let go (it keeps its momentum) |
 | `wake()` | Wake a body that has come to rest |
 
 | Setting | |
 | --- | --- |
 | `mass` | How heavy it is, in kilograms |
-| `gravity` | How strongly gravity pulls it: 0 floats, -1 falls up |
+| `gravityScale` | How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up |
 | `friction`, `bounce` | From 0 to 1: grip, and bounciness |
 | `drag`, `spinDrag` | Slow its movement and its turning, like air resistance |
 | `fixedRotation` | Never turns over |
@@ -212,12 +217,12 @@ Joint settings can change while the game runs (`motorSpeed = 5`).
 | `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in). |
 | `vx` | number (px/s) | 0 | Horizontal speed (px/s). |
 | `vy` | number (px/s) | 0 | Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now. |
-| `spin` | number (rad/s) | 0 | How fast it turns (clockwise is positive). Scripted: move() turns it this fast. |
-| `slope` | angle | 45° | The steepest surface that still counts as ground: move() walks up it without sliding back. |
+| `spin` | angle (°/s) | 0° | How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast. |
+| `slope` | angle (°) | 2578.31° | The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back. |
 | `mass` | number (kg) | 1 | Kilograms. A scripted body pushes physics bodies by its mass against theirs. |
 | `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
 | `bounce` | number | 0 | How much it bounces: 0 none, 1 forever. |
-| `gravity` | number | 1 | How strongly gravity pulls it; 0 floats, -1 falls up. |
+| `gravityScale` | number | 1 | How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up. |
 | `drag` | number | 0 | Air resistance: slows its movement down. |
 | `spinDrag` | number | 0 | Slows its turning down. |
 | `fixedRotation` | bool | false | Never tip over or spin. |
@@ -299,11 +304,11 @@ Joint settings can change while the game runs (`motorSpeed = 5`).
 | `stiffness` | number (Hz) | 4 | How stiff the spring is: wobbles per second. |
 | `damping` | number | 0.5 | How quickly the spring stops wobbling: 1 doesn't overshoot. |
 | `motor` | bool | false | Drive it: turn a pin or wheel, or move a slider, at motorSpeed. |
-| `motorSpeed` | number | 2 | Radians per second (pin, wheel) or pixels per second (slider, distance). |
+| `motorSpeed` | number | 90 | Degrees a second (pin, wheel) or pixels a second (slider, distance). |
 | `motorStrength` | number | 100000 | The most torque (pin, wheel) or force (slider, distance) the motor uses. |
 | `limit` | bool | false | Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper. |
-| `minAngle` | angle | -45° | The furthest a pin turns anticlockwise. |
-| `maxAngle` | angle | 45° | The furthest a pin turns clockwise. |
+| `minAngle` | angle (°) | -2578.31° | The furthest a pin turns anticlockwise, in degrees. |
+| `maxAngle` | angle (°) | 2578.31° | The furthest a pin turns clockwise, in degrees. |
 | `lower` | number (px) | -50 | The furthest a slider or wheel goes back. |
 | `upper` | number (px) | 50 | The furthest a slider or wheel goes forward. |
 | `strength` | number | 0 | The most force a mouse joint pulls with; 0 is plenty for the body's mass. |
@@ -312,10 +317,10 @@ Joint settings can change while the game runs (`motorSpeed = 5`).
 
 | Method | |
 | --- | --- |
-| `getAngle()` | How far a pin has turned (radians). |
+| `getAngle()` | How far a pin has turned, in degrees. |
 | `getTranslation()` | How far a slider has slid (pixels). |
 | `getLength()` | How far apart a rope, spring or distance joint's ends are. |
-| `getSpeed()` | How fast a pin turns or a slider slides. |
+| `getSpeed()` | How fast a pin turns (degrees a second) or a slider slides (pixels a second). |
 | `getForce()` | How hard the joint pulls now. |
 | `getTorque()` | How hard the joint twists now. |
 | `isBroken()` | True once breakForce broke it. |

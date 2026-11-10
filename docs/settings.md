@@ -8,7 +8,7 @@ actions, physics settings and which engine modules it downloads.
 ```json
 {
   "format": "smitten.project",
-  "version": 2,
+  "version": 3,
   "name": "My game",
   "main": "scenes/level.scene",
   "display": { "width": 1280, "height": 720, "stretch": "expand" },
@@ -18,6 +18,7 @@ actions, physics settings and which engine modules it downloads.
 
 | Setting | |
 | --- | --- |
+| `version` | Which rules the game plays by. New projects are 3; an older one keeps the rules it was made with until you [update it](older-projects.md) |
 | `name` | The game's name: the window title and the name of its saves |
 | `main` | The scene the game starts with |
 | `display.width`, `display.height` | The resolution the game is designed for |
@@ -60,7 +61,7 @@ the edges, and use `smitten.display`'s `viewX`, `viewY`, `viewWidth` and
 <!-- end -->
 
 Browsers only allow fullscreen right after a click or key press, so call
-`fullscreen(true)` from a button's `pressed()` or after `pressed("f")`.
+`fullscreen(true)` from a button's `clicked()` or after `pressed("f")`.
 
 <!-- module:display -->
 | Function | |

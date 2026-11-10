@@ -45,7 +45,7 @@ Press **Stop** (or **F8**) to go back to editing.
 
 In the Scene panel, click **Player**. The Inspector shows the player's
 settings. Near the bottom, under **Script variables**, are numbers that
-control the movement: `speed`, `jumpHeight`, `fallGravity` and more.
+control the movement: `speed`, `jumpHeight`, `gravity` and more.
 
 ![The player's script variables in the Inspector](images/inspector.webp)
 
