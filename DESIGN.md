@@ -96,7 +96,7 @@ Add a piece dialog, completions and [docs/pieces.md](docs/pieces.md) read.
 
 | Group | Pieces |
 | --- | --- |
-| Basic | `Group` (a position; holds other pieces or runs a script), `Timer` |
+| Basic | `Group` (a position; holds other pieces or runs a script), `Timer`, `Animator` (keyframes for any property of the pieces next to it, and call keys) |
 | Things you see | `Sprite`, `Shape`, `Text`, `Tiles` (with terrains that fit their own edges, and animated tiles), `Background` (parallax), `Camera`, `Particles` |
 | Light and shadow | `Light` (point or sun), `Occluder`, `Tint` |
 | Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint`, `Walkable` (where things can walk, for `smitten.paths`) |
@@ -229,7 +229,9 @@ in place; standard conventions; neutral looks with icons from
 
 - **Workspaces**: Scene, Script, Paint, Sound, Music.
 - **Panels**: Scene (the pieces), Files, Inspector, Output; the tile panel
-  appears under the scene view while a Tiles piece is selected.
+  appears under the scene view while a Tiles piece is selected; the Animate
+  panel (next to Output) edits an Animator's animations on a timeline, with
+  a record button and a preview in the scene view that is never saved.
 - **Add a piece** (Ctrl+A): searchable, grouped, with what each piece does
   and suggestions for what goes inside what. **Attach a script** offers a new
   script, a ready-made one, or one the project has.
@@ -334,5 +336,4 @@ smitten/
 
 - Triangle shapes, turned shapes for scripted Bodies and Zones (physics
   already turns them), slopes in tiles.
-- An animation timeline for any property.
 - Hack Club sign-in, moderation tools and hosting for the sharing site.

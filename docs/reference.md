@@ -17,9 +17,9 @@ all the steps of a small game, in approximately fifteen minutes.
 - Some pages each tell about one part of a game. These pages are
   [Input](input.md), [Sound and music](sound.md), [Camera](camera.md),
   [Backgrounds](backgrounds.md), [Tiles](tiles.md), [Lights](lights.md),
-  [Text](text.md), [UI](ui.md), [Physics](physics.md),
-  [Pathfinding](pathfinding.md), [Random and noise](random.md),
-  [Saving](saving.md) and
+  [Text](text.md), [UI](ui.md), [Animation](animation.md),
+  [Physics](physics.md), [Pathfinding](pathfinding.md),
+  [Random and noise](random.md), [Saving](saving.md) and
   [Drawing](drawing.md).
 - [Sharing and publishing](sharing.md) tells how to put a game on the games
   site. [Leaderboards](leaderboards.md) tells how to add shared high scores

@@ -372,7 +372,7 @@ export class AnimatePanel {
       bar.append(h('span', { class: 'anp-sep' }));
       bar.append(this.iconBtn('skipBack', 'Go to the start (Home)', () => this.setTime(0)));
       this.playBtn = this.iconBtn('play', 'Play the animation here (Space)', () => this.togglePlay());
-      this.stopBtn = this.iconBtn('stop', 'Stop: go back to the start and show the scene as it is saved', () => this.stopPreview());
+      this.stopBtn = this.iconBtn('stop', 'Stop: go back to the start and show the saved scene', () => this.stopPreview());
       bar.append(this.playBtn, this.stopBtn);
       this.timeInput = h('input', { class: 'input num-input anp-time', value: fmt(this.time), 'aria-label': 'Playhead time in seconds', title: 'The time of the playhead, in seconds' });
       this.timeInput.addEventListener('change', () => this.setTime(Number(this.timeInput.value) || 0, { snap: false }));

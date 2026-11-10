@@ -763,6 +763,8 @@ check('different share links have different ids', new Set(['', 'a', 'b', 'ab', '
   const before = JSON.stringify(panel.props);
   const undoDepth = d.undoStack.length;
   d.recorder = (entries, opts) => A.record(d, anim, 'open', 1.5, entries, opts);
+  d.setProps(panel, { rotation: 0, scaleX: 1 }, { merge: 'move0' });
+  check('anim: record makes no track for a value that stays the same', !data().open.tracks.some((t) => t.property === 'rotation' || t.property === 'scaleX'));
   d.setProps(panel, { x: 30, y: -80 }, { merge: 'move1', label: 'Move' });
   d.setProps(panel, { x: 32, y: -82 }, { merge: 'move1', label: 'Move' });
   check('anim: record leaves the piece as it is', JSON.stringify(panel.props) === before);

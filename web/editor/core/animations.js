@@ -10,7 +10,7 @@
 // A track's piece is a path from the Animator's parent: '.' is the parent
 // itself. Angles are degrees, as everywhere in the editor.
 
-import { clone, properties, isA, typeDef } from './schema.js';
+import { clone, equal, properties, isA, typeDef } from './schema.js';
 import { sorted, sample, lengthOf } from '../workspaces/scene/keyframes.js';
 
 /** Keys closer than this in time are the same key. */
@@ -334,7 +334,8 @@ export function defaultCall(type, event = 'key') {
  * become keys at a time instead. entries: [[node, {key: value}]]. A track
  * made by recording at a time after 0 also gets a key at 0 with the value
  * the piece had, so the animation starts from where the piece was. All in
- * one undo step (merged while a drag goes on). Returns the entries (or the
+ * one undo step (merged while a drag goes on). A property that has no track
+ * and keeps its value gets no track. Returns the entries (or the
  * parts of them) that aren't recorded: pieces outside the Animator's parent,
  * the Animator itself, and properties no track can have.
  */
@@ -357,8 +358,12 @@ export function record(doc, animator, name, time, entries, { merge = null, label
     const anim = a[name];
     if (!anim) return false;
     anim.tracks = anim.tracks || [];
+    let changed = false;
     for (const r of todo) {
       let track = anim.tracks.find((t) => t.piece === r.path && t.property === r.property);
+      // A drag sets x and y: only what changes gets a new track.
+      if (!track && equal(r.value, doc.get(r.node, r.property))) continue;
+      changed = true;
       if (!track) {
         track = { piece: r.path, property: r.property, keys: [] };
         anim.tracks.push(track);
@@ -366,6 +371,7 @@ export function record(doc, animator, name, time, entries, { merge = null, label
       }
       putKey(track, time, r.value);
     }
+    if (!changed) return false;
   }, { merge: merge && `record:${merge}` });
   return rest;
 }

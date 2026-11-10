@@ -46,7 +46,7 @@ games). Smitten and Cupid are not affiliated with the LÖVE team.
   `platform/`), share links, and a web build that you can put on itch.io.
 
 The docs start at [docs/reference.md](docs/reference.md). They tell about
-getting started, scripts, scenes, input, sound, camera, tiles, UI, saving,
+getting started, scripts, scenes, input, sound, camera, tiles, UI, animation, saving,
 drawing, project settings and sharing. They also have the script API, all
 the pieces and the file formats. The games site shows the docs at `/docs`.
 [DESIGN.md](DESIGN.md) gives the reasons for the decisions in Smitten.
@@ -82,7 +82,7 @@ end
 | `build.py` | The build script. It reads the lists of source files from `love/CMakeLists.txt` |
 | `serve.py` | A local development server |
 | `package.py` | A command-line web export for a project folder or a zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -310,6 +310,11 @@ Tests:
   `tools/scene-tests/levels/terrain-cases.json`, which also check the copy
   in the engine. `node tools/scene-tests/make-levels-fixture.mjs` writes
   these cases.
+- `node web/editor/workspaces/scene/keyframes.test.mjs`: the values of
+  animation keys for the preview of the Animate panel (`keyframes.js`). It
+  uses the cases in `tools/scene-tests/animation/keyframe-cases.json`,
+  which also check the copy in the engine (`keyframes.lua`).
+  `node tools/scene-tests/make-anim-fixture.mjs` writes these cases.
 - `tools/scene-tests/`: scenes that run in the engine.
   - `smoke`: pieces, bodies and zones, scripts and all of the script API.
     The script API includes input, tiles, camera, sprites, particles,
@@ -326,6 +331,10 @@ Tests:
   - `rules3` and `rules2`: the same project at version 3 and at version 2.
     They test the rules of each version: degrees or radians, `clicked()`
     or `pressed()`, undeclared names, `gravityScale` or `gravity`.
+  - `animation`: Animators. It checks values between keys, step keys,
+    colors, degrees, loops, `seek()`, `speed`, call keys, `animate()` in a
+    task and an Animator in a placed scene. Then it checks that a scene
+    with no Animator runs as before.
 
   You can open a scene test in the web player with the test server (see
   below). Each line that it prints tells what it checked.
@@ -340,6 +349,9 @@ Tests:
   plain Lua, with stubs for drawing. It tests where Rows, Columns, Grids
   and Scrolls put pieces, Slider drags, Checkbox groups, typing and
   selection in a TextInput, and the keyboard focus.
+- `lua5.1 tools/animation-tests/test.lua`: keys and the Animator piece
+  (`keyframes.lua` and `animator.lua` in the engine) under plain Lua, with
+  the cases of `keyframe-cases.json`.
 - `node tools/scene-tests/run.mjs` runs the scene tests in a headless
   Chrome. It fails if a test fails. `errors` and `lights` check
   themselves. `errors` checks what the engine tells you when a script has

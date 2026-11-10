@@ -38,6 +38,8 @@ A scene is a tree of pieces in a `.scene` file (JSON):
   version 3. See [Older projects](older-projects.md).
 - The `cells` of a Tiles piece are one rectangle of tile numbers, row by
   row. `-1` is an empty cell, and `n*k` is `n` repeated `k` times.
+- The `animations` of an Animator are its animations: tracks of keys. See
+  [The animations in the scene file](animation.md#the-animations-in-the-scene-file).
 
 ## Sprites
 

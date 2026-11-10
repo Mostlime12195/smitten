@@ -25,7 +25,7 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#light-and-shadow">Light and shadow</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#light-and-shadow">Light and shadow</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Pieces</h1>
@@ -111,6 +111,32 @@
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function tick()</code></td><td>The engine calls it when the countdown reaches zero.</td></tr></tbody>
+</table></div>
+<h3 id="animator"><a class="anchor" href="#animator" aria-hidden="true">#</a>Animator</h3>
+<p>Changes properties of pieces over time with keyframes, and calls methods at the times you choose. Put it inside the piece that it animates.</p>
+<p>Extends <a href="#piece">Piece</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>autoplay</code></td><td>animation</td><td>&quot;&quot;</td><td>The animation to play when the scene starts. If it is empty, no animation plays until a script calls play().</td></tr>
+<tr><td><code>speed</code></td><td>number</td><td>1</td><td>How fast animations play: 2 is two times as fast, and -1 plays them backwards.</td></tr>
+<tr><td><code>physicsStep</code></td><td>bool</td><td>false</td><td>When this is on, the animation moves on with each physics step (60 times per second), not with each frame. Use it to animate Bodies.</td></tr></tbody>
+</table></div>
+<p><code>playing</code>: True while an animation plays.</p>
+<p><code>current</code>: The name of the current animation (playing or paused), or &quot;&quot; if there is none.</p>
+<p><code>position</code>: Where the current animation is, in seconds from its start.</p>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>play(name?, restart?)</code></td><td>Plays an animation, or continues the current animation. With restart, the animation starts again from its start.</td></tr>
+<tr><td><code>pause()</code></td><td>Stops the animation where it is. play() continues it.</td></tr>
+<tr><td><code>stop()</code></td><td>Stops the animation and puts the pieces back to the values at its start.</td></tr>
+<tr><td><code>seek(seconds)</code></td><td>Moves the current animation to a time and gives the pieces the values of that time.</td></tr>
+<tr><td><code>animate(name?, restart?)</code></td><td>Plays an animation and waits until it ends (in ready(), events and tasks). Returns true if the animation got to its end, false if it stopped before.</td></tr>
+<tr><td><code>hasAnimation(name)</code></td><td>Returns true if the Animator has an animation with this name.</td></tr>
+<tr><td><code>getLength(name?)</code></td><td>Returns the length of an animation in seconds (of the current animation if you give no name).</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function finished(animation)</code></td><td>The engine calls it when an animation that does not loop gets to its end.</td></tr></tbody>
 </table></div>
 <h2 id="things-you-see"><a class="anchor" href="#things-you-see" aria-hidden="true">#</a>Things you see</h2>
 <h3 id="sprite"><a class="anchor" href="#sprite" aria-hidden="true">#</a>Sprite</h3>

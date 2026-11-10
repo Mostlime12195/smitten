@@ -99,6 +99,38 @@ Extends [Piece](#piece).
 | --- | --- |
 | `function tick()` | The engine calls it when the countdown reaches zero. |
 
+### Animator
+
+Changes properties of pieces over time with keyframes, and calls methods at the times you choose. Put it inside the piece that it animates.
+
+Extends [Piece](#piece).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `autoplay` | animation | "" | The animation to play when the scene starts. If it is empty, no animation plays until a script calls play(). |
+| `speed` | number | 1 | How fast animations play: 2 is two times as fast, and -1 plays them backwards. |
+| `physicsStep` | bool | false | When this is on, the animation moves on with each physics step (60 times per second), not with each frame. Use it to animate Bodies. |
+
+`playing`: True while an animation plays.
+
+`current`: The name of the current animation (playing or paused), or "" if there is none.
+
+`position`: Where the current animation is, in seconds from its start.
+
+| Method | |
+| --- | --- |
+| `play(name?, restart?)` | Plays an animation, or continues the current animation. With restart, the animation starts again from its start. |
+| `pause()` | Stops the animation where it is. play() continues it. |
+| `stop()` | Stops the animation and puts the pieces back to the values at its start. |
+| `seek(seconds)` | Moves the current animation to a time and gives the pieces the values of that time. |
+| `animate(name?, restart?)` | Plays an animation and waits until it ends (in ready(), events and tasks). Returns true if the animation got to its end, false if it stopped before. |
+| `hasAnimation(name)` | Returns true if the Animator has an animation with this name. |
+| `getLength(name?)` | Returns the length of an animation in seconds (of the current animation if you give no name). |
+
+| Event (a function in its script) | |
+| --- | --- |
+| `function finished(animation)` | The engine calls it when an animation that does not loop gets to its end. |
+
 ## Things you see
 
 ### Sprite
