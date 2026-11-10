@@ -16,8 +16,43 @@ const DEFAULT_ACTIONS = {
   pause: ['escape', 'p', 'pad:start'],
 };
 
+// Two players on one keyboard: keys far apart, so cheap keyboards (which
+// lose some keys when several are held) keep up. Gamepad inputs are each
+// player's own gamepad's.
+export const KEYBOARD_PLAYERS = {
+  1: {
+    left: ['a', 'pad:dpleft', 'axis:leftx-'], right: ['d', 'pad:dpright', 'axis:leftx+'],
+    up: ['w', 'pad:dpup', 'axis:lefty-'], down: ['s', 'pad:dpdown', 'axis:lefty+'],
+    jump: ['space', 'pad:a'], fire: ['f', 'pad:x'],
+  },
+  2: {
+    left: ['left', 'pad:dpleft', 'axis:leftx-'], right: ['right', 'pad:dpright', 'axis:leftx+'],
+    up: ['up', 'pad:dpup', 'axis:lefty-'], down: ['down', 'pad:dpdown', 'axis:lefty+'],
+    jump: ['return', 'pad:a'], fire: ['rshift', 'pad:x'],
+  },
+};
+
+/** smitten.json "input": the actions all players share, and each player's own (under "players"). */
+export function splitInput(saved) {
+  const shared = {};
+  const players = {};
+  for (const [name, value] of Object.entries(saved || {})) {
+    if (name === 'players' && value && !Array.isArray(value) && typeof value === 'object') {
+      for (const [p, set] of Object.entries(value)) {
+        if (Number(p) >= 1 && set && typeof set === 'object') players[Math.floor(Number(p))] = { ...set };
+      }
+    } else if (Array.isArray(value)) {
+      shared[name] = value;
+    }
+  }
+  return { shared, players };
+}
+
 export function inputActions(project) {
-  return Object.keys({ ...DEFAULT_ACTIONS, ...(project.settings().input || {}) }).sort();
+  const { shared, players } = splitInput(project.settings().input);
+  const names = new Set(Object.keys({ ...DEFAULT_ACTIONS, ...shared }));
+  for (const set of Object.values(players)) for (const name of Object.keys(set)) names.add(name);
+  return [...names].sort();
 }
 
 /** True for a "#rrggbb" light enough to want dark text on it. */
@@ -43,7 +78,11 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const s = project.settings();
   const display = { width: 1280, height: 720, stretch: 'expand', ...(s.display || {}) };
   display.filter ??= display.stretch === 'pixel' ? 'pixel' : 'smooth';
-  const input = { ...DEFAULT_ACTIONS, ...(s.input || {}) };
+  const savedInput = splitInput(s.input);
+  const input = { ...DEFAULT_ACTIONS, ...savedInput.shared };
+  // Each player's own inputs: { 1: { action: [inputs] }, 2: ... }.
+  const playerSets = savedInput.players;
+  let playerCount = Math.min(4, Math.max(1, ...Object.keys(playerSets).map(Number)));
   const modules = { ...(s.modules || {}) };
 
   const field = (label, el, hint) => [h('label', {}, label), el, hint ? h('div', { class: 'hint' }, hint) : null];
@@ -139,31 +178,91 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
       ...field('Show for at least', h('div', { style: 'display: flex; gap: 6px; align-items: center' }, splashDuration, 'seconds'), 'It stays up longer if the game is still loading.'),
       ...field('“Made with Smitten”', madeWith)));
 
-  // Input
+  // Input: the actions everyone shares, and (with more than one player) a
+  // tab for each player's own inputs.
   const inputRows = h('div', { class: 'input-map' });
+  const inputTabs = h('div', { role: 'tablist', 'aria-label': 'Whose inputs', style: 'display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0' });
+  const inputNote = h('p', { class: 'settings-intro' });
+  const playersSelect = select(String(playerCount), [['1', '1 player'], ['2', '2 players'], ['3', '3 players'], ['4', '4 players']]);
+  playersSelect.setAttribute('aria-label', 'Players');
+  const twoOnKeyboard = h('button', { type: 'button', class: 'btn small', title: 'Player 1: WASD, Space, F. Player 2: arrow keys, Enter, Right Shift.' }, 'Two players on one keyboard');
+  let inputTab = 0;  // 0: everyone; else a player's number
+  const parseKeys = (value) => value.split(',').map((k) => k.trim()).filter(Boolean);
+  const isPadInput = (name) => name.startsWith('pad:') || name.startsWith('axis:');
   const renderInput = () => {
-    inputRows.replaceChildren();
-    for (const [action, list] of Object.entries(input)) {
-      const keys = text(list.join(', '), { 'aria-label': `Inputs for ${action}` });
-      keys.addEventListener('change', () => { input[action] = keys.value.split(',').map((k) => k.trim()).filter(Boolean); });
-      const del = h('button', { type: 'button', class: 'btn small ghost', title: `Remove ${action}` }, 'Remove');
-      del.addEventListener('click', () => { delete input[action]; renderInput(); });
-      inputRows.append(h('div', { class: 'input-row' }, h('strong', {}, action), keys, del));
+    if (inputTab > playerCount) inputTab = 0;
+    inputTabs.replaceChildren();
+    inputTabs.style.display = playerCount < 2 ? 'none' : 'flex';
+    for (let p = 0; p <= playerCount; p++) {
+      const b = h('button', { type: 'button', role: 'tab', class: `btn small ${p === inputTab ? '' : 'ghost'}`, 'aria-selected': String(p === inputTab) }, p ? `Player ${p}` : 'Everyone');
+      b.addEventListener('click', () => { inputTab = p; renderInput(); });
+      inputTabs.append(b);
     }
-    const newName = text('', { placeholder: 'New action name (dash, interact…)' });
-    const add = h('button', { type: 'button', class: 'btn small' }, 'Add action');
-    add.addEventListener('click', () => {
-      const n = newName.value.trim();
-      if (n && !input[n]) {
-        input[n] = [];
-        renderInput();
+    inputRows.replaceChildren();
+    if (!inputTab) {
+      inputNote.textContent = playerCount < 2
+        ? 'Actions name what the player does; scripts ask for them with pressed("jump"). List keys (space, a, left), mouse buttons (mouse:1), gamepad buttons (pad:a) and stick directions (axis:leftx-).'
+        : 'What every player starts with. pressed("jump") with no player reads all of it, from any keyboard key or gamepad; pressed("jump", 2) reads player 2 only.';
+      for (const [action, list] of Object.entries(input)) {
+        const keys = text(list.join(', '), { 'aria-label': `Inputs for ${action}` });
+        keys.addEventListener('change', () => { input[action] = parseKeys(keys.value); });
+        const del = h('button', { type: 'button', class: 'btn small ghost', title: `Remove ${action}` }, 'Remove');
+        del.addEventListener('click', () => {
+          delete input[action];
+          for (const set of Object.values(playerSets)) delete set[action];
+          renderInput();
+        });
+        inputRows.append(h('div', { class: 'input-row' }, h('strong', {}, action), keys, del));
       }
-    });
-    inputRows.append(h('div', { class: 'input-row' }, newName, h('span'), add));
+      const newName = text('', { placeholder: 'New action name (dash, interact…)' });
+      const add = h('button', { type: 'button', class: 'btn small' }, 'Add action');
+      add.addEventListener('click', () => {
+        const n = newName.value.trim();
+        if (n && n !== 'players' && !input[n]) {
+          input[n] = [];
+          renderInput();
+        }
+      });
+      inputRows.append(h('div', { class: 'input-row' }, newName, h('span'), add));
+      return;
+    }
+    const p = inputTab;
+    const nth = ['first', 'second', 'third', 'fourth'][p - 1];
+    inputNote.textContent = p === 1
+      ? 'Player 1 has the keyboard, the mouse and the first gamepad. An empty box means Everyone\'s inputs; fill one in to change it for player 1 only.'
+      : `Player ${p} has the ${nth} gamepad: pad: and axis: inputs here mean that one. An empty box means Everyone's gamepad inputs and no keys; list keys to let player ${p} share the keyboard.`;
+    const set = playerSets[p] || {};
+    for (const [action, list] of Object.entries(input)) {
+      const theirs = p === 1 ? list : list.filter(isPadInput);
+      const keys = text((set[action] || []).join(', '), { 'aria-label': `Player ${p}'s inputs for ${action}`, placeholder: theirs.length ? theirs.join(', ') : 'nothing yet' });
+      keys.addEventListener('change', () => {
+        const mine = parseKeys(keys.value);
+        playerSets[p] = playerSets[p] || {};
+        if (mine.length) playerSets[p][action] = mine; else delete playerSets[p][action];
+      });
+      inputRows.append(h('div', { class: 'input-row' }, h('strong', {}, action), keys, h('span')));
+    }
   };
+  playersSelect.addEventListener('change', () => {
+    playerCount = Number(playersSelect.value) || 1;
+    renderInput();
+  });
+  twoOnKeyboard.addEventListener('click', () => {
+    for (const p of [1, 2]) playerSets[p] = { ...(playerSets[p] || {}), ...structuredClone(KEYBOARD_PLAYERS[p]) };
+    if (playerCount < 2) {
+      playerCount = 2;
+      playersSelect.value = '2';
+    }
+    inputTab = 1;
+    renderInput();
+  });
   renderInput();
-  const inputTab = h('div', {},
-    h('p', { class: 'settings-intro' }, 'Actions name what the player does; scripts ask for them with smitten.input.pressed("jump"). List keys (space, a, left), mouse buttons (mouse:1), gamepad buttons (pad:a) and stick directions (axis:leftx-).'),
+  const inputTab_ = h('div', {},
+    h('div', { class: 'settings-grid' },
+      ...field('Players', h('div', { style: 'display: flex; gap: 6px; align-items: center; flex-wrap: wrap' }, playersSelect, twoOnKeyboard),
+        'With more than one, each player gets a tab for inputs of their own. Player 2 plays on the second gamepad unless you give them keys. The button sets two players up on one keyboard: WASD, Space and F against the arrow keys, Enter and Right Shift.')),
+    inputTabs,
+    inputNote,
     inputRows);
 
   // Physics
@@ -219,7 +318,7 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
     general: ['General', 'sliders', general],
     display: ['Display', 'monitor', displayTab],
     splash: ['Splash', 'image', splashTab],
-    input: ['Input', 'gamepad', inputTab],
+    input: ['Input', 'gamepad', inputTab_],
     physics: ['Physics', 'bodyPhysics', physicsTab],
     modules: ['Modules', 'package', modulesTab],
   };
@@ -262,7 +361,14 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   if (hadAntialias || antialias.checked !== autoAntialias(stretch.value)) next.display.antialias = antialias.checked;
   if (background.value !== toHex(bgColor)) next.display.background = fromHex(background.value, bgColor[3] ?? 1);
   const changedInput = Object.keys(input).some((k) => JSON.stringify(input[k]) !== JSON.stringify(DEFAULT_ACTIONS[k])) || Object.keys(DEFAULT_ACTIONS).some((k) => !input[k]);
-  next.input = changedInput ? input : undefined;
+  // Players' own inputs are kept for the players there are, under "players".
+  const players = {};
+  for (let p = 1; p <= playerCount; p++) {
+    const set = Object.fromEntries(Object.entries(playerSets[p] || {}).filter(([action, list]) => input[action] && list.length));
+    if (Object.keys(set).length) players[p] = set;
+  }
+  const hasPlayers = Object.keys(players).length > 0;
+  next.input = changedInput || hasPlayers ? { ...(changedInput ? input : {}), ...(hasPlayers ? { players } : {}) } : undefined;
   const gx = Number(gravityX.value) || 0;
   const gy = gravityY.value === '' ? 980 : Number(gravityY.value) || 0;
   next.physics = gx === 0 && gy === 980 ? undefined : { ...physics, gravity: [gx, gy] };

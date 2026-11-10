@@ -8,18 +8,18 @@ See [Input](input.md).
 
 | Call | |
 | --- | --- |
-| `pressed(action)` | True on the frame an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a") is pressed. pressed() alone: any key or button. |
-| `down(action)` | True while an action or input is held. |
-| `released(action)` | True on the frame an action or input is let go. |
-| `axis(negative, positive)` | -1 to 1 (in between for sticks): axis("left", "right"). |
-| `vector(left, right, up, down)` | x, y of a direction, at most 1 long. |
+| `pressed(action, player?)` | True on the frame an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a") is pressed. pressed() alone: any key or button. With a player number, that player only: pressed("jump", 2). |
+| `down(action, player?)` | True while an action or input is held. |
+| `released(action, player?)` | True on the frame an action or input is let go. |
+| `axis(negative, positive, player?)` | -1 to 1 (in between for sticks): axis("left", "right"). |
+| `vector(left, right, up, down, player?)` | x, y of a direction, at most 1 long. |
 | `mouse()` | x, y of the mouse in the scene. |
 | `mouseScreen()` | x, y of the mouse on the screen, in game pixels (for UI). |
 | `wheel()` | How far the mouse wheel turned this frame: x, y (y > 0 is up). |
 | `touches()` | The fingers on the screen: a list of { id, x, y, worldX, worldY }. |
-| `stick(side, player)` | A gamepad stick, "left" or "right": x, y from -1 to 1. |
-| `trigger(side, player)` | A gamepad trigger, "left" or "right": 0 to 1. |
-| `vibrate(strength, seconds, player)` | Rumbles gamepads: vibrate(0.5, 0.2). |
+| `stick(side, player?)` | A gamepad stick, "left" or "right": x, y from -1 to 1. |
+| `trigger(side, player?)` | A gamepad trigger, "left" or "right": 0 to 1. |
+| `vibrate(strength, seconds, player?)` | Rumbles gamepads: vibrate(0.5, 0.2). |
 | `typed()` | The text typed this frame ("" if none); turns text input on. |
 
 ## Scenes
@@ -149,7 +149,8 @@ Called by the engine when a script defines them.
 | `function hit(other, contact)` | Body | Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse. |
 | `function entered(zone)` | Body, Zone | Body: It went into a zone. Zone: A body or zone came in. |
 | `function exited(zone)` | Body, Zone | Body: It left a zone. Zone: A body or zone left. |
-| `function pressed()` | Button, Panel, Picture | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. |
+| `function pressed()` | Button, Panel, Picture, TouchStick, TouchButton | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it). |
+| `function released()` | TouchStick, TouchButton | TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off. |
 | `function tick()` | Timer | The countdown reached zero. |
 | `function finished(animation)` | Sprite, Particles, Sound | Sprite: A non-looping animation reached its last frame. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Sound: The sound reached its end (not when looping). |
 | `function hovered()` | UI | The pointer came over it (not Labels). |

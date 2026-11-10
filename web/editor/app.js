@@ -870,6 +870,9 @@ function populate(doc, node, parent) {
   // A Body or Zone fits the pieces inside it, so give it something to fit.
   if (type === 'Body') node.children.push({ ...doc.createNode('Shape', { width: 32, height: 32 }), name: 'Look', parent: node });
   if (type === 'Zone') Object.assign(node.props, { shape: 'rectangle', width: 64, height: 64 });
+  // Touch pieces start where thumbs are: a stick bottom left, a button bottom right.
+  if (type === 'TouchStick') Object.assign(node.props, { anchor: 'bottomLeft', x: 32, y: 32, width: 160, height: 160 });
+  if (type === 'TouchButton') Object.assign(node.props, { anchor: 'bottomRight', x: 48, y: 48, width: 88, height: 88 });
 }
 
 async function addNodeTo(parent) {

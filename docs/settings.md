@@ -26,7 +26,7 @@ actions, physics settings and which engine modules it downloads.
 | `display.antialias` | Smooth edges on shapes and lines. On, except with `pixel` stretch |
 | `display.background` | The color behind everything, bars included, as `[r, g, b, a]` |
 | `splash` | The splash screen shown while the game loads (below) |
-| `input` | [Input actions](input.md#actions) to add or change |
+| `input` | [Input actions](input.md#actions) to add or change. `input.players` holds each player's own inputs: `"players": { "2": { "jump": ["return", "pad:a"] } }` ([More than one player](input.md#more-than-one-player)) |
 | `physics.gravity` | Gravity, as `[x, y]` in pixels per second per second. See [Physics](physics.md) |
 | `modules` | Force an engine module `"always"` or `"never"` |
 | `identity` | The name saves use, if it shouldn't follow `name` |

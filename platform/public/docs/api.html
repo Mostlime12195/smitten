@@ -34,18 +34,18 @@
 <p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>pressed(action)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button.</td></tr>
-<tr><td><code>down(action)</code></td><td>True while an action or input is held.</td></tr>
-<tr><td><code>released(action)</code></td><td>True on the frame an action or input is let go.</td></tr>
-<tr><td><code>axis(negative, positive)</code></td><td>-1 to 1 (in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
-<tr><td><code>vector(left, right, up, down)</code></td><td>x, y of a direction, at most 1 long.</td></tr>
+<tbody><tr><td><code>pressed(action, player?)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button. With a player number, that player only: pressed(&quot;jump&quot;, 2).</td></tr>
+<tr><td><code>down(action, player?)</code></td><td>True while an action or input is held.</td></tr>
+<tr><td><code>released(action, player?)</code></td><td>True on the frame an action or input is let go.</td></tr>
+<tr><td><code>axis(negative, positive, player?)</code></td><td>-1 to 1 (in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>vector(left, right, up, down, player?)</code></td><td>x, y of a direction, at most 1 long.</td></tr>
 <tr><td><code>mouse()</code></td><td>x, y of the mouse in the scene.</td></tr>
 <tr><td><code>mouseScreen()</code></td><td>x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
 <tr><td><code>wheel()</code></td><td>How far the mouse wheel turned this frame: x, y (y &gt; 0 is up).</td></tr>
 <tr><td><code>touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
-<tr><td><code>stick(side, player)</code></td><td>A gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
-<tr><td><code>trigger(side, player)</code></td><td>A gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
-<tr><td><code>vibrate(strength, seconds, player)</code></td><td>Rumbles gamepads: vibrate(0.5, 0.2).</td></tr>
+<tr><td><code>stick(side, player?)</code></td><td>A gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
+<tr><td><code>trigger(side, player?)</code></td><td>A gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
+<tr><td><code>vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads: vibrate(0.5, 0.2).</td></tr>
 <tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
@@ -157,7 +157,8 @@
 <tr><td><code>function hit(other, contact)</code></td><td>Body</td><td>Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse.</td></tr>
 <tr><td><code>function entered(zone)</code></td><td>Body, Zone</td><td>Body: It went into a zone. Zone: A body or zone came in.</td></tr>
 <tr><td><code>function exited(zone)</code></td><td>Body, Zone</td><td>Body: It left a zone. Zone: A body or zone left.</td></tr>
-<tr><td><code>function pressed()</code></td><td>Button, Panel, Picture</td><td>Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped.</td></tr>
+<tr><td><code>function pressed()</code></td><td>Button, Panel, Picture, TouchStick, TouchButton</td><td>Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it).</td></tr>
+<tr><td><code>function released()</code></td><td>TouchStick, TouchButton</td><td>TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off.</td></tr>
 <tr><td><code>function tick()</code></td><td>Timer</td><td>The countdown reached zero.</td></tr>
 <tr><td><code>function finished(animation)</code></td><td>Sprite, Particles, Sound</td><td>Sprite: A non-looping animation reached its last frame. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Sound: The sound reached its end (not when looping).</td></tr>
 <tr><td><code>function hovered()</code></td><td>UI</td><td>The pointer came over it (not Labels).</td></tr>

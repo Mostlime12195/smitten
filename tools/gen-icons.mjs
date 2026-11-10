@@ -31,7 +31,7 @@ const NAMES = {
   tiles: 'layout-grid', camera: 'camera', particles: 'sparkles', body: 'person-standing', bodyStill: 'brick-wall',
   bodyPhysics: 'package', zone: 'square-dashed', hitbox: 'scan', joint: 'link-2', ui: 'app-window',
   label: 'case-sensitive', button: 'mouse-pointer-click', panel: 'panel-top', picture: 'image', bar: 'battery-medium',
-  walkable: 'land-plot',
+  walkable: 'land-plot', touchStick: 'joystick', touchButton: 'pointer',
   sound: 'volume-2', light: 'lightbulb', occluder: 'eclipse', tint: 'sun-moon', background: 'mountain',
   // Ready-made scripts
   footprints: 'footprints', walk: 'move', patrol: 'arrow-left-right', chase: 'crosshair', fly: 'send',

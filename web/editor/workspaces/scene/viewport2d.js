@@ -1931,6 +1931,74 @@ export class Viewport2D {
         }
         break;
       }
+      // Touch pieces are drawn here whatever their "show" says: in the
+      // game they may only appear on a touch screen.
+      case 'TouchStick': {
+        const r = Math.max(1, num(this.get(n, 'radius'), 60));
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const c = colorOf(this.get(n, 'color'));
+        const base = this.get(n, 'image') ? this.assets.image(this.get(n, 'image')) : null;
+        if (base && base.status === 'ready') {
+          const k = (r * 2) / Math.max(base.w, base.h);
+          g.globalAlpha = clamp(c[3] * alpha, 0, 1);
+          g.drawImage(this.assets.tinted(base, c), cx - (base.w * k) / 2, cy - (base.h * k) / 2, base.w * k, base.h * k);
+          g.globalAlpha = 1;
+        } else {
+          g.fillStyle = rgba(c, alpha);
+          g.beginPath();
+          g.arc(cx, cy, r, 0, Math.PI * 2);
+          g.fill();
+          g.strokeStyle = rgba(c, Math.min(1, alpha * 1.6));
+          g.lineWidth = 2;
+          g.stroke();
+        }
+        const kc = colorOf(this.get(n, 'knobColor'));
+        const knob = this.get(n, 'knobImage') ? this.assets.image(this.get(n, 'knobImage')) : null;
+        if (knob && knob.status === 'ready') {
+          const k = (r * 0.9) / Math.max(knob.w, knob.h);
+          g.globalAlpha = clamp(kc[3] * alpha, 0, 1);
+          g.drawImage(this.assets.tinted(knob, kc), cx - (knob.w * k) / 2, cy - (knob.h * k) / 2, knob.w * k, knob.h * k);
+          g.globalAlpha = 1;
+        } else {
+          g.fillStyle = rgba(kc, alpha);
+          g.beginPath();
+          g.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
+          g.fill();
+        }
+        // A floating or following stick answers anywhere in its rectangle.
+        if (this.get(n, 'mode') !== 'fixed') {
+          g.strokeStyle = rgba(c, Math.min(1, alpha * 1.6));
+          g.lineWidth = 1;
+          g.setLineDash([6, 5]);
+          g.strokeRect(x + 0.5, y + 0.5, Math.max(0, w - 1), Math.max(0, h - 1));
+          g.setLineDash([]);
+        }
+        break;
+      }
+      case 'TouchButton': {
+        const c = colorOf(this.get(n, 'color'));
+        const size = Math.min(w, h);
+        g.fillStyle = rgba(c, alpha);
+        g.beginPath();
+        if (this.get(n, 'shape') === 'rectangle') roundRectPath(g, x, y, w, h, num(this.get(n, 'cornerRadius')));
+        else g.arc(x + w / 2, y + h / 2, size / 2, 0, Math.PI * 2);
+        g.fill();
+        const img = this.get(n, 'image') ? this.assets.image(this.get(n, 'image')) : null;
+        if (img && img.status === 'ready') {
+          const k = (size * 0.7) / Math.max(img.w, img.h);
+          g.globalAlpha = clamp(alpha, 0, 1);
+          g.drawImage(this.assets.tinted(img, [1, 1, 1, 1]), x + (w - img.w * k) / 2, y + (h - img.h * k) / 2, img.w * k, img.h * k);
+          g.globalAlpha = 1;
+        }
+        const words = String(this.get(n, 'text') ?? '');
+        if (words) {
+          const t = label(this.get(n, 'font'), this.get(n, 'size'), words, x, y, w, h, 'center', 'middle');
+          g.fillStyle = fill(this.get(n, 'textColor'));
+          printf(g, t.m, t.lines, x, t.ty, w, 'center');
+        }
+        break;
+      }
       default:
     }
   }

@@ -8,18 +8,18 @@ export const SCRIPT_API_GROUPS = [
     name: 'Input',
     page: 'input',
     items: [
-      ['pressed', 'pressed(action)', 'True on the frame an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a") is pressed. pressed() alone: any key or button.'],
-      ['down', 'down(action)', 'True while an action or input is held.'],
-      ['released', 'released(action)', 'True on the frame an action or input is let go.'],
-      ['axis', 'axis(negative, positive)', '-1 to 1 (in between for sticks): axis("left", "right").'],
-      ['vector', 'vector(left, right, up, down)', 'x, y of a direction, at most 1 long.'],
+      ['pressed', 'pressed(action, player?)', 'True on the frame an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a") is pressed. pressed() alone: any key or button. With a player number, that player only: pressed("jump", 2).'],
+      ['down', 'down(action, player?)', 'True while an action or input is held.'],
+      ['released', 'released(action, player?)', 'True on the frame an action or input is let go.'],
+      ['axis', 'axis(negative, positive, player?)', '-1 to 1 (in between for sticks): axis("left", "right").'],
+      ['vector', 'vector(left, right, up, down, player?)', 'x, y of a direction, at most 1 long.'],
       ['mouse', 'mouse()', 'x, y of the mouse in the scene.'],
       ['mouseScreen', 'mouseScreen()', 'x, y of the mouse on the screen, in game pixels (for UI).'],
       ['wheel', 'wheel()', 'How far the mouse wheel turned this frame: x, y (y > 0 is up).'],
       ['touches', 'touches()', 'The fingers on the screen: a list of { id, x, y, worldX, worldY }.'],
-      ['stick', 'stick(side, player)', 'A gamepad stick, "left" or "right": x, y from -1 to 1.'],
-      ['trigger', 'trigger(side, player)', 'A gamepad trigger, "left" or "right": 0 to 1.'],
-      ['vibrate', 'vibrate(strength, seconds, player)', 'Rumbles gamepads: vibrate(0.5, 0.2).'],
+      ['stick', 'stick(side, player?)', 'A gamepad stick, "left" or "right": x, y from -1 to 1.'],
+      ['trigger', 'trigger(side, player?)', 'A gamepad trigger, "left" or "right": 0 to 1.'],
+      ['vibrate', 'vibrate(strength, seconds, player?)', 'Rumbles gamepads: vibrate(0.5, 0.2).'],
       ['typed', 'typed()', 'The text typed this frame ("" if none); turns text input on.'],
     ],
   },
@@ -136,4 +136,4 @@ export const SCRIPT_API = SCRIPT_API_GROUPS.flatMap((g) => g.items);
 export const SCRIPT_API_NAMES = new Set(SCRIPT_API.map(([name]) => name));
 
 /** Callbacks the engine calls on a script, if it has them. */
-export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'pressed', 'tick', 'finished', 'hovered', 'unhovered'];
+export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'pressed', 'released', 'tick', 'finished', 'hovered', 'unhovered'];

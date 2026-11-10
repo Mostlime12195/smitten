@@ -37,18 +37,29 @@ See [Input](input.md).
 
 | Function | |
 | --- | --- |
-| `smitten.input.pressed(action)` | True on the frame the action went down: smitten.input.pressed("jump"). |
-| `smitten.input.down(action)` | True while the action is held. |
-| `smitten.input.released(action)` | True on the frame the action went up. |
-| `smitten.input.axis(negative, positive)` | From -1 to 1: smitten.input.axis("left", "right"). |
-| `smitten.input.vector(left, right, up, down)` | A direction at most 1 long: x, y. |
-| `smitten.input.strength(action)` | How far the action is pushed, 0 to 1. |
-| `smitten.input.bind(action, inputs)` | Adds an action: smitten.input.bind("dash", { "lshift", "pad:b" }). |
-| `smitten.input.unbind(action)` | Removes an action. |
-| `smitten.input.bindings(action)` | The inputs bound to an action. |
+| `smitten.input.pressed(action, player?)` | True on the frame the action went down: smitten.input.pressed("jump"). With a player, that player only: smitten.input.pressed("jump", 2). |
+| `smitten.input.down(action, player?)` | True while the action is held. |
+| `smitten.input.released(action, player?)` | True on the frame the action went up. |
+| `smitten.input.axis(negative, positive, player?)` | From -1 to 1: smitten.input.axis("left", "right"). |
+| `smitten.input.vector(left, right, up, down, player?)` | A direction at most 1 long: x, y. |
+| `smitten.input.strength(action, player?)` | How far the action is pushed, 0 to 1. |
+| `smitten.input.bind(action, inputs, player?)` | Adds an action: smitten.input.bind("dash", { "lshift", "pad:b" }). With a player, the inputs are that player's own: bind("jump", { "return" }, 2). |
+| `smitten.input.unbind(action, player?)` | Removes an action, or a player's own inputs for it. |
+| `smitten.input.bindings(action, player?)` | The inputs bound to an action (with a player: the ones that player uses). |
 | `smitten.input.actions()` | Every action's name. |
-| `smitten.input.lastPressed()` | The input pressed this frame ("space", "mouse:1", "pad:a"), or nil: for rebinding screens. |
+| `smitten.input.lastPressed(player?)` | The input pressed this frame ("space", "mouse:1", "pad:a"), or nil: for rebinding screens. With a player, only what that player pressed. |
+| `smitten.input.lastPressedBy()` | What was pressed this frame and where: the input's name, "keyboard", "mouse" or "gamepad", and the gamepad's number. For "press a button to join" screens. |
 | `smitten.input.isInputName(name)` | True if a name is an input: a key, "mouse:1", "pad:a", "axis:leftx+", "wheel:up". |
+| `smitten.input.press(action, player?)` | Presses an action from code, as if its key went down, until release(): for touch controls, replays and computer players. |
+| `smitten.input.release(action, player?)` | Lets go of an action pressed with press() or setStrength(). |
+| `smitten.input.setStrength(action, value, player?)` | Pushes an action part of the way, 0 to 1, as a stick would: axis() and vector() give the fraction back. |
+| `smitten.input.players()` | How many players have something to play with: the keyboard, keys of their own or a gamepad. |
+| `smitten.input.gamepadOf(player)` | A player's gamepad: its number and the gamepad itself, or nil. |
+| `smitten.input.assignGamepad(player, gamepad)` | Gives a player a gamepad by its number: assignGamepad(1, 2). false: none. nil: back to gamepad 1 for player 1, 2 for player 2. |
+| `smitten.input.assignKeyboard(player)` | Gives a player the keyboard and the mouse (they start as player 1's). false: nobody's. |
+| `smitten.input.keyboardOf()` | The player with the keyboard and the mouse, or nil. |
+| `smitten.input.on(event, fn)` | Calls fn(number, gamepad) on "gamepadadded" or "gamepadremoved". Returns a handle with :off(). |
+| `smitten.input.hasTouch()` | True on a phone or a tablet, and on any screen once a finger has touched it. |
 | `smitten.input.wheel()` | How far the mouse wheel turned this frame: x, y. |
 | `smitten.input.typed()` | The text typed this frame; turns text input on. |
 | `smitten.input.touches()` | The fingers on the screen: a list of { id, x, y, worldX, worldY }. |

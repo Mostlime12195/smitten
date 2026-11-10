@@ -25,11 +25,11 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li><li><a href="#touchstick">TouchStick</a></li><li><a href="#touchbutton">TouchButton</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
-<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus. There are five: <strong>Label</strong> (text), <strong>Button</strong>, <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI) and <strong>Picture</strong>. A UI piece inside another is laid out inside it.</p>
+<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus. There are seven: <strong>Label</strong> (text), <strong>Button</strong>, <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI), <strong>Picture</strong>, and for touch screens <strong>TouchStick</strong> and <strong>TouchButton</strong> (<a href="input#touch">Input: Touch</a>). A UI piece inside another is laid out inside it.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
 <p>Each UI piece is placed from an <strong>anchor</strong>: a corner, an edge, the center, or <code>fill</code> (the whole screen, or the whole of the UI piece it's inside). <code>x</code> and <code>y</code> are the distance in from that anchor. With the anchor <code>bottomRight</code> and <code>x</code>, <code>y</code> at 16, a piece sits 16 pixels in from the bottom-right corner on any screen size.</p>
 <p>Every setting can change while the game runs:</p>
@@ -139,6 +139,59 @@
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function pressed()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
+</table></div>
+<h2 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h2>
+<p>A stick for a thumb: it pushes input actions like a gamepad's stick. <a href="input#touch">Input: Touch</a> shows how to lay out touch controls.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>leftAction</code></td><td>action</td><td>&quot;left&quot;</td><td>The action it pushes when the thumb goes left (none: it pushes nothing that way).</td></tr>
+<tr><td><code>rightAction</code></td><td>action</td><td>&quot;right&quot;</td><td>The action it pushes when the thumb goes right.</td></tr>
+<tr><td><code>upAction</code></td><td>action</td><td>&quot;up&quot;</td><td>The action it pushes when the thumb goes up.</td></tr>
+<tr><td><code>downAction</code></td><td>action</td><td>&quot;down&quot;</td><td>The action it pushes when the thumb goes down.</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose actions it pushes: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
+<tr><td><code>mode</code></td><td>enum</td><td>&quot;fixed&quot;</td><td>fixed stays in the middle of its rectangle. floating appears where the thumb lands, anywhere in the rectangle. follow does too, and is dragged along when the thumb goes further than the radius.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>60</td><td>How far the thumb goes for a full push; also the size of the stick's circle.</td></tr>
+<tr><td><code>deadzone</code></td><td>number</td><td>0.2</td><td>How much of the radius near the middle counts as not pushed at all (0.2 is a fifth).</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can work it. never keeps it invisible; fingers still work it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.25}</td><td>The color of the stick's circle (or a tint for its image).</td></tr>
+<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 0.6}</td><td>The color of the knob under the thumb (or a tint for its image).</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the stick's circle, instead of the drawn one.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>getValue()</code></td><td>Where the stick is pushed: x, y from -1 to 1 (0, 0 when no finger is on it).</td></tr>
+<tr><td><code>isActive()</code></td><td>True while a finger is on the stick.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function pressed()</code></td><td>A finger landed on the stick.</td></tr>
+<tr><td><code>function released()</code></td><td>The finger let go of the stick.</td></tr></tbody>
+</table></div>
+<h2 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h2>
+<p>A button for a finger: it holds an input action down while it's held.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()).</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
+<tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle.</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>Words or a letter on the button.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture on the button: an arrow, a sword.</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can press it. never keeps it invisible; fingers still press it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The button's color. It's drawn stronger while held.</td></tr>
+<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 0.9}</td><td>The color of its words.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>Font size.</td></tr>
+<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>isDown()</code></td><td>True while a finger holds it down.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function pressed()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
+<tr><td><code>function released()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="lights"><span>Previous</span>Lights</a><a class="next" href="physics"><span>Next</span>Physics</a></nav>

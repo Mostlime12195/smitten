@@ -15,9 +15,9 @@
 -- More than one player: every action call takes a player number at the end,
 -- pressed("jump", 2). A player reads their own gamepad (player 2 the second
 -- one) and, if they have the keyboard, their keys; with no player a call
--- reads every device, as it always did. Players get keys of their own in
--- Project settings > Input (smitten.json "input", "players") or with
--- bind(action, inputs, player).
+-- reads every device, as it always did. Player 1 has the keyboard; other
+-- players get keys of their own in Project settings > Input (smitten.json
+-- "input", "players") or with bind(action, inputs, player).
 --
 -- Any code can press an action: press(), release(), setStrength(). The
 -- touch pieces (scene/touch.lua) work that way.
@@ -63,6 +63,7 @@ local byId = {}          -- joystick id -> its slot
 local padsDirty = true   -- the list of gamepads may have changed
 local padsKnown = false  -- the gamepads there at the start are in
 local assigned = {}      -- player -> gamepad number (false: none); else player N has gamepad N
+local keysPlayer = 1     -- the player with the keyboard and the mouse (false: nobody)
 local listeners = {}     -- event name -> list of { fn }
 
 -- Actions pressed by code: press(), release(), setStrength().
@@ -126,6 +127,7 @@ end
 ---players = { ["2"] = { action = { inputs } } } for players' own inputs.
 function input._configure(map)
 	reset()
+	keysPlayer = 1
 	if type(map) ~= "table" then return end
 	for name, list in pairs(map) do
 		if name == "players" and type(list) == "table" and list[1] == nil then
@@ -308,21 +310,26 @@ local function checkPlayer(player, level)
 	end
 end
 
--- Player 1 has the keyboard and the mouse; so does any player with inputs
--- of their own.
+-- Player 1 has the keyboard and the mouse (unless assignKeyboard() gave
+-- them to someone else). Another player has the keys they were given
+-- (inputs of their own), and no others.
 local function hasKeys(player)
-	return player == 1 or sets[player] ~= nil
+	return player == keysPlayer or (sets[player] ~= nil and next(sets[player]) ~= nil)
 end
 
--- A player's inputs for an action: their own, else the ones all share.
+-- A player's inputs for an action, and whether its keys are theirs: their
+-- own inputs, else the ones all share (whose keys are player 1's; a
+-- gamepad's buttons are always the player's own gamepad's).
 local function listFor(action, player, level)
 	checkPlayer(player, level + 1)
 	local set = sets[player]
-	local list = set and set[action] or actions[action]
-	if list then return list end
-	if any[action] then return EMPTY end  -- another player's own action
+	local list = set and set[action]
+	if list then return list, true end
+	list = actions[action]
+	if list then return list, player == keysPlayer end
+	if any[action] then return EMPTY, false end  -- another player's own action
 	local s = singleOf(action)
-	if s then return s end
+	if s then return s, player == keysPlayer end
 	unknown(action, level + 1)
 end
 
@@ -334,8 +341,8 @@ local function strengthIn(slot, name)
 end
 
 local function playerStrength(action, player, level)
-	local list = listFor(action, player, level + 1)
-	local slot, keys = padOf(player), hasKeys(player)
+	local list, keys = listFor(action, player, level + 1)
+	local slot = padOf(player)
 	local best = 0
 	for i = 1, #list do
 		local name = list[i]
@@ -369,8 +376,8 @@ local function playerPressed(action, player)
 		local v = virt[player]
 		return lastOf(player) ~= nil or (v ~= nil and v.lastFrame == frame)
 	end
-	local list = listFor(action, player, 3)
-	local slot, keys = padOf(player), hasKeys(player)
+	local list, keys = listFor(action, player, 3)
+	local slot = padOf(player)
 	for i = 1, #list do
 		local name = list[i]
 		if isPad(name) then
@@ -384,8 +391,8 @@ local function playerPressed(action, player)
 end
 
 local function playerReleased(action, player)
-	local list = listFor(action, player, 3)
-	local slot, keys = padOf(player), hasKeys(player)
+	local list, keys = listFor(action, player, 3)
+	local slot = padOf(player)
 	local v = virt[player]
 	if v and (v.strength[action] or 0) > 0 then return false end
 	local was = v ~= nil and v.releasedAt[action] == frame
@@ -474,7 +481,7 @@ function input.vector(left, right, up, down_, player)
 end
 
 ---Adds or replaces an action. With a player, the inputs are that player's
----own (and the player shares the keyboard from then on).
+---own: the way to give player 2 keys.
 function input.bind(action, inputs, player)
 	if type(action) ~= "string" then error("bind() needs an action's name, then its inputs", 2) end
 	if type(inputs) == "string" then inputs = { inputs } end
@@ -774,13 +781,14 @@ function input.gamepads()
 end
 
 ---How many players have something to play with: player 1 (the keyboard),
----players with inputs of their own, and players with a gamepad.
+---players with keys of their own, and players with a gamepad.
 function input.players()
 	if padsDirty then syncPads() end
 	local top = math.max(1, slotMax)
 	for p in pairs(sets) do if p > top then top = p end end
 	for p in pairs(assigned) do if p > top then top = p end end
 	local n = 0
+	if keysPlayer and keysPlayer > top then top = keysPlayer end
 	for p = 1, top do
 		if hasKeys(p) or padOf(p) then n = n + 1 end
 	end
@@ -812,6 +820,20 @@ function input.assignGamepad(player, which)
 	else
 		error("assignGamepad() needs a player and a gamepad's number: assignGamepad(2, 1)", 2)
 	end
+end
+
+---Gives a player the keyboard and the mouse: the keys in the actions all
+---players share are theirs from then on (they start as player 1's).
+---false: nobody's.
+function input.assignKeyboard(player)
+	if player ~= false then checkPlayer(player, 2) end
+	keysPlayer = player
+end
+
+---The player with the keyboard and the mouse (1, unless assignKeyboard()
+---changed it), or nil.
+function input.keyboardOf()
+	return keysPlayer or nil
 end
 
 local EVENTS = { gamepadadded = true, gamepadremoved = true }

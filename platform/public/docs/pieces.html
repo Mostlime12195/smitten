@@ -575,6 +575,61 @@
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>4</td><td>Rounds the corners.</td></tr>
 <tr><td><code>showValue</code></td><td>bool</td><td>false</td><td>Show the value as text.</td></tr></tbody>
 </table></div>
+<h3 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h3>
+<p>A stick for a thumb on a touch screen. It pushes input actions the way a gamepad's stick does, so axis(&quot;left&quot;, &quot;right&quot;) reads it with no extra code.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>leftAction</code></td><td>action</td><td>&quot;left&quot;</td><td>The action it pushes when the thumb goes left (none: it pushes nothing that way).</td></tr>
+<tr><td><code>rightAction</code></td><td>action</td><td>&quot;right&quot;</td><td>The action it pushes when the thumb goes right.</td></tr>
+<tr><td><code>upAction</code></td><td>action</td><td>&quot;up&quot;</td><td>The action it pushes when the thumb goes up.</td></tr>
+<tr><td><code>downAction</code></td><td>action</td><td>&quot;down&quot;</td><td>The action it pushes when the thumb goes down.</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose actions it pushes: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
+<tr><td><code>mode</code></td><td>enum</td><td>&quot;fixed&quot;</td><td>fixed stays in the middle of its rectangle. floating appears where the thumb lands, anywhere in the rectangle. follow does too, and is dragged along when the thumb goes further than the radius.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>60</td><td>How far the thumb goes for a full push; also the size of the stick's circle.</td></tr>
+<tr><td><code>deadzone</code></td><td>number</td><td>0.2</td><td>How much of the radius near the middle counts as not pushed at all (0.2 is a fifth).</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can work it. never keeps it invisible; fingers still work it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.25}</td><td>The color of the stick's circle (or a tint for its image).</td></tr>
+<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 0.6}</td><td>The color of the knob under the thumb (or a tint for its image).</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the stick's circle, instead of the drawn one.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>getValue()</code></td><td>Where the stick is pushed: x, y from -1 to 1 (0, 0 when no finger is on it).</td></tr>
+<tr><td><code>isActive()</code></td><td>True while a finger is on the stick.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function pressed()</code></td><td>A finger landed on the stick.</td></tr>
+<tr><td><code>function released()</code></td><td>The finger let go of the stick.</td></tr></tbody>
+</table></div>
+<h3 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h3>
+<p>A button for a finger on a touch screen. It holds an input action down while it's held, so pressed(&quot;jump&quot;) reads it with no extra code.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released()).</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
+<tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle.</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>Words or a letter on the button.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture on the button: an arrow, a sword.</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can press it. never keeps it invisible; fingers still press it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The button's color. It's drawn stronger while held.</td></tr>
+<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 0.9}</td><td>The color of its words.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>Font size.</td></tr>
+<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>isDown()</code></td><td>True while a finger holds it down.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function pressed()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
+<tr><td><code>function released()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
+</table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
 <h3 id="sound-2"><a class="anchor" href="#sound-2" aria-hidden="true">#</a>Sound</h3>
 <p>Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song made in Smitten.</p>

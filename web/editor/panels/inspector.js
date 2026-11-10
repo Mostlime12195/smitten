@@ -251,7 +251,7 @@ export class InspectorPanel {
       }
       case 'enum': case 'action': case 'animation': case 'piecepath': {
         let options = def.options || [];
-        if (def.type === 'action') options = this.ctx.inputActions();
+        if (def.type === 'action') options = ['', ...this.ctx.inputActions()];
         if (def.type === 'animation') options = ['', ...this.animationsOf(node)];
         if (def.type === 'piecepath') options = ['', ...this.nodePaths(node)];
         if (value && !options.includes(value)) options = [...options, value];
