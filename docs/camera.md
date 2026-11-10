@@ -66,26 +66,26 @@ that stays put), see [Backgrounds](backgrounds.md).
 <!-- piece:Camera -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `active` | bool | true | Use this camera. When several are active, the first in the scene wins. |
-| `zoom` | number | 1 | 2 shows everything twice as big. |
-| `smoothing` | number | 0 | How gently it catches up: 0 sticks exactly, 5 glides. |
-| `target` | piecepath | "" | A piece to follow, wherever the camera is in the scene (empty: the camera's own position). |
-| `offsetX` | number (px) | 0 | Looks this far right of what it follows. |
-| `offsetY` | number (px) | 0 | Looks this far below what it follows. |
-| `left` | number (px) | none | Don't show anything left of this (empty for no edge). |
-| `top` | number (px) | none | Don't show anything above this. |
-| `right` | number (px) | none | Don't show anything right of this. |
-| `bottom` | number (px) | none | Don't show anything below this. |
+| `active` | bool | true | When this is on, the game uses this camera. If more than one camera is active, the first in the scene has priority. |
+| `zoom` | number | 1 | The zoom: 2 shows everything twice as big. |
+| `smoothing` | number | 0 | How gently the camera catches up: 0 follows exactly, 5 glides. |
+| `target` | piecepath | "" | A piece to follow, anywhere in the scene. If it is empty, the camera stays at its own position. |
+| `offsetX` | number (px) | 0 | The camera looks this far to the right of what it follows. |
+| `offsetY` | number (px) | 0 | The camera looks this far below what it follows. |
+| `left` | number (px) | none | The camera does not show anything to the left of this edge. If it is empty, there is no edge. |
+| `top` | number (px) | none | The camera does not show anything above this edge. |
+| `right` | number (px) | none | The camera does not show anything to the right of this edge. |
+| `bottom` | number (px) | none | The camera does not show anything below this edge. |
 
 | Method | |
 | --- | --- |
 | `shake(strength?, seconds?)` | Shakes the view: shake(6, 0.3). |
-| `follow(piece)` | Follows a piece (nil: back to target, or the camera's own position). |
-| `snap()` | Jumps straight to what it follows, without smoothing (after a teleport). |
-| `setLimits(left, top, right, bottom)` | Sets the edges it doesn't show past (nil for no edge). |
+| `follow(piece)` | Follows a piece. With nil, the camera goes back to target, or to its own position. |
+| `snap()` | Moves directly to what it follows, without smoothing (for example, after a teleport). |
+| `setLimits(left, top, right, bottom)` | Sets the edges that the camera does not show past (nil for no edge). |
 | `limitTo(piece)` | Keeps the view inside the painted part of a Tiles piece. |
-| `makeCurrent()` | Makes this the camera in use, turning the others off. |
-| `getView()` | The part of the scene on screen: x, y, width, height. |
-| `screenToWorld(sx, sy)` | A point on the screen, as a point in the scene. |
-| `worldToScreen(x, y)` | A point in the scene, as a point on the screen. |
+| `makeCurrent()` | Makes this the camera in use and turns the other cameras off. |
+| `getView()` | Returns the part of the scene that is on the screen: x, y, width, height. |
+| `screenToWorld(sx, sy)` | Takes a point on the screen and returns it as a point in the scene. |
+| `worldToScreen(x, y)` | Takes a point in the scene and returns it as a point on the screen. |
 <!-- end -->

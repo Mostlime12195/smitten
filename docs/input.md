@@ -16,19 +16,19 @@ end
 <!-- api:Input -->
 | Call | |
 | --- | --- |
-| `pressed(action, player?)` | True on the frame an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a") is pressed. pressed() alone: any key or button. With a player number, that player only: pressed("jump", 2). |
-| `down(action, player?)` | True while an action or input is held. |
-| `released(action, player?)` | True on the frame an action or input is let go. |
-| `axis(negative, positive, player?)` | -1 to 1 (in between for sticks): axis("left", "right"). |
-| `vector(left, right, up, down, player?)` | x, y of a direction, at most 1 long. |
-| `mouse()` | x, y of the mouse in the scene. |
-| `mouseScreen()` | x, y of the mouse on the screen, in game pixels (for UI). |
-| `wheel()` | How far the mouse wheel turned this frame: x, y (y > 0 is up). |
-| `touches()` | The fingers on the screen: a list of { id, x, y, worldX, worldY }. |
-| `stick(side, player?)` | A gamepad stick, "left" or "right": x, y from -1 to 1. |
-| `trigger(side, player?)` | A gamepad trigger, "left" or "right": 0 to 1. |
-| `vibrate(strength, seconds, player?)` | Rumbles gamepads: vibrate(0.5, 0.2). |
-| `typed()` | The text typed this frame ("" if none); turns text input on. |
+| `pressed(action, player?)` | Returns true on the frame when the player presses an action (jump, left, fire...) or an input ("space", "mouse:1", "pad:a"). pressed() alone checks every key and button. With a player number, it checks only that player: pressed("jump", 2). |
+| `down(action, player?)` | Returns true while the player holds an action or an input down. |
+| `released(action, player?)` | Returns true on the frame when the player lets go of an action or an input. |
+| `axis(negative, positive, player?)` | Returns a value from -1 to 1 (values in between for sticks): axis("left", "right"). |
+| `vector(left, right, up, down, player?)` | Returns the x, y of a direction, with a length of 1 at most. |
+| `mouse()` | Returns the x, y of the mouse in the scene. |
+| `mouseScreen()` | Returns the x, y of the mouse on the screen, in game pixels (for UI). |
+| `wheel()` | Returns how far the mouse wheel turned in this frame: x, y (y > 0 is up). |
+| `touches()` | Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }. |
+| `stick(side, player?)` | Returns the position of a gamepad stick, "left" or "right": x, y from -1 to 1. |
+| `trigger(side, player?)` | Returns the position of a gamepad trigger, "left" or "right": 0 to 1. |
+| `vibrate(strength, seconds, player?)` | Makes gamepads vibrate: vibrate(0.5, 0.2). |
+| `typed()` | Returns the text that the player typed in this frame ("" if none). It also turns text input on. |
 <!-- end -->
 
 ## Actions
@@ -327,34 +327,34 @@ Ctrl+V arrives through `typed()` too.
 <!-- module:input -->
 | Function | |
 | --- | --- |
-| `smitten.input.pressed(action, player?)` | True on the frame the action went down: smitten.input.pressed("jump"). With a player, that player only: smitten.input.pressed("jump", 2). |
-| `smitten.input.down(action, player?)` | True while the action is held. |
-| `smitten.input.released(action, player?)` | True on the frame the action went up. |
-| `smitten.input.axis(negative, positive, player?)` | From -1 to 1: smitten.input.axis("left", "right"). |
-| `smitten.input.vector(left, right, up, down, player?)` | A direction at most 1 long: x, y. |
-| `smitten.input.strength(action, player?)` | How far the action is pushed, 0 to 1. |
-| `smitten.input.bind(action, inputs, player?)` | Adds an action: smitten.input.bind("dash", { "lshift", "pad:b" }). With a player, the inputs are that player's own: bind("jump", { "return" }, 2). |
-| `smitten.input.unbind(action, player?)` | Removes an action, or a player's own inputs for it. |
-| `smitten.input.bindings(action, player?)` | The inputs bound to an action (with a player: the ones that player uses). |
-| `smitten.input.actions()` | Every action's name. |
-| `smitten.input.lastPressed(player?)` | The input pressed this frame ("space", "mouse:1", "pad:a"), or nil: for rebinding screens. With a player, only what that player pressed. |
-| `smitten.input.lastPressedBy()` | What was pressed this frame and where: the input's name, "keyboard", "mouse" or "gamepad", and the gamepad's number. For "press a button to join" screens. |
-| `smitten.input.isInputName(name)` | True if a name is an input: a key, "mouse:1", "pad:a", "axis:leftx+", "wheel:up". |
-| `smitten.input.press(action, player?)` | Presses an action from code, as if its key went down, until release(): for touch controls, replays and computer players. |
-| `smitten.input.release(action, player?)` | Lets go of an action pressed with press() or setStrength(). |
-| `smitten.input.setStrength(action, value, player?)` | Pushes an action part of the way, 0 to 1, as a stick would: axis() and vector() give the fraction back. |
-| `smitten.input.players()` | How many players have something to play with: the keyboard, keys of their own or a gamepad. |
-| `smitten.input.gamepadOf(player)` | A player's gamepad: its number and the gamepad itself, or nil. |
-| `smitten.input.assignGamepad(player, gamepad)` | Gives a player a gamepad by its number: assignGamepad(1, 2). false: none. nil: back to gamepad 1 for player 1, 2 for player 2. |
-| `smitten.input.assignKeyboard(player)` | Gives a player the keyboard and the mouse (they start as player 1's). false: nobody's. |
-| `smitten.input.keyboardOf()` | The player with the keyboard and the mouse, or nil. |
+| `smitten.input.pressed(action, player?)` | Returns true on the frame when the action goes down: smitten.input.pressed("jump"). With a player, it checks only that player: smitten.input.pressed("jump", 2). |
+| `smitten.input.down(action, player?)` | Returns true while the action is down. |
+| `smitten.input.released(action, player?)` | Returns true on the frame when the action goes up. |
+| `smitten.input.axis(negative, positive, player?)` | Returns a value from -1 to 1: smitten.input.axis("left", "right"). |
+| `smitten.input.vector(left, right, up, down, player?)` | Returns a direction with a length of 1 at most: x, y. |
+| `smitten.input.strength(action, player?)` | Returns how far down the action is, from 0 to 1. |
+| `smitten.input.bind(action, inputs, player?)` | Adds an action: smitten.input.bind("dash", { "lshift", "pad:b" }). With a player, the bindings are only for that player: bind("jump", { "return" }, 2). |
+| `smitten.input.unbind(action, player?)` | Removes an action, or the bindings of one player for it. |
+| `smitten.input.bindings(action, player?)` | Returns the bindings of an action (with a player: the bindings that the player uses). |
+| `smitten.input.actions()` | Returns the names of all actions. |
+| `smitten.input.lastPressed(player?)` | Returns the input pressed in this frame ("space", "mouse:1", "pad:a"), or nil. Use it for screens that change bindings. With a player, it checks only that player. |
+| `smitten.input.lastPressedBy()` | Returns the input pressed in this frame and its device: the input name, "keyboard", "mouse" or "gamepad", and the gamepad number. Use it for "press a button to join" screens. |
+| `smitten.input.isInputName(name)` | Returns true if a name is an input: a key, "mouse:1", "pad:a", "axis:leftx+", "wheel:up". |
+| `smitten.input.press(action, player?)` | Presses an action from code, as if its key went down, until release(). Use it for on-screen touch buttons, replays and computer players. |
+| `smitten.input.release(action, player?)` | Lets go of an action that press() or setStrength() pressed. |
+| `smitten.input.setStrength(action, value, player?)` | Presses an action part of the way, from 0 to 1, as a stick does. axis() and vector() return the fraction. |
+| `smitten.input.players()` | Returns the number of players that have something to play with: the keyboard, their own keys or a gamepad. |
+| `smitten.input.gamepadOf(player)` | Returns the gamepad of a player: its number and the gamepad, or nil. |
+| `smitten.input.assignGamepad(player, gamepad)` | Gives a gamepad to a player by its number: assignGamepad(1, 2). false gives none. nil goes back to the default: gamepad 1 for player 1, gamepad 2 for player 2. |
+| `smitten.input.assignKeyboard(player)` | Gives the keyboard and the mouse to a player (at the start, they belong to player 1). false gives them to no player. |
+| `smitten.input.keyboardOf()` | Returns the player who has the keyboard and the mouse, or nil. |
 | `smitten.input.on(event, fn)` | Calls fn(number, gamepad) on "gamepadadded" or "gamepadremoved". Returns a handle with :off(). |
-| `smitten.input.hasTouch()` | True on a phone or a tablet, and on any screen once a finger has touched it. |
-| `smitten.input.wheel()` | How far the mouse wheel turned this frame: x, y. |
-| `smitten.input.typed()` | The text typed this frame; turns text input on. |
-| `smitten.input.touches()` | The fingers on the screen: a list of { id, x, y, worldX, worldY }. |
-| `smitten.input.gamepads()` | How many gamepads are connected. |
-| `smitten.input.stick(side, player?)` | A gamepad stick ("left" or "right"): x, y from -1 to 1. |
-| `smitten.input.trigger(side, player?)` | A gamepad trigger ("left" or "right"): 0 to 1. |
-| `smitten.input.vibrate(strength, seconds, player?)` | Rumbles gamepads (all, or one player's). |
+| `smitten.input.hasTouch()` | Returns true on a phone or a tablet, and on any screen after a finger touches it. |
+| `smitten.input.wheel()` | Returns how far the mouse wheel turned in this frame: x, y. |
+| `smitten.input.typed()` | Returns the text that the player typed in this frame. It also turns text input on. |
+| `smitten.input.touches()` | Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }. |
+| `smitten.input.gamepads()` | Returns the number of connected gamepads. |
+| `smitten.input.stick(side, player?)` | Returns the position of a gamepad stick ("left" or "right"): x, y from -1 to 1. |
+| `smitten.input.trigger(side, player?)` | Returns the position of a gamepad trigger ("left" or "right"): 0 to 1. |
+| `smitten.input.vibrate(strength, seconds, player?)` | Makes gamepads vibrate (all of them, or the gamepad of one player). |
 <!-- end -->

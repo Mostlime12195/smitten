@@ -132,27 +132,27 @@ graph:<span class="tk-f">connect</span>(<span class="tk-s">&quot;well&quot;</spa
 <p>The path goes straight where it can and bends round the corners of walls and holes. A start or target outside the area counts as the nearest walkable point, so a click in the wrong place still gets a path.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>A grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes one of itself with newPathGrid().</td></tr>
-<tr><td><code>smitten.paths.newGraph()</code></td><td>An empty graph: points you add and connect by hand, and paths along the connections.</td></tr>
-<tr><td><code>smitten.paths.newArea(areas, holes?)</code></td><td>A walkable area from polygons and holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }).</td></tr>
-<tr><td><code>smitten.paths.newAgent(options?)</code></td><td>Something that follows paths: it remembers a target and says which point to head for next. options: finder (a grid, graph or area; the scene's Walkable pieces if left out), reach, replan, partial, tags.</td></tr>
-<tr><td><code>smitten.paths.findPath(x1, y1, x2, y2, options?)</code></td><td>The short way between two points through the scene's Walkable pieces: {x, y, x, y, ...}, or nil. options: tags, partial.</td></tr>
-<tr><td><code>smitten.paths.closestPoint(x, y, options?)</code></td><td>The walkable point nearest a point: x, y.</td></tr>
-<tr><td><code>smitten.paths.isWalkable(x, y, options?)</code></td><td>True if a point is inside a Walkable piece and not in a hole.</td></tr>
-<tr><td><code>smitten.paths.getArea(options?)</code></td><td>The area built from the scene's Walkable pieces.</td></tr>
-<tr><td><code>smitten.paths.refresh()</code></td><td>Builds the scene's walkable area again; only needed after changing a Walkable's points in place.</td></tr>
-<tr><td><code>smitten.paths.length(path)</code></td><td>How long a path is, in pixels.</td></tr>
-<tr><td><code>smitten.paths.pointAt(path, distance)</code></td><td>The point a distance along a path from its start: x, y, and true once it's the end.</td></tr>
-<tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width.</td></tr></tbody>
+<tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>Makes a grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes its own grid with newPathGrid().</td></tr>
+<tr><td><code>smitten.paths.newGraph()</code></td><td>Makes an empty graph: you add points and connect them, and it finds paths along the connections.</td></tr>
+<tr><td><code>smitten.paths.newArea(areas, holes?)</code></td><td>Makes a walkable area from polygons, with holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }).</td></tr>
+<tr><td><code>smitten.paths.newAgent(options?)</code></td><td>Makes an agent that follows paths: it keeps a target and tells you the next point to go to. options: finder, reach, replan, partial, tags. finder is a grid, graph or area (the Walkable pieces of the scene if you leave it out).</td></tr>
+<tr><td><code>smitten.paths.findPath(x1, y1, x2, y2, options?)</code></td><td>Returns a short path between two points through the Walkable pieces of the scene: {x, y, x, y, ...}, or nil. options: tags, partial.</td></tr>
+<tr><td><code>smitten.paths.closestPoint(x, y, options?)</code></td><td>Returns the walkable point that is nearest to a point: x, y.</td></tr>
+<tr><td><code>smitten.paths.isWalkable(x, y, options?)</code></td><td>Returns true if a point is inside a Walkable piece and not in a hole.</td></tr>
+<tr><td><code>smitten.paths.getArea(options?)</code></td><td>Returns the area that the engine makes from the Walkable pieces of the scene.</td></tr>
+<tr><td><code>smitten.paths.refresh()</code></td><td>Makes the walkable area of the scene again. You need it only after you change the points of a Walkable in place.</td></tr>
+<tr><td><code>smitten.paths.length(path)</code></td><td>Returns the length of a path, in pixels.</td></tr>
+<tr><td><code>smitten.paths.pointAt(path, distance)</code></td><td>Returns the point at a distance along a path from its start: x, y, and true if it is the end.</td></tr>
+<tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, the path of an agent or an area, from the draw() function of a script. With no argument, it draws the Walkable pieces of the scene. options: color, width.</td></tr></tbody>
 </table></div>
 <p><code>options</code> is a table: <code>tags = &quot;land, bridge&quot;</code> uses only the Walkable pieces (areas and holes) with one of those tags, so boats and people can each have their own ground; <code>partial = true</code> goes as near as possible when the target is on ground that can't be reached. <code>closestPoint</code>, <code>isWalkable</code> and <code>getArea</code> also take just the tags: <code>isWalkable(x, y, &quot;land&quot;)</code>.</p>
 <p><strong>The walker's size.</strong> A path hugs corners exactly, as if the walker were a dot. Draw areas a walker's half-width in from the walls, and holes that much bigger than the thing they go round, and nothing clips a corner.</p>
 <p><code>smitten.paths.newArea(areas, holes)</code> makes an area without pieces, from lists of polygons, with the same <code>findPath</code>, <code>closestPoint</code> and <code>isWalkable</code> as methods: for levels built in code.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>points</code></td><td>points</td><td>{-100, -60, 100, -60, 100, 60, -100, 60}</td><td>Corner points x1, y1, x2, y2, ... in order round the shape. Any number of corners; dents are fine.</td></tr>
-<tr><td><code>hole</code></td><td>bool</td><td>false</td><td>Cuts this shape out of the walkable areas it lies on, instead of adding to them: a pillar, a pond, a table.</td></tr>
-<tr><td><code>active</code></td><td>bool</td><td>true</td><td>Counts for paths. Turn it off to close an area (or fill a hole) for a while.</td></tr></tbody>
+<tbody><tr><td><code>points</code></td><td>points</td><td>{-100, -60, 100, -60, 100, 60, -100, 60}</td><td>The corner points x1, y1, x2, y2, ... in order around the shape. It can have any number of corners, and dents are OK.</td></tr>
+<tr><td><code>hole</code></td><td>bool</td><td>false</td><td>When this is on, the shape does not add to the walkable areas below it. It cuts a hole in them: a pillar, a pond, a table.</td></tr>
+<tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, paths use it. Turn it off to close an area (or fill a hole) for a time.</td></tr></tbody>
 </table></div>
 <h2 id="following-a-path-agents"><a class="anchor" href="#following-a-path-agents" aria-hidden="true">#</a>Following a path: agents</h2>
 <p>An agent remembers where it's going and the path there, and tells you the next point to head for. It never moves anything: you do, however your game moves things.</p>

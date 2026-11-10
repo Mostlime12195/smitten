@@ -37,211 +37,211 @@
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.scene.go(path, ...)</code></td><td>Goes to another scene at the end of the frame: smitten.scene.go(&quot;scenes/level2.scene&quot;).</td></tr>
 <tr><td><code>smitten.scene.reload()</code></td><td>Starts the running scene again from its file.</td></tr>
-<tr><td><code>smitten.scene.make(sceneOrType, properties?, script?)</code></td><td>Makes a piece without adding it: make(&quot;scenes/coin.scene&quot;) or make(&quot;Sprite&quot;, { image = &quot;art/coin.png&quot; }).</td></tr>
+<tr><td><code>smitten.scene.make(sceneOrType, properties?, script?)</code></td><td>Makes a piece but does not add it to the scene: make(&quot;scenes/coin.scene&quot;) or make(&quot;Sprite&quot;, { image = &quot;art/coin.png&quot; }).</td></tr>
 <tr><td><code>smitten.scene.spawn(sceneOrType, properties?, parent?)</code></td><td>Makes a piece and adds it to the scene (or to parent): spawn(&quot;scenes/bullet.scene&quot;, { x = 10 }).</td></tr>
-<tr><td><code>smitten.scene.tagged(tag)</code></td><td>Every piece with a tag, as a list.</td></tr>
-<tr><td><code>smitten.scene.first(tag)</code></td><td>The first piece with a tag, or nil.</td></tr>
-<tr><td><code>smitten.scene.find(path)</code></td><td>A piece of the running scene by its path from the root.</td></tr>
-<tr><td><code>smitten.scene.screenToWorld(x, y)</code></td><td>A point on the screen as a point in the scene (through the camera).</td></tr>
-<tr><td><code>smitten.scene.worldToScreen(x, y)</code></td><td>A point in the scene as a point on the screen.</td></tr>
-<tr><td><code>smitten.scene.setCurrent(root)</code></td><td>Makes a piece built in code the running scene.</td></tr>
-<tr><td><code>smitten.scene.getDelta()</code></td><td>The current step's length: the frame time in update(), the fixed step in physicsUpdate().</td></tr>
-<tr><td><code>smitten.scene.transition(kind, seconds?, color?)</code></td><td>How go() and reload() change scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
-<tr><td><code>smitten.scene.isChanging()</code></td><td>True while the scene is about to change or a transition is running.</td></tr>
-<tr><td><code>smitten.scene.runsWhilePaused(piece)</code></td><td>True if a piece keeps running while the game is paused (pausable off on it or a piece it's inside).</td></tr></tbody>
+<tr><td><code>smitten.scene.tagged(tag)</code></td><td>Returns every piece with a tag, as a list.</td></tr>
+<tr><td><code>smitten.scene.first(tag)</code></td><td>Returns the first piece with a tag, or nil.</td></tr>
+<tr><td><code>smitten.scene.find(path)</code></td><td>Returns a piece of the running scene by its path from the root piece.</td></tr>
+<tr><td><code>smitten.scene.screenToWorld(x, y)</code></td><td>Takes a point on the screen and returns it as a point in the scene (through the camera).</td></tr>
+<tr><td><code>smitten.scene.worldToScreen(x, y)</code></td><td>Takes a point in the scene and returns it as a point on the screen.</td></tr>
+<tr><td><code>smitten.scene.setCurrent(root)</code></td><td>Makes a piece that a script builds the running scene.</td></tr>
+<tr><td><code>smitten.scene.getDelta()</code></td><td>Returns the length of the current step: the frame time in update(), the fixed step in physicsUpdate().</td></tr>
+<tr><td><code>smitten.scene.transition(kind, seconds?, color?)</code></td><td>Sets how go() and reload() change scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
+<tr><td><code>smitten.scene.isChanging()</code></td><td>Returns true while the scene is about to change or a transition runs.</td></tr>
+<tr><td><code>smitten.scene.runsWhilePaused(piece)</code></td><td>Returns true if a piece keeps running while the game is paused (pausable is off on it, or on a piece that it is inside).</td></tr></tbody>
 </table></div>
 <p>Fields: <code>current</code>, <code>path</code>, <code>args</code>, <code>paused</code>, <code>timeScale</code>, <code>showShapes</code>.</p>
 <h3 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h3>
 <p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.input.pressed(action, player?)</code></td><td>True on the frame the action went down: smitten.input.pressed(&quot;jump&quot;). With a player, that player only: smitten.input.pressed(&quot;jump&quot;, 2).</td></tr>
-<tr><td><code>smitten.input.down(action, player?)</code></td><td>True while the action is held.</td></tr>
-<tr><td><code>smitten.input.released(action, player?)</code></td><td>True on the frame the action went up.</td></tr>
-<tr><td><code>smitten.input.axis(negative, positive, player?)</code></td><td>From -1 to 1: smitten.input.axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
-<tr><td><code>smitten.input.vector(left, right, up, down, player?)</code></td><td>A direction at most 1 long: x, y.</td></tr>
-<tr><td><code>smitten.input.strength(action, player?)</code></td><td>How far the action is pushed, 0 to 1.</td></tr>
-<tr><td><code>smitten.input.bind(action, inputs, player?)</code></td><td>Adds an action: smitten.input.bind(&quot;dash&quot;, { &quot;lshift&quot;, &quot;pad:b&quot; }). With a player, the inputs are that player's own: bind(&quot;jump&quot;, { &quot;return&quot; }, 2).</td></tr>
-<tr><td><code>smitten.input.unbind(action, player?)</code></td><td>Removes an action, or a player's own inputs for it.</td></tr>
-<tr><td><code>smitten.input.bindings(action, player?)</code></td><td>The inputs bound to an action (with a player: the ones that player uses).</td></tr>
-<tr><td><code>smitten.input.actions()</code></td><td>Every action's name.</td></tr>
-<tr><td><code>smitten.input.lastPressed(player?)</code></td><td>The input pressed this frame (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;), or nil: for rebinding screens. With a player, only what that player pressed.</td></tr>
-<tr><td><code>smitten.input.lastPressedBy()</code></td><td>What was pressed this frame and where: the input's name, &quot;keyboard&quot;, &quot;mouse&quot; or &quot;gamepad&quot;, and the gamepad's number. For &quot;press a button to join&quot; screens.</td></tr>
-<tr><td><code>smitten.input.isInputName(name)</code></td><td>True if a name is an input: a key, &quot;mouse:1&quot;, &quot;pad:a&quot;, &quot;axis:leftx+&quot;, &quot;wheel:up&quot;.</td></tr>
-<tr><td><code>smitten.input.press(action, player?)</code></td><td>Presses an action from code, as if its key went down, until release(): for touch controls, replays and computer players.</td></tr>
-<tr><td><code>smitten.input.release(action, player?)</code></td><td>Lets go of an action pressed with press() or setStrength().</td></tr>
-<tr><td><code>smitten.input.setStrength(action, value, player?)</code></td><td>Pushes an action part of the way, 0 to 1, as a stick would: axis() and vector() give the fraction back.</td></tr>
-<tr><td><code>smitten.input.players()</code></td><td>How many players have something to play with: the keyboard, keys of their own or a gamepad.</td></tr>
-<tr><td><code>smitten.input.gamepadOf(player)</code></td><td>A player's gamepad: its number and the gamepad itself, or nil.</td></tr>
-<tr><td><code>smitten.input.assignGamepad(player, gamepad)</code></td><td>Gives a player a gamepad by its number: assignGamepad(1, 2). false: none. nil: back to gamepad 1 for player 1, 2 for player 2.</td></tr>
-<tr><td><code>smitten.input.assignKeyboard(player)</code></td><td>Gives a player the keyboard and the mouse (they start as player 1's). false: nobody's.</td></tr>
-<tr><td><code>smitten.input.keyboardOf()</code></td><td>The player with the keyboard and the mouse, or nil.</td></tr>
+<tbody><tr><td><code>smitten.input.pressed(action, player?)</code></td><td>Returns true on the frame when the action goes down: smitten.input.pressed(&quot;jump&quot;). With a player, it checks only that player: smitten.input.pressed(&quot;jump&quot;, 2).</td></tr>
+<tr><td><code>smitten.input.down(action, player?)</code></td><td>Returns true while the action is down.</td></tr>
+<tr><td><code>smitten.input.released(action, player?)</code></td><td>Returns true on the frame when the action goes up.</td></tr>
+<tr><td><code>smitten.input.axis(negative, positive, player?)</code></td><td>Returns a value from -1 to 1: smitten.input.axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>smitten.input.vector(left, right, up, down, player?)</code></td><td>Returns a direction with a length of 1 at most: x, y.</td></tr>
+<tr><td><code>smitten.input.strength(action, player?)</code></td><td>Returns how far down the action is, from 0 to 1.</td></tr>
+<tr><td><code>smitten.input.bind(action, inputs, player?)</code></td><td>Adds an action: smitten.input.bind(&quot;dash&quot;, { &quot;lshift&quot;, &quot;pad:b&quot; }). With a player, the bindings are only for that player: bind(&quot;jump&quot;, { &quot;return&quot; }, 2).</td></tr>
+<tr><td><code>smitten.input.unbind(action, player?)</code></td><td>Removes an action, or the bindings of one player for it.</td></tr>
+<tr><td><code>smitten.input.bindings(action, player?)</code></td><td>Returns the bindings of an action (with a player: the bindings that the player uses).</td></tr>
+<tr><td><code>smitten.input.actions()</code></td><td>Returns the names of all actions.</td></tr>
+<tr><td><code>smitten.input.lastPressed(player?)</code></td><td>Returns the input pressed in this frame (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;), or nil. Use it for screens that change bindings. With a player, it checks only that player.</td></tr>
+<tr><td><code>smitten.input.lastPressedBy()</code></td><td>Returns the input pressed in this frame and its device: the input name, &quot;keyboard&quot;, &quot;mouse&quot; or &quot;gamepad&quot;, and the gamepad number. Use it for &quot;press a button to join&quot; screens.</td></tr>
+<tr><td><code>smitten.input.isInputName(name)</code></td><td>Returns true if a name is an input: a key, &quot;mouse:1&quot;, &quot;pad:a&quot;, &quot;axis:leftx+&quot;, &quot;wheel:up&quot;.</td></tr>
+<tr><td><code>smitten.input.press(action, player?)</code></td><td>Presses an action from code, as if its key went down, until release(). Use it for on-screen touch buttons, replays and computer players.</td></tr>
+<tr><td><code>smitten.input.release(action, player?)</code></td><td>Lets go of an action that press() or setStrength() pressed.</td></tr>
+<tr><td><code>smitten.input.setStrength(action, value, player?)</code></td><td>Presses an action part of the way, from 0 to 1, as a stick does. axis() and vector() return the fraction.</td></tr>
+<tr><td><code>smitten.input.players()</code></td><td>Returns the number of players that have something to play with: the keyboard, their own keys or a gamepad.</td></tr>
+<tr><td><code>smitten.input.gamepadOf(player)</code></td><td>Returns the gamepad of a player: its number and the gamepad, or nil.</td></tr>
+<tr><td><code>smitten.input.assignGamepad(player, gamepad)</code></td><td>Gives a gamepad to a player by its number: assignGamepad(1, 2). false gives none. nil goes back to the default: gamepad 1 for player 1, gamepad 2 for player 2.</td></tr>
+<tr><td><code>smitten.input.assignKeyboard(player)</code></td><td>Gives the keyboard and the mouse to a player (at the start, they belong to player 1). false gives them to no player.</td></tr>
+<tr><td><code>smitten.input.keyboardOf()</code></td><td>Returns the player who has the keyboard and the mouse, or nil.</td></tr>
 <tr><td><code>smitten.input.on(event, fn)</code></td><td>Calls fn(number, gamepad) on &quot;gamepadadded&quot; or &quot;gamepadremoved&quot;. Returns a handle with :off().</td></tr>
-<tr><td><code>smitten.input.hasTouch()</code></td><td>True on a phone or a tablet, and on any screen once a finger has touched it.</td></tr>
-<tr><td><code>smitten.input.wheel()</code></td><td>How far the mouse wheel turned this frame: x, y.</td></tr>
-<tr><td><code>smitten.input.typed()</code></td><td>The text typed this frame; turns text input on.</td></tr>
-<tr><td><code>smitten.input.touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
-<tr><td><code>smitten.input.gamepads()</code></td><td>How many gamepads are connected.</td></tr>
-<tr><td><code>smitten.input.stick(side, player?)</code></td><td>A gamepad stick (&quot;left&quot; or &quot;right&quot;): x, y from -1 to 1.</td></tr>
-<tr><td><code>smitten.input.trigger(side, player?)</code></td><td>A gamepad trigger (&quot;left&quot; or &quot;right&quot;): 0 to 1.</td></tr>
-<tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads (all, or one player's).</td></tr></tbody>
+<tr><td><code>smitten.input.hasTouch()</code></td><td>Returns true on a phone or a tablet, and on any screen after a finger touches it.</td></tr>
+<tr><td><code>smitten.input.wheel()</code></td><td>Returns how far the mouse wheel turned in this frame: x, y.</td></tr>
+<tr><td><code>smitten.input.typed()</code></td><td>Returns the text that the player typed in this frame. It also turns text input on.</td></tr>
+<tr><td><code>smitten.input.touches()</code></td><td>Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
+<tr><td><code>smitten.input.gamepads()</code></td><td>Returns the number of connected gamepads.</td></tr>
+<tr><td><code>smitten.input.stick(side, player?)</code></td><td>Returns the position of a gamepad stick (&quot;left&quot; or &quot;right&quot;): x, y from -1 to 1.</td></tr>
+<tr><td><code>smitten.input.trigger(side, player?)</code></td><td>Returns the position of a gamepad trigger (&quot;left&quot; or &quot;right&quot;): 0 to 1.</td></tr>
+<tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Makes gamepads vibrate (all of them, or the gamepad of one player).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-tween"><a class="anchor" href="#smitten-tween" aria-hidden="true">#</a>smitten.tween</h3>
 <p><code>smitten.tween(target, seconds, values, easing)</code>. Easings: <a href="scripts#waiting">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.tween.to(target, seconds, values, easing?, done?)</code></td><td>Changes numbers smoothly; smitten.tween(...) does the same.</td></tr>
+<tbody><tr><td><code>smitten.tween.to(target, seconds, values, easing?, done?)</code></td><td>Changes numbers smoothly. smitten.tween(...) does the same.</td></tr>
 <tr><td><code>smitten.tween.after(seconds, fn)</code></td><td>Calls fn once, later.</td></tr>
-<tr><td><code>smitten.tween.every(seconds, fn)</code></td><td>Calls fn repeatedly until it returns false.</td></tr>
-<tr><td><code>smitten.tween.easingNames()</code></td><td>Every easing's name (linear, outQuad, outBack, outBounce, ...).</td></tr></tbody>
+<tr><td><code>smitten.tween.every(seconds, fn)</code></td><td>Calls fn again and again until it returns false.</td></tr>
+<tr><td><code>smitten.tween.easingNames()</code></td><td>Returns the names of all easings (linear, outQuad, outBack, outBounce, ...).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-assets"><a class="anchor" href="#smitten-assets" aria-hidden="true">#</a>smitten.assets</h3>
 <p>Loads and caches files. Paths are relative to the project folder.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.assets.image(path)</code></td><td>An Image, cached.</td></tr>
-<tr><td><code>smitten.assets.sprite(path)</code></td><td>A .sprite file: image, frames and animations.</td></tr>
-<tr><td><code>smitten.assets.tileset(path)</code></td><td>A .tileset file.</td></tr>
-<tr><td><code>smitten.assets.font(path, size)</code></td><td>A font: a .ttf/.otf file, &quot;pixel&quot;, or &quot;&quot; for the default.</td></tr>
-<tr><td><code>smitten.assets.audio(path)</code></td><td>A sound ready to play: :newSource():play().</td></tr>
-<tr><td><code>smitten.assets.scene(path)</code></td><td>A .scene file, decoded.</td></tr>
+<tbody><tr><td><code>smitten.assets.image(path)</code></td><td>Returns an Image. The engine loads each file once and keeps it in a cache.</td></tr>
+<tr><td><code>smitten.assets.sprite(path)</code></td><td>Returns a .sprite file: its image, animation frames and animations.</td></tr>
+<tr><td><code>smitten.assets.tileset(path)</code></td><td>Returns a .tileset file.</td></tr>
+<tr><td><code>smitten.assets.font(path, size)</code></td><td>Returns a font: a .ttf or .otf file, &quot;pixel&quot;, or &quot;&quot; for the default font.</td></tr>
+<tr><td><code>smitten.assets.audio(path)</code></td><td>Returns a sound that is ready to play: :newSource():play().</td></tr>
+<tr><td><code>smitten.assets.scene(path)</code></td><td>Reads a .scene file and returns its data.</td></tr>
 <tr><td><code>smitten.assets.script(path)</code></td><td>Runs a script file and returns its table.</td></tr>
-<tr><td><code>smitten.assets.load(path)</code></td><td>Loads any file by its extension.</td></tr>
-<tr><td><code>smitten.assets.readJSON(path)</code></td><td>Reads and decodes a JSON file.</td></tr>
-<tr><td><code>smitten.assets.clear(path?)</code></td><td>Forgets cached files so they load again.</td></tr></tbody>
+<tr><td><code>smitten.assets.load(path)</code></td><td>Loads any file. The extension of the file decides how.</td></tr>
+<tr><td><code>smitten.assets.readJSON(path)</code></td><td>Reads a JSON file and returns its Lua values.</td></tr>
+<tr><td><code>smitten.assets.clear(path?)</code></td><td>Removes files from the cache, so that they load again.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-storage"><a class="anchor" href="#smitten-storage" aria-hidden="true">#</a>smitten.storage</h3>
 <p>See <a href="saving">Saving</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.storage.save(key, value)</code></td><td>Saves a value between plays: smitten.storage.save(&quot;best&quot;, score).</td></tr>
-<tr><td><code>smitten.storage.load(key, default?)</code></td><td>A saved value, or default.</td></tr>
-<tr><td><code>smitten.storage.remove(key)</code></td><td>Forgets a saved value.</td></tr>
-<tr><td><code>smitten.storage.keys()</code></td><td>Every saved value's name.</td></tr></tbody>
+<tr><td><code>smitten.storage.load(key, default?)</code></td><td>Returns a saved value, or default.</td></tr>
+<tr><td><code>smitten.storage.remove(key)</code></td><td>Deletes a saved value.</td></tr>
+<tr><td><code>smitten.storage.keys()</code></td><td>Returns the names of all saved values.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-display"><a class="anchor" href="#smitten-display" aria-hidden="true">#</a>smitten.display</h3>
 <p>See <a href="settings">Project settings</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Window coordinates to game coordinates.</td></tr>
-<tr><td><code>smitten.display.toWindow(x, y)</code></td><td>Game coordinates to window coordinates.</td></tr>
-<tr><td><code>smitten.display.getWindowRect()</code></td><td>The game's area in the window: x, y, width, height.</td></tr></tbody>
+<tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Takes window coordinates and returns game coordinates.</td></tr>
+<tr><td><code>smitten.display.toWindow(x, y)</code></td><td>Takes game coordinates and returns window coordinates.</td></tr>
+<tr><td><code>smitten.display.getWindowRect()</code></td><td>Returns the area of the game in the window: x, y, width, height.</td></tr></tbody>
 </table></div>
 <p>Fields: <code>width</code>, <code>height</code>, <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code>, <code>viewHeight</code>, <code>scale</code>, <code>stretch</code>, <code>filter</code>, <code>antialias</code>, <code>background</code>.</p>
 <h3 id="smitten-boards"><a class="anchor" href="#smitten-boards" aria-hidden="true">#</a>smitten.boards</h3>
 <p>Leaderboards on the games site. See <a href="leaderboards">Leaderboards</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.boards.available()</code></td><td>True while the game runs on its page on the games site and has leaderboards there. False in the editor and in exported games.</td></tr>
-<tr><td><code>smitten.boards.submit(key, value, options?, callback?)</code></td><td>Sends a score to a leaderboard: smitten.boards.submit(&quot;best&quot;, score). options: { name = &quot;Ada&quot; } for someone not signed in. Answers { rank, value, improved }, or nil and why.</td></tr>
-<tr><td><code>smitten.boards.top(key, count?, callback?)</code></td><td>The best scores, best first: a list of { rank, name, value, me, guest } (10 unless count says, 100 at most), or nil and why.</td></tr>
-<tr><td><code>smitten.boards.around(key, count?, callback?)</code></td><td>The scores around the player's own (the top, if they have none).</td></tr>
-<tr><td><code>smitten.boards.list(callback?)</code></td><td>The game's leaderboards: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
+<tbody><tr><td><code>smitten.boards.available()</code></td><td>Returns true while the game runs on its page on the games site and has leaderboards there. Returns false in the editor and in exported games.</td></tr>
+<tr><td><code>smitten.boards.submit(key, value, options?, callback?)</code></td><td>Sends a score to a leaderboard: smitten.boards.submit(&quot;best&quot;, score). options: { name = &quot;Ada&quot; } for a player who is not signed in. The result is { rank, value, improved }, or nil and the reason.</td></tr>
+<tr><td><code>smitten.boards.top(key, count?, callback?)</code></td><td>Returns the best scores, best first: a list of { rank, name, value, me, guest }, or nil and the reason. count is 10 if you leave it out, and 100 at most.</td></tr>
+<tr><td><code>smitten.boards.around(key, count?, callback?)</code></td><td>Returns the scores around the score of the player (the top scores, if the player has no score).</td></tr>
+<tr><td><code>smitten.boards.list(callback?)</code></td><td>Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-json"><a class="anchor" href="#smitten-json" aria-hidden="true">#</a>smitten.json</h3>
 <p>JSON text to Lua values and back.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.json.decode(text)</code></td><td>JSON text to Lua values.</td></tr>
-<tr><td><code>smitten.json.encode(value, indent?)</code></td><td>Lua values to JSON text.</td></tr></tbody>
+<tbody><tr><td><code>smitten.json.decode(text)</code></td><td>Changes JSON text into Lua values.</td></tr>
+<tr><td><code>smitten.json.encode(value, indent?)</code></td><td>Changes Lua values into JSON text.</td></tr></tbody>
 </table></div>
 <p>Fields: <code>null</code>.</p>
 <h3 id="smitten-physics"><a class="anchor" href="#smitten-physics" aria-hidden="true">#</a>smitten.physics</h3>
 <p>Queries on the running scene's physics. See <a href="physics">Physics</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.physics.raycast(x1, y1, x2, y2, tags?)</code></td><td>The first body or tiles a line touches, nearest first: {piece, x, y, nx, ny, fraction}, or nil.</td></tr>
-<tr><td><code>smitten.physics.raycastAll(x1, y1, x2, y2, tags?)</code></td><td>Every hit along a line, nearest first.</td></tr>
-<tr><td><code>smitten.physics.piecesAt(x, y, tags?)</code></td><td>The bodies and zones whose shapes contain a point.</td></tr>
-<tr><td><code>smitten.physics.overlap(kind, ...)</code></td><td>The bodies and zones touching a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, w, h).</td></tr>
-<tr><td><code>smitten.physics.getGravity()</code></td><td>The scene's gravity: x, y (pixels per second per second).</td></tr>
-<tr><td><code>smitten.physics.setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats.</td></tr></tbody>
+<tbody><tr><td><code>smitten.physics.raycast(x1, y1, x2, y2, tags?)</code></td><td>Returns the nearest body or tiles that a line touches: {piece, x, y, nx, ny, fraction}, or nil.</td></tr>
+<tr><td><code>smitten.physics.raycastAll(x1, y1, x2, y2, tags?)</code></td><td>Returns every hit along a line, nearest first.</td></tr>
+<tr><td><code>smitten.physics.piecesAt(x, y, tags?)</code></td><td>Returns the bodies and zones whose shapes contain a point.</td></tr>
+<tr><td><code>smitten.physics.overlap(kind, ...)</code></td><td>Returns the bodies and zones that touch a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, w, h).</td></tr>
+<tr><td><code>smitten.physics.getGravity()</code></td><td>Returns the gravity of the scene: x, y (pixels per second per second).</td></tr>
+<tr><td><code>smitten.physics.setGravity(x, y)</code></td><td>Changes the gravity of the scene: setGravity(0, 0) makes everything float.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-paths"><a class="anchor" href="#smitten-paths" aria-hidden="true">#</a>smitten.paths</h3>
 <p>Finding a way from one place to another. See <a href="pathfinding">Pathfinding</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>A grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes one of itself with newPathGrid().</td></tr>
-<tr><td><code>smitten.paths.newGraph()</code></td><td>An empty graph: points you add and connect by hand, and paths along the connections.</td></tr>
-<tr><td><code>smitten.paths.newArea(areas, holes?)</code></td><td>A walkable area from polygons and holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }).</td></tr>
-<tr><td><code>smitten.paths.newAgent(options?)</code></td><td>Something that follows paths: it remembers a target and says which point to head for next. options: finder (a grid, graph or area; the scene's Walkable pieces if left out), reach, replan, partial, tags.</td></tr>
-<tr><td><code>smitten.paths.findPath(x1, y1, x2, y2, options?)</code></td><td>The short way between two points through the scene's Walkable pieces: {x, y, x, y, ...}, or nil. options: tags, partial.</td></tr>
-<tr><td><code>smitten.paths.closestPoint(x, y, options?)</code></td><td>The walkable point nearest a point: x, y.</td></tr>
-<tr><td><code>smitten.paths.isWalkable(x, y, options?)</code></td><td>True if a point is inside a Walkable piece and not in a hole.</td></tr>
-<tr><td><code>smitten.paths.getArea(options?)</code></td><td>The area built from the scene's Walkable pieces.</td></tr>
-<tr><td><code>smitten.paths.refresh()</code></td><td>Builds the scene's walkable area again; only needed after changing a Walkable's points in place.</td></tr>
-<tr><td><code>smitten.paths.length(path)</code></td><td>How long a path is, in pixels.</td></tr>
-<tr><td><code>smitten.paths.pointAt(path, distance)</code></td><td>The point a distance along a path from its start: x, y, and true once it's the end.</td></tr>
-<tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width.</td></tr></tbody>
+<tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>Makes a grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes its own grid with newPathGrid().</td></tr>
+<tr><td><code>smitten.paths.newGraph()</code></td><td>Makes an empty graph: you add points and connect them, and it finds paths along the connections.</td></tr>
+<tr><td><code>smitten.paths.newArea(areas, holes?)</code></td><td>Makes a walkable area from polygons, with holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }).</td></tr>
+<tr><td><code>smitten.paths.newAgent(options?)</code></td><td>Makes an agent that follows paths: it keeps a target and tells you the next point to go to. options: finder, reach, replan, partial, tags. finder is a grid, graph or area (the Walkable pieces of the scene if you leave it out).</td></tr>
+<tr><td><code>smitten.paths.findPath(x1, y1, x2, y2, options?)</code></td><td>Returns a short path between two points through the Walkable pieces of the scene: {x, y, x, y, ...}, or nil. options: tags, partial.</td></tr>
+<tr><td><code>smitten.paths.closestPoint(x, y, options?)</code></td><td>Returns the walkable point that is nearest to a point: x, y.</td></tr>
+<tr><td><code>smitten.paths.isWalkable(x, y, options?)</code></td><td>Returns true if a point is inside a Walkable piece and not in a hole.</td></tr>
+<tr><td><code>smitten.paths.getArea(options?)</code></td><td>Returns the area that the engine makes from the Walkable pieces of the scene.</td></tr>
+<tr><td><code>smitten.paths.refresh()</code></td><td>Makes the walkable area of the scene again. You need it only after you change the points of a Walkable in place.</td></tr>
+<tr><td><code>smitten.paths.length(path)</code></td><td>Returns the length of a path, in pixels.</td></tr>
+<tr><td><code>smitten.paths.pointAt(path, distance)</code></td><td>Returns the point at a distance along a path from its start: x, y, and true if it is the end.</td></tr>
+<tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, the path of an agent or an area, from the draw() function of a script. With no argument, it draws the Walkable pieces of the scene. options: color, width.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-text"><a class="anchor" href="#smitten-text" aria-hidden="true">#</a>smitten.text</h3>
 <p>Rich text, measuring and effects. See <a href="text">Text</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.text.effect(name, fn)</code></td><td>Adds an effect for rich text: after effect(&quot;bounce&quot;, fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece.</td></tr>
-<tr><td><code>smitten.text.effects()</code></td><td>The names of every effect, sorted.</td></tr>
-<tr><td><code>smitten.text.measure(text, options?)</code></td><td>How big a text is when drawn: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.</td></tr>
-<tr><td><code>smitten.text.wrap(text, options?)</code></td><td>The lines a text is broken into at a width: wrap(&quot;a long sentence&quot;, { width = 120 }) gives a list of strings.</td></tr>
-<tr><td><code>smitten.text.strip(text)</code></td><td>The text without its tags: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
-<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text (a player's name): square brackets are shown, not read as tags.</td></tr>
-<tr><td><code>smitten.text.color(value)</code></td><td>A color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
+<tbody><tr><td><code>smitten.text.effect(name, fn)</code></td><td>Adds an effect for rich text. After effect(&quot;bounce&quot;, fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. You can change c.x, c.y, c.rotation, c.scale, c.color, c.alpha and c.visible. You can read c.index, c.count, c.char, c.line, c.time, c.since, c.args and c.piece.</td></tr>
+<tr><td><code>smitten.text.effects()</code></td><td>Returns the names of all effects, sorted.</td></tr>
+<tr><td><code>smitten.text.measure(text, options?)</code></td><td>Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.</td></tr>
+<tr><td><code>smitten.text.wrap(text, options?)</code></td><td>Returns the lines of a text when it wraps at a width: wrap(&quot;a long sentence&quot;, { width = 120 }) returns a list of strings.</td></tr>
+<tr><td><code>smitten.text.strip(text)</code></td><td>Returns the text without its markup: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
+<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup.</td></tr>
+<tr><td><code>smitten.text.color(value)</code></td><td>Returns a color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-synth"><a class="anchor" href="#smitten-synth" aria-hidden="true">#</a>smitten.synth</h3>
 <p>See <a href="sound">Sound and music</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.synth.sfx(path)</code></td><td>A .sfx sound effect made in the Sound workspace; :play() it.</td></tr>
-<tr><td><code>smitten.synth.song(path)</code></td><td>A .song made in the Music workspace; :play() it.</td></tr>
-<tr><td><code>smitten.synth.renderSfx(params)</code></td><td>Renders sound effect parameters to a SoundData.</td></tr>
-<tr><td><code>smitten.synth.renderSong(song, basePath)</code></td><td>Renders a song table to a SoundData.</td></tr></tbody>
+<tbody><tr><td><code>smitten.synth.sfx(path)</code></td><td>Returns a .sfx sound effect that you make in the Sound workspace. Use :play() to play it.</td></tr>
+<tr><td><code>smitten.synth.song(path)</code></td><td>Returns a .song that you make in the Music workspace. Use :play() to play it.</td></tr>
+<tr><td><code>smitten.synth.renderSfx(params)</code></td><td>Makes a SoundData from the parameters of a sound effect.</td></tr>
+<tr><td><code>smitten.synth.renderSong(song, basePath)</code></td><td>Makes a SoundData from a song table.</td></tr></tbody>
 </table></div>
 <h2 id="helpers-in-the-engine-s-modules"><a class="anchor" href="#helpers-in-the-engine-s-modules" aria-hidden="true">#</a>Helpers in the engine's modules</h2>
 <h3 id="smitten-math"><a class="anchor" href="#smitten-math" aria-hidden="true">#</a>smitten.math</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.math.chance(p)</code></td><td>True with probability p: chance(0.25) is true a quarter of the time.</td></tr>
-<tr><td><code>smitten.math.pick(list)</code></td><td>A random element of a list.</td></tr>
-<tr><td><code>smitten.math.clamp(v, lo, hi)</code></td><td>v kept between lo and hi.</td></tr>
-<tr><td><code>smitten.math.lerp(a, b, t)</code></td><td>The value t of the way from a to b.</td></tr>
-<tr><td><code>smitten.math.approach(v, target, step)</code></td><td>v moved towards target by at most step.</td></tr>
-<tr><td><code>smitten.math.sign(v)</code></td><td>1, 0 or -1.</td></tr>
-<tr><td><code>smitten.math.round(v, step?)</code></td><td>v rounded to the nearest multiple of step.</td></tr>
-<tr><td><code>smitten.math.distance(x1, y1, x2, y2)</code></td><td>The distance between two points.</td></tr>
-<tr><td><code>smitten.math.angle(x1, y1, x2?, y2?)</code></td><td>The angle of a direction, angle(x, y), or from one point to another, angle(x1, y1, x2, y2), in degrees: 0 is right, 90 is down.</td></tr>
-<tr><td><code>smitten.math.direction(angle, length?)</code></td><td>The x, y of a step of length (1 if left out) at an angle in degrees: vx, vy = smitten.math.direction(rotation, 200).</td></tr>
-<tr><td><code>smitten.math.randomFloat(a, b)</code></td><td>A random number with a fraction, from a to b.</td></tr></tbody>
+<tbody><tr><td><code>smitten.math.chance(p)</code></td><td>Returns true with probability p: chance(0.25) is true one time in four.</td></tr>
+<tr><td><code>smitten.math.pick(list)</code></td><td>Returns a random item of a list.</td></tr>
+<tr><td><code>smitten.math.clamp(v, lo, hi)</code></td><td>Returns v, kept between lo and hi.</td></tr>
+<tr><td><code>smitten.math.lerp(a, b, t)</code></td><td>Returns the value that is t of the way from a to b.</td></tr>
+<tr><td><code>smitten.math.approach(v, target, step)</code></td><td>Returns v, moved towards target by at most step.</td></tr>
+<tr><td><code>smitten.math.sign(v)</code></td><td>Returns 1, 0 or -1.</td></tr>
+<tr><td><code>smitten.math.round(v, step?)</code></td><td>Returns v, rounded to the nearest multiple of step.</td></tr>
+<tr><td><code>smitten.math.distance(x1, y1, x2, y2)</code></td><td>Returns the distance between two points.</td></tr>
+<tr><td><code>smitten.math.angle(x1, y1, x2?, y2?)</code></td><td>Returns the angle in degrees of a direction, angle(x, y), or from one point to another, angle(x1, y1, x2, y2). 0 is right, 90 is down.</td></tr>
+<tr><td><code>smitten.math.direction(angle, length?)</code></td><td>Returns the x, y of a step with a length (1 if you leave it out) at an angle in degrees: vx, vy = smitten.math.direction(rotation, 200).</td></tr>
+<tr><td><code>smitten.math.randomFloat(a, b)</code></td><td>Returns a random number with a fraction, from a to b.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-timer"><a class="anchor" href="#smitten-timer" aria-hidden="true">#</a>smitten.timer</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.timer.after(seconds, fn)</code></td><td>Calls fn once, later. Returns a handle with :cancel().</td></tr>
-<tr><td><code>smitten.timer.every(seconds, fn)</code></td><td>Calls fn every so many seconds, until it returns false.</td></tr></tbody>
+<tr><td><code>smitten.timer.every(seconds, fn)</code></td><td>Calls fn each time the given seconds pass, until it returns false.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-mouse"><a class="anchor" href="#smitten-mouse" aria-hidden="true">#</a>smitten.mouse</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.mouse.pressed(button?)</code></td><td>True on the frame a mouse button (1 = left) went down.</td></tr>
-<tr><td><code>smitten.mouse.released(button?)</code></td><td>True on the frame a mouse button went up.</td></tr>
-<tr><td><code>smitten.mouse.down(button?)</code></td><td>True while a mouse button is held.</td></tr>
-<tr><td><code>smitten.mouse.getDelta()</code></td><td>How far the mouse moved this frame: dx, dy.</td></tr>
-<tr><td><code>smitten.mouse.isOverUI()</code></td><td>True while the pointer is over a UI button or panel.</td></tr></tbody>
+<tbody><tr><td><code>smitten.mouse.pressed(button?)</code></td><td>Returns true on the frame when a mouse button goes down (1 is the left button).</td></tr>
+<tr><td><code>smitten.mouse.released(button?)</code></td><td>Returns true on the frame when a mouse button goes up.</td></tr>
+<tr><td><code>smitten.mouse.down(button?)</code></td><td>Returns true while a mouse button is down.</td></tr>
+<tr><td><code>smitten.mouse.getDelta()</code></td><td>Returns how far the mouse moved in this frame: dx, dy.</td></tr>
+<tr><td><code>smitten.mouse.isOverUI()</code></td><td>Returns true while the mouse pointer is over a UI button or panel.</td></tr></tbody>
 </table></div>
 <p>Fields: <code>x</code>, <code>y</code>, <code>worldX</code>, <code>worldY</code>.</p>
 <h3 id="smitten-keyboard"><a class="anchor" href="#smitten-keyboard" aria-hidden="true">#</a>smitten.keyboard</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.keyboard.pressed(key)</code></td><td>True on the frame a key went down.</td></tr>
-<tr><td><code>smitten.keyboard.released(key)</code></td><td>True on the frame a key went up.</td></tr></tbody>
+<tbody><tr><td><code>smitten.keyboard.pressed(key)</code></td><td>Returns true on the frame when a key goes down.</td></tr>
+<tr><td><code>smitten.keyboard.released(key)</code></td><td>Returns true on the frame when a key goes up.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-audio"><a class="anchor" href="#smitten-audio" aria-hidden="true">#</a>smitten.audio</h3>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.audio.sfx(name, volume?, pitch?)</code></td><td>Plays a sound once by name or path: smitten.audio.sfx(&quot;coin&quot;, { volume = 0.5 }).</td></tr>
-<tr><td><code>smitten.audio.music(name, options?)</code></td><td>Plays music on a loop instead of the music playing; options: volume, pitch, fade.</td></tr>
-<tr><td><code>smitten.audio.stopMusic(fade?)</code></td><td>Stops the music, fading out over fade seconds if given.</td></tr>
+<tr><td><code>smitten.audio.music(name, options?)</code></td><td>Plays music in a loop, in place of the current music. options: volume, pitch, fade.</td></tr>
+<tr><td><code>smitten.audio.stopMusic(fade?)</code></td><td>Stops the music. If you give fade, the music fades out over fade seconds.</td></tr>
 <tr><td><code>smitten.audio.pauseMusic()</code></td><td>Pauses the music.</td></tr>
 <tr><td><code>smitten.audio.resumeMusic()</code></td><td>Continues the music.</td></tr>
-<tr><td><code>smitten.audio.getMusic()</code></td><td>The Source playing the music, or nil.</td></tr></tbody>
+<tr><td><code>smitten.audio.getMusic()</code></td><td>Returns the Source that plays the music, or nil.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="pieces"><span>Previous</span>Pieces</a><a class="next" href="formats"><span>Next</span>File formats</a></nav>

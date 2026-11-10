@@ -32,609 +32,609 @@
 <p>Each piece has its own properties plus its base type's. In its own script: <code>x = 10</code>, <code>move()</code>, <code>function clicked() end</code>. On another piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;clicked&quot;, fn)</code>. Angles are degrees, in code and in the Inspector.</p>
 <h2 id="basic"><a class="anchor" href="#basic" aria-hidden="true">#</a>Basic</h2>
 <h3 id="piece"><a class="anchor" href="#piece" aria-hidden="true">#</a>Piece</h3>
-<p>Everything in a scene is a piece. Pieces nest: a piece's children belong to it.</p>
+<p>Everything in a scene is a piece. Pieces nest: the children of a piece belong to it.</p>
 <p>A base for other types; not added itself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused. Off: this piece and its children keep running (pause menus).</td></tr></tbody>
+<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>When this is on, the piece stops while the game is paused. When it is off, this piece and its children keep running (for pause menus).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>find(path)</code></td><td>A child by name, or a deeper piece by path (&quot;UI/Score&quot;); nil if there isn't one.</td></tr>
-<tr><td><code>findDeep(name)</code></td><td>The first piece with this name anywhere inside this one.</td></tr>
-<tr><td><code>findChildOfType(type)</code></td><td>The first child of a type (&quot;Sprite&quot;), or nil.</td></tr>
-<tr><td><code>isA(type)</code></td><td>True if the piece is of a type, or a type made from it.</td></tr>
-<tr><td><code>add(piece)</code></td><td>Adds a piece as the last child; returns it.</td></tr>
-<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it.</td></tr>
-<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or type and adds it as a child.</td></tr>
+<tbody><tr><td><code>find(path)</code></td><td>Returns a child by name, or a piece deeper inside by path (&quot;UI/Score&quot;). Returns nil if there is no such piece.</td></tr>
+<tr><td><code>findDeep(name)</code></td><td>Returns the first piece with this name at any depth inside this piece.</td></tr>
+<tr><td><code>findChildOfType(type)</code></td><td>Returns the first child of a piece type (&quot;Sprite&quot;), or nil.</td></tr>
+<tr><td><code>isA(type)</code></td><td>Returns true if the piece is of a piece type, or of a type that extends it.</td></tr>
+<tr><td><code>add(piece)</code></td><td>Adds a piece as the last child and returns it.</td></tr>
+<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, but does not destroy it.</td></tr>
+<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or a piece type and adds it as a child.</td></tr>
 <tr><td><code>destroy()</code></td><td>Removes the piece and everything inside it at the end of the frame.</td></tr>
 <tr><td><code>tag(name)</code></td><td>Adds a tag.</td></tr>
-<tr><td><code>untag(name)</code></td><td>Takes a tag away.</td></tr>
-<tr><td><code>hasTag(name)</code></td><td>True if the piece has the tag.</td></tr>
-<tr><td><code>hasAnyTag(tags)</code></td><td>True if the piece has any of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
-<tr><td><code>is(tagOrType)</code></td><td>True if the piece has the tag or is of the type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
-<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) on an event. Returns a handle with :off().</td></tr>
-<tr><td><code>emit(event, ...)</code></td><td>Fires an event: calls the script's function of that name and every listener.</td></tr>
-<tr><td><code>getPath()</code></td><td>The piece's path from the scene's root, like &quot;Level/Player&quot;.</td></tr>
-<tr><td><code>isAlive()</code></td><td>True while the piece is in the running scene and not destroyed.</td></tr></tbody>
+<tr><td><code>untag(name)</code></td><td>Removes a tag.</td></tr>
+<tr><td><code>hasTag(name)</code></td><td>Returns true if the piece has the tag.</td></tr>
+<tr><td><code>hasAnyTag(tags)</code></td><td>Returns true if the piece has one or more of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
+<tr><td><code>is(tagOrType)</code></td><td>Returns true if the piece has the tag or is of the piece type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
+<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) when the piece sends the event. Returns a handle with :off().</td></tr>
+<tr><td><code>emit(event, ...)</code></td><td>Sends an event: it calls the script function with that name and every function that on() added.</td></tr>
+<tr><td><code>getPath()</code></td><td>Returns the path of the piece from the root piece of the scene, for example &quot;Level/Player&quot;.</td></tr>
+<tr><td><code>isAlive()</code></td><td>Returns true while the piece is in the running scene and destroy() has not removed it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
-<tr><td><code>function update(dt)</code></td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
-<tr><td><code>function draw()</code></td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
-<tr><td><code>function removed()</code></td><td>The piece is leaving the scene.</td></tr></tbody>
+<tbody><tr><td><code>function ready(...)</code></td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
+<tr><td><code>function update(dt)</code></td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function draw()</code></td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
+<tr><td><code>function removed()</code></td><td>The engine calls it when the piece leaves the scene.</td></tr></tbody>
 </table></div>
 <h3 id="group"><a class="anchor" href="#group" aria-hidden="true">#</a>Group</h3>
 <p>A piece with a position. Use it to hold other pieces (they move with it) or to run a script.</p>
 <p>Extends <a href="#piece">Piece</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent.</td></tr>
-<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent. y grows downwards.</td></tr>
-<tr><td><code>rotation</code></td><td>angle (°)</td><td>0°</td><td>Turn, clockwise, in degrees: 90 is a quarter turn.</td></tr>
-<tr><td><code>scaleX</code></td><td>number</td><td>1</td><td>Width multiplier. Negative mirrors it.</td></tr>
-<tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Height multiplier. Negative flips it.</td></tr>
-<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
+<tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>The horizontal position, measured from the parent.</td></tr>
+<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>The vertical position, measured from the parent. y increases downwards.</td></tr>
+<tr><td><code>rotation</code></td><td>angle (°)</td><td>0°</td><td>The rotation, clockwise, in degrees: 90 is a quarter turn.</td></tr>
+<tr><td><code>scaleX</code></td><td>number</td><td>1</td><td>Multiplies the width. A negative value mirrors the piece left to right.</td></tr>
+<tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Multiplies the height. A negative value mirrors the piece top to bottom.</td></tr>
+<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>When this is on, this piece and everything inside it are visible.</td></tr>
 <tr><td><code>tint</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Multiplies the colors of this piece and everything inside it.</td></tr>
-<tr><td><code>layer</code></td><td>int</td><td>0</td><td>Higher layers are drawn on top. Pieces on the same layer draw in scene order.</td></tr>
-<tr><td><code>lit</code></td><td>bool</td><td>true</td><td>Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs).</td></tr></tbody>
+<tr><td><code>layer</code></td><td>int</td><td>0</td><td>The engine draws higher layers on top. It draws pieces on the same layer in scene order.</td></tr>
+<tr><td><code>lit</code></td><td>bool</td><td>true</td><td>When this is on, Lights and the Tint change how this piece and everything inside it look. When it is off, they always have full brightness (glows, lasers, signs).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>worldPosition()</code></td><td>Where the piece is in the scene (not measured from its parent): x, y.</td></tr>
-<tr><td><code>setWorldPosition(x, y)</code></td><td>Moves the piece to a place in the scene.</td></tr>
-<tr><td><code>toWorld(x, y)</code></td><td>A point measured from this piece, as a point in the scene.</td></tr>
-<tr><td><code>fromWorld(x, y)</code></td><td>A point in the scene, measured from this piece.</td></tr>
+<tbody><tr><td><code>worldPosition()</code></td><td>Returns the position of the piece in the scene (not measured from its parent): x, y.</td></tr>
+<tr><td><code>setWorldPosition(x, y)</code></td><td>Moves the piece to a position in the scene.</td></tr>
+<tr><td><code>toWorld(x, y)</code></td><td>Takes a point measured from this piece and returns it as a point in the scene.</td></tr>
+<tr><td><code>fromWorld(x, y)</code></td><td>Takes a point in the scene and returns it measured from this piece.</td></tr>
 <tr><td><code>lookAt(x, y)</code></td><td>Turns the piece to face a point in the scene.</td></tr>
-<tr><td><code>distanceTo(pieceOrX, y?)</code></td><td>Distance in pixels to another piece or a point.</td></tr>
-<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it.</td></tr>
-<tr><td><code>moveToward(x, y, distance)</code></td><td>Moves at most distance pixels towards a point; true once it's there.</td></tr>
+<tr><td><code>distanceTo(pieceOrX, y?)</code></td><td>Returns the distance in pixels to another piece or a point.</td></tr>
+<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>Returns the angle towards another piece or a point, in degrees. rotation = angleTo(target) turns the piece to face it.</td></tr>
+<tr><td><code>moveToward(x, y, distance)</code></td><td>Moves at most distance pixels towards a point. Returns true when the piece is at the point.</td></tr>
 <tr><td><code>translate(dx, dy)</code></td><td>Moves the piece by an offset.</td></tr></tbody>
 </table></div>
 <h3 id="timer"><a class="anchor" href="#timer" aria-hidden="true">#</a>Timer</h3>
-<p>Counts down and calls tick().</p>
+<p>Counts down and calls tick() when the countdown reaches zero.</p>
 <p>Extends <a href="#piece">Piece</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>seconds</code></td><td>number (s)</td><td>1</td><td>Time between ticks.</td></tr>
-<tr><td><code>running</code></td><td>bool</td><td>false</td><td>Counting. On in the scene file means it starts with the scene.</td></tr>
-<tr><td><code>loop</code></td><td>bool</td><td>true</td><td>Keep ticking; off ticks once and stops.</td></tr></tbody>
+<tbody><tr><td><code>seconds</code></td><td>number (s)</td><td>1</td><td>The time between ticks, in seconds.</td></tr>
+<tr><td><code>running</code></td><td>bool</td><td>false</td><td>When this is on, the timer counts down. If it is on in the scene file, the timer starts with the scene.</td></tr>
+<tr><td><code>loop</code></td><td>bool</td><td>true</td><td>When this is on, the timer keeps ticking. When it is off, the timer ticks once and stops.</td></tr></tbody>
 </table></div>
-<p><code>timeLeft</code>: Seconds until the next tick.</p>
+<p><code>timeLeft</code>: The time until the next tick, in seconds.</p>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>start(seconds?)</code></td><td>Starts (or restarts) the countdown.</td></tr>
+<tbody><tr><td><code>start(seconds?)</code></td><td>Starts the countdown, or starts it again from the beginning.</td></tr>
 <tr><td><code>stop()</code></td><td>Stops the countdown.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function tick()</code></td><td>The countdown reached zero.</td></tr></tbody>
+<tbody><tr><td><code>function tick()</code></td><td>The engine calls it when the countdown reaches zero.</td></tr></tbody>
 </table></div>
 <h2 id="things-you-see"><a class="anchor" href="#things-you-see" aria-hidden="true">#</a>Things you see</h2>
 <h3 id="sprite"><a class="anchor" href="#sprite" aria-hidden="true">#</a>Sprite</h3>
-<p>Draws a picture, or an animation from a .sprite file or a sprite sheet.</p>
+<p>Draws an image, or an animation from a .sprite file or a sprite sheet.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture (.png, .jpg) or a .sprite file with frames and animations.</td></tr>
+<tbody><tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>An image (.png, .jpg), or a .sprite file with animation frames and animations.</td></tr>
 <tr><td><code>animation</code></td><td>animation</td><td>&quot;&quot;</td><td>The animation to play, from the .sprite file.</td></tr>
-<tr><td><code>playing</code></td><td>bool</td><td>true</td><td>Play the animation.</td></tr>
-<tr><td><code>speed</code></td><td>number</td><td>1</td><td>Animation speed: 2 is twice as fast.</td></tr>
-<tr><td><code>frame</code></td><td>int</td><td>0</td><td>The frame shown, counting from 0.</td></tr>
-<tr><td><code>columns</code></td><td>int</td><td>1</td><td>For a sprite sheet without a .sprite file: frames across.</td></tr>
-<tr><td><code>rows</code></td><td>int</td><td>1</td><td>For a sprite sheet without a .sprite file: frames down.</td></tr>
-<tr><td><code>centered</code></td><td>bool</td><td>true</td><td>Center the picture on the piece's position (a .sprite file's origin wins).</td></tr>
-<tr><td><code>flipX</code></td><td>bool</td><td>false</td><td>Mirror left to right.</td></tr>
-<tr><td><code>flipY</code></td><td>bool</td><td>false</td><td>Mirror top to bottom.</td></tr></tbody>
+<tr><td><code>playing</code></td><td>bool</td><td>true</td><td>When this is on, the animation plays.</td></tr>
+<tr><td><code>speed</code></td><td>number</td><td>1</td><td>The animation speed: 2 is twice as fast.</td></tr>
+<tr><td><code>frame</code></td><td>int</td><td>0</td><td>The animation frame that the sprite shows, counting from 0.</td></tr>
+<tr><td><code>columns</code></td><td>int</td><td>1</td><td>The number of animation frames across, for a sprite sheet without a .sprite file.</td></tr>
+<tr><td><code>rows</code></td><td>int</td><td>1</td><td>The number of animation frames down, for a sprite sheet without a .sprite file.</td></tr>
+<tr><td><code>centered</code></td><td>bool</td><td>true</td><td>When this is on, the center of the image is at the position of the piece. The origin in a .sprite file has priority over this.</td></tr>
+<tr><td><code>flipX</code></td><td>bool</td><td>false</td><td>When this is on, the sprite mirrors the image left to right.</td></tr>
+<tr><td><code>flipY</code></td><td>bool</td><td>false</td><td>When this is on, the sprite mirrors the image top to bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play(name?, restart?)</code></td><td>Plays an animation, or resumes the current one. restart: from the first frame.</td></tr>
-<tr><td><code>pause()</code></td><td>Stops the animation where it is; play() continues it.</td></tr>
-<tr><td><code>stop()</code></td><td>Stops the animation and goes back to its first frame.</td></tr>
-<tr><td><code>hasAnimation(name)</code></td><td>True if the .sprite file has an animation with this name.</td></tr>
-<tr><td><code>animations()</code></td><td>The names of the .sprite file's animations, sorted.</td></tr>
-<tr><td><code>getSize()</code></td><td>Width and height of one frame, in pixels.</td></tr>
-<tr><td><code>getRect()</code></td><td>The rectangle the picture covers, in the piece's own coordinates: x, y, width, height.</td></tr></tbody>
+<tbody><tr><td><code>play(name?, restart?)</code></td><td>Plays an animation, or continues the current one. With restart, it plays from the first animation frame.</td></tr>
+<tr><td><code>pause()</code></td><td>Stops the animation where it is. play() continues it.</td></tr>
+<tr><td><code>stop()</code></td><td>Stops the animation and goes back to its first animation frame.</td></tr>
+<tr><td><code>hasAnimation(name)</code></td><td>Returns true if the .sprite file has an animation with this name.</td></tr>
+<tr><td><code>animations()</code></td><td>Returns the names of the animations in the .sprite file, sorted.</td></tr>
+<tr><td><code>getSize()</code></td><td>Returns the width and height of one animation frame, in pixels.</td></tr>
+<tr><td><code>getRect()</code></td><td>Returns the rectangle that the image covers, in the piece's own coordinates: x, y, width, height.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function finished(animation)</code></td><td>A non-looping animation reached its last frame.</td></tr></tbody>
+<tbody><tr><td><code>function finished(animation)</code></td><td>The engine calls it when an animation that does not loop reaches its last animation frame.</td></tr></tbody>
 </table></div>
 <h3 id="shape"><a class="anchor" href="#shape" aria-hidden="true">#</a>Shape</h3>
-<p>Draws a rectangle, circle, polygon or line. Good for prototypes, effects and games without art.</p>
+<p>Draws a rectangle, circle, polygon or line. Use it for prototypes, effects and games without art.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>What to draw.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>64</td><td>Rectangle width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>64</td><td>Rectangle height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>32</td><td>Circle radius.</td></tr>
-<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>0</td><td>Rounds the rectangle's corners.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -32, 32, 32, -32, 32}</td><td>Corner points x1, y1, x2, y2, ...</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{0.36, 0.55, 0.95, 1}</td><td>Fill or line color.</td></tr>
-<tr><td><code>filled</code></td><td>bool</td><td>true</td><td>Fill the shape; off draws only its outline.</td></tr>
-<tr><td><code>lineWidth</code></td><td>number (px)</td><td>2</td><td>Outline and line thickness.</td></tr>
-<tr><td><code>centered</code></td><td>bool</td><td>true</td><td>Center the rectangle on the piece's position.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape to draw.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>64</td><td>The width of the rectangle.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>64</td><td>The height of the rectangle.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>32</td><td>The radius of the circle.</td></tr>
+<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>0</td><td>Rounds the corners of the rectangle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -32, 32, 32, -32, 32}</td><td>The corner points x1, y1, x2, y2, ...</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.36, 0.55, 0.95, 1}</td><td>The fill color or the line color.</td></tr>
+<tr><td><code>filled</code></td><td>bool</td><td>true</td><td>When this is on, the piece fills the shape. When it is off, the piece draws only the outline.</td></tr>
+<tr><td><code>lineWidth</code></td><td>number (px)</td><td>2</td><td>The thickness of outlines and lines.</td></tr>
+<tr><td><code>centered</code></td><td>bool</td><td>true</td><td>When this is on, the center of the rectangle is at the position of the piece.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getRect()</code></td><td>The rectangle the shape covers, in the piece's own coordinates: x, y, width, height.</td></tr></tbody>
+<tbody><tr><td><code>getRect()</code></td><td>Returns the rectangle that the shape covers, in the piece's own coordinates: x, y, width, height.</td></tr></tbody>
 </table></div>
 <h3 id="text"><a class="anchor" href="#text" aria-hidden="true">#</a>Text</h3>
-<p>Words in the game world, like a sign or a damage number. For scores and menus, use Label.</p>
+<p>Shows words in the scene, for example a sign or a damage number. For scores and menus, use Label.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Text&quot;</td><td>What it says.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font file, &quot;pixel&quot; for the built-in pixel font, or empty for the default font.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>16</td><td>Font size.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
-<tr><td><code>align</code></td><td>enum</td><td>&quot;center&quot;</td><td>Lines up the text around the piece's position. justify stretches wrapped lines to the same width.</td></tr>
-<tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>Wrap lines longer than this; 0 never wraps.</td></tr>
-<tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where a line that's too long is broken: between words, or after any character (for writing without spaces, like Japanese).</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
-<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline around the text.</td></tr>
-<tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. Empty: the font is made thicker instead.</td></tr>
-<tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. Empty: the font is slanted instead.</td></tr>
-<tr><td><code>lineHeight</code></td><td>number</td><td>1</td><td>How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them.</td></tr>
-<tr><td><code>letterSpacing</code></td><td>number (px)</td><td>0</td><td>Extra room between letters (negative squeezes them together).</td></tr>
-<tr><td><code>outlineWidth</code></td><td>number (px)</td><td>0</td><td>How thick the outline is. 0 keeps it one screen pixel thin.</td></tr>
-<tr><td><code>outlineColor</code></td><td>color</td><td>{0, 0, 0, 0.8}</td><td>The outline's color.</td></tr>
-<tr><td><code>shadow</code></td><td>bool</td><td>false</td><td>A shadow behind the text.</td></tr>
-<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 0.5}</td><td>The shadow's color.</td></tr>
-<tr><td><code>shadowX</code></td><td>number (px)</td><td>2</td><td>How far right the shadow falls (negative: left).</td></tr>
-<tr><td><code>shadowY</code></td><td>number (px)</td><td>2</td><td>How far down the shadow falls (negative: up).</td></tr>
-<tr><td><code>visibleCharacters</code></td><td>int</td><td>-1</td><td>How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect.</td></tr>
-<tr><td><code>visibleRatio</code></td><td>number</td><td>1</td><td>How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly.</td></tr></tbody>
+<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Text&quot;</td><td>The text that the piece shows.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf or .otf font file, &quot;pixel&quot; for the built-in pixel font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>16</td><td>The font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color.</td></tr>
+<tr><td><code>align</code></td><td>enum</td><td>&quot;center&quot;</td><td>Aligns the text around the position of the piece. justify stretches wrapped lines to the same width.</td></tr>
+<tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>The text wraps lines that are longer than this. 0 means that lines never wrap.</td></tr>
+<tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese).</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
+<tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
+<tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
+<tr><td><code>lineHeight</code></td><td>number</td><td>1</td><td>The distance between lines: 1 is the font's own spacing, 1.5 leaves half a line between them.</td></tr>
+<tr><td><code>letterSpacing</code></td><td>number (px)</td><td>0</td><td>Extra space between letters. A negative value pushes them closer together.</td></tr>
+<tr><td><code>outlineWidth</code></td><td>number (px)</td><td>0</td><td>The thickness of the outline. 0 keeps it one screen pixel thin.</td></tr>
+<tr><td><code>outlineColor</code></td><td>color</td><td>{0, 0, 0, 0.8}</td><td>The color of the outline.</td></tr>
+<tr><td><code>shadow</code></td><td>bool</td><td>false</td><td>When this is on, the text has a shadow behind it.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 0.5}</td><td>The color of the shadow.</td></tr>
+<tr><td><code>shadowX</code></td><td>number (px)</td><td>2</td><td>How far right the shadow is. A negative value moves it left.</td></tr>
+<tr><td><code>shadowY</code></td><td>number (px)</td><td>2</td><td>How far down the shadow is. A negative value moves it up.</td></tr>
+<tr><td><code>visibleCharacters</code></td><td>int</td><td>-1</td><td>The number of characters that show, counting from the start: 0 shows none, -1 shows all. reveal() increases this for a typewriter effect.</td></tr>
+<tr><td><code>visibleRatio</code></td><td>number</td><td>1</td><td>The part of the text that shows: 0 is none, 0.5 is the first half, 1 is all of it. Tween it to show the text gradually.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>measure()</code></td><td>How big the text is as it's laid out now: width, height.</td></tr>
-<tr><td><code>lineCount()</code></td><td>How many lines the text takes.</td></tr>
-<tr><td><code>characterCount()</code></td><td>How many characters the text has (tags and line breaks don't count).</td></tr>
-<tr><td><code>characterRect(index)</code></td><td>Where a character is, measured from the piece's position: x, y, width, height. For putting a cursor or a sparkle on it.</td></tr>
-<tr><td><code>characterAt(x, y)</code></td><td>The number of the character at a point (measured from the piece's position), or nil.</td></tr>
-<tr><td><code>linkAt(x, y)</code></td><td>The name of the [link=name] at a point (measured from the piece's position), or nil.</td></tr>
-<tr><td><code>reveal(charactersPerSecond?, from?)</code></td><td>Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace.</td></tr>
-<tr><td><code>skip()</code></td><td>Shows all of the text now, and ends a reveal().</td></tr></tbody>
+<tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
+<tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
+<tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the position of the piece), or nil.</td></tr>
+<tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the position of the piece), or nil.</td></tr>
+<tr><td><code>reveal(charactersPerSecond?, from?)</code></td><td>Shows the text one character at a time, like a typewriter (30 characters per second if you do not give a speed). Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the speed.</td></tr>
+<tr><td><code>skip()</code></td><td>Shows all of the text now and stops a reveal().</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function revealed(index, char)</code></td><td>reveal() showed one more character: play a blip, or wait at a full stop.</td></tr>
-<tr><td><code>function finished()</code></td><td>reveal() has shown the whole text.</td></tr>
-<tr><td><code>function eachCharacter(c)</code></td><td>Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it.</td></tr></tbody>
+<tbody><tr><td><code>function revealed(index, char)</code></td><td>The engine calls it when reveal() shows one more character. Use it to play a blip, or to wait at a full stop.</td></tr>
+<tr><td><code>function finished()</code></td><td>The engine calls it when reveal() has shown all of the text.</td></tr>
+<tr><td><code>function eachCharacter(c)</code></td><td>The engine calls it for every character each time it draws the text. Use it to move or color the character: c.y = math.sin(c.time * 4 + c.index) * 3. You can change x, y, rotation, scale, color, alpha and visible of c. You can read index, count, char, line, time and since. The engine uses the same table c for every character, so do not keep it.</td></tr></tbody>
 </table></div>
 <h3 id="tiles"><a class="anchor" href="#tiles" aria-hidden="true">#</a>Tiles</h3>
 <p>A grid of tiles from a tileset. Solid tiles block bodies.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: a picture cut into tiles, with settings such as solid.</td></tr>
-<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>Tiles marked solid block bodies. Off makes every tile just decoration.</td></tr>
-<tr><td><code>castShadows</code></td><td>bool</td><td>false</td><td>Tiles marked solid block Lights that have shadows on.</td></tr>
-<tr><td><code>animate</code></td><td>bool</td><td>true</td><td>Animated tiles play. Off freezes them on the frame they show.</td></tr></tbody>
+<tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: an image cut into tiles, with tile properties such as solid.</td></tr>
+<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>When this is on, tiles that the tileset marks as solid block bodies. When it is off, every tile is only decoration.</td></tr>
+<tr><td><code>castShadows</code></td><td>bool</td><td>false</td><td>When this is on, tiles that the tileset marks as solid block the Lights that have shadows on.</td></tr>
+<tr><td><code>animate</code></td><td>bool</td><td>true</td><td>When this is on, animated tiles play. When it is off, they stop on the animation frame that they show.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getTile(column, row)</code></td><td>The tile number in a cell, or -1 if it's empty.</td></tr>
-<tr><td><code>setTile(column, row, tile)</code></td><td>Changes a cell (-1 empties it).</td></tr>
-<tr><td><code>tileInfo(tile)</code></td><td>The settings of a tile in the tileset (solid, name, ...).</td></tr>
-<tr><td><code>cellAt(x, y)</code></td><td>The cell under a point in the scene: column, row.</td></tr>
-<tr><td><code>cellPosition(column, row)</code></td><td>The scene position of a cell's top-left corner.</td></tr>
-<tr><td><code>cellsWith(tile?)</code></td><td>A list of {column, row, tile} for every painted cell (or every cell with that tile).</td></tr>
+<tbody><tr><td><code>getTile(column, row)</code></td><td>Returns the tile number in a cell, or -1 if the cell is empty.</td></tr>
+<tr><td><code>setTile(column, row, tile)</code></td><td>Changes the tile in a cell (-1 empties the cell).</td></tr>
+<tr><td><code>tileInfo(tile)</code></td><td>Returns the tile properties of a tile in the tileset (solid, name, ...).</td></tr>
+<tr><td><code>cellAt(x, y)</code></td><td>Returns the cell under a point in the scene: column, row.</td></tr>
+<tr><td><code>cellPosition(column, row)</code></td><td>Returns the scene position of the top-left corner of a cell.</td></tr>
+<tr><td><code>cellsWith(tile?)</code></td><td>Returns a list of {column, row, tile} for every painted cell (or every cell with that tile).</td></tr>
 <tr><td><code>fill(column, row, columns, rows, tile)</code></td><td>Sets a rectangle of cells to one tile (-1 empties them).</td></tr>
 <tr><td><code>clear()</code></td><td>Empties every cell.</td></tr>
-<tr><td><code>tileAt(x, y)</code></td><td>The tile number under a point in the scene, or -1.</td></tr>
-<tr><td><code>isSolid(column, row)</code></td><td>True if the cell's tile is marked solid (and solid is on).</td></tr>
-<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Adjacent cells as {column, row, tile}: 4, or 8 with diagonal.</td></tr>
-<tr><td><code>cellCenter(column, row)</code></td><td>The scene position of a cell's center.</td></tr>
-<tr><td><code>getTileSize()</code></td><td>The size of one cell in the scene: width, height.</td></tr>
-<tr><td><code>getBounds()</code></td><td>The painted area in the scene: x, y, width, height (all 0 when empty).</td></tr>
-<tr><td><code>newPathGrid(options?)</code></td><td>A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile().</td></tr>
-<tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain of the tileset (by name; nil erases) in a cell and re-picks the tiles of the 8 cells around it so the edges fit.</td></tr>
-<tr><td><code>getTerrain(column, row)</code></td><td>The name of the terrain the cell's tile belongs to, or nil.</td></tr>
-<tr><td><code>fillTerrain(column, row, columns, rows, terrain)</code></td><td>Paints a terrain (nil erases) in a rectangle of cells and fits the edges, also of the cells around it.</td></tr>
-<tr><td><code>terrains()</code></td><td>The names of the tileset's terrains.</td></tr></tbody>
+<tr><td><code>tileAt(x, y)</code></td><td>Returns the tile number under a point in the scene, or -1.</td></tr>
+<tr><td><code>isSolid(column, row)</code></td><td>Returns true if the tileset marks the tile in the cell as solid (and solid is on).</td></tr>
+<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Returns the adjacent cells as {column, row, tile}: 4 cells, or 8 with diagonal.</td></tr>
+<tr><td><code>cellCenter(column, row)</code></td><td>Returns the scene position of the center of a cell.</td></tr>
+<tr><td><code>getTileSize()</code></td><td>Returns the size of one cell in the scene: width, height.</td></tr>
+<tr><td><code>getBounds()</code></td><td>Returns the painted area in the scene: x, y, width, height (all 0 if no cell has a tile).</td></tr>
+<tr><td><code>newPathGrid(options?)</code></td><td>Returns a grid to find paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). The grid changes when setTile() changes a tile.</td></tr>
+<tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain of the tileset (by name; nil erases) in a cell. It also changes the tiles of the 8 cells around it so that the edges fit.</td></tr>
+<tr><td><code>getTerrain(column, row)</code></td><td>Returns the name of the terrain of the tile in the cell, or nil.</td></tr>
+<tr><td><code>fillTerrain(column, row, columns, rows, terrain)</code></td><td>Paints a terrain (nil erases) in a rectangle of cells. It makes the edges fit, also at the cells around the rectangle.</td></tr>
+<tr><td><code>terrains()</code></td><td>Returns the names of the terrains in the tileset.</td></tr></tbody>
 </table></div>
 <h3 id="background"><a class="anchor" href="#background" aria-hidden="true">#</a>Background</h3>
-<p>Scrolls the pieces inside it slower or faster than the camera, for far hills, clouds and skies (parallax). It can repeat them endlessly.</p>
+<p>Scrolls the pieces inside it slower or faster than the camera (parallax), for far hills, clouds and skies. It can repeat them without end.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>scrollX</code></td><td>number</td><td>0.5</td><td>How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front.</td></tr>
-<tr><td><code>scrollY</code></td><td>number</td><td>0.5</td><td>The same, up and down.</td></tr>
-<tr><td><code>repeatWidth</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture.</td></tr>
-<tr><td><code>repeatHeight</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels up and down (0: once).</td></tr>
-<tr><td><code>driftX</code></td><td>number (px/s)</td><td>0</td><td>Slides sideways by itself at this speed, like clouds. Negative goes left.</td></tr>
-<tr><td><code>driftY</code></td><td>number (px/s)</td><td>0</td><td>Slides down by itself at this speed. Negative goes up.</td></tr>
-<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside sideways. Change it from a script to scroll by hand.</td></tr>
-<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside up or down.</td></tr>
-<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge).</td></tr>
-<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is above this.</td></tr>
-<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is right of this.</td></tr>
-<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is below this.</td></tr></tbody>
+<tbody><tr><td><code>scrollX</code></td><td>number</td><td>0.5</td><td>How much it moves sideways when the camera moves. 1 moves with the scene, 0.5 moves half as much (far away), and 0 stays on the screen. Use more than 1 for things in front.</td></tr>
+<tr><td><code>scrollY</code></td><td>number</td><td>0.5</td><td>The same as scrollX, but up and down.</td></tr>
+<tr><td><code>repeatWidth</code></td><td>number (px)</td><td>0</td><td>The pieces inside repeat sideways at this distance, as far as the view goes. 0 draws them once. Use the width of the image.</td></tr>
+<tr><td><code>repeatHeight</code></td><td>number (px)</td><td>0</td><td>The pieces inside repeat up and down at this distance. 0 draws them once.</td></tr>
+<tr><td><code>driftX</code></td><td>number (px/s)</td><td>0</td><td>Moves sideways by itself at this speed, like clouds. A negative value moves it left.</td></tr>
+<tr><td><code>driftY</code></td><td>number (px/s)</td><td>0</td><td>Moves down by itself at this speed. A negative value moves it up.</td></tr>
+<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Moves the pieces inside sideways. Change it from a script to scroll by hand.</td></tr>
+<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Moves the pieces inside up or down.</td></tr>
+<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>While the view is left of this edge, the background stops its own scrolling and moves with the scene. If it is empty, there is no edge.</td></tr>
+<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>While the view is above this edge, the background stops its own scrolling and moves with the scene.</td></tr>
+<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>While the view is right of this edge, the background stops its own scrolling and moves with the scene.</td></tr>
+<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>While the view is below this edge, the background stops its own scrolling and moves with the scene.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getScroll()</code></td><td>How far it is drawn from where it was placed, right now: x, y.</td></tr></tbody>
+<tbody><tr><td><code>getScroll()</code></td><td>Returns the current distance between where the engine draws it and where you put it: x, y.</td></tr></tbody>
 </table></div>
 <h3 id="camera"><a class="anchor" href="#camera" aria-hidden="true">#</a>Camera</h3>
-<p>Decides which part of the scene is on screen. Put it inside the player to follow them.</p>
+<p>Decides which part of the scene is on the screen. Put it inside the player piece to follow the player.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>Use this camera. When several are active, the first in the scene wins.</td></tr>
-<tr><td><code>zoom</code></td><td>number</td><td>1</td><td>2 shows everything twice as big.</td></tr>
-<tr><td><code>smoothing</code></td><td>number</td><td>0</td><td>How gently it catches up: 0 sticks exactly, 5 glides.</td></tr>
-<tr><td><code>target</code></td><td>piecepath</td><td>&quot;&quot;</td><td>A piece to follow, wherever the camera is in the scene (empty: the camera's own position).</td></tr>
-<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Looks this far right of what it follows.</td></tr>
-<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Looks this far below what it follows.</td></tr>
-<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>Don't show anything left of this (empty for no edge).</td></tr>
-<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>Don't show anything above this.</td></tr>
-<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>Don't show anything right of this.</td></tr>
-<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>Don't show anything below this.</td></tr></tbody>
+<tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, the game uses this camera. If more than one camera is active, the first in the scene has priority.</td></tr>
+<tr><td><code>zoom</code></td><td>number</td><td>1</td><td>The zoom: 2 shows everything twice as big.</td></tr>
+<tr><td><code>smoothing</code></td><td>number</td><td>0</td><td>How gently the camera catches up: 0 follows exactly, 5 glides.</td></tr>
+<tr><td><code>target</code></td><td>piecepath</td><td>&quot;&quot;</td><td>A piece to follow, anywhere in the scene. If it is empty, the camera stays at its own position.</td></tr>
+<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>The camera looks this far to the right of what it follows.</td></tr>
+<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>The camera looks this far below what it follows.</td></tr>
+<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything to the left of this edge. If it is empty, there is no edge.</td></tr>
+<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything above this edge.</td></tr>
+<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything to the right of this edge.</td></tr>
+<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything below this edge.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>shake(strength?, seconds?)</code></td><td>Shakes the view: shake(6, 0.3).</td></tr>
-<tr><td><code>follow(piece)</code></td><td>Follows a piece (nil: back to target, or the camera's own position).</td></tr>
-<tr><td><code>snap()</code></td><td>Jumps straight to what it follows, without smoothing (after a teleport).</td></tr>
-<tr><td><code>setLimits(left, top, right, bottom)</code></td><td>Sets the edges it doesn't show past (nil for no edge).</td></tr>
+<tr><td><code>follow(piece)</code></td><td>Follows a piece. With nil, the camera goes back to target, or to its own position.</td></tr>
+<tr><td><code>snap()</code></td><td>Moves directly to what it follows, without smoothing (for example, after a teleport).</td></tr>
+<tr><td><code>setLimits(left, top, right, bottom)</code></td><td>Sets the edges that the camera does not show past (nil for no edge).</td></tr>
 <tr><td><code>limitTo(piece)</code></td><td>Keeps the view inside the painted part of a Tiles piece.</td></tr>
-<tr><td><code>makeCurrent()</code></td><td>Makes this the camera in use, turning the others off.</td></tr>
-<tr><td><code>getView()</code></td><td>The part of the scene on screen: x, y, width, height.</td></tr>
-<tr><td><code>screenToWorld(sx, sy)</code></td><td>A point on the screen, as a point in the scene.</td></tr>
-<tr><td><code>worldToScreen(x, y)</code></td><td>A point in the scene, as a point on the screen.</td></tr></tbody>
+<tr><td><code>makeCurrent()</code></td><td>Makes this the camera in use and turns the other cameras off.</td></tr>
+<tr><td><code>getView()</code></td><td>Returns the part of the scene that is on the screen: x, y, width, height.</td></tr>
+<tr><td><code>screenToWorld(sx, sy)</code></td><td>Takes a point on the screen and returns it as a point in the scene.</td></tr>
+<tr><td><code>worldToScreen(x, y)</code></td><td>Takes a point in the scene and returns it as a point on the screen.</td></tr></tbody>
 </table></div>
 <h3 id="particles"><a class="anchor" href="#particles" aria-hidden="true">#</a>Particles</h3>
 <p>Sprays particles: smoke, sparks, dust, rain, explosions.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>emitting</code></td><td>bool</td><td>true</td><td>Make new particles.</td></tr>
-<tr><td><code>rate</code></td><td>number (/s)</td><td>30</td><td>Particles per second.</td></tr>
-<tr><td><code>burst</code></td><td>bool</td><td>false</td><td>Make one burst of rate particles, then stop.</td></tr>
-<tr><td><code>lifetime</code></td><td>number (s)</td><td>1</td><td>How long each particle lives.</td></tr>
-<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The particle picture; empty draws soft dots.</td></tr>
-<tr><td><code>speed</code></td><td>number (px/s)</td><td>100</td><td>Starting speed.</td></tr>
-<tr><td><code>speedRandom</code></td><td>number</td><td>0.5</td><td>How much the speed varies (0 to 1).</td></tr>
-<tr><td><code>direction</code></td><td>angle (°)</td><td>-5156.62°</td><td>Direction particles fly in, in degrees: 0 is right, 90 is down, -90 is up.</td></tr>
-<tr><td><code>spread</code></td><td>angle (°)</td><td>1718.87°</td><td>How far directions vary either side, in degrees.</td></tr>
-<tr><td><code>gravityX</code></td><td>number (px/s²)</td><td>0</td><td>Constant pull, sideways.</td></tr>
-<tr><td><code>gravityY</code></td><td>number (px/s²)</td><td>0</td><td>Constant pull, down.</td></tr>
-<tr><td><code>sizeStart</code></td><td>number (px)</td><td>8</td><td>Size when born.</td></tr>
-<tr><td><code>sizeEnd</code></td><td>number (px)</td><td>2</td><td>Size when it fades.</td></tr>
-<tr><td><code>colorStart</code></td><td>color</td><td>{1, 0.85, 0.4, 1}</td><td>Color when born.</td></tr>
-<tr><td><code>colorEnd</code></td><td>color</td><td>{1, 0.3, 0.1, 0}</td><td>Color when it fades.</td></tr>
-<tr><td><code>followPiece</code></td><td>bool</td><td>false</td><td>Particles move with the piece instead of staying where they were born.</td></tr></tbody>
+<tbody><tr><td><code>emitting</code></td><td>bool</td><td>true</td><td>When this is on, the piece makes new particles.</td></tr>
+<tr><td><code>rate</code></td><td>number (/s)</td><td>30</td><td>The number of particles per second.</td></tr>
+<tr><td><code>burst</code></td><td>bool</td><td>false</td><td>When this is on, the piece makes one burst of rate particles and then stops.</td></tr>
+<tr><td><code>lifetime</code></td><td>number (s)</td><td>1</td><td>How long each particle lives, in seconds.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The image of each particle. If it is empty, the piece draws soft dots.</td></tr>
+<tr><td><code>speed</code></td><td>number (px/s)</td><td>100</td><td>The starting speed of each particle.</td></tr>
+<tr><td><code>speedRandom</code></td><td>number</td><td>0.5</td><td>How much the speed changes from particle to particle (0 to 1).</td></tr>
+<tr><td><code>direction</code></td><td>angle (°)</td><td>-5156.62°</td><td>The direction in which particles move, in degrees: 0 is right, 90 is down, -90 is up.</td></tr>
+<tr><td><code>spread</code></td><td>angle (°)</td><td>1718.87°</td><td>How much the direction changes to each side, in degrees.</td></tr>
+<tr><td><code>gravityX</code></td><td>number (px/s²)</td><td>0</td><td>A constant pull sideways.</td></tr>
+<tr><td><code>gravityY</code></td><td>number (px/s²)</td><td>0</td><td>A constant pull down.</td></tr>
+<tr><td><code>sizeStart</code></td><td>number (px)</td><td>8</td><td>The size of a particle when it starts.</td></tr>
+<tr><td><code>sizeEnd</code></td><td>number (px)</td><td>2</td><td>The size of a particle when it fades out.</td></tr>
+<tr><td><code>colorStart</code></td><td>color</td><td>{1, 0.85, 0.4, 1}</td><td>The color of a particle when it starts.</td></tr>
+<tr><td><code>colorEnd</code></td><td>color</td><td>{1, 0.3, 0.1, 0}</td><td>The color of a particle when it fades out.</td></tr>
+<tr><td><code>followPiece</code></td><td>bool</td><td>false</td><td>When this is on, particles move with the piece. When it is off, they stay where they started.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>emit(count)</code></td><td>Makes count particles right now. emit(&quot;event&quot;, ...) still fires an event.</td></tr>
-<tr><td><code>start()</code></td><td>Starts making particles (a burst makes its particles again).</td></tr>
-<tr><td><code>stop()</code></td><td>Stops making particles; the ones already out live on.</td></tr>
+<tbody><tr><td><code>emit(count)</code></td><td>Makes count particles now. emit(&quot;event&quot;, ...) still sends an event.</td></tr>
+<tr><td><code>start()</code></td><td>Starts to make particles (a burst makes its particles again).</td></tr>
+<tr><td><code>stop()</code></td><td>Stops making particles. The particles that are already out stay until their lifetime ends.</td></tr>
 <tr><td><code>clear()</code></td><td>Removes every particle now.</td></tr>
-<tr><td><code>restart()</code></td><td>Clears every particle and starts again.</td></tr>
-<tr><td><code>getCount()</code></td><td>How many particles are out now.</td></tr></tbody>
+<tr><td><code>restart()</code></td><td>Removes every particle and starts again.</td></tr>
+<tr><td><code>getCount()</code></td><td>Returns the number of particles that are out now.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function finished()</code></td><td>The last particle is gone and no more are coming (after a burst or stop()). Good for destroy().</td></tr></tbody>
+<tbody><tr><td><code>function finished()</code></td><td>The engine calls it when the last particle is gone and no more particles will come (after a burst or stop()). Use it to destroy() the piece.</td></tr></tbody>
 </table></div>
 <h2 id="light-and-shadow"><a class="anchor" href="#light-and-shadow" aria-hidden="true">#</a>Light and shadow</h2>
 <h3 id="light"><a class="anchor" href="#light" aria-hidden="true">#</a>Light</h3>
-<p>Shines on the pieces around it. With a dark Tint in the scene it's a torch at night; on its own it makes things brighter.</p>
+<p>Shines on the pieces around it. With a dark Tint in the scene, it is a torch at night. Without a Tint, it makes things brighter.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light reaches.</td></tr>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from the position of the piece, as far as radius. sun lights the whole view from one side, in the direction that the piece points.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light goes.</td></tr>
 <tr><td><code>brightness</code></td><td>number</td><td>1</td><td>How strong the light is: 0 is dark, 2 is twice as bright.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The light's color.</td></tr>
-<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow.</td></tr>
-<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this light off.</td></tr>
-<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>Only lights pieces with one of these tags, and what's inside them (empty: every piece).</td></tr>
-<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and higher (empty: no limit).</td></tr>
-<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and lower (empty: no limit).</td></tr>
-<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>Occluders, and Tiles with castShadows on, block this light.</td></tr>
-<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows.</td></tr>
-<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest.</td></tr>
-<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>How long a sun's shadows are; 0 for shadows that never end.</td></tr>
-<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside.</td></tr></tbody>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the light.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>An image of the shape of the light, white where it shines: a beam, a window. If it is empty, the light is a soft round glow.</td></tr>
+<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes the pieces that it shines on brighter. subtract makes them darker (a dark patch). mix replaces the light that is there with the color of this light.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, the light is off.</td></tr>
+<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>The light shines only on pieces with one of these tags, and on what is inside them. If it is empty, it shines on every piece.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>The light shines only on pieces on this layer and higher. If it is empty, there is no limit.</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>The light shines only on pieces on this layer and lower. If it is empty, there is no limit.</td></tr>
+<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>When this is on, Occluders, and Tiles with castShadows on, block this light.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>The part of the light that stays in a shadow: black is none. A transparent color makes weaker shadows.</td></tr>
+<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows by this distance. 0 keeps them sharp and is the fastest.</td></tr>
+<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>The length of the shadows of a sun. 0 makes shadows that never end.</td></tr>
+<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block the light. If it is empty, all of them block it. The tag can be on the piece that holds the Occluder.</td></tr></tbody>
 </table></div>
 <h3 id="occluder"><a class="anchor" href="#occluder" aria-hidden="true">#</a>Occluder</h3>
-<p>Blocks light: Lights with shadows on throw a shadow behind it. Put it inside a piece to fit that piece's Sprite or Shape.</p>
+<p>Blocks light: Lights with shadows on make a shadow behind it. Put it inside a piece to fit the Sprite or Shape of that piece.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... of the outline.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Let light through.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. If it has none, it fits the ones in the piece that it is inside.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... of the outline.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, light goes through it.</td></tr></tbody>
 </table></div>
 <h3 id="tint"><a class="anchor" href="#tint" aria-hidden="true">#</a>Tint</h3>
-<p>Colors the whole scene (not the on-screen UI): dark blue for night, orange for sunset. Lights shine on top of it. The first Tint in the scene wins.</p>
+<p>Colors the whole scene, but not the on-screen UI: dark blue for night, orange for sunset. Lights shine on top of it. If there is more than one Tint, the first in the scene has priority.</p>
 <p>Extends <a href="#piece">Piece</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn the tint off.</td></tr>
-<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and higher (empty: no limit).</td></tr>
-<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and lower (empty: no limit).</td></tr></tbody>
+<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>The engine multiplies the colors of every piece by this color. White changes nothing. Black hides everything that no light reaches.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, the tint is off.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>The Tint colors only pieces on this layer and higher. If it is empty, there is no limit.</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>The Tint colors only pieces on this layer and lower. If it is empty, there is no limit.</td></tr></tbody>
 </table></div>
 <h2 id="bodies-and-zones"><a class="anchor" href="#bodies-and-zones" aria-hidden="true">#</a>Bodies and zones</h2>
 <h3 id="body"><a class="anchor" href="#body" aria-hidden="true">#</a>Body</h3>
-<p>Solid. motion: still (walls), scripted (moved with move()) or physics (simulated). Takes its shape from a Sprite or Shape inside it.</p>
+<p>A solid piece. Its motion is still (walls), scripted (move() moves it) or physics (the physics engine moves it). It takes its shape from a Sprite or Shape inside it.</p>
 <p>Extends <a href="#group">Group</a>. Uses the physics2d (Box2D) module.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>motion</code></td><td>enum</td><td>&quot;scripted&quot;</td><td>still: moves only when a script sets x/y. scripted: moved by move(). physics: simulated.</td></tr>
-<tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside. capsule has round ends. none: Hitboxes only.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).</td></tr>
-<tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>Horizontal speed (px/s).</td></tr>
-<tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.</td></tr>
-<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast.</td></tr>
-<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back.</td></tr>
-<tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>Kilograms. A scripted body pushes physics bodies by its mass against theirs.</td></tr>
+<tbody><tr><td><code>motion</code></td><td>enum</td><td>&quot;scripted&quot;</td><td>still: it moves only when a script sets x or y. scripted: move() moves it. physics: the physics engine moves it.</td></tr>
+<tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. capsule has round ends. none means that only Hitboxes give it a shape.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most; the engine fills in dents).</td></tr>
+<tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>The horizontal speed, in pixels per second.</td></tr>
+<tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed.</td></tr>
+<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed.</td></tr>
+<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that is still ground, in degrees. move() walks up it and does not slide back.</td></tr>
+<tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass.</td></tr>
 <tr><td><code>friction</code></td><td>number</td><td>0.3</td><td>How much it grips what it touches: 0 is ice.</td></tr>
-<tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 none, 1 forever.</td></tr>
+<tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 is no bounce, 1 bounces forever.</td></tr>
 <tr><td><code>gravityScale</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up.</td></tr>
-<tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: slows its movement down.</td></tr>
-<tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows its turning down.</td></tr>
-<tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>Never tip over or spin.</td></tr>
-<tr><td><code>bullet</code></td><td>bool</td><td>false</td><td>Continuous collision against moving bodies, for small fast objects.</td></tr>
-<tr><td><code>asleep</code></td><td>bool</td><td>false</td><td>At rest until touched. Physics bodies sleep when they stop.</td></tr>
-<tr><td><code>passThrough</code></td><td>tags</td><td>&quot;&quot;</td><td>Tags of things it doesn't bump into, like &quot;ghost, pickup&quot; (&quot;tiles&quot; for solid tiles).</td></tr></tbody>
+<tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: it slows the movement down.</td></tr>
+<tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows the turning down.</td></tr>
+<tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>When this is on, the body never tips over or turns.</td></tr>
+<tr><td><code>bullet</code></td><td>bool</td><td>false</td><td>When this is on, the physics engine checks collisions continuously against moving bodies. Use it for small, fast bodies.</td></tr>
+<tr><td><code>asleep</code></td><td>bool</td><td>false</td><td>When this is on, the body stays at rest until something touches it. Physics bodies go to sleep when they stop.</td></tr>
+<tr><td><code>passThrough</code></td><td>tags</td><td>&quot;&quot;</td><td>The tags of things that it does not bump into, for example &quot;ghost, pickup&quot; (&quot;tiles&quot; for solid tiles).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>move()</code></td><td>Moves by vx, vy for this step: slides along walls, climbs slopes, rides platforms, pushes physics bodies.</td></tr>
-<tr><td><code>moveBy(dx, dy)</code></td><td>Moves by an offset and stops at the first thing in the way; returns what it hit, or nil.</td></tr>
-<tr><td><code>onGround()</code></td><td>True if the last move ended standing on something.</td></tr>
-<tr><td><code>onWall()</code></td><td>True if the last move ran into a wall.</td></tr>
-<tr><td><code>onCeiling()</code></td><td>True if the last move ran into a ceiling.</td></tr>
-<tr><td><code>applyImpulse(ix, iy, x?, y?)</code></td><td>Instant change of velocity by impulse / mass. At a point, also spins.</td></tr>
-<tr><td><code>applyForce(fx, fy, x?, y?)</code></td><td>Force for this step; call every physicsUpdate. At its center or a point.</td></tr>
-<tr><td><code>applyTorque(torque)</code></td><td>Turns it steadily for this step (physics bodies).</td></tr>
-<tr><td><code>applyAngularImpulse(impulse)</code></td><td>A sudden twist (physics bodies).</td></tr>
-<tr><td><code>push(ix, iy)</code></td><td>The same as applyImpulse(ix, iy).</td></tr>
-<tr><td><code>wake()</code></td><td>Wakes a sleeping physics body.</td></tr>
-<tr><td><code>grab(x, y, strength?)</code></td><td>Holds it by a scene point for dragTo(); drop() releases with momentum.</td></tr>
-<tr><td><code>dragTo(x, y)</code></td><td>Moves the grabbed point towards x, y.</td></tr>
-<tr><td><code>drop()</code></td><td>Lets go after grab(); a physics body keeps its speed.</td></tr>
-<tr><td><code>touching(tagOrPiece)</code></td><td>The first body or zone with a tag (or that piece) touching this one, or nil.</td></tr>
-<tr><td><code>isTouching(other)</code></td><td>True if it touches a piece (a body, zone or Tiles) or anything with a tag.</td></tr>
-<tr><td><code>contacts()</code></td><td>Current contacts: {piece, x, y, nx, ny, impulse}.</td></tr>
-<tr><td><code>touchingTile(setting)</code></td><td>The settings of a touching tile that has this setting (like &quot;damage&quot;), or nil.</td></tr>
-<tr><td><code>getSize()</code></td><td>The size of the box around its shapes: width, height.</td></tr></tbody>
+<tbody><tr><td><code>move()</code></td><td>Moves by vx, vy for this physics step. It slides along walls, climbs slopes, rides on platforms and pushes physics bodies.</td></tr>
+<tr><td><code>moveBy(dx, dy)</code></td><td>Moves by an offset and stops at the first thing in the way. Returns what it hit, or nil.</td></tr>
+<tr><td><code>onGround()</code></td><td>Returns true if the last move ended on top of something.</td></tr>
+<tr><td><code>onWall()</code></td><td>Returns true if the last move ran into a wall.</td></tr>
+<tr><td><code>onCeiling()</code></td><td>Returns true if the last move ran into a ceiling.</td></tr>
+<tr><td><code>applyImpulse(ix, iy, x?, y?)</code></td><td>Changes the speed immediately by impulse / mass. At a point, it also makes the body spin.</td></tr>
+<tr><td><code>applyForce(fx, fy, x?, y?)</code></td><td>Pushes with a force for this physics step, at the center or at a point. Call it in every physicsUpdate.</td></tr>
+<tr><td><code>applyTorque(torque)</code></td><td>Turns a physics body steadily for this physics step.</td></tr>
+<tr><td><code>applyAngularImpulse(impulse)</code></td><td>Gives a physics body a sudden twist.</td></tr>
+<tr><td><code>push(ix, iy)</code></td><td>Does the same as applyImpulse(ix, iy).</td></tr>
+<tr><td><code>wake()</code></td><td>Wakes up a physics body that sleeps.</td></tr>
+<tr><td><code>grab(x, y, strength?)</code></td><td>Holds the body at a point in the scene for dragTo(). drop() lets it go with its momentum.</td></tr>
+<tr><td><code>dragTo(x, y)</code></td><td>Moves the point that grab() holds towards x, y.</td></tr>
+<tr><td><code>drop()</code></td><td>Lets go after grab(). A physics body keeps its speed.</td></tr>
+<tr><td><code>touching(tagOrPiece)</code></td><td>Returns the first body or zone with a tag (or that piece) that touches this one, or nil.</td></tr>
+<tr><td><code>isTouching(other)</code></td><td>Returns true if it touches a piece (a body, zone or Tiles) or anything with a tag.</td></tr>
+<tr><td><code>contacts()</code></td><td>Returns the current contacts: {piece, x, y, nx, ny, impulse}.</td></tr>
+<tr><td><code>touchingTile(setting)</code></td><td>Returns the tile properties of a touching tile that has this tile property (for example &quot;damage&quot;), or nil.</td></tr>
+<tr><td><code>getSize()</code></td><td>Returns the size of the box around its shapes: width, height.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function hit(other, contact)</code></td><td>Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse.</td></tr>
-<tr><td><code>function entered(zone)</code></td><td>It went into a zone.</td></tr>
-<tr><td><code>function exited(zone)</code></td><td>It left a zone.</td></tr></tbody>
+<tbody><tr><td><code>function hit(other, contact)</code></td><td>The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse.</td></tr>
+<tr><td><code>function entered(zone)</code></td><td>The engine calls it when the body goes into a zone.</td></tr>
+<tr><td><code>function exited(zone)</code></td><td>The engine calls it when the body leaves a zone.</td></tr></tbody>
 </table></div>
 <h3 id="zone"><a class="anchor" href="#zone" aria-hidden="true">#</a>Zone</h3>
-<p>An area that detects bodies and zones entering and leaving. Doesn't block. Ignores still bodies.</p>
+<p>An area that detects bodies and zones that go in and out. It does not block them, and it ignores still bodies.</p>
 <p>Extends <a href="#group">Group</a>. Uses the physics2d (Box2D) module.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>Auto fits the Sprites and Shapes inside it. Shapes turn and scale with the Zone.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners).</td></tr>
-<tr><td><code>detects</code></td><td>tags</td><td>&quot;&quot;</td><td>Only notices things with one of these tags (empty: everything).</td></tr>
-<tr><td><code>active</code></td><td>bool</td><td>true</td><td>Notice things going in and out.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. The shapes turn and scale with the Zone.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most).</td></tr>
+<tr><td><code>detects</code></td><td>tags</td><td>&quot;&quot;</td><td>The Zone notices only things with one of these tags. If it is empty, it notices everything.</td></tr>
+<tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, the Zone notices things that go in and out.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>inside()</code></td><td>A list of the bodies and zones inside it now.</td></tr>
-<tr><td><code>touching(tagOrPiece)</code></td><td>The first body or zone with a tag (or that piece) inside it, or nil.</td></tr>
-<tr><td><code>isTouching(other)</code></td><td>True if a piece (or anything with a tag) is inside it.</td></tr></tbody>
+<tbody><tr><td><code>inside()</code></td><td>Returns a list of the bodies and zones that are inside it now.</td></tr>
+<tr><td><code>touching(tagOrPiece)</code></td><td>Returns the first body or zone with a tag (or that piece) that is inside it, or nil.</td></tr>
+<tr><td><code>isTouching(other)</code></td><td>Returns true if a piece (or anything with a tag) is inside it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function entered(other)</code></td><td>A body or zone came in.</td></tr>
-<tr><td><code>function exited(other)</code></td><td>A body or zone left.</td></tr></tbody>
+<tbody><tr><td><code>function entered(other)</code></td><td>The engine calls it when a body or zone comes in.</td></tr>
+<tr><td><code>function exited(other)</code></td><td>The engine calls it when a body or zone leaves.</td></tr></tbody>
 </table></div>
 <h3 id="hitbox"><a class="anchor" href="#hitbox" aria-hidden="true">#</a>Hitbox</h3>
-<p>An extra collision shape for the Body or Zone it's inside.</p>
+<p>An extra collision shape for the Body or Zone that it is inside.</p>
 <p>Extends <a href="#group">Group</a>. Goes inside a Body or Zone.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape, placed and turned by the Hitbox's position and rotation.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners).</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this shape off.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape. The position and rotation of the Hitbox put it in place and turn it.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most).</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, this shape is off.</td></tr></tbody>
 </table></div>
 <h3 id="joint"><a class="anchor" href="#joint" aria-hidden="true">#</a>Joint</h3>
-<p>Connects body a to body b, or to its own position.</p>
+<p>Connects body a to body b, or to the position of the Joint.</p>
 <p>Extends <a href="#group">Group</a>. Uses the physics2d (Box2D) module.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;pin&quot;</td><td>pin, weld, rope, spring, distance, slider (x axis), wheel (y axis spring) or mouse.</td></tr>
-<tr><td><code>a</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body it holds.</td></tr>
-<tr><td><code>b</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body it connects a to (empty: the place where the Joint is).</td></tr>
-<tr><td><code>length</code></td><td>number (px)</td><td>0</td><td>How far apart; 0 uses the distance when the joint is made.</td></tr>
-<tr><td><code>spring</code></td><td>bool</td><td>false</td><td>Springy: a pin or slider pulls back to where it started, a weld wobbles.</td></tr>
-<tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is: wobbles per second.</td></tr>
-<tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How quickly the spring stops wobbling: 1 doesn't overshoot.</td></tr>
-<tr><td><code>motor</code></td><td>bool</td><td>false</td><td>Drive it: turn a pin or wheel, or move a slider, at motorSpeed.</td></tr>
-<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>Degrees a second (pin, wheel) or pixels a second (slider, distance).</td></tr>
-<tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The most torque (pin, wheel) or force (slider, distance) the motor uses.</td></tr>
-<tr><td><code>limit</code></td><td>bool</td><td>false</td><td>Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.</td></tr>
-<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The furthest a pin turns anticlockwise, in degrees.</td></tr>
-<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The furthest a pin turns clockwise, in degrees.</td></tr>
-<tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The furthest a slider or wheel goes back.</td></tr>
-<tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The furthest a slider or wheel goes forward.</td></tr>
-<tr><td><code>strength</code></td><td>number</td><td>0</td><td>The most force a mouse joint pulls with; 0 is plenty for the body's mass.</td></tr>
-<tr><td><code>collide</code></td><td>bool</td><td>false</td><td>The two bodies still bump into each other.</td></tr>
-<tr><td><code>breakForce</code></td><td>number</td><td>0</td><td>Breaks (and sends broke) when pulled harder than this; 0 never breaks.</td></tr></tbody>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;pin&quot;</td><td>pin, weld, rope, spring, distance, slider (on the x axis), wheel (a spring on the y axis) or mouse.</td></tr>
+<tr><td><code>a</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body that the joint holds.</td></tr>
+<tr><td><code>b</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body that the joint connects a to. If it is empty, the joint connects a to the position of the Joint.</td></tr>
+<tr><td><code>length</code></td><td>number (px)</td><td>0</td><td>The distance between the bodies. 0 uses the distance at the time when the engine makes the joint.</td></tr>
+<tr><td><code>spring</code></td><td>bool</td><td>false</td><td>When this is on, the joint is springy: a pin or slider pulls back to where it started, and a weld wobbles.</td></tr>
+<tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is, in wobbles per second.</td></tr>
+<tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How fast the spring stops wobbling: 1 does not overshoot.</td></tr>
+<tr><td><code>motor</code></td><td>bool</td><td>false</td><td>When this is on, the joint drives the bodies: it turns a pin or wheel, or moves a slider, at motorSpeed.</td></tr>
+<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance).</td></tr>
+<tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The maximum torque (pin, wheel) or force (slider, distance) that the motor uses.</td></tr>
+<tr><td><code>limit</code></td><td>bool</td><td>false</td><td>When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper.</td></tr>
+<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The maximum angle that a pin turns anticlockwise, in degrees.</td></tr>
+<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The maximum angle that a pin turns clockwise, in degrees.</td></tr>
+<tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The maximum distance that a slider or wheel moves back.</td></tr>
+<tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The maximum distance that a slider or wheel moves forward.</td></tr>
+<tr><td><code>strength</code></td><td>number</td><td>0</td><td>The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body.</td></tr>
+<tr><td><code>collide</code></td><td>bool</td><td>false</td><td>When this is on, the two bodies still bump into each other.</td></tr>
+<tr><td><code>breakForce</code></td><td>number</td><td>0</td><td>The joint breaks (and sends broke) when a pull is stronger than this. 0 means that it never breaks.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned, in degrees.</td></tr>
-<tr><td><code>getTranslation()</code></td><td>How far a slider has slid (pixels).</td></tr>
-<tr><td><code>getLength()</code></td><td>How far apart a rope, spring or distance joint's ends are.</td></tr>
-<tr><td><code>getSpeed()</code></td><td>How fast a pin turns (degrees a second) or a slider slides (pixels a second).</td></tr>
-<tr><td><code>getForce()</code></td><td>How hard the joint pulls now.</td></tr>
-<tr><td><code>getTorque()</code></td><td>How hard the joint twists now.</td></tr>
-<tr><td><code>isBroken()</code></td><td>True once breakForce broke it.</td></tr></tbody>
+<tbody><tr><td><code>getAngle()</code></td><td>Returns how far a pin has turned, in degrees.</td></tr>
+<tr><td><code>getTranslation()</code></td><td>Returns how far a slider has moved, in pixels.</td></tr>
+<tr><td><code>getLength()</code></td><td>Returns the distance between the ends of a rope, spring or distance joint.</td></tr>
+<tr><td><code>getSpeed()</code></td><td>Returns how fast a pin turns (degrees per second) or a slider moves (pixels per second).</td></tr>
+<tr><td><code>getForce()</code></td><td>Returns how hard the joint pulls now.</td></tr>
+<tr><td><code>getTorque()</code></td><td>Returns how hard the joint twists now.</td></tr>
+<tr><td><code>isBroken()</code></td><td>Returns true after breakForce has broken the joint.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function broke()</code></td><td>It was pulled harder than breakForce and let go.</td></tr></tbody>
+<tbody><tr><td><code>function broke()</code></td><td>The engine calls it when a pull is stronger than breakForce and the joint lets go.</td></tr></tbody>
 </table></div>
 <h3 id="walkable"><a class="anchor" href="#walkable" aria-hidden="true">#</a>Walkable</h3>
-<p>A polygon that says where things can walk. smitten.paths.findPath() finds a way through all the Walkable pieces in the scene.</p>
+<p>A polygon that shows where things can walk. smitten.paths.findPath() finds a way through all the Walkable pieces in the scene.</p>
 <p>Extends <a href="#group">Group</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>points</code></td><td>points</td><td>{-100, -60, 100, -60, 100, 60, -100, 60}</td><td>Corner points x1, y1, x2, y2, ... in order round the shape. Any number of corners; dents are fine.</td></tr>
-<tr><td><code>hole</code></td><td>bool</td><td>false</td><td>Cuts this shape out of the walkable areas it lies on, instead of adding to them: a pillar, a pond, a table.</td></tr>
-<tr><td><code>active</code></td><td>bool</td><td>true</td><td>Counts for paths. Turn it off to close an area (or fill a hole) for a while.</td></tr></tbody>
+<tbody><tr><td><code>points</code></td><td>points</td><td>{-100, -60, 100, -60, 100, 60, -100, 60}</td><td>The corner points x1, y1, x2, y2, ... in order around the shape. It can have any number of corners, and dents are OK.</td></tr>
+<tr><td><code>hole</code></td><td>bool</td><td>false</td><td>When this is on, the shape does not add to the walkable areas below it. It cuts a hole in them: a pillar, a pond, a table.</td></tr>
+<tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, paths use it. Turn it off to close an area (or fill a hole) for a time.</td></tr></tbody>
 </table></div>
 <h2 id="on-screen-ui"><a class="anchor" href="#on-screen-ui" aria-hidden="true">#</a>On-screen UI</h2>
 <h3 id="ui"><a class="anchor" href="#ui" aria-hidden="true">#</a>UI</h3>
-<p>The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.</p>
+<p>The base of UI pieces: a rectangle on the screen, with its position measured from a corner, an edge or the center.</p>
 <p>Extends <a href="#piece">Piece</a>. A base for other types; not added itself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead.</td></tr>
-<tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
-<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>Width (ignored with fill).</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>40</td><td>Height (ignored with fill).</td></tr>
-<tr><td><code>grow</code></td><td>number</td><td>0</td><td>Inside a Row or Column: its share of the room left over (two pieces with 1 split it in half). 0 keeps its own size.</td></tr>
-<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
-<tr><td><code>opacity</code></td><td>number</td><td>1</td><td>0 is invisible, 1 is solid.</td></tr></tbody>
+<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>The point from which the piece measures x and y. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides the position.</td></tr>
+<tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>The distance in from the anchor.</td></tr>
+<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>The distance in from the anchor.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>The width. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>40</td><td>The height. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>grow</code></td><td>number</td><td>0</td><td>Inside a Row or Column, the part of the remaining space that this piece gets. Two pieces with 1 get half each. 0 keeps its own size.</td></tr>
+<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>When this is on, this piece and everything inside it are visible.</td></tr>
+<tr><td><code>opacity</code></td><td>number</td><td>1</td><td>0 is invisible, 1 is fully visible.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getRect()</code></td><td>Where it is on the screen now: x, y, width, height.</td></tr>
-<tr><td><code>isHovered()</code></td><td>True while the mouse is over it.</td></tr></tbody>
+<tbody><tr><td><code>getRect()</code></td><td>Returns the current position and size on the screen: x, y, width, height.</td></tr>
+<tr><td><code>isHovered()</code></td><td>Returns true while the mouse pointer is over it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function hovered()</code></td><td>The pointer came over it (not Labels).</td></tr>
-<tr><td><code>function unhovered()</code></td><td>The pointer left it.</td></tr></tbody>
+<tbody><tr><td><code>function hovered()</code></td><td>The engine calls it when the mouse pointer comes over it (not for Labels).</td></tr>
+<tr><td><code>function unhovered()</code></td><td>The engine calls it when the mouse pointer leaves it.</td></tr></tbody>
 </table></div>
 <h3 id="label"><a class="anchor" href="#label" aria-hidden="true">#</a>Label</h3>
-<p>Words on the screen: scores, timers, titles, dialog.</p>
+<p>Shows words on the screen: scores, timers, titles, speech.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Label&quot;</td><td>What it says. Change it from a script: text = <code>Score: {score}</code>.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font, &quot;pixel&quot;, or empty for the default font.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>Font size.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
-<tr><td><code>align</code></td><td>enum</td><td>&quot;left&quot;</td><td>Lines up the text inside its rectangle. justify stretches wrapped lines to the same width.</td></tr>
-<tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Lines up the text top to bottom.</td></tr>
-<tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where a line too long for the rectangle is broken: between words, after any character (for writing without spaces, like Japanese), or not at all.</td></tr>
+<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Label&quot;</td><td>The text that the piece shows. Change it from a script: text = <code>Score: {score}</code>.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf or .otf font file, &quot;pixel&quot; for the built-in pixel font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>The font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color.</td></tr>
+<tr><td><code>align</code></td><td>enum</td><td>&quot;left&quot;</td><td>Aligns the text inside its rectangle. justify stretches wrapped lines to the same width.</td></tr>
+<tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Aligns the text vertically inside its rectangle.</td></tr>
+<tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the text smaller until it fits inside the rectangle.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
-<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline around the text.</td></tr>
-<tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. Empty: the font is made thicker instead.</td></tr>
-<tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. Empty: the font is slanted instead.</td></tr>
-<tr><td><code>lineHeight</code></td><td>number</td><td>1</td><td>How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them.</td></tr>
-<tr><td><code>letterSpacing</code></td><td>number (px)</td><td>0</td><td>Extra room between letters (negative squeezes them together).</td></tr>
-<tr><td><code>outlineWidth</code></td><td>number (px)</td><td>0</td><td>How thick the outline is. 0 keeps it one screen pixel thin.</td></tr>
-<tr><td><code>outlineColor</code></td><td>color</td><td>{0, 0, 0, 0.8}</td><td>The outline's color.</td></tr>
-<tr><td><code>shadow</code></td><td>bool</td><td>false</td><td>A shadow behind the text.</td></tr>
-<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 0.5}</td><td>The shadow's color.</td></tr>
-<tr><td><code>shadowX</code></td><td>number (px)</td><td>2</td><td>How far right the shadow falls (negative: left).</td></tr>
-<tr><td><code>shadowY</code></td><td>number (px)</td><td>2</td><td>How far down the shadow falls (negative: up).</td></tr>
-<tr><td><code>visibleCharacters</code></td><td>int</td><td>-1</td><td>How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect.</td></tr>
-<tr><td><code>visibleRatio</code></td><td>number</td><td>1</td><td>How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly.</td></tr></tbody>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
+<tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
+<tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
+<tr><td><code>lineHeight</code></td><td>number</td><td>1</td><td>The distance between lines: 1 is the font's own spacing, 1.5 leaves half a line between them.</td></tr>
+<tr><td><code>letterSpacing</code></td><td>number (px)</td><td>0</td><td>Extra space between letters. A negative value pushes them closer together.</td></tr>
+<tr><td><code>outlineWidth</code></td><td>number (px)</td><td>0</td><td>The thickness of the outline. 0 keeps it one screen pixel thin.</td></tr>
+<tr><td><code>outlineColor</code></td><td>color</td><td>{0, 0, 0, 0.8}</td><td>The color of the outline.</td></tr>
+<tr><td><code>shadow</code></td><td>bool</td><td>false</td><td>When this is on, the text has a shadow behind it.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 0.5}</td><td>The color of the shadow.</td></tr>
+<tr><td><code>shadowX</code></td><td>number (px)</td><td>2</td><td>How far right the shadow is. A negative value moves it left.</td></tr>
+<tr><td><code>shadowY</code></td><td>number (px)</td><td>2</td><td>How far down the shadow is. A negative value moves it up.</td></tr>
+<tr><td><code>visibleCharacters</code></td><td>int</td><td>-1</td><td>The number of characters that show, counting from the start: 0 shows none, -1 shows all. reveal() increases this for a typewriter effect.</td></tr>
+<tr><td><code>visibleRatio</code></td><td>number</td><td>1</td><td>The part of the text that shows: 0 is none, 0.5 is the first half, 1 is all of it. Tween it to show the text gradually.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>measure()</code></td><td>How big the text is as it's laid out now: width, height.</td></tr>
-<tr><td><code>lineCount()</code></td><td>How many lines the text takes.</td></tr>
-<tr><td><code>characterCount()</code></td><td>How many characters the text has (tags and line breaks don't count).</td></tr>
-<tr><td><code>characterRect(index)</code></td><td>Where a character is, measured from the label's top-left corner: x, y, width, height. For putting a cursor or a sparkle on it.</td></tr>
-<tr><td><code>characterAt(x, y)</code></td><td>The number of the character at a point (measured from the label's top-left corner), or nil.</td></tr>
-<tr><td><code>linkAt(x, y)</code></td><td>The name of the [link=name] at a point (measured from the label's top-left corner), or nil.</td></tr>
-<tr><td><code>reveal(charactersPerSecond?, from?)</code></td><td>Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace.</td></tr>
-<tr><td><code>skip()</code></td><td>Shows all of the text now, and ends a reveal().</td></tr></tbody>
+<tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
+<tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
+<tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the top-left corner of the Label), or nil.</td></tr>
+<tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil.</td></tr>
+<tr><td><code>reveal(charactersPerSecond?, from?)</code></td><td>Shows the text one character at a time, like a typewriter (30 characters per second if you do not give a speed). Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the speed.</td></tr>
+<tr><td><code>skip()</code></td><td>Shows all of the text now and stops a reveal().</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function revealed(index, char)</code></td><td>reveal() showed one more character: play a blip, or wait at a full stop.</td></tr>
-<tr><td><code>function finished()</code></td><td>reveal() has shown the whole text.</td></tr>
-<tr><td><code>function eachCharacter(c)</code></td><td>Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it.</td></tr>
-<tr><td><code>function linkPressed(name)</code></td><td>A [link=name] in the text was clicked or tapped.</td></tr></tbody>
+<tbody><tr><td><code>function revealed(index, char)</code></td><td>The engine calls it when reveal() shows one more character. Use it to play a blip, or to wait at a full stop.</td></tr>
+<tr><td><code>function finished()</code></td><td>The engine calls it when reveal() has shown all of the text.</td></tr>
+<tr><td><code>function eachCharacter(c)</code></td><td>The engine calls it for every character each time it draws the text. Use it to move or color the character: c.y = math.sin(c.time * 4 + c.index) * 3. You can change x, y, rotation, scale, color, alpha and visible of c. You can read index, count, char, line, time and since. The engine uses the same table c for every character, so do not keep it.</td></tr>
+<tr><td><code>function linkPressed(name)</code></td><td>The engine calls it when the player clicks or taps a [link=name] in the text.</td></tr></tbody>
 </table></div>
 <h3 id="button"><a class="anchor" href="#button" aria-hidden="true">#</a>Button</h3>
-<p>A button to click or tap. Its script gets clicked().</p>
+<p>A button to click or tap. The engine calls clicked() in its script.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Button&quot;</td><td>The button's words.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>Background color.</td></tr>
-<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Button&quot;</td><td>The words on the button.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>The font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The background color.</td></tr>
+<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the words smaller until they fit inside the button.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
-<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be pressed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
-<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches. It's drawn lighter under the pointer and darker while held, unless the next two say otherwise.</td></tr>
-<tr><td><code>skinHover</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the pointer is over the button or it has the focus. Empty: the skin, a little lighter.</td></tr>
-<tr><td><code>skinDown</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the button is held down. Empty: the skin, a little darker.</td></tr>
-<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot press the button, and it looks faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>When this is on, the button has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>An image to draw instead of the colored box. Its corners keep their size and its middle stretches. It is lighter under the mouse pointer and darker while the player holds it down, unless skinHover and skinDown give other images.</td></tr>
+<tr><td><code>skinHover</code></td><td>resource</td><td>&quot;&quot;</td><td>The image while the mouse pointer is over the button or the button has keyboard focus. If it is empty, the button uses the skin, a little lighter.</td></tr>
+<tr><td><code>skinDown</code></td><td>resource</td><td>&quot;&quot;</td><td>The image while the player holds the button down. If it is empty, the button uses the skin, a little darker.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>The number of pixels at the edges of the image that keep their size while the middle stretches. Give one number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus.</td></tr>
-<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr>
-<tr><td><code>isDown()</code></td><td>True while it's held down.</td></tr></tbody>
+<tr><td><code>isFocused()</code></td><td>Returns true while it has keyboard focus.</td></tr>
+<tr><td><code>isDown()</code></td><td>Returns true while the player holds it down.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function clicked()</code></td><td>The button was clicked, tapped, or pressed with accept while focused.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The engine calls it when the player clicks or taps the button, or presses the accept action while the button has keyboard focus.</td></tr></tbody>
 </table></div>
 <h3 id="panel"><a class="anchor" href="#panel" aria-hidden="true">#</a>Panel</h3>
-<p>A colored box behind other UI: a dialog, a HUD background.</p>
+<p>A colored box behind other UI: a dialog box, the background of a HUD.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>color</code></td><td>color</td><td>{0.08, 0.09, 0.12, 0.85}</td><td>Fill color.</td></tr>
+<tbody><tr><td><code>color</code></td><td>color</td><td>{0.08, 0.09, 0.12, 0.85}</td><td>The fill color.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr>
-<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.15}</td><td>Outline color.</td></tr>
-<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>Outline thickness; 0 for none.</td></tr>
-<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches, so one small picture makes a panel of any size.</td></tr>
-<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
+<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.15}</td><td>The color of the outline.</td></tr>
+<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>The thickness of the outline. 0 means no outline.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>An image to draw instead of the colored box. Its corners keep their size and its middle stretches, so one small image makes a panel of any size.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>The number of pixels at the edges of the image that keep their size while the middle stretches. Give one number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function clicked()</code></td><td>The panel was clicked or tapped (not on a button inside it).</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The engine calls it when the player clicks or taps the panel (but not a button inside it).</td></tr></tbody>
 </table></div>
 <h3 id="picture"><a class="anchor" href="#picture" aria-hidden="true">#</a>Picture</h3>
-<p>A picture on the screen: an icon, a portrait, a logo.</p>
+<p>An image on the screen: an icon, a portrait, a logo.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture.</td></tr>
-<tr><td><code>fit</code></td><td>enum</td><td>&quot;contain&quot;</td><td>How the picture fills the rectangle.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Tint.</td></tr></tbody>
+<tbody><tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The image.</td></tr>
+<tr><td><code>fit</code></td><td>enum</td><td>&quot;contain&quot;</td><td>How the image fills the rectangle.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The tint of the image.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function clicked()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
+<tbody><tr><td><code>function clicked()</code></td><td>The engine calls it when the player clicks or taps the Picture.</td></tr></tbody>
 </table></div>
 <h3 id="bar"><a class="anchor" href="#bar" aria-hidden="true">#</a>Bar</h3>
 <p>A bar that fills up: health, loading, a countdown.</p>
@@ -642,257 +642,257 @@
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>value</code></td><td>number</td><td>50</td><td>How full it is, between min and max.</td></tr>
-<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value when empty.</td></tr>
-<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value when full.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{0.3, 0.8, 0.45, 1}</td><td>Fill color.</td></tr>
-<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>Empty color.</td></tr>
+<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value when the bar is empty.</td></tr>
+<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value when the bar is full.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.3, 0.8, 0.45, 1}</td><td>The fill color.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the empty part.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>4</td><td>Rounds the corners.</td></tr>
-<tr><td><code>showValue</code></td><td>bool</td><td>false</td><td>Show the value as text.</td></tr></tbody>
+<tr><td><code>showValue</code></td><td>bool</td><td>false</td><td>When this is on, the bar shows the value as text.</td></tr></tbody>
 </table></div>
 <h3 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h3>
-<p>A stick for a thumb on a touch screen. It pushes input actions the way a gamepad's stick does, so axis(&quot;left&quot;, &quot;right&quot;) reads it with no extra code.</p>
+<p>A stick for a thumb on a touch screen. It presses input actions as a gamepad stick does, so axis(&quot;left&quot;, &quot;right&quot;) reads it with no extra code.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>leftAction</code></td><td>action</td><td>&quot;left&quot;</td><td>The action it pushes when the thumb goes left (none: it pushes nothing that way).</td></tr>
-<tr><td><code>rightAction</code></td><td>action</td><td>&quot;right&quot;</td><td>The action it pushes when the thumb goes right.</td></tr>
-<tr><td><code>upAction</code></td><td>action</td><td>&quot;up&quot;</td><td>The action it pushes when the thumb goes up.</td></tr>
-<tr><td><code>downAction</code></td><td>action</td><td>&quot;down&quot;</td><td>The action it pushes when the thumb goes down.</td></tr>
-<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose actions it pushes: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
-<tr><td><code>mode</code></td><td>enum</td><td>&quot;fixed&quot;</td><td>fixed stays in the middle of its rectangle. floating appears where the thumb lands, anywhere in the rectangle. follow does too, and is dragged along when the thumb goes further than the radius.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>60</td><td>How far the thumb goes for a full push; also the size of the stick's circle.</td></tr>
-<tr><td><code>deadzone</code></td><td>number</td><td>0.2</td><td>How much of the radius near the middle counts as not pushed at all (0.2 is a fifth).</td></tr>
-<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can work it. never keeps it invisible; fingers still work it.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.25}</td><td>The color of the stick's circle (or a tint for its image).</td></tr>
+<tbody><tr><td><code>leftAction</code></td><td>action</td><td>&quot;left&quot;</td><td>The action that it presses when the thumb moves left. With none, it presses nothing in that direction.</td></tr>
+<tr><td><code>rightAction</code></td><td>action</td><td>&quot;right&quot;</td><td>The action that it presses when the thumb moves right.</td></tr>
+<tr><td><code>upAction</code></td><td>action</td><td>&quot;up&quot;</td><td>The action that it presses when the thumb moves up.</td></tr>
+<tr><td><code>downAction</code></td><td>action</td><td>&quot;down&quot;</td><td>The action that it presses when the thumb moves down.</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>The player whose actions it presses: 2 for player 2. 0 uses the player of the piece that it is inside, or player 1.</td></tr>
+<tr><td><code>mode</code></td><td>enum</td><td>&quot;fixed&quot;</td><td>fixed stays in the middle of its rectangle. floating comes to where the thumb touches, anywhere in the rectangle. follow does the same, and moves with the thumb when the thumb goes past the radius.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>60</td><td>How far the thumb moves for a full push. It is also the size of the circle of the stick.</td></tr>
+<tr><td><code>deadzone</code></td><td>number</td><td>0.2</td><td>The part of the radius near the middle that does not count as a push (0.2 is a fifth).</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch shows it on phones and tablets, and on any screen after a finger touches it. always shows it everywhere, and the mouse can use it. never keeps it invisible, but fingers can still use it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.25}</td><td>The color of the circle of the stick (or a tint for its image).</td></tr>
 <tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 0.6}</td><td>The color of the knob under the thumb (or a tint for its image).</td></tr>
-<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the stick's circle, instead of the drawn one.</td></tr>
-<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the circle of the stick, instead of the drawn circle.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the knob, instead of the drawn knob.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getValue()</code></td><td>Where the stick is pushed: x, y from -1 to 1 (0, 0 when no finger is on it).</td></tr>
-<tr><td><code>isActive()</code></td><td>True while a finger is on the stick.</td></tr></tbody>
+<tbody><tr><td><code>getValue()</code></td><td>Returns the direction and size of the push: x, y from -1 to 1 (0, 0 when no finger is on the stick).</td></tr>
+<tr><td><code>isActive()</code></td><td>Returns true while a finger is on the stick.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function touched()</code></td><td>A finger landed on the stick.</td></tr>
-<tr><td><code>function untouched()</code></td><td>The finger let go of the stick.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>The engine calls it when a finger touches the stick.</td></tr>
+<tr><td><code>function untouched()</code></td><td>The engine calls it when the finger lets go of the stick.</td></tr></tbody>
 </table></div>
 <h3 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h3>
-<p>A button for a finger on a touch screen. It holds an input action down while it's held, so pressed(&quot;jump&quot;) reads it with no extra code.</p>
+<p>A button for a finger on a touch screen. It holds an input action down while a finger holds it, so pressed(&quot;jump&quot;) reads it with no extra code.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()).</td></tr>
-<tr><td><code>player</code></td><td>int</td><td>0</td><td>Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1.</td></tr>
-<tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle.</td></tr>
+<tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action that it holds down while a finger is on it. With none, it only tells its script, with touched() and untouched().</td></tr>
+<tr><td><code>player</code></td><td>int</td><td>0</td><td>The player whose action it presses: 2 for player 2. 0 uses the player of the piece that it is inside, or player 1.</td></tr>
+<tr><td><code>shape</code></td><td>enum</td><td>&quot;circle&quot;</td><td>circle is the largest circle that fits in its rectangle. rectangle is the whole rectangle.</td></tr>
 <tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>Words or a letter on the button.</td></tr>
-<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture on the button: an arrow, a sword.</td></tr>
-<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch draws it on phones and tablets, and on any screen once a finger touches it. always draws it everywhere, and the mouse can press it. never keeps it invisible; fingers still press it.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The button's color. It's drawn stronger while held.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>An image on the button: an arrow, a sword.</td></tr>
+<tr><td><code>show</code></td><td>enum</td><td>&quot;touch&quot;</td><td>touch shows it on phones and tablets, and on any screen after a finger touches it. always shows it everywhere, and the mouse can press it. never keeps it invisible, but fingers can still press it.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The color of the button. The color is stronger while a finger holds the button.</td></tr>
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 0.9}</td><td>The color of its words.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>Font size.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>20</td><td>The font size.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>isDown()</code></td><td>True while a finger holds it down.</td></tr></tbody>
+<tbody><tr><td><code>isDown()</code></td><td>Returns true while a finger holds it down.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function touched()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
-<tr><td><code>function untouched()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
+<tbody><tr><td><code>function touched()</code></td><td>The engine calls it when a finger presses the button (or slides onto it).</td></tr>
+<tr><td><code>function untouched()</code></td><td>The engine calls it when the finger lets go or slides off.</td></tr></tbody>
 </table></div>
 <h3 id="textinput"><a class="anchor" href="#textinput" aria-hidden="true">#</a>TextInput</h3>
-<p>A box to type in: a name, a chat line, a number. Click or tap it and type; on phones the keyboard comes up.</p>
+<p>A box to type in: a name, a chat line, a number. The player clicks or taps it and types. On phones, the on-screen keyboard opens.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>width</code></td><td>number (px)</td><td>200</td><td>Width (ignored with fill).</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>36</td><td>Height (ignored with fill).</td></tr>
-<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>What's typed in it. Read it from a script, or set it.</td></tr>
-<tr><td><code>placeholder</code></td><td>string</td><td>&quot;&quot;</td><td>Faint words shown while it's empty: &quot;Your name&quot;.</td></tr>
-<tr><td><code>multiline</code></td><td>bool</td><td>false</td><td>Several lines: Enter starts a new line and long lines wrap.</td></tr>
-<tr><td><code>maxLength</code></td><td>int</td><td>0</td><td>The most characters it takes. 0 is no limit.</td></tr>
-<tr><td><code>secret</code></td><td>bool</td><td>false</td><td>Shows dots instead of the characters, for passwords.</td></tr>
-<tr><td><code>allow</code></td><td>enum</td><td>&quot;anything&quot;</td><td>What can be typed. numbers: digits, a minus sign in front and one decimal point. letters: letters and digits, no spaces or symbols. only: the characters you list.</td></tr>
-<tr><td><code>allowCharacters</code></td><td>string</td><td>&quot;&quot;</td><td>The characters that can be typed, like abcdef0123456789.</td></tr>
-<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be typed in; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Ready to type in when the scene starts.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font, &quot;pixel&quot;, or empty for the default font.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color (the blinking caret's too).</td></tr>
-<tr><td><code>placeholderColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The placeholder's color.</td></tr>
-<tr><td><code>background</code></td><td>color</td><td>{0.05, 0.06, 0.09, 0.9}</td><td>The box's color.</td></tr>
-<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The outline's color. The outline takes the selection's color while it's being typed in.</td></tr>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>200</td><td>The width. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>36</td><td>The height. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>The text in the box. Read it from a script, or set it.</td></tr>
+<tr><td><code>placeholder</code></td><td>string</td><td>&quot;&quot;</td><td>Pale words that show while the box is empty: &quot;Your name&quot;.</td></tr>
+<tr><td><code>multiline</code></td><td>bool</td><td>false</td><td>When this is on, the box has more than one line: Enter starts a new line, and long lines wrap.</td></tr>
+<tr><td><code>maxLength</code></td><td>int</td><td>0</td><td>The maximum number of characters that it accepts. 0 means no limit.</td></tr>
+<tr><td><code>secret</code></td><td>bool</td><td>false</td><td>When this is on, the box shows dots instead of the characters, for passwords.</td></tr>
+<tr><td><code>allow</code></td><td>enum</td><td>&quot;anything&quot;</td><td>What the player can type. numbers: digits, a minus sign at the start and one decimal point. letters: letters and digits, but no spaces or symbols. only: the characters that you list.</td></tr>
+<tr><td><code>allowCharacters</code></td><td>string</td><td>&quot;&quot;</td><td>The characters that the player can type, for example abcdef0123456789.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot type in it, and it looks faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>When this is on, the box has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf or .otf font file, &quot;pixel&quot; for the built-in pixel font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>The font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color (also the color of the blinking text cursor).</td></tr>
+<tr><td><code>placeholderColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The color of the placeholder.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0.05, 0.06, 0.09, 0.9}</td><td>The color of the box.</td></tr>
+<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The color of the outline. While the box has keyboard focus, the outline has the selection color.</td></tr>
 <tr><td><code>selectionColor</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color behind selected text.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
-<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches.</td></tr>
-<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>An image to draw instead of the colored box. Its corners keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>The number of pixels at the edges of the image that keep their size while the middle stretches. Give one number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>focus()</code></td><td>Starts typing in it, as a click does.</td></tr>
-<tr><td><code>blur()</code></td><td>Stops typing in it.</td></tr>
-<tr><td><code>isFocused()</code></td><td>True while it's being typed in.</td></tr>
-<tr><td><code>selectAll()</code></td><td>Selects all of its text, so typing replaces it.</td></tr></tbody>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus, as a click does, so the player can type in it.</td></tr>
+<tr><td><code>blur()</code></td><td>Takes keyboard focus away from it, so typing in it stops.</td></tr>
+<tr><td><code>isFocused()</code></td><td>Returns true while it has keyboard focus.</td></tr>
+<tr><td><code>selectAll()</code></td><td>Selects all of its text, so the next typing replaces it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function changed(text)</code></td><td>The text changed by typing, deleting or pasting (not when a script sets it).</td></tr>
-<tr><td><code>function submitted(text)</code></td><td>Enter was pressed (in a multiline one: Ctrl+Enter).</td></tr>
-<tr><td><code>function focused()</code></td><td>It began being typed in.</td></tr>
-<tr><td><code>function blurred()</code></td><td>It stopped being typed in: the focus went elsewhere, or Escape was pressed.</td></tr></tbody>
+<tbody><tr><td><code>function changed(text)</code></td><td>The engine calls it when the player changes the text by typing, deleting or pasting (not when a script sets the text).</td></tr>
+<tr><td><code>function submitted(text)</code></td><td>The engine calls it when the player presses Enter (in a multiline box: Ctrl+Enter).</td></tr>
+<tr><td><code>function focused()</code></td><td>The engine calls it when the box gets keyboard focus.</td></tr>
+<tr><td><code>function blurred()</code></td><td>The engine calls it when the box loses keyboard focus: the focus goes to something else, or the player presses Escape.</td></tr></tbody>
 </table></div>
 <h3 id="slider"><a class="anchor" href="#slider" aria-hidden="true">#</a>Slider</h3>
-<p>A knob to drag along a track to pick a number: volume, brightness, speed.</p>
+<p>A knob that the player drags along a track to choose a number: volume, brightness, speed.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>height</code></td><td>number (px)</td><td>24</td><td>Height (ignored with fill).</td></tr>
-<tr><td><code>value</code></td><td>number</td><td>50</td><td>The number it's at, between min and max.</td></tr>
-<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value at the left end (the bottom, when vertical).</td></tr>
-<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value at the right end (the top, when vertical).</td></tr>
-<tr><td><code>step</code></td><td>number</td><td>0</td><td>The value moves in jumps this big: 1 for whole numbers, 10 for tens. 0 moves smoothly.</td></tr>
-<tr><td><code>vertical</code></td><td>bool</td><td>false</td><td>Runs bottom to top instead of left to right.</td></tr>
-<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be moved; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>24</td><td>The height. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>value</code></td><td>number</td><td>50</td><td>The current number, between min and max.</td></tr>
+<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value at the left end (at the bottom end, if vertical is on).</td></tr>
+<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value at the right end (at the top end, if vertical is on).</td></tr>
+<tr><td><code>step</code></td><td>number</td><td>0</td><td>The value changes in steps of this size: 1 for whole numbers, 10 for tens. 0 changes it smoothly.</td></tr>
+<tr><td><code>vertical</code></td><td>bool</td><td>false</td><td>When this is on, the slider goes from bottom to top, not from left to right.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot move it, and it looks faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>When this is on, the slider has keyboard focus when the scene starts.</td></tr>
 <tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color of the filled part of the track.</td></tr>
-<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the rest of the track.</td></tr>
-<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The knob's color (or a tint for its image).</td></tr>
-<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the track instead of the drawn one. Its ends keep their size and its middle stretches.</td></tr>
-<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr>
-<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the remaining part of the track.</td></tr>
+<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the knob (or a tint for its image).</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the track, instead of the drawn track. Its ends keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>The number of pixels at the edges of the image that keep their size while the middle stretches. Give one number for all four edges, or four: left, top, right, bottom.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the knob, instead of the drawn knob.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus: the arrow keys or a stick then move it.</td></tr>
-<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus. Then the arrow keys or a stick move it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>Returns true while it has keyboard focus.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function changed(value)</code></td><td>The player moved the slider (not when a script sets value).</td></tr></tbody>
+<tbody><tr><td><code>function changed(value)</code></td><td>The engine calls it when the player moves the slider (not when a script sets value).</td></tr></tbody>
 </table></div>
 <h3 id="checkbox"><a class="anchor" href="#checkbox" aria-hidden="true">#</a>Checkbox</h3>
-<p>A box to tick, or a switch to flip, with words beside it. Give several the same group and only one of them can be on: a choice.</p>
+<p>A box to tick, or a switch to turn on and off, with words next to it. If more than one checkbox has the same group, only one of them can be on: a choice.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>height</code></td><td>number (px)</td><td>28</td><td>Height (ignored with fill).</td></tr>
-<tr><td><code>checked</code></td><td>bool</td><td>false</td><td>Ticked (or switched on).</td></tr>
-<tr><td><code>text</code></td><td>text</td><td>&quot;Checkbox&quot;</td><td>The words beside it.</td></tr>
-<tr><td><code>look</code></td><td>enum</td><td>&quot;box&quot;</td><td>box is a square with a tick. switch slides left and right. In a group, a box is drawn round.</td></tr>
-<tr><td><code>group</code></td><td>string</td><td>&quot;&quot;</td><td>Checkboxes inside the same piece with the same group name are a choice: ticking one unticks the others. Empty: it's on its own.</td></tr>
-<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be changed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
-<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
-<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The box's color when it's ticked.</td></tr>
-<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The box's color when it isn't.</td></tr>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>28</td><td>The height. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>checked</code></td><td>bool</td><td>false</td><td>When this is on, the box has a tick (or the switch is on).</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;Checkbox&quot;</td><td>The words next to it.</td></tr>
+<tr><td><code>look</code></td><td>enum</td><td>&quot;box&quot;</td><td>box is a square with a tick. switch slides left and right. In a group, the engine draws a box as a circle.</td></tr>
+<tr><td><code>group</code></td><td>string</td><td>&quot;&quot;</td><td>Checkboxes inside the same piece with the same group name are a choice: when one gets a tick, the others lose theirs. If it is empty, the checkbox is alone.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot change it, and it looks faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>When this is on, the checkbox has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>The font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color of the box when it has a tick.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the box when it has no tick.</td></tr>
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the words and the tick.</td></tr>
-<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it isn't ticked, instead of the drawn one.</td></tr>
-<tr><td><code>skinChecked</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it's ticked.</td></tr></tbody>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the box when it has no tick, instead of the drawn box.</td></tr>
+<tr><td><code>skinChecked</code></td><td>resource</td><td>&quot;&quot;</td><td>An image for the box when it has a tick.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>toggle()</code></td><td>Flips it, as a click does (toggled() runs).</td></tr>
-<tr><td><code>focus()</code></td><td>Gives it keyboard focus: accept then flips it.</td></tr>
-<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+<tbody><tr><td><code>toggle()</code></td><td>Adds or removes the tick, as a click does (the engine calls toggled()).</td></tr>
+<tr><td><code>focus()</code></td><td>Gives it keyboard focus. Then the accept action adds or removes the tick.</td></tr>
+<tr><td><code>isFocused()</code></td><td>Returns true while it has keyboard focus.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function toggled(checked)</code></td><td>It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked.</td></tr></tbody>
+<tbody><tr><td><code>function toggled(checked)</code></td><td>The engine calls it when the tick goes on or off. The cause can be the player, toggle(), or a tick on another checkbox in its group.</td></tr></tbody>
 </table></div>
 <h3 id="row"><a class="anchor" href="#row" aria-hidden="true">#</a>Row</h3>
-<p>Lines up the UI pieces inside it left to right, so you don't place each one by hand.</p>
+<p>Puts the UI pieces inside it in a line from left to right, so you do not have to place each one by hand.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
-<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
-<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
-<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;center&quot;</td><td>Top to bottom: start puts the pieces at the top, end at the bottom, stretch makes them all as tall as the row.</td></tr>
-<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the row is wider than they are: start is the left, end the right, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>The width. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>The height. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The space between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The space between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;center&quot;</td><td>From top to bottom: start puts the pieces at the top, end at the bottom, and stretch makes them all as tall as the Row.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the Row is wider than they are: start (left), end (right) or spaceBetween (spread from edge to edge).</td></tr></tbody>
 </table></div>
 <h3 id="column"><a class="anchor" href="#column" aria-hidden="true">#</a>Column</h3>
-<p>Stacks the UI pieces inside it top to bottom: a menu, a list of settings.</p>
+<p>Puts the UI pieces inside it from top to bottom: a menu, a list of choices.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
-<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
-<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
-<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Left to right: start puts the pieces at the left, end at the right, stretch makes them all as wide as the column.</td></tr>
-<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the column is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>The width. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>The height. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The space between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The space between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>From left to right: start puts the pieces at the left, end at the right, and stretch makes them all as wide as the Column.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the Column is taller than they are: start (top), end (bottom) or spaceBetween (spread from edge to edge).</td></tr></tbody>
 </table></div>
 <h3 id="grid"><a class="anchor" href="#grid" aria-hidden="true">#</a>Grid</h3>
-<p>Lays the UI pieces inside it out in columns, row after row: an inventory, a level select.</p>
+<p>Puts the UI pieces inside it in columns, row after row: an inventory, a level select screen.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width: the columns share it. 0 fits what's inside it.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
-<tr><td><code>columns</code></td><td>int</td><td>2</td><td>How many pieces go in a row before the next row starts.</td></tr>
-<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next, both ways.</td></tr>
-<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
-<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Where each piece sits in its cell: start is the top-left corner, end the bottom-right, stretch fills the cell.</td></tr>
-<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the rows go when the grid is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>The width, which the columns share. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>The height. 0 fits the pieces inside it.</td></tr>
+<tr><td><code>columns</code></td><td>int</td><td>2</td><td>The number of pieces in a row before the next row starts.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The space between one piece and the next, in both directions.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The space between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Where each piece is in its cell: start is the top-left corner, end is the bottom-right corner, and stretch fills the cell.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the rows go when the Grid is taller than they are: start (top), end (bottom) or spaceBetween (spread from edge to edge).</td></tr></tbody>
 </table></div>
 <h3 id="scroll"><a class="anchor" href="#scroll" aria-hidden="true">#</a>Scroll</h3>
-<p>A window onto a list longer than it is: it stacks the UI pieces inside it and scrolls them with the wheel, a drag or a flick.</p>
+<p>A rectangle that shows part of a list that is too long for it. It puts the UI pieces inside it in a line and scrolls them with the mouse wheel, a drag or a flick.</p>
 <p>Extends <a href="#ui">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>width</code></td><td>number (px)</td><td>240</td><td>Width (ignored with fill).</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>160</td><td>Height (ignored with fill).</td></tr>
-<tr><td><code>direction</code></td><td>enum</td><td>&quot;vertical&quot;</td><td>vertical stacks the pieces top to bottom, each as wide as the Scroll, and scrolls up and down. horizontal lines them up left to right and scrolls sideways.</td></tr>
-<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
-<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
-<tr><td><code>scrollX</code></td><td>number (px)</td><td>0</td><td>How far it's scrolled sideways (horizontal ones).</td></tr>
-<tr><td><code>scrollY</code></td><td>number (px)</td><td>0</td><td>How far down it's scrolled.</td></tr>
-<tr><td><code>scrollbar</code></td><td>bool</td><td>true</td><td>Shows a thin bar at the edge while there's more than fits.</td></tr>
-<tr><td><code>barColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The scrollbar's color.</td></tr></tbody>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>240</td><td>The width. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>160</td><td>The height. It has no effect when anchor is fill.</td></tr>
+<tr><td><code>direction</code></td><td>enum</td><td>&quot;vertical&quot;</td><td>vertical puts the pieces from top to bottom, each as wide as the Scroll, and scrolls up and down. horizontal puts them from left to right and scrolls sideways.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The space between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The space between its edges and the pieces inside.</td></tr>
+<tr><td><code>scrollX</code></td><td>number (px)</td><td>0</td><td>How far it has scrolled sideways (when direction is horizontal).</td></tr>
+<tr><td><code>scrollY</code></td><td>number (px)</td><td>0</td><td>How far it has scrolled down.</td></tr>
+<tr><td><code>scrollbar</code></td><td>bool</td><td>true</td><td>When this is on, a thin bar shows at the edge while some pieces do not fit.</td></tr>
+<tr><td><code>barColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The color of the scrollbar.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>scrollTo(piece)</code></td><td>Scrolls just far enough to show a piece inside it: List:scrollTo(List.Item20).</td></tr>
-<tr><td><code>scrollLimit()</code></td><td>How far it can scroll: the biggest scrollX and scrollY.</td></tr></tbody>
+<tbody><tr><td><code>scrollTo(piece)</code></td><td>Scrolls only as far as necessary to show a piece inside it: List:scrollTo(List.Item20).</td></tr>
+<tr><td><code>scrollLimit()</code></td><td>Returns how far it can scroll: the largest scrollX and scrollY.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function scrolled(x, y)</code></td><td>The player scrolled it.</td></tr></tbody>
+<tbody><tr><td><code>function scrolled(x, y)</code></td><td>The engine calls it when the player scrolls it.</td></tr></tbody>
 </table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
 <h3 id="sound-2"><a class="anchor" href="#sound-2" aria-hidden="true">#</a>Sound</h3>
-<p>Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song made in Smitten.</p>
+<p>Plays a sound or music: a .wav, .ogg or .mp3 file, or a .sfx or .song file that you make in Smitten.</p>
 <p>Extends <a href="#piece">Piece</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>sound</code></td><td>resource</td><td>&quot;&quot;</td><td>The sound file.</td></tr>
-<tr><td><code>autoplay</code></td><td>bool</td><td>false</td><td>Play when the scene starts.</td></tr>
-<tr><td><code>loop</code></td><td>bool</td><td>false</td><td>Start again at the end.</td></tr>
-<tr><td><code>volume</code></td><td>number</td><td>1</td><td>Loudness, 0 to 1.</td></tr>
-<tr><td><code>pitch</code></td><td>number</td><td>1</td><td>1 is normal; 2 is an octave up.</td></tr></tbody>
+<tr><td><code>autoplay</code></td><td>bool</td><td>false</td><td>When this is on, the sound plays when the scene starts.</td></tr>
+<tr><td><code>loop</code></td><td>bool</td><td>false</td><td>When this is on, the sound starts again at the end.</td></tr>
+<tr><td><code>volume</code></td><td>number</td><td>1</td><td>The loudness, from 0 to 1.</td></tr>
+<tr><td><code>pitch</code></td><td>number</td><td>1</td><td>1 is normal, 2 is one octave higher.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play()</code></td><td>Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song).</td></tr>
+<tbody><tr><td><code>play()</code></td><td>Plays the sound and returns its Source (see smitten.audio). If you call it while the sound plays, another copy starts (not for .song files).</td></tr>
 <tr><td><code>stop()</code></td><td>Stops every copy.</td></tr>
-<tr><td><code>pause()</code></td><td>Pauses.</td></tr>
-<tr><td><code>resume()</code></td><td>Continues after pause().</td></tr>
-<tr><td><code>isPlaying()</code></td><td>True while it's playing.</td></tr>
-<tr><td><code>fadeIn(seconds, volume?)</code></td><td>Plays from silence up to its volume (or volume) over some seconds.</td></tr>
-<tr><td><code>fadeOut(seconds)</code></td><td>Fades to silence, then stops; volume goes back to what it was.</td></tr>
-<tr><td><code>seek(seconds)</code></td><td>Jumps to a time in the sound.</td></tr>
-<tr><td><code>tell()</code></td><td>Where it's playing, in seconds.</td></tr>
-<tr><td><code>getDuration()</code></td><td>How long the sound is, in seconds.</td></tr></tbody>
+<tr><td><code>pause()</code></td><td>Pauses the sound.</td></tr>
+<tr><td><code>resume()</code></td><td>Continues the sound after pause().</td></tr>
+<tr><td><code>isPlaying()</code></td><td>Returns true while the sound plays.</td></tr>
+<tr><td><code>fadeIn(seconds, volume?)</code></td><td>Plays the sound from silence up to its volume property (or to the volume that you give) over some seconds.</td></tr>
+<tr><td><code>fadeOut(seconds)</code></td><td>Makes the sound quieter until it is silent, then stops it. Then the volume property goes back to its old value.</td></tr>
+<tr><td><code>seek(seconds)</code></td><td>Moves to a time in the sound.</td></tr>
+<tr><td><code>tell()</code></td><td>Returns the current play position, in seconds.</td></tr>
+<tr><td><code>getDuration()</code></td><td>Returns the length of the sound, in seconds.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function finished()</code></td><td>The sound reached its end (not when looping).</td></tr></tbody>
+<tbody><tr><td><code>function finished()</code></td><td>The engine calls it when the sound reaches its end (not when it loops).</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="api"><span>Previous</span>Script API</a><a class="next" href="engine"><span>Next</span>The engine table</a></nav>

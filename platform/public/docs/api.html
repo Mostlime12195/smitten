@@ -34,145 +34,145 @@
 <p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>pressed(action, player?)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button. With a player number, that player only: pressed(&quot;jump&quot;, 2).</td></tr>
-<tr><td><code>down(action, player?)</code></td><td>True while an action or input is held.</td></tr>
-<tr><td><code>released(action, player?)</code></td><td>True on the frame an action or input is let go.</td></tr>
-<tr><td><code>axis(negative, positive, player?)</code></td><td>-1 to 1 (in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
-<tr><td><code>vector(left, right, up, down, player?)</code></td><td>x, y of a direction, at most 1 long.</td></tr>
-<tr><td><code>mouse()</code></td><td>x, y of the mouse in the scene.</td></tr>
-<tr><td><code>mouseScreen()</code></td><td>x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
-<tr><td><code>wheel()</code></td><td>How far the mouse wheel turned this frame: x, y (y &gt; 0 is up).</td></tr>
-<tr><td><code>touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
-<tr><td><code>stick(side, player?)</code></td><td>A gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
-<tr><td><code>trigger(side, player?)</code></td><td>A gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
-<tr><td><code>vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads: vibrate(0.5, 0.2).</td></tr>
-<tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
+<tbody><tr><td><code>pressed(action, player?)</code></td><td>Returns true on the frame when the player presses an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;). pressed() alone checks every key and button. With a player number, it checks only that player: pressed(&quot;jump&quot;, 2).</td></tr>
+<tr><td><code>down(action, player?)</code></td><td>Returns true while the player holds an action or an input down.</td></tr>
+<tr><td><code>released(action, player?)</code></td><td>Returns true on the frame when the player lets go of an action or an input.</td></tr>
+<tr><td><code>axis(negative, positive, player?)</code></td><td>Returns a value from -1 to 1 (values in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>vector(left, right, up, down, player?)</code></td><td>Returns the x, y of a direction, with a length of 1 at most.</td></tr>
+<tr><td><code>mouse()</code></td><td>Returns the x, y of the mouse in the scene.</td></tr>
+<tr><td><code>mouseScreen()</code></td><td>Returns the x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
+<tr><td><code>wheel()</code></td><td>Returns how far the mouse wheel turned in this frame: x, y (y &gt; 0 is up).</td></tr>
+<tr><td><code>touches()</code></td><td>Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
+<tr><td><code>stick(side, player?)</code></td><td>Returns the position of a gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
+<tr><td><code>trigger(side, player?)</code></td><td>Returns the position of a gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
+<tr><td><code>vibrate(strength, seconds, player?)</code></td><td>Makes gamepads vibrate: vibrate(0.5, 0.2).</td></tr>
+<tr><td><code>typed()</code></td><td>Returns the text that the player typed in this frame (&quot;&quot; if none). It also turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
 <p>See <a href="scenes">Scenes and pieces</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
+<tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene. The extra values go to ready(...) of its root piece.</td></tr>
 <tr><td><code>reload()</code></td><td>Starts this scene again.</td></tr>
-<tr><td><code>transition(kind, seconds, color)</code></td><td>How go() changes scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
+<tr><td><code>transition(kind, seconds, color)</code></td><td>Sets how go() changes scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
 <tr><td><code>spawn(sceneOrType, properties, parent)</code></td><td>Makes a piece and adds it to the scene (self:spawn adds it inside this piece).</td></tr>
-<tr><td><code>make(sceneOrType, properties)</code></td><td>Makes a piece without adding it anywhere.</td></tr>
-<tr><td><code>tagged(tag)</code></td><td>Every piece with a tag.</td></tr>
-<tr><td><code>first(tag)</code></td><td>The first piece with a tag, or nil.</td></tr>
-<tr><td><code>root()</code></td><td>The scene's root piece.</td></tr>
-<tr><td><code>camera()</code></td><td>The camera in use, or nil.</td></tr>
-<tr><td><code>game</code></td><td>A table for the whole game, kept when the scene changes: game.score += 1.</td></tr>
+<tr><td><code>make(sceneOrType, properties)</code></td><td>Makes a piece but does not add it to the scene.</td></tr>
+<tr><td><code>tagged(tag)</code></td><td>Returns every piece with a tag.</td></tr>
+<tr><td><code>first(tag)</code></td><td>Returns the first piece with a tag, or nil.</td></tr>
+<tr><td><code>root()</code></td><td>Returns the root piece of the scene.</td></tr>
+<tr><td><code>camera()</code></td><td>Returns the camera in use, or nil.</td></tr>
+<tr><td><code>game</code></td><td>A table for the whole game. It stays when the scene changes: game.score += 1.</td></tr>
 <tr><td><code>pauseGame()</code></td><td>Pauses pieces and physics (pieces with pausable off keep running).</td></tr>
-<tr><td><code>resumeGame()</code></td><td>Unpauses.</td></tr>
-<tr><td><code>isPaused()</code></td><td>True while the game is paused.</td></tr>
-<tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
+<tr><td><code>resumeGame()</code></td><td>Ends the pause: pieces and physics continue.</td></tr>
+<tr><td><code>isPaused()</code></td><td>Returns true while the game is paused.</td></tr>
+<tr><td><code>timeScale(scale)</code></td><td>Sets how fast time goes: timeScale(0.5) is slow motion. timeScale() returns the current value.</td></tr></tbody>
 </table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
 <p>See <a href="sound">Sound and music</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
-<tr><td><code>music(name, options)</code></td><td>Plays music on a loop instead of the music playing: music(&quot;theme&quot;, { volume = 0.6, fade = 1 }).</td></tr>
-<tr><td><code>stopMusic(fade)</code></td><td>Stops the music, fading out over fade seconds if given.</td></tr>
+<tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once. sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere in the project. You can also give options: sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
+<tr><td><code>music(name, options)</code></td><td>Plays music in a loop, in place of the current music: music(&quot;theme&quot;, { volume = 0.6, fade = 1 }).</td></tr>
+<tr><td><code>stopMusic(fade)</code></td><td>Stops the music. If you give fade, the music fades out over fade seconds.</td></tr>
 <tr><td><code>pauseMusic()</code></td><td>Pauses the music.</td></tr>
 <tr><td><code>resumeMusic()</code></td><td>Continues the music.</td></tr>
-<tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
+<tr><td><code>masterVolume(volume)</code></td><td>Sets the volume of every sound, 0 to 1. masterVolume() returns the current value.</td></tr></tbody>
 </table></div>
 <h2 id="saving"><a class="anchor" href="#saving" aria-hidden="true">#</a>Saving</h2>
 <p>See <a href="saving">Saving</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>save(key, value)</code></td><td>Keeps a value between plays: save(&quot;best&quot;, score).</td></tr>
-<tr><td><code>load(key, default)</code></td><td>A saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
+<tr><td><code>load(key, default)</code></td><td>Returns a saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
 </table></div>
 <h2 id="time"><a class="anchor" href="#time" aria-hidden="true">#</a>Time</h2>
 <p>See <a href="scripts">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
+<tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event function or a task for some seconds.</td></tr>
 <tr><td><code>task(function)</code></td><td>Runs a function that can wait().</td></tr>
 <tr><td><code>after(seconds, function)</code></td><td>Calls a function once, after some seconds.</td></tr>
-<tr><td><code>every(seconds, function)</code></td><td>Calls a function every so many seconds, until it returns false.</td></tr>
+<tr><td><code>every(seconds, function)</code></td><td>Calls a function each time the given seconds pass, until it returns false.</td></tr>
 <tr><td><code>tween(target, seconds, values, easing)</code></td><td>Changes numbers smoothly: tween(self, 0.3, { y = 100 }).</td></tr>
-<tr><td><code>time()</code></td><td>Seconds since the game started.</td></tr></tbody>
+<tr><td><code>time()</code></td><td>Returns the seconds since the game started.</td></tr></tbody>
 </table></div>
 <h2 id="math"><a class="anchor" href="#math" aria-hidden="true">#</a>Math</h2>
 <p>See <a href="scripts">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>approach(value, target, step)</code></td><td>Moves a value towards a target by at most step.</td></tr>
-<tr><td><code>lerp(a, b, t)</code></td><td>Between a and b: t = 0 is a, 1 is b.</td></tr>
-<tr><td><code>clamp(value, min, max)</code></td><td>The value, kept between min and max.</td></tr>
-<tr><td><code>sign(value)</code></td><td>-1, 0 or 1.</td></tr>
-<tr><td><code>round(value, step)</code></td><td>Rounded to the nearest step (default 1).</td></tr>
-<tr><td><code>rnd(n)</code></td><td>rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items.</td></tr>
-<tr><td><code>choose(...)</code></td><td>One of its arguments, at random.</td></tr>
-<tr><td><code>dist(a, b)</code></td><td>The distance between two pieces, or dist(x1, y1, x2, y2).</td></tr>
-<tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither).</td></tr></tbody>
+<tbody><tr><td><code>approach(value, target, step)</code></td><td>Returns value, moved towards target by at most step.</td></tr>
+<tr><td><code>lerp(a, b, t)</code></td><td>Returns a value between a and b: t = 0 gives a, 1 gives b.</td></tr>
+<tr><td><code>clamp(value, min, max)</code></td><td>Returns value, kept between min and max.</td></tr>
+<tr><td><code>sign(value)</code></td><td>Returns -1, 0 or 1.</td></tr>
+<tr><td><code>round(value, step)</code></td><td>Returns value, rounded to the nearest step (1 if you leave it out).</td></tr>
+<tr><td><code>rnd(n)</code></td><td>rnd() returns 0 to 1. rnd(n) returns 0 to n. rnd(list) returns one of its items.</td></tr>
+<tr><td><code>choose(...)</code></td><td>Returns one of its arguments, at random.</td></tr>
+<tr><td><code>dist(a, b)</code></td><td>Returns the distance between two pieces, or between two points: dist(x1, y1, x2, y2).</td></tr>
+<tr><td><code>jumpSpeed(height, gravity)</code></td><td>Returns the upward speed for a jump of this height. It uses the gravity variable of the script, or the gravity that you give, or 1800 if there is neither.</td></tr></tbody>
 </table></div>
 <h2 id="physics"><a class="anchor" href="#physics" aria-hidden="true">#</a>Physics</h2>
 <p>See <a href="physics">Physics</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>raycast(x1, y1, x2, y2, tags)</code></td><td>The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them.</td></tr>
-<tr><td><code>raycastAll(x1, y1, x2, y2, tags)</code></td><td>Everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }.</td></tr>
-<tr><td><code>piecesAt(x, y, tags)</code></td><td>The bodies and zones whose shapes contain a point.</td></tr>
-<tr><td><code>overlap(kind, x, y, ...)</code></td><td>The bodies and zones touching a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, width, height).</td></tr>
-<tr><td><code>getGravity()</code></td><td>The scene's gravity: x, y in pixels per second per second.</td></tr>
-<tr><td><code>setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats everything.</td></tr></tbody>
+<tbody><tr><td><code>raycast(x1, y1, x2, y2, tags)</code></td><td>Returns the first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. If you give tags, it counts only pieces with one of them.</td></tr>
+<tr><td><code>raycastAll(x1, y1, x2, y2, tags)</code></td><td>Returns everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }.</td></tr>
+<tr><td><code>piecesAt(x, y, tags)</code></td><td>Returns the bodies and zones whose shapes contain a point.</td></tr>
+<tr><td><code>overlap(kind, x, y, ...)</code></td><td>Returns the bodies and zones that touch a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, width, height).</td></tr>
+<tr><td><code>getGravity()</code></td><td>Returns the gravity of the scene: x, y in pixels per second per second.</td></tr>
+<tr><td><code>setGravity(x, y)</code></td><td>Changes the gravity of the scene: setGravity(0, 0) makes everything float.</td></tr></tbody>
 </table></div>
 <h2 id="screen"><a class="anchor" href="#screen" aria-hidden="true">#</a>Screen</h2>
 <p>See <a href="settings">Project settings</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
-<tr><td><code>screenHeight()</code></td><td>The game's height, in game pixels.</td></tr>
-<tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen; fullscreen() is true while it does.</td></tr></tbody>
+<tbody><tr><td><code>screenWidth()</code></td><td>Returns the width of the game, in game pixels.</td></tr>
+<tr><td><code>screenHeight()</code></td><td>Returns the height of the game, in game pixels.</td></tr>
+<tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen. fullscreen() returns true while the game fills the screen.</td></tr></tbody>
 </table></div>
 <h2 id="drawing"><a class="anchor" href="#drawing" aria-hidden="true">#</a>Drawing</h2>
 <p>See <a href="drawing">Drawing</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>pen(r, g, b, a)</code></td><td>The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
-<tr><td><code>penSize(width)</code></td><td>How thick lines and outlines are.</td></tr>
-<tr><td><code>clearScreen(color)</code></td><td>Fills the whole screen with a color (the pen's if none).</td></tr>
-<tr><td><code>rect(x, y, w, h, fill)</code></td><td>A rectangle (fill = false for an outline).</td></tr>
-<tr><td><code>circle(x, y, radius, fill)</code></td><td>A circle (fill = false for an outline).</td></tr>
-<tr><td><code>oval(x, y, rx, ry, fill)</code></td><td>An ellipse.</td></tr>
-<tr><td><code>poly(points, fill)</code></td><td>A polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
-<tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>A line through points.</td></tr>
-<tr><td><code>dot(x, y)</code></td><td>One pixel.</td></tr>
-<tr><td><code>write(text, x, y, options)</code></td><td>Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
-<tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
+<tbody><tr><td><code>pen(r, g, b, a)</code></td><td>Sets the color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
+<tr><td><code>penSize(width)</code></td><td>Sets the thickness of lines and outlines.</td></tr>
+<tr><td><code>clearScreen(color)</code></td><td>Fills the whole screen with a color (with the pen color if you give none).</td></tr>
+<tr><td><code>rect(x, y, w, h, fill)</code></td><td>Draws a rectangle (fill = false for an outline).</td></tr>
+<tr><td><code>circle(x, y, radius, fill)</code></td><td>Draws a circle (fill = false for an outline).</td></tr>
+<tr><td><code>oval(x, y, rx, ry, fill)</code></td><td>Draws an ellipse.</td></tr>
+<tr><td><code>poly(points, fill)</code></td><td>Draws a polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
+<tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>Draws a line through points.</td></tr>
+<tr><td><code>dot(x, y)</code></td><td>Draws one pixel.</td></tr>
+<tr><td><code>write(text, x, y, options)</code></td><td>Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
+<tr><td><code>sprite(image, x, y, options)</code></td><td>Draws an image, or an animation frame of a sprite sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
 </table></div>
 <h2 id="script-functions"><a class="anchor" href="#script-functions" aria-hidden="true">#</a>Script functions</h2>
 <p>Called by the engine when a script defines them.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th>Pieces</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
-<tr><td><code>function update(dt)</code></td><td>Piece</td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
-<tr><td><code>function draw()</code></td><td>Piece</td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
-<tr><td><code>function removed()</code></td><td>Piece</td><td>The piece is leaving the scene.</td></tr>
-<tr><td><code>function hit(other, contact)</code></td><td>Body</td><td>Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse.</td></tr>
-<tr><td><code>function entered(zone)</code></td><td>Body, Zone</td><td>Body: It went into a zone. Zone: A body or zone came in.</td></tr>
-<tr><td><code>function exited(zone)</code></td><td>Body, Zone</td><td>Body: It left a zone. Zone: A body or zone left.</td></tr>
-<tr><td><code>function clicked()</code></td><td>Button, Panel, Picture</td><td>Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped.</td></tr>
-<tr><td><code>function touched()</code></td><td>TouchStick, TouchButton</td><td>TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it).</td></tr>
-<tr><td><code>function untouched()</code></td><td>TouchStick, TouchButton</td><td>TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off.</td></tr>
-<tr><td><code>function tick()</code></td><td>Timer</td><td>The countdown reached zero.</td></tr>
-<tr><td><code>function finished(animation)</code></td><td>Sprite, Text, Particles, Label, Sound</td><td>Sprite: A non-looping animation reached its last frame. Text: reveal() has shown the whole text. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Label: reveal() has shown the whole text. Sound: The sound reached its end (not when looping).</td></tr>
-<tr><td><code>function hovered()</code></td><td>UI</td><td>The pointer came over it (not Labels).</td></tr>
-<tr><td><code>function unhovered()</code></td><td>UI</td><td>The pointer left it.</td></tr>
-<tr><td><code>function revealed(index, char)</code></td><td>Text, Label</td><td>Text: reveal() showed one more character: play a blip, or wait at a full stop. Label: reveal() showed one more character: play a blip, or wait at a full stop.</td></tr>
-<tr><td><code>function eachCharacter(c)</code></td><td>Text, Label</td><td>Text: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. Label: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it.</td></tr>
-<tr><td><code>function linkPressed(name)</code></td><td>Label</td><td>A [link=name] in the text was clicked or tapped.</td></tr>
-<tr><td><code>function changed(text)</code></td><td>TextInput, Slider</td><td>TextInput: The text changed by typing, deleting or pasting (not when a script sets it). Slider: The player moved the slider (not when a script sets value).</td></tr>
-<tr><td><code>function toggled(checked)</code></td><td>Checkbox</td><td>It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked.</td></tr>
-<tr><td><code>function submitted(text)</code></td><td>TextInput</td><td>Enter was pressed (in a multiline one: Ctrl+Enter).</td></tr>
-<tr><td><code>function focused()</code></td><td>TextInput</td><td>It began being typed in.</td></tr>
-<tr><td><code>function blurred()</code></td><td>TextInput</td><td>It stopped being typed in: the focus went elsewhere, or Escape was pressed.</td></tr>
-<tr><td><code>function scrolled(x, y)</code></td><td>Scroll</td><td>The player scrolled it.</td></tr></tbody>
+<tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
+<tr><td><code>function update(dt)</code></td><td>Piece</td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function draw()</code></td><td>Piece</td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
+<tr><td><code>function removed()</code></td><td>Piece</td><td>The engine calls it when the piece leaves the scene.</td></tr>
+<tr><td><code>function hit(other, contact)</code></td><td>Body</td><td>The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse.</td></tr>
+<tr><td><code>function entered(zone)</code></td><td>Body, Zone</td><td>Body: The engine calls it when the body goes into a zone. Zone: The engine calls it when a body or zone comes in.</td></tr>
+<tr><td><code>function exited(zone)</code></td><td>Body, Zone</td><td>Body: The engine calls it when the body leaves a zone. Zone: The engine calls it when a body or zone leaves.</td></tr>
+<tr><td><code>function clicked()</code></td><td>Button, Panel, Picture</td><td>Button: The engine calls it when the player clicks or taps the button, or presses the accept action while the button has keyboard focus. Panel: The engine calls it when the player clicks or taps the panel (but not a button inside it). Picture: The engine calls it when the player clicks or taps the Picture.</td></tr>
+<tr><td><code>function touched()</code></td><td>TouchStick, TouchButton</td><td>TouchStick: The engine calls it when a finger touches the stick. TouchButton: The engine calls it when a finger presses the button (or slides onto it).</td></tr>
+<tr><td><code>function untouched()</code></td><td>TouchStick, TouchButton</td><td>TouchStick: The engine calls it when the finger lets go of the stick. TouchButton: The engine calls it when the finger lets go or slides off.</td></tr>
+<tr><td><code>function tick()</code></td><td>Timer</td><td>The engine calls it when the countdown reaches zero.</td></tr>
+<tr><td><code>function finished(animation)</code></td><td>Sprite, Text, Particles, Label, Sound</td><td>Sprite: The engine calls it when an animation that does not loop reaches its last animation frame. Text: The engine calls it when reveal() has shown all of the text. Particles: The engine calls it when the last particle is gone and no more particles will come (after a burst or stop()). Use it to destroy() the piece. Label: The engine calls it when reveal() has shown all of the text. Sound: The engine calls it when the sound reaches its end (not when it loops).</td></tr>
+<tr><td><code>function hovered()</code></td><td>UI</td><td>The engine calls it when the mouse pointer comes over it (not for Labels).</td></tr>
+<tr><td><code>function unhovered()</code></td><td>UI</td><td>The engine calls it when the mouse pointer leaves it.</td></tr>
+<tr><td><code>function revealed(index, char)</code></td><td>Text, Label</td><td>Text: The engine calls it when reveal() shows one more character. Use it to play a blip, or to wait at a full stop. Label: The engine calls it when reveal() shows one more character. Use it to play a blip, or to wait at a full stop.</td></tr>
+<tr><td><code>function eachCharacter(c)</code></td><td>Text, Label</td><td>Text: The engine calls it for every character each time it draws the text. Use it to move or color the character: c.y = math.sin(c.time * 4 + c.index) * 3. You can change x, y, rotation, scale, color, alpha and visible of c. You can read index, count, char, line, time and since. The engine uses the same table c for every character, so do not keep it. Label: The engine calls it for every character each time it draws the text. Use it to move or color the character: c.y = math.sin(c.time * 4 + c.index) * 3. You can change x, y, rotation, scale, color, alpha and visible of c. You can read index, count, char, line, time and since. The engine uses the same table c for every character, so do not keep it.</td></tr>
+<tr><td><code>function linkPressed(name)</code></td><td>Label</td><td>The engine calls it when the player clicks or taps a [link=name] in the text.</td></tr>
+<tr><td><code>function changed(text)</code></td><td>TextInput, Slider</td><td>TextInput: The engine calls it when the player changes the text by typing, deleting or pasting (not when a script sets the text). Slider: The engine calls it when the player moves the slider (not when a script sets value).</td></tr>
+<tr><td><code>function toggled(checked)</code></td><td>Checkbox</td><td>The engine calls it when the tick goes on or off. The cause can be the player, toggle(), or a tick on another checkbox in its group.</td></tr>
+<tr><td><code>function submitted(text)</code></td><td>TextInput</td><td>The engine calls it when the player presses Enter (in a multiline box: Ctrl+Enter).</td></tr>
+<tr><td><code>function focused()</code></td><td>TextInput</td><td>The engine calls it when the box gets keyboard focus.</td></tr>
+<tr><td><code>function blurred()</code></td><td>TextInput</td><td>The engine calls it when the box loses keyboard focus: the focus goes to something else, or the player presses Escape.</td></tr>
+<tr><td><code>function scrolled(x, y)</code></td><td>Scroll</td><td>The engine calls it when the player scrolls it.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="older-projects"><span>Previous</span>Older projects</a><a class="next" href="pieces"><span>Next</span>Pieces</a></nav>

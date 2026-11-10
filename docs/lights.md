@@ -202,39 +202,39 @@ costs anything until you use it.
 <!-- piece:Light -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `kind` | enum | "point" | point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned. |
-| `radius` | number (px) | 200 | How far the light reaches. |
+| `kind` | enum | "point" | point shines out from the position of the piece, as far as radius. sun lights the whole view from one side, in the direction that the piece points. |
+| `radius` | number (px) | 200 | How far the light goes. |
 | `brightness` | number | 1 | How strong the light is: 0 is dark, 2 is twice as bright. |
-| `color` | color | {1, 1, 1, 1} | The light's color. |
-| `image` | resource | "" | A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow. |
-| `blend` | enum | "add" | add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color. |
-| `off` | bool | false | Turn this light off. |
-| `lights` | tags | "" | Only lights pieces with one of these tags, and what's inside them (empty: every piece). |
-| `fromLayer` | number | none | Only lights pieces on this layer and higher (empty: no limit). |
-| `toLayer` | number | none | Only lights pieces on this layer and lower (empty: no limit). |
-| `shadows` | bool | false | Occluders, and Tiles with castShadows on, block this light. |
-| `shadowColor` | color | {0, 0, 0, 1} | What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows. |
-| `shadowSoftness` | number (px) | 0 | Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest. |
-| `shadowLength` | number (px) | 0 | How long a sun's shadows are; 0 for shadows that never end. |
-| `shadowsFrom` | tags | "" | Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside. |
+| `color` | color | {1, 1, 1, 1} | The color of the light. |
+| `image` | resource | "" | An image of the shape of the light, white where it shines: a beam, a window. If it is empty, the light is a soft round glow. |
+| `blend` | enum | "add" | add makes the pieces that it shines on brighter. subtract makes them darker (a dark patch). mix replaces the light that is there with the color of this light. |
+| `off` | bool | false | When this is on, the light is off. |
+| `lights` | tags | "" | The light shines only on pieces with one of these tags, and on what is inside them. If it is empty, it shines on every piece. |
+| `fromLayer` | number | none | The light shines only on pieces on this layer and higher. If it is empty, there is no limit. |
+| `toLayer` | number | none | The light shines only on pieces on this layer and lower. If it is empty, there is no limit. |
+| `shadows` | bool | false | When this is on, Occluders, and Tiles with castShadows on, block this light. |
+| `shadowColor` | color | {0, 0, 0, 1} | The part of the light that stays in a shadow: black is none. A transparent color makes weaker shadows. |
+| `shadowSoftness` | number (px) | 0 | Blurs the edges of the shadows by this distance. 0 keeps them sharp and is the fastest. |
+| `shadowLength` | number (px) | 0 | The length of the shadows of a sun. 0 makes shadows that never end. |
+| `shadowsFrom` | tags | "" | Only Occluders and Tiles with one of these tags block the light. If it is empty, all of them block it. The tag can be on the piece that holds the Occluder. |
 <!-- end -->
 
 <!-- piece:Occluder -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside. |
-| `width` | number (px) | 32 | Rectangle width. |
-| `height` | number (px) | 32 | Rectangle height. |
-| `radius` | number (px) | 16 | Circle radius. |
-| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... of the outline. |
-| `off` | bool | false | Let light through. |
+| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside it. If it has none, it fits the ones in the piece that it is inside. |
+| `width` | number (px) | 32 | The width of the rectangle. |
+| `height` | number (px) | 32 | The height of the rectangle. |
+| `radius` | number (px) | 16 | The radius of the circle. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... of the outline. |
+| `off` | bool | false | When this is on, light goes through it. |
 <!-- end -->
 
 <!-- piece:Tint -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `color` | color | {0.35, 0.4, 0.6, 1} | Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches. |
-| `off` | bool | false | Turn the tint off. |
-| `fromLayer` | number | none | Only tints pieces on this layer and higher (empty: no limit). |
-| `toLayer` | number | none | Only tints pieces on this layer and lower (empty: no limit). |
+| `color` | color | {0.35, 0.4, 0.6, 1} | The engine multiplies the colors of every piece by this color. White changes nothing. Black hides everything that no light reaches. |
+| `off` | bool | false | When this is on, the tint is off. |
+| `fromLayer` | number | none | The Tint colors only pieces on this layer and higher. If it is empty, there is no limit. |
+| `toLayer` | number | none | The Tint colors only pieces on this layer and lower. If it is empty, there is no limit. |
 <!-- end -->

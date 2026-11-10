@@ -99,20 +99,20 @@ local x, y = Hills:getScroll()
 <!-- piece:Background -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `scrollX` | number | 0.5 | How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front. |
-| `scrollY` | number | 0.5 | The same, up and down. |
-| `repeatWidth` | number (px) | 0 | Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture. |
-| `repeatHeight` | number (px) | 0 | Draws what's inside again every this many pixels up and down (0: once). |
-| `driftX` | number (px/s) | 0 | Slides sideways by itself at this speed, like clouds. Negative goes left. |
-| `driftY` | number (px/s) | 0 | Slides down by itself at this speed. Negative goes up. |
-| `offsetX` | number (px) | 0 | Shifts what's inside sideways. Change it from a script to scroll by hand. |
-| `offsetY` | number (px) | 0 | Shifts what's inside up or down. |
-| `left` | number (px) | none | Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge). |
-| `top` | number (px) | none | Stops scrolling its own way while the view is above this. |
-| `right` | number (px) | none | Stops scrolling its own way while the view is right of this. |
-| `bottom` | number (px) | none | Stops scrolling its own way while the view is below this. |
+| `scrollX` | number | 0.5 | How much it moves sideways when the camera moves. 1 moves with the scene, 0.5 moves half as much (far away), and 0 stays on the screen. Use more than 1 for things in front. |
+| `scrollY` | number | 0.5 | The same as scrollX, but up and down. |
+| `repeatWidth` | number (px) | 0 | The pieces inside repeat sideways at this distance, as far as the view goes. 0 draws them once. Use the width of the image. |
+| `repeatHeight` | number (px) | 0 | The pieces inside repeat up and down at this distance. 0 draws them once. |
+| `driftX` | number (px/s) | 0 | Moves sideways by itself at this speed, like clouds. A negative value moves it left. |
+| `driftY` | number (px/s) | 0 | Moves down by itself at this speed. A negative value moves it up. |
+| `offsetX` | number (px) | 0 | Moves the pieces inside sideways. Change it from a script to scroll by hand. |
+| `offsetY` | number (px) | 0 | Moves the pieces inside up or down. |
+| `left` | number (px) | none | While the view is left of this edge, the background stops its own scrolling and moves with the scene. If it is empty, there is no edge. |
+| `top` | number (px) | none | While the view is above this edge, the background stops its own scrolling and moves with the scene. |
+| `right` | number (px) | none | While the view is right of this edge, the background stops its own scrolling and moves with the scene. |
+| `bottom` | number (px) | none | While the view is below this edge, the background stops its own scrolling and moves with the scene. |
 
 | Method | |
 | --- | --- |
-| `getScroll()` | How far it is drawn from where it was placed, right now: x, y. |
+| `getScroll()` | Returns the current distance between where the engine draws it and where you put it: x, y. |
 <!-- end -->

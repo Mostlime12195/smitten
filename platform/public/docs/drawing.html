@@ -40,17 +40,17 @@
 <span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>pen(r, g, b, a)</code></td><td>The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
-<tr><td><code>penSize(width)</code></td><td>How thick lines and outlines are.</td></tr>
-<tr><td><code>clearScreen(color)</code></td><td>Fills the whole screen with a color (the pen's if none).</td></tr>
-<tr><td><code>rect(x, y, w, h, fill)</code></td><td>A rectangle (fill = false for an outline).</td></tr>
-<tr><td><code>circle(x, y, radius, fill)</code></td><td>A circle (fill = false for an outline).</td></tr>
-<tr><td><code>oval(x, y, rx, ry, fill)</code></td><td>An ellipse.</td></tr>
-<tr><td><code>poly(points, fill)</code></td><td>A polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
-<tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>A line through points.</td></tr>
-<tr><td><code>dot(x, y)</code></td><td>One pixel.</td></tr>
-<tr><td><code>write(text, x, y, options)</code></td><td>Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
-<tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
+<tbody><tr><td><code>pen(r, g, b, a)</code></td><td>Sets the color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen(&quot;#ff8800&quot;).</td></tr>
+<tr><td><code>penSize(width)</code></td><td>Sets the thickness of lines and outlines.</td></tr>
+<tr><td><code>clearScreen(color)</code></td><td>Fills the whole screen with a color (with the pen color if you give none).</td></tr>
+<tr><td><code>rect(x, y, w, h, fill)</code></td><td>Draws a rectangle (fill = false for an outline).</td></tr>
+<tr><td><code>circle(x, y, radius, fill)</code></td><td>Draws a circle (fill = false for an outline).</td></tr>
+<tr><td><code>oval(x, y, rx, ry, fill)</code></td><td>Draws an ellipse.</td></tr>
+<tr><td><code>poly(points, fill)</code></td><td>Draws a polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
+<tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>Draws a line through points.</td></tr>
+<tr><td><code>dot(x, y)</code></td><td>Draws one pixel.</td></tr>
+<tr><td><code>write(text, x, y, options)</code></td><td>Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
+<tr><td><code>sprite(image, x, y, options)</code></td><td>Draws an image, or an animation frame of a sprite sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
 </table></div>
 <h2 id="colors"><a class="anchor" href="#colors" aria-hidden="true">#</a>Colors</h2>
 <p><code>pen</code> sets the color for what you draw next: red, green, blue and alpha from 0 to 1 (<code>pen(1, 0.5, 0)</code>), a gray (<code>pen(0.5)</code>), a table like color settings use (<code>pen({1, 0, 0, 0.5})</code>), or a hex code (<code>pen(&quot;#ff8800&quot;)</code>). The piece's <code>tint</code> also colors everything it draws.</p>

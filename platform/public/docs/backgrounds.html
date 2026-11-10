@@ -68,22 +68,22 @@
 <ul><li>Backgrounds are for looks. A Body or Zone inside one collides where it was placed, not where it's drawn, and <code>worldPosition()</code> gives the placed position.</li><li>In a repeating Background, a Light or an Occluder shines or blocks in one copy only.</li><li>Particles inside a Background should have <code>followPiece</code> on, or they are drawn where they were made in the scene.</li><li>A Background inside a Background adds both movements.</li><li>A scene without a Background pays nothing for the feature.</li></ul>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>scrollX</code></td><td>number</td><td>0.5</td><td>How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front.</td></tr>
-<tr><td><code>scrollY</code></td><td>number</td><td>0.5</td><td>The same, up and down.</td></tr>
-<tr><td><code>repeatWidth</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture.</td></tr>
-<tr><td><code>repeatHeight</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels up and down (0: once).</td></tr>
-<tr><td><code>driftX</code></td><td>number (px/s)</td><td>0</td><td>Slides sideways by itself at this speed, like clouds. Negative goes left.</td></tr>
-<tr><td><code>driftY</code></td><td>number (px/s)</td><td>0</td><td>Slides down by itself at this speed. Negative goes up.</td></tr>
-<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside sideways. Change it from a script to scroll by hand.</td></tr>
-<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside up or down.</td></tr>
-<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge).</td></tr>
-<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is above this.</td></tr>
-<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is right of this.</td></tr>
-<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is below this.</td></tr></tbody>
+<tbody><tr><td><code>scrollX</code></td><td>number</td><td>0.5</td><td>How much it moves sideways when the camera moves. 1 moves with the scene, 0.5 moves half as much (far away), and 0 stays on the screen. Use more than 1 for things in front.</td></tr>
+<tr><td><code>scrollY</code></td><td>number</td><td>0.5</td><td>The same as scrollX, but up and down.</td></tr>
+<tr><td><code>repeatWidth</code></td><td>number (px)</td><td>0</td><td>The pieces inside repeat sideways at this distance, as far as the view goes. 0 draws them once. Use the width of the image.</td></tr>
+<tr><td><code>repeatHeight</code></td><td>number (px)</td><td>0</td><td>The pieces inside repeat up and down at this distance. 0 draws them once.</td></tr>
+<tr><td><code>driftX</code></td><td>number (px/s)</td><td>0</td><td>Moves sideways by itself at this speed, like clouds. A negative value moves it left.</td></tr>
+<tr><td><code>driftY</code></td><td>number (px/s)</td><td>0</td><td>Moves down by itself at this speed. A negative value moves it up.</td></tr>
+<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Moves the pieces inside sideways. Change it from a script to scroll by hand.</td></tr>
+<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Moves the pieces inside up or down.</td></tr>
+<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>While the view is left of this edge, the background stops its own scrolling and moves with the scene. If it is empty, there is no edge.</td></tr>
+<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>While the view is above this edge, the background stops its own scrolling and moves with the scene.</td></tr>
+<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>While the view is right of this edge, the background stops its own scrolling and moves with the scene.</td></tr>
+<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>While the view is below this edge, the background stops its own scrolling and moves with the scene.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getScroll()</code></td><td>How far it is drawn from where it was placed, right now: x, y.</td></tr></tbody>
+<tbody><tr><td><code>getScroll()</code></td><td>Returns the current distance between where the engine draws it and where you put it: x, y.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="camera"><span>Previous</span>Camera</a><a class="next" href="tiles"><span>Next</span>Tiles</a></nav>

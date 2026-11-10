@@ -36,19 +36,19 @@
 <span class="tk-k">end</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>pressed(action, player?)</code></td><td>True on the frame an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;) is pressed. pressed() alone: any key or button. With a player number, that player only: pressed(&quot;jump&quot;, 2).</td></tr>
-<tr><td><code>down(action, player?)</code></td><td>True while an action or input is held.</td></tr>
-<tr><td><code>released(action, player?)</code></td><td>True on the frame an action or input is let go.</td></tr>
-<tr><td><code>axis(negative, positive, player?)</code></td><td>-1 to 1 (in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
-<tr><td><code>vector(left, right, up, down, player?)</code></td><td>x, y of a direction, at most 1 long.</td></tr>
-<tr><td><code>mouse()</code></td><td>x, y of the mouse in the scene.</td></tr>
-<tr><td><code>mouseScreen()</code></td><td>x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
-<tr><td><code>wheel()</code></td><td>How far the mouse wheel turned this frame: x, y (y &gt; 0 is up).</td></tr>
-<tr><td><code>touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
-<tr><td><code>stick(side, player?)</code></td><td>A gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
-<tr><td><code>trigger(side, player?)</code></td><td>A gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
-<tr><td><code>vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads: vibrate(0.5, 0.2).</td></tr>
-<tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
+<tbody><tr><td><code>pressed(action, player?)</code></td><td>Returns true on the frame when the player presses an action (jump, left, fire...) or an input (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;). pressed() alone checks every key and button. With a player number, it checks only that player: pressed(&quot;jump&quot;, 2).</td></tr>
+<tr><td><code>down(action, player?)</code></td><td>Returns true while the player holds an action or an input down.</td></tr>
+<tr><td><code>released(action, player?)</code></td><td>Returns true on the frame when the player lets go of an action or an input.</td></tr>
+<tr><td><code>axis(negative, positive, player?)</code></td><td>Returns a value from -1 to 1 (values in between for sticks): axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>vector(left, right, up, down, player?)</code></td><td>Returns the x, y of a direction, with a length of 1 at most.</td></tr>
+<tr><td><code>mouse()</code></td><td>Returns the x, y of the mouse in the scene.</td></tr>
+<tr><td><code>mouseScreen()</code></td><td>Returns the x, y of the mouse on the screen, in game pixels (for UI).</td></tr>
+<tr><td><code>wheel()</code></td><td>Returns how far the mouse wheel turned in this frame: x, y (y &gt; 0 is up).</td></tr>
+<tr><td><code>touches()</code></td><td>Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
+<tr><td><code>stick(side, player?)</code></td><td>Returns the position of a gamepad stick, &quot;left&quot; or &quot;right&quot;: x, y from -1 to 1.</td></tr>
+<tr><td><code>trigger(side, player?)</code></td><td>Returns the position of a gamepad trigger, &quot;left&quot; or &quot;right&quot;: 0 to 1.</td></tr>
+<tr><td><code>vibrate(strength, seconds, player?)</code></td><td>Makes gamepads vibrate: vibrate(0.5, 0.2).</td></tr>
+<tr><td><code>typed()</code></td><td>Returns the text that the player typed in this frame (&quot;&quot; if none). It also turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="actions"><a class="anchor" href="#actions" aria-hidden="true">#</a>Actions</h2>
 <p>Every project starts with these. Change them, or add your own, in <strong>Project settings › Input</strong>.</p>
@@ -173,36 +173,36 @@ speed = <span class="tk-n">220</span>
 <h2 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.input.pressed(action, player?)</code></td><td>True on the frame the action went down: smitten.input.pressed(&quot;jump&quot;). With a player, that player only: smitten.input.pressed(&quot;jump&quot;, 2).</td></tr>
-<tr><td><code>smitten.input.down(action, player?)</code></td><td>True while the action is held.</td></tr>
-<tr><td><code>smitten.input.released(action, player?)</code></td><td>True on the frame the action went up.</td></tr>
-<tr><td><code>smitten.input.axis(negative, positive, player?)</code></td><td>From -1 to 1: smitten.input.axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
-<tr><td><code>smitten.input.vector(left, right, up, down, player?)</code></td><td>A direction at most 1 long: x, y.</td></tr>
-<tr><td><code>smitten.input.strength(action, player?)</code></td><td>How far the action is pushed, 0 to 1.</td></tr>
-<tr><td><code>smitten.input.bind(action, inputs, player?)</code></td><td>Adds an action: smitten.input.bind(&quot;dash&quot;, { &quot;lshift&quot;, &quot;pad:b&quot; }). With a player, the inputs are that player's own: bind(&quot;jump&quot;, { &quot;return&quot; }, 2).</td></tr>
-<tr><td><code>smitten.input.unbind(action, player?)</code></td><td>Removes an action, or a player's own inputs for it.</td></tr>
-<tr><td><code>smitten.input.bindings(action, player?)</code></td><td>The inputs bound to an action (with a player: the ones that player uses).</td></tr>
-<tr><td><code>smitten.input.actions()</code></td><td>Every action's name.</td></tr>
-<tr><td><code>smitten.input.lastPressed(player?)</code></td><td>The input pressed this frame (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;), or nil: for rebinding screens. With a player, only what that player pressed.</td></tr>
-<tr><td><code>smitten.input.lastPressedBy()</code></td><td>What was pressed this frame and where: the input's name, &quot;keyboard&quot;, &quot;mouse&quot; or &quot;gamepad&quot;, and the gamepad's number. For &quot;press a button to join&quot; screens.</td></tr>
-<tr><td><code>smitten.input.isInputName(name)</code></td><td>True if a name is an input: a key, &quot;mouse:1&quot;, &quot;pad:a&quot;, &quot;axis:leftx+&quot;, &quot;wheel:up&quot;.</td></tr>
-<tr><td><code>smitten.input.press(action, player?)</code></td><td>Presses an action from code, as if its key went down, until release(): for touch controls, replays and computer players.</td></tr>
-<tr><td><code>smitten.input.release(action, player?)</code></td><td>Lets go of an action pressed with press() or setStrength().</td></tr>
-<tr><td><code>smitten.input.setStrength(action, value, player?)</code></td><td>Pushes an action part of the way, 0 to 1, as a stick would: axis() and vector() give the fraction back.</td></tr>
-<tr><td><code>smitten.input.players()</code></td><td>How many players have something to play with: the keyboard, keys of their own or a gamepad.</td></tr>
-<tr><td><code>smitten.input.gamepadOf(player)</code></td><td>A player's gamepad: its number and the gamepad itself, or nil.</td></tr>
-<tr><td><code>smitten.input.assignGamepad(player, gamepad)</code></td><td>Gives a player a gamepad by its number: assignGamepad(1, 2). false: none. nil: back to gamepad 1 for player 1, 2 for player 2.</td></tr>
-<tr><td><code>smitten.input.assignKeyboard(player)</code></td><td>Gives a player the keyboard and the mouse (they start as player 1's). false: nobody's.</td></tr>
-<tr><td><code>smitten.input.keyboardOf()</code></td><td>The player with the keyboard and the mouse, or nil.</td></tr>
+<tbody><tr><td><code>smitten.input.pressed(action, player?)</code></td><td>Returns true on the frame when the action goes down: smitten.input.pressed(&quot;jump&quot;). With a player, it checks only that player: smitten.input.pressed(&quot;jump&quot;, 2).</td></tr>
+<tr><td><code>smitten.input.down(action, player?)</code></td><td>Returns true while the action is down.</td></tr>
+<tr><td><code>smitten.input.released(action, player?)</code></td><td>Returns true on the frame when the action goes up.</td></tr>
+<tr><td><code>smitten.input.axis(negative, positive, player?)</code></td><td>Returns a value from -1 to 1: smitten.input.axis(&quot;left&quot;, &quot;right&quot;).</td></tr>
+<tr><td><code>smitten.input.vector(left, right, up, down, player?)</code></td><td>Returns a direction with a length of 1 at most: x, y.</td></tr>
+<tr><td><code>smitten.input.strength(action, player?)</code></td><td>Returns how far down the action is, from 0 to 1.</td></tr>
+<tr><td><code>smitten.input.bind(action, inputs, player?)</code></td><td>Adds an action: smitten.input.bind(&quot;dash&quot;, { &quot;lshift&quot;, &quot;pad:b&quot; }). With a player, the bindings are only for that player: bind(&quot;jump&quot;, { &quot;return&quot; }, 2).</td></tr>
+<tr><td><code>smitten.input.unbind(action, player?)</code></td><td>Removes an action, or the bindings of one player for it.</td></tr>
+<tr><td><code>smitten.input.bindings(action, player?)</code></td><td>Returns the bindings of an action (with a player: the bindings that the player uses).</td></tr>
+<tr><td><code>smitten.input.actions()</code></td><td>Returns the names of all actions.</td></tr>
+<tr><td><code>smitten.input.lastPressed(player?)</code></td><td>Returns the input pressed in this frame (&quot;space&quot;, &quot;mouse:1&quot;, &quot;pad:a&quot;), or nil. Use it for screens that change bindings. With a player, it checks only that player.</td></tr>
+<tr><td><code>smitten.input.lastPressedBy()</code></td><td>Returns the input pressed in this frame and its device: the input name, &quot;keyboard&quot;, &quot;mouse&quot; or &quot;gamepad&quot;, and the gamepad number. Use it for &quot;press a button to join&quot; screens.</td></tr>
+<tr><td><code>smitten.input.isInputName(name)</code></td><td>Returns true if a name is an input: a key, &quot;mouse:1&quot;, &quot;pad:a&quot;, &quot;axis:leftx+&quot;, &quot;wheel:up&quot;.</td></tr>
+<tr><td><code>smitten.input.press(action, player?)</code></td><td>Presses an action from code, as if its key went down, until release(). Use it for on-screen touch buttons, replays and computer players.</td></tr>
+<tr><td><code>smitten.input.release(action, player?)</code></td><td>Lets go of an action that press() or setStrength() pressed.</td></tr>
+<tr><td><code>smitten.input.setStrength(action, value, player?)</code></td><td>Presses an action part of the way, from 0 to 1, as a stick does. axis() and vector() return the fraction.</td></tr>
+<tr><td><code>smitten.input.players()</code></td><td>Returns the number of players that have something to play with: the keyboard, their own keys or a gamepad.</td></tr>
+<tr><td><code>smitten.input.gamepadOf(player)</code></td><td>Returns the gamepad of a player: its number and the gamepad, or nil.</td></tr>
+<tr><td><code>smitten.input.assignGamepad(player, gamepad)</code></td><td>Gives a gamepad to a player by its number: assignGamepad(1, 2). false gives none. nil goes back to the default: gamepad 1 for player 1, gamepad 2 for player 2.</td></tr>
+<tr><td><code>smitten.input.assignKeyboard(player)</code></td><td>Gives the keyboard and the mouse to a player (at the start, they belong to player 1). false gives them to no player.</td></tr>
+<tr><td><code>smitten.input.keyboardOf()</code></td><td>Returns the player who has the keyboard and the mouse, or nil.</td></tr>
 <tr><td><code>smitten.input.on(event, fn)</code></td><td>Calls fn(number, gamepad) on &quot;gamepadadded&quot; or &quot;gamepadremoved&quot;. Returns a handle with :off().</td></tr>
-<tr><td><code>smitten.input.hasTouch()</code></td><td>True on a phone or a tablet, and on any screen once a finger has touched it.</td></tr>
-<tr><td><code>smitten.input.wheel()</code></td><td>How far the mouse wheel turned this frame: x, y.</td></tr>
-<tr><td><code>smitten.input.typed()</code></td><td>The text typed this frame; turns text input on.</td></tr>
-<tr><td><code>smitten.input.touches()</code></td><td>The fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
-<tr><td><code>smitten.input.gamepads()</code></td><td>How many gamepads are connected.</td></tr>
-<tr><td><code>smitten.input.stick(side, player?)</code></td><td>A gamepad stick (&quot;left&quot; or &quot;right&quot;): x, y from -1 to 1.</td></tr>
-<tr><td><code>smitten.input.trigger(side, player?)</code></td><td>A gamepad trigger (&quot;left&quot; or &quot;right&quot;): 0 to 1.</td></tr>
-<tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads (all, or one player's).</td></tr></tbody>
+<tr><td><code>smitten.input.hasTouch()</code></td><td>Returns true on a phone or a tablet, and on any screen after a finger touches it.</td></tr>
+<tr><td><code>smitten.input.wheel()</code></td><td>Returns how far the mouse wheel turned in this frame: x, y.</td></tr>
+<tr><td><code>smitten.input.typed()</code></td><td>Returns the text that the player typed in this frame. It also turns text input on.</td></tr>
+<tr><td><code>smitten.input.touches()</code></td><td>Returns the fingers on the screen: a list of { id, x, y, worldX, worldY }.</td></tr>
+<tr><td><code>smitten.input.gamepads()</code></td><td>Returns the number of connected gamepads.</td></tr>
+<tr><td><code>smitten.input.stick(side, player?)</code></td><td>Returns the position of a gamepad stick (&quot;left&quot; or &quot;right&quot;): x, y from -1 to 1.</td></tr>
+<tr><td><code>smitten.input.trigger(side, player?)</code></td><td>Returns the position of a gamepad trigger (&quot;left&quot; or &quot;right&quot;): 0 to 1.</td></tr>
+<tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Makes gamepads vibrate (all of them, or the gamepad of one player).</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="scenes"><span>Previous</span>Scenes and pieces</a><a class="next" href="sound"><span>Next</span>Sound and music</a></nav>

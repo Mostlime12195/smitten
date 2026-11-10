@@ -16,12 +16,12 @@ stopMusic(2)                               -- fades out over 2 seconds
 <!-- api:Sound -->
 | Call | |
 | --- | --- |
-| `sfx(name, volume, pitch)` | Plays a sound once: sfx("coin") finds coin.sfx (or .wav, .ogg...) anywhere; sfx("hit", { volume = 0.5, pitch = 1.2 }). |
-| `music(name, options)` | Plays music on a loop instead of the music playing: music("theme", { volume = 0.6, fade = 1 }). |
-| `stopMusic(fade)` | Stops the music, fading out over fade seconds if given. |
+| `sfx(name, volume, pitch)` | Plays a sound once. sfx("coin") finds coin.sfx (or .wav, .ogg...) anywhere in the project. You can also give options: sfx("hit", { volume = 0.5, pitch = 1.2 }). |
+| `music(name, options)` | Plays music in a loop, in place of the current music: music("theme", { volume = 0.6, fade = 1 }). |
+| `stopMusic(fade)` | Stops the music. If you give fade, the music fades out over fade seconds. |
 | `pauseMusic()` | Pauses the music. |
 | `resumeMusic()` | Continues the music. |
-| `masterVolume(volume)` | Every sound's volume, 0 to 1; masterVolume() reads it. |
+| `masterVolume(volume)` | Sets the volume of every sound, 0 to 1. masterVolume() returns the current value. |
 <!-- end -->
 
 ## Finding sounds
@@ -57,27 +57,27 @@ function ready() fadeIn(2) end   -- an alarm that swells in
 | Property | Type | Default | |
 | --- | --- | --- | --- |
 | `sound` | resource | "" | The sound file. |
-| `autoplay` | bool | false | Play when the scene starts. |
-| `loop` | bool | false | Start again at the end. |
-| `volume` | number | 1 | Loudness, 0 to 1. |
-| `pitch` | number | 1 | 1 is normal; 2 is an octave up. |
+| `autoplay` | bool | false | When this is on, the sound plays when the scene starts. |
+| `loop` | bool | false | When this is on, the sound starts again at the end. |
+| `volume` | number | 1 | The loudness, from 0 to 1. |
+| `pitch` | number | 1 | 1 is normal, 2 is one octave higher. |
 
 | Method | |
 | --- | --- |
-| `play()` | Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song). |
+| `play()` | Plays the sound and returns its Source (see smitten.audio). If you call it while the sound plays, another copy starts (not for .song files). |
 | `stop()` | Stops every copy. |
-| `pause()` | Pauses. |
-| `resume()` | Continues after pause(). |
-| `isPlaying()` | True while it's playing. |
-| `fadeIn(seconds, volume?)` | Plays from silence up to its volume (or volume) over some seconds. |
-| `fadeOut(seconds)` | Fades to silence, then stops; volume goes back to what it was. |
-| `seek(seconds)` | Jumps to a time in the sound. |
-| `tell()` | Where it's playing, in seconds. |
-| `getDuration()` | How long the sound is, in seconds. |
+| `pause()` | Pauses the sound. |
+| `resume()` | Continues the sound after pause(). |
+| `isPlaying()` | Returns true while the sound plays. |
+| `fadeIn(seconds, volume?)` | Plays the sound from silence up to its volume property (or to the volume that you give) over some seconds. |
+| `fadeOut(seconds)` | Makes the sound quieter until it is silent, then stops it. Then the volume property goes back to its old value. |
+| `seek(seconds)` | Moves to a time in the sound. |
+| `tell()` | Returns the current play position, in seconds. |
+| `getDuration()` | Returns the length of the sound, in seconds. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function finished()` | The sound reached its end (not when looping). |
+| `function finished()` | The engine calls it when the sound reaches its end (not when it loops). |
 <!-- end -->
 
 ## smitten.audio
@@ -86,11 +86,11 @@ function ready() fadeIn(2) end   -- an alarm that swells in
 | Function | |
 | --- | --- |
 | `smitten.audio.sfx(name, volume?, pitch?)` | Plays a sound once by name or path: smitten.audio.sfx("coin", { volume = 0.5 }). |
-| `smitten.audio.music(name, options?)` | Plays music on a loop instead of the music playing; options: volume, pitch, fade. |
-| `smitten.audio.stopMusic(fade?)` | Stops the music, fading out over fade seconds if given. |
+| `smitten.audio.music(name, options?)` | Plays music in a loop, in place of the current music. options: volume, pitch, fade. |
+| `smitten.audio.stopMusic(fade?)` | Stops the music. If you give fade, the music fades out over fade seconds. |
 | `smitten.audio.pauseMusic()` | Pauses the music. |
 | `smitten.audio.resumeMusic()` | Continues the music. |
-| `smitten.audio.getMusic()` | The Source playing the music, or nil. |
+| `smitten.audio.getMusic()` | Returns the Source that plays the music, or nil. |
 <!-- end -->
 
 `smitten.synth.sfx(path)` and `smitten.synth.song(path)` load `.sfx` and

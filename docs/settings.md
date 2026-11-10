@@ -55,9 +55,9 @@ the edges, and use `smitten.display`'s `viewX`, `viewY`, `viewWidth` and
 <!-- api:Screen -->
 | Call | |
 | --- | --- |
-| `screenWidth()` | The game's width, in game pixels. |
-| `screenHeight()` | The game's height, in game pixels. |
-| `fullscreen(on)` | fullscreen(true) fills the screen; fullscreen() is true while it does. |
+| `screenWidth()` | Returns the width of the game, in game pixels. |
+| `screenHeight()` | Returns the height of the game, in game pixels. |
+| `fullscreen(on)` | fullscreen(true) fills the screen. fullscreen() returns true while the game fills the screen. |
 <!-- end -->
 
 Browsers only allow fullscreen right after a click or key press, so call
@@ -66,9 +66,9 @@ Browsers only allow fullscreen right after a click or key press, so call
 <!-- module:display -->
 | Function | |
 | --- | --- |
-| `smitten.display.toGame(x, y)` | Window coordinates to game coordinates. |
-| `smitten.display.toWindow(x, y)` | Game coordinates to window coordinates. |
-| `smitten.display.getWindowRect()` | The game's area in the window: x, y, width, height. |
+| `smitten.display.toGame(x, y)` | Takes window coordinates and returns game coordinates. |
+| `smitten.display.toWindow(x, y)` | Takes game coordinates and returns window coordinates. |
+| `smitten.display.getWindowRect()` | Returns the area of the game in the window: x, y, width, height. |
 
 Fields: `width`, `height`, `viewX`, `viewY`, `viewWidth`, `viewHeight`, `scale`, `stretch`, `filter`, `antialias`, `background`.
 <!-- end -->

@@ -46,7 +46,7 @@ best = <span class="tk-n">0</span>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>save(key, value)</code></td><td>Keeps a value between plays: save(&quot;best&quot;, score).</td></tr>
-<tr><td><code>load(key, default)</code></td><td>A saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
+<tr><td><code>load(key, default)</code></td><td>Returns a saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
 </table></div>
 <p>Saved values can be numbers, text, true/false and tables of those, so a whole save game fits in one table:</p>
 <pre><code class="lang-lua"><span class="tk-f">save</span>(<span class="tk-s">&quot;progress&quot;</span>, { level = <span class="tk-n">3</span>, coins = <span class="tk-n">120</span>, unlocked = { <span class="tk-s">&quot;dash&quot;</span> } })
@@ -57,9 +57,9 @@ best = <span class="tk-n">0</span>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.storage.save(key, value)</code></td><td>Saves a value between plays: smitten.storage.save(&quot;best&quot;, score).</td></tr>
-<tr><td><code>smitten.storage.load(key, default?)</code></td><td>A saved value, or default.</td></tr>
-<tr><td><code>smitten.storage.remove(key)</code></td><td>Forgets a saved value.</td></tr>
-<tr><td><code>smitten.storage.keys()</code></td><td>Every saved value's name.</td></tr></tbody>
+<tr><td><code>smitten.storage.load(key, default?)</code></td><td>Returns a saved value, or default.</td></tr>
+<tr><td><code>smitten.storage.remove(key)</code></td><td>Deletes a saved value.</td></tr>
+<tr><td><code>smitten.storage.keys()</code></td><td>Returns the names of all saved values.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="pathfinding"><span>Previous</span>Pathfinding</a><a class="next" href="drawing"><span>Next</span>Drawing</a></nav>

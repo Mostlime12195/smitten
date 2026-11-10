@@ -81,11 +81,11 @@ game's boards.
 <!-- module:boards -->
 | Function | |
 | --- | --- |
-| `smitten.boards.available()` | True while the game runs on its page on the games site and has leaderboards there. False in the editor and in exported games. |
-| `smitten.boards.submit(key, value, options?, callback?)` | Sends a score to a leaderboard: smitten.boards.submit("best", score). options: { name = "Ada" } for someone not signed in. Answers { rank, value, improved }, or nil and why. |
-| `smitten.boards.top(key, count?, callback?)` | The best scores, best first: a list of { rank, name, value, me, guest } (10 unless count says, 100 at most), or nil and why. |
-| `smitten.boards.around(key, count?, callback?)` | The scores around the player's own (the top, if they have none). |
-| `smitten.boards.list(callback?)` | The game's leaderboards: a list of { key, title, order, format, unit, scores }. |
+| `smitten.boards.available()` | Returns true while the game runs on its page on the games site and has leaderboards there. Returns false in the editor and in exported games. |
+| `smitten.boards.submit(key, value, options?, callback?)` | Sends a score to a leaderboard: smitten.boards.submit("best", score). options: { name = "Ada" } for a player who is not signed in. The result is { rank, value, improved }, or nil and the reason. |
+| `smitten.boards.top(key, count?, callback?)` | Returns the best scores, best first: a list of { rank, name, value, me, guest }, or nil and the reason. count is 10 if you leave it out, and 100 at most. |
+| `smitten.boards.around(key, count?, callback?)` | Returns the scores around the score of the player (the top scores, if the player has no score). |
+| `smitten.boards.list(callback?)` | Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }. |
 <!-- end -->
 
 ### From update()

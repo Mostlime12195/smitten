@@ -37,12 +37,12 @@
 <span class="tk-f">stopMusic</span>(<span class="tk-n">2</span>)                               <span class="tk-c">-- fades out over 2 seconds</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
-<tr><td><code>music(name, options)</code></td><td>Plays music on a loop instead of the music playing: music(&quot;theme&quot;, { volume = 0.6, fade = 1 }).</td></tr>
-<tr><td><code>stopMusic(fade)</code></td><td>Stops the music, fading out over fade seconds if given.</td></tr>
+<tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once. sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere in the project. You can also give options: sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
+<tr><td><code>music(name, options)</code></td><td>Plays music in a loop, in place of the current music: music(&quot;theme&quot;, { volume = 0.6, fade = 1 }).</td></tr>
+<tr><td><code>stopMusic(fade)</code></td><td>Stops the music. If you give fade, the music fades out over fade seconds.</td></tr>
 <tr><td><code>pauseMusic()</code></td><td>Pauses the music.</td></tr>
 <tr><td><code>resumeMusic()</code></td><td>Continues the music.</td></tr>
-<tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
+<tr><td><code>masterVolume(volume)</code></td><td>Sets the volume of every sound, 0 to 1. masterVolume() returns the current value.</td></tr></tbody>
 </table></div>
 <h2 id="finding-sounds"><a class="anchor" href="#finding-sounds" aria-hidden="true">#</a>Finding sounds</h2>
 <p>Give a bare name like <code>&quot;coin&quot;</code> and Smitten finds the sound with that name anywhere in your project. If several files share the name, <code>.sfx</code> wins. A full path like <code>&quot;sounds/coin.wav&quot;</code> plays exactly that file.</p>
@@ -55,37 +55,37 @@
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>sound</code></td><td>resource</td><td>&quot;&quot;</td><td>The sound file.</td></tr>
-<tr><td><code>autoplay</code></td><td>bool</td><td>false</td><td>Play when the scene starts.</td></tr>
-<tr><td><code>loop</code></td><td>bool</td><td>false</td><td>Start again at the end.</td></tr>
-<tr><td><code>volume</code></td><td>number</td><td>1</td><td>Loudness, 0 to 1.</td></tr>
-<tr><td><code>pitch</code></td><td>number</td><td>1</td><td>1 is normal; 2 is an octave up.</td></tr></tbody>
+<tr><td><code>autoplay</code></td><td>bool</td><td>false</td><td>When this is on, the sound plays when the scene starts.</td></tr>
+<tr><td><code>loop</code></td><td>bool</td><td>false</td><td>When this is on, the sound starts again at the end.</td></tr>
+<tr><td><code>volume</code></td><td>number</td><td>1</td><td>The loudness, from 0 to 1.</td></tr>
+<tr><td><code>pitch</code></td><td>number</td><td>1</td><td>1 is normal, 2 is one octave higher.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>play()</code></td><td>Plays it and returns its Source (see smitten.audio). Calling it while playing starts another copy (not for .song).</td></tr>
+<tbody><tr><td><code>play()</code></td><td>Plays the sound and returns its Source (see smitten.audio). If you call it while the sound plays, another copy starts (not for .song files).</td></tr>
 <tr><td><code>stop()</code></td><td>Stops every copy.</td></tr>
-<tr><td><code>pause()</code></td><td>Pauses.</td></tr>
-<tr><td><code>resume()</code></td><td>Continues after pause().</td></tr>
-<tr><td><code>isPlaying()</code></td><td>True while it's playing.</td></tr>
-<tr><td><code>fadeIn(seconds, volume?)</code></td><td>Plays from silence up to its volume (or volume) over some seconds.</td></tr>
-<tr><td><code>fadeOut(seconds)</code></td><td>Fades to silence, then stops; volume goes back to what it was.</td></tr>
-<tr><td><code>seek(seconds)</code></td><td>Jumps to a time in the sound.</td></tr>
-<tr><td><code>tell()</code></td><td>Where it's playing, in seconds.</td></tr>
-<tr><td><code>getDuration()</code></td><td>How long the sound is, in seconds.</td></tr></tbody>
+<tr><td><code>pause()</code></td><td>Pauses the sound.</td></tr>
+<tr><td><code>resume()</code></td><td>Continues the sound after pause().</td></tr>
+<tr><td><code>isPlaying()</code></td><td>Returns true while the sound plays.</td></tr>
+<tr><td><code>fadeIn(seconds, volume?)</code></td><td>Plays the sound from silence up to its volume property (or to the volume that you give) over some seconds.</td></tr>
+<tr><td><code>fadeOut(seconds)</code></td><td>Makes the sound quieter until it is silent, then stops it. Then the volume property goes back to its old value.</td></tr>
+<tr><td><code>seek(seconds)</code></td><td>Moves to a time in the sound.</td></tr>
+<tr><td><code>tell()</code></td><td>Returns the current play position, in seconds.</td></tr>
+<tr><td><code>getDuration()</code></td><td>Returns the length of the sound, in seconds.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function finished()</code></td><td>The sound reached its end (not when looping).</td></tr></tbody>
+<tbody><tr><td><code>function finished()</code></td><td>The engine calls it when the sound reaches its end (not when it loops).</td></tr></tbody>
 </table></div>
 <h2 id="smitten-audio"><a class="anchor" href="#smitten-audio" aria-hidden="true">#</a>smitten.audio</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.audio.sfx(name, volume?, pitch?)</code></td><td>Plays a sound once by name or path: smitten.audio.sfx(&quot;coin&quot;, { volume = 0.5 }).</td></tr>
-<tr><td><code>smitten.audio.music(name, options?)</code></td><td>Plays music on a loop instead of the music playing; options: volume, pitch, fade.</td></tr>
-<tr><td><code>smitten.audio.stopMusic(fade?)</code></td><td>Stops the music, fading out over fade seconds if given.</td></tr>
+<tr><td><code>smitten.audio.music(name, options?)</code></td><td>Plays music in a loop, in place of the current music. options: volume, pitch, fade.</td></tr>
+<tr><td><code>smitten.audio.stopMusic(fade?)</code></td><td>Stops the music. If you give fade, the music fades out over fade seconds.</td></tr>
 <tr><td><code>smitten.audio.pauseMusic()</code></td><td>Pauses the music.</td></tr>
 <tr><td><code>smitten.audio.resumeMusic()</code></td><td>Continues the music.</td></tr>
-<tr><td><code>smitten.audio.getMusic()</code></td><td>The Source playing the music, or nil.</td></tr></tbody>
+<tr><td><code>smitten.audio.getMusic()</code></td><td>Returns the Source that plays the music, or nil.</td></tr></tbody>
 </table></div>
 <p><code>smitten.synth.sfx(path)</code> and <code>smitten.synth.song(path)</code> load <code>.sfx</code> and <code>.song</code> files as objects you can play and stop yourself (<a href="formats#sound-effects-in-code">File formats</a>).</p>
     </article>

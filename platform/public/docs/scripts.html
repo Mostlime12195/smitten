@@ -108,12 +108,12 @@ right here, if only this function uses it).</code></pre>
 <p><code>update()</code>, <code>physicsUpdate()</code> and <code>draw()</code> run every frame, so they can't wait. Start a <code>task</code> from them instead, or use <code>after</code>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
+<tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event function or a task for some seconds.</td></tr>
 <tr><td><code>task(function)</code></td><td>Runs a function that can wait().</td></tr>
 <tr><td><code>after(seconds, function)</code></td><td>Calls a function once, after some seconds.</td></tr>
-<tr><td><code>every(seconds, function)</code></td><td>Calls a function every so many seconds, until it returns false.</td></tr>
+<tr><td><code>every(seconds, function)</code></td><td>Calls a function each time the given seconds pass, until it returns false.</td></tr>
 <tr><td><code>tween(target, seconds, values, easing)</code></td><td>Changes numbers smoothly: tween(self, 0.3, { y = 100 }).</td></tr>
-<tr><td><code>time()</code></td><td>Seconds since the game started.</td></tr></tbody>
+<tr><td><code>time()</code></td><td>Returns the seconds since the game started.</td></tr></tbody>
 </table></div>
 <p>A piece's waits, timers and tweens end when the piece is destroyed or the scene changes, and pause while the game is paused. <code>after</code>, <code>every</code> and <code>tween</code> return a handle with <code>:cancel()</code>, and a tween's <code>:after(fn)</code> runs when it finishes.</p>
 <pre><code class="lang-lua"><span class="tk-f">tween</span>(self, <span class="tk-n">0.4</span>, { y = y - <span class="tk-n">40</span> }, <span class="tk-s">&quot;outBack&quot;</span>)   <span class="tk-c">-- hop up 40 pixels</span></code></pre>
@@ -121,15 +121,15 @@ right here, if only this function uses it).</code></pre>
 <h2 id="math-helpers"><a class="anchor" href="#math-helpers" aria-hidden="true">#</a>Math helpers</h2>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>approach(value, target, step)</code></td><td>Moves a value towards a target by at most step.</td></tr>
-<tr><td><code>lerp(a, b, t)</code></td><td>Between a and b: t = 0 is a, 1 is b.</td></tr>
-<tr><td><code>clamp(value, min, max)</code></td><td>The value, kept between min and max.</td></tr>
-<tr><td><code>sign(value)</code></td><td>-1, 0 or 1.</td></tr>
-<tr><td><code>round(value, step)</code></td><td>Rounded to the nearest step (default 1).</td></tr>
-<tr><td><code>rnd(n)</code></td><td>rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items.</td></tr>
-<tr><td><code>choose(...)</code></td><td>One of its arguments, at random.</td></tr>
-<tr><td><code>dist(a, b)</code></td><td>The distance between two pieces, or dist(x1, y1, x2, y2).</td></tr>
-<tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither).</td></tr></tbody>
+<tbody><tr><td><code>approach(value, target, step)</code></td><td>Returns value, moved towards target by at most step.</td></tr>
+<tr><td><code>lerp(a, b, t)</code></td><td>Returns a value between a and b: t = 0 gives a, 1 gives b.</td></tr>
+<tr><td><code>clamp(value, min, max)</code></td><td>Returns value, kept between min and max.</td></tr>
+<tr><td><code>sign(value)</code></td><td>Returns -1, 0 or 1.</td></tr>
+<tr><td><code>round(value, step)</code></td><td>Returns value, rounded to the nearest step (1 if you leave it out).</td></tr>
+<tr><td><code>rnd(n)</code></td><td>rnd() returns 0 to 1. rnd(n) returns 0 to n. rnd(list) returns one of its items.</td></tr>
+<tr><td><code>choose(...)</code></td><td>Returns one of its arguments, at random.</td></tr>
+<tr><td><code>dist(a, b)</code></td><td>Returns the distance between two pieces, or between two points: dist(x1, y1, x2, y2).</td></tr>
+<tr><td><code>jumpSpeed(height, gravity)</code></td><td>Returns the upward speed for a jump of this height. It uses the gravity variable of the script, or the gravity that you give, or 1800 if there is neither.</td></tr></tbody>
 </table></div>
 <p>There's more in <a href="engine"><code>smitten.math</code></a>.</p>
 <h2 id="smitten-s-lua"><a class="anchor" href="#smitten-s-lua" aria-hidden="true">#</a>Smitten's Lua</h2>

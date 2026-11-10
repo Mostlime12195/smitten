@@ -58,20 +58,20 @@ Enemies:<span class="tk-f">add</span>(enemy)
 <p><code>destroy()</code> removes a piece and everything inside it at the end of the frame. <code>remove()</code> takes a piece out straight away without destroying it, so you can <code>add</code> it somewhere else.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene; extra values go to its root's ready(...).</td></tr>
+<tbody><tr><td><code>go(scene, ...)</code></td><td>Goes to another scene. The extra values go to ready(...) of its root piece.</td></tr>
 <tr><td><code>reload()</code></td><td>Starts this scene again.</td></tr>
-<tr><td><code>transition(kind, seconds, color)</code></td><td>How go() changes scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
+<tr><td><code>transition(kind, seconds, color)</code></td><td>Sets how go() changes scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
 <tr><td><code>spawn(sceneOrType, properties, parent)</code></td><td>Makes a piece and adds it to the scene (self:spawn adds it inside this piece).</td></tr>
-<tr><td><code>make(sceneOrType, properties)</code></td><td>Makes a piece without adding it anywhere.</td></tr>
-<tr><td><code>tagged(tag)</code></td><td>Every piece with a tag.</td></tr>
-<tr><td><code>first(tag)</code></td><td>The first piece with a tag, or nil.</td></tr>
-<tr><td><code>root()</code></td><td>The scene's root piece.</td></tr>
-<tr><td><code>camera()</code></td><td>The camera in use, or nil.</td></tr>
-<tr><td><code>game</code></td><td>A table for the whole game, kept when the scene changes: game.score += 1.</td></tr>
+<tr><td><code>make(sceneOrType, properties)</code></td><td>Makes a piece but does not add it to the scene.</td></tr>
+<tr><td><code>tagged(tag)</code></td><td>Returns every piece with a tag.</td></tr>
+<tr><td><code>first(tag)</code></td><td>Returns the first piece with a tag, or nil.</td></tr>
+<tr><td><code>root()</code></td><td>Returns the root piece of the scene.</td></tr>
+<tr><td><code>camera()</code></td><td>Returns the camera in use, or nil.</td></tr>
+<tr><td><code>game</code></td><td>A table for the whole game. It stays when the scene changes: game.score += 1.</td></tr>
 <tr><td><code>pauseGame()</code></td><td>Pauses pieces and physics (pieces with pausable off keep running).</td></tr>
-<tr><td><code>resumeGame()</code></td><td>Unpauses.</td></tr>
-<tr><td><code>isPaused()</code></td><td>True while the game is paused.</td></tr>
-<tr><td><code>timeScale(scale)</code></td><td>How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it.</td></tr></tbody>
+<tr><td><code>resumeGame()</code></td><td>Ends the pause: pieces and physics continue.</td></tr>
+<tr><td><code>isPaused()</code></td><td>Returns true while the game is paused.</td></tr>
+<tr><td><code>timeScale(scale)</code></td><td>Sets how fast time goes: timeScale(0.5) is slow motion. timeScale() returns the current value.</td></tr></tbody>
 </table></div>
 <h2 id="changing-scenes"><a class="anchor" href="#changing-scenes" aria-hidden="true">#</a>Changing scenes</h2>
 <p><code>go(&quot;scenes/level2.scene&quot;)</code> switches to another scene at the end of the frame. Any extra values are handed to the new scene's root, in its <code>ready(...)</code>:</p>
@@ -99,35 +99,35 @@ Enemies:<span class="tk-f">add</span>(enemy)
 <h2 id="every-piece"><a class="anchor" href="#every-piece" aria-hidden="true">#</a>Every piece</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused. Off: this piece and its children keep running (pause menus).</td></tr></tbody>
+<tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>When this is on, the piece stops while the game is paused. When it is off, this piece and its children keep running (for pause menus).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>find(path)</code></td><td>A child by name, or a deeper piece by path (&quot;UI/Score&quot;); nil if there isn't one.</td></tr>
-<tr><td><code>findDeep(name)</code></td><td>The first piece with this name anywhere inside this one.</td></tr>
-<tr><td><code>findChildOfType(type)</code></td><td>The first child of a type (&quot;Sprite&quot;), or nil.</td></tr>
-<tr><td><code>isA(type)</code></td><td>True if the piece is of a type, or a type made from it.</td></tr>
-<tr><td><code>add(piece)</code></td><td>Adds a piece as the last child; returns it.</td></tr>
-<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, without destroying it.</td></tr>
-<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or type and adds it as a child.</td></tr>
+<tbody><tr><td><code>find(path)</code></td><td>Returns a child by name, or a piece deeper inside by path (&quot;UI/Score&quot;). Returns nil if there is no such piece.</td></tr>
+<tr><td><code>findDeep(name)</code></td><td>Returns the first piece with this name at any depth inside this piece.</td></tr>
+<tr><td><code>findChildOfType(type)</code></td><td>Returns the first child of a piece type (&quot;Sprite&quot;), or nil.</td></tr>
+<tr><td><code>isA(type)</code></td><td>Returns true if the piece is of a piece type, or of a type that extends it.</td></tr>
+<tr><td><code>add(piece)</code></td><td>Adds a piece as the last child and returns it.</td></tr>
+<tr><td><code>remove()</code></td><td>Takes the piece out of its parent now, but does not destroy it.</td></tr>
+<tr><td><code>spawn(sceneOrType, properties?)</code></td><td>Makes a piece from a scene file or a piece type and adds it as a child.</td></tr>
 <tr><td><code>destroy()</code></td><td>Removes the piece and everything inside it at the end of the frame.</td></tr>
 <tr><td><code>tag(name)</code></td><td>Adds a tag.</td></tr>
-<tr><td><code>untag(name)</code></td><td>Takes a tag away.</td></tr>
-<tr><td><code>hasTag(name)</code></td><td>True if the piece has the tag.</td></tr>
-<tr><td><code>hasAnyTag(tags)</code></td><td>True if the piece has any of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
-<tr><td><code>is(tagOrType)</code></td><td>True if the piece has the tag or is of the type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
-<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) on an event. Returns a handle with :off().</td></tr>
-<tr><td><code>emit(event, ...)</code></td><td>Fires an event: calls the script's function of that name and every listener.</td></tr>
-<tr><td><code>getPath()</code></td><td>The piece's path from the scene's root, like &quot;Level/Player&quot;.</td></tr>
-<tr><td><code>isAlive()</code></td><td>True while the piece is in the running scene and not destroyed.</td></tr></tbody>
+<tr><td><code>untag(name)</code></td><td>Removes a tag.</td></tr>
+<tr><td><code>hasTag(name)</code></td><td>Returns true if the piece has the tag.</td></tr>
+<tr><td><code>hasAnyTag(tags)</code></td><td>Returns true if the piece has one or more of the tags in a comma-separated list: hasAnyTag(&quot;enemy, spikes&quot;).</td></tr>
+<tr><td><code>is(tagOrType)</code></td><td>Returns true if the piece has the tag or is of the piece type: other:is(&quot;enemy&quot;), other:is(&quot;Body&quot;).</td></tr>
+<tr><td><code>on(event, fn)</code></td><td>Calls fn(...) when the piece sends the event. Returns a handle with :off().</td></tr>
+<tr><td><code>emit(event, ...)</code></td><td>Sends an event: it calls the script function with that name and every function that on() added.</td></tr>
+<tr><td><code>getPath()</code></td><td>Returns the path of the piece from the root piece of the scene, for example &quot;Level/Player&quot;.</td></tr>
+<tr><td><code>isAlive()</code></td><td>Returns true while the piece is in the running scene and destroy() has not removed it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function ready(...)</code></td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>
-<tr><td><code>function update(dt)</code></td><td>Every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>60 times a second, before bodies move. Use it for movement.</td></tr>
-<tr><td><code>function draw()</code></td><td>Draw extra things on top of the piece, in its own coordinates.</td></tr>
-<tr><td><code>function removed()</code></td><td>The piece is leaving the scene.</td></tr></tbody>
+<tbody><tr><td><code>function ready(...)</code></td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
+<tr><td><code>function update(dt)</code></td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function draw()</code></td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
+<tr><td><code>function removed()</code></td><td>The engine calls it when the piece leaves the scene.</td></tr></tbody>
 </table></div>
 <p>Every piece also has <code>name</code>, <code>type</code>, <code>parent</code>, <code>children</code> and <code>script</code>.</p>
 <h2 id="position-size-and-drawing-order"><a class="anchor" href="#position-size-and-drawing-order" aria-hidden="true">#</a>Position, size and drawing order</h2>
@@ -145,26 +145,26 @@ rotation = smitten.math.<span class="tk-f">angle</span>(vx, vy)</code></pre>
 <p>Lua's own <code>math.sin</code> and <code>math.cos</code> take radians, so give them <code>math.rad(angle)</code>; <code>math.deg(radians)</code> goes the other way. The low-level <code>smitten.graphics</code> calls (<code>rotate</code>, <code>draw</code>) take radians too.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent.</td></tr>
-<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Position, measured from the parent. y grows downwards.</td></tr>
-<tr><td><code>rotation</code></td><td>angle (°)</td><td>0°</td><td>Turn, clockwise, in degrees: 90 is a quarter turn.</td></tr>
-<tr><td><code>scaleX</code></td><td>number</td><td>1</td><td>Width multiplier. Negative mirrors it.</td></tr>
-<tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Height multiplier. Negative flips it.</td></tr>
-<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
+<tbody><tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>The horizontal position, measured from the parent.</td></tr>
+<tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>The vertical position, measured from the parent. y increases downwards.</td></tr>
+<tr><td><code>rotation</code></td><td>angle (°)</td><td>0°</td><td>The rotation, clockwise, in degrees: 90 is a quarter turn.</td></tr>
+<tr><td><code>scaleX</code></td><td>number</td><td>1</td><td>Multiplies the width. A negative value mirrors the piece left to right.</td></tr>
+<tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Multiplies the height. A negative value mirrors the piece top to bottom.</td></tr>
+<tr><td><code>visible</code></td><td>bool</td><td>true</td><td>When this is on, this piece and everything inside it are visible.</td></tr>
 <tr><td><code>tint</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Multiplies the colors of this piece and everything inside it.</td></tr>
-<tr><td><code>layer</code></td><td>int</td><td>0</td><td>Higher layers are drawn on top. Pieces on the same layer draw in scene order.</td></tr>
-<tr><td><code>lit</code></td><td>bool</td><td>true</td><td>Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs).</td></tr></tbody>
+<tr><td><code>layer</code></td><td>int</td><td>0</td><td>The engine draws higher layers on top. It draws pieces on the same layer in scene order.</td></tr>
+<tr><td><code>lit</code></td><td>bool</td><td>true</td><td>When this is on, Lights and the Tint change how this piece and everything inside it look. When it is off, they always have full brightness (glows, lasers, signs).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>worldPosition()</code></td><td>Where the piece is in the scene (not measured from its parent): x, y.</td></tr>
-<tr><td><code>setWorldPosition(x, y)</code></td><td>Moves the piece to a place in the scene.</td></tr>
-<tr><td><code>toWorld(x, y)</code></td><td>A point measured from this piece, as a point in the scene.</td></tr>
-<tr><td><code>fromWorld(x, y)</code></td><td>A point in the scene, measured from this piece.</td></tr>
+<tbody><tr><td><code>worldPosition()</code></td><td>Returns the position of the piece in the scene (not measured from its parent): x, y.</td></tr>
+<tr><td><code>setWorldPosition(x, y)</code></td><td>Moves the piece to a position in the scene.</td></tr>
+<tr><td><code>toWorld(x, y)</code></td><td>Takes a point measured from this piece and returns it as a point in the scene.</td></tr>
+<tr><td><code>fromWorld(x, y)</code></td><td>Takes a point in the scene and returns it measured from this piece.</td></tr>
 <tr><td><code>lookAt(x, y)</code></td><td>Turns the piece to face a point in the scene.</td></tr>
-<tr><td><code>distanceTo(pieceOrX, y?)</code></td><td>Distance in pixels to another piece or a point.</td></tr>
-<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it.</td></tr>
-<tr><td><code>moveToward(x, y, distance)</code></td><td>Moves at most distance pixels towards a point; true once it's there.</td></tr>
+<tr><td><code>distanceTo(pieceOrX, y?)</code></td><td>Returns the distance in pixels to another piece or a point.</td></tr>
+<tr><td><code>angleTo(pieceOrX, y?)</code></td><td>Returns the angle towards another piece or a point, in degrees. rotation = angleTo(target) turns the piece to face it.</td></tr>
+<tr><td><code>moveToward(x, y, distance)</code></td><td>Moves at most distance pixels towards a point. Returns true when the piece is at the point.</td></tr>
 <tr><td><code>translate(dx, dy)</code></td><td>Moves the piece by an offset.</td></tr></tbody>
 </table></div>
 <h2 id="smitten-scene"><a class="anchor" href="#smitten-scene" aria-hidden="true">#</a>smitten.scene</h2>
@@ -172,18 +172,18 @@ rotation = smitten.math.<span class="tk-f">angle</span>(vx, vy)</code></pre>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.scene.go(path, ...)</code></td><td>Goes to another scene at the end of the frame: smitten.scene.go(&quot;scenes/level2.scene&quot;).</td></tr>
 <tr><td><code>smitten.scene.reload()</code></td><td>Starts the running scene again from its file.</td></tr>
-<tr><td><code>smitten.scene.make(sceneOrType, properties?, script?)</code></td><td>Makes a piece without adding it: make(&quot;scenes/coin.scene&quot;) or make(&quot;Sprite&quot;, { image = &quot;art/coin.png&quot; }).</td></tr>
+<tr><td><code>smitten.scene.make(sceneOrType, properties?, script?)</code></td><td>Makes a piece but does not add it to the scene: make(&quot;scenes/coin.scene&quot;) or make(&quot;Sprite&quot;, { image = &quot;art/coin.png&quot; }).</td></tr>
 <tr><td><code>smitten.scene.spawn(sceneOrType, properties?, parent?)</code></td><td>Makes a piece and adds it to the scene (or to parent): spawn(&quot;scenes/bullet.scene&quot;, { x = 10 }).</td></tr>
-<tr><td><code>smitten.scene.tagged(tag)</code></td><td>Every piece with a tag, as a list.</td></tr>
-<tr><td><code>smitten.scene.first(tag)</code></td><td>The first piece with a tag, or nil.</td></tr>
-<tr><td><code>smitten.scene.find(path)</code></td><td>A piece of the running scene by its path from the root.</td></tr>
-<tr><td><code>smitten.scene.screenToWorld(x, y)</code></td><td>A point on the screen as a point in the scene (through the camera).</td></tr>
-<tr><td><code>smitten.scene.worldToScreen(x, y)</code></td><td>A point in the scene as a point on the screen.</td></tr>
-<tr><td><code>smitten.scene.setCurrent(root)</code></td><td>Makes a piece built in code the running scene.</td></tr>
-<tr><td><code>smitten.scene.getDelta()</code></td><td>The current step's length: the frame time in update(), the fixed step in physicsUpdate().</td></tr>
-<tr><td><code>smitten.scene.transition(kind, seconds?, color?)</code></td><td>How go() and reload() change scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
-<tr><td><code>smitten.scene.isChanging()</code></td><td>True while the scene is about to change or a transition is running.</td></tr>
-<tr><td><code>smitten.scene.runsWhilePaused(piece)</code></td><td>True if a piece keeps running while the game is paused (pausable off on it or a piece it's inside).</td></tr></tbody>
+<tr><td><code>smitten.scene.tagged(tag)</code></td><td>Returns every piece with a tag, as a list.</td></tr>
+<tr><td><code>smitten.scene.first(tag)</code></td><td>Returns the first piece with a tag, or nil.</td></tr>
+<tr><td><code>smitten.scene.find(path)</code></td><td>Returns a piece of the running scene by its path from the root piece.</td></tr>
+<tr><td><code>smitten.scene.screenToWorld(x, y)</code></td><td>Takes a point on the screen and returns it as a point in the scene (through the camera).</td></tr>
+<tr><td><code>smitten.scene.worldToScreen(x, y)</code></td><td>Takes a point in the scene and returns it as a point on the screen.</td></tr>
+<tr><td><code>smitten.scene.setCurrent(root)</code></td><td>Makes a piece that a script builds the running scene.</td></tr>
+<tr><td><code>smitten.scene.getDelta()</code></td><td>Returns the length of the current step: the frame time in update(), the fixed step in physicsUpdate().</td></tr>
+<tr><td><code>smitten.scene.transition(kind, seconds?, color?)</code></td><td>Sets how go() and reload() change scenes: transition(&quot;fade&quot;, 0.4) or transition(&quot;none&quot;).</td></tr>
+<tr><td><code>smitten.scene.isChanging()</code></td><td>Returns true while the scene is about to change or a transition runs.</td></tr>
+<tr><td><code>smitten.scene.runsWhilePaused(piece)</code></td><td>Returns true if a piece keeps running while the game is paused (pausable is off on it, or on a piece that it is inside).</td></tr></tbody>
 </table></div>
 <p>Fields: <code>current</code>, <code>path</code>, <code>args</code>, <code>paused</code>, <code>timeScale</code>, <code>showShapes</code>.</p>
     </article>

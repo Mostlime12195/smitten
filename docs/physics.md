@@ -158,12 +158,12 @@ on `smitten.physics`:
 <!-- api:Physics -->
 | Call | |
 | --- | --- |
-| `raycast(x1, y1, x2, y2, tags)` | The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them. |
-| `raycastAll(x1, y1, x2, y2, tags)` | Everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }. |
-| `piecesAt(x, y, tags)` | The bodies and zones whose shapes contain a point. |
-| `overlap(kind, x, y, ...)` | The bodies and zones touching a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, width, height). |
-| `getGravity()` | The scene's gravity: x, y in pixels per second per second. |
-| `setGravity(x, y)` | Changes the scene's gravity: setGravity(0, 0) floats everything. |
+| `raycast(x1, y1, x2, y2, tags)` | Returns the first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. If you give tags, it counts only pieces with one of them. |
+| `raycastAll(x1, y1, x2, y2, tags)` | Returns everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }. |
+| `piecesAt(x, y, tags)` | Returns the bodies and zones whose shapes contain a point. |
+| `overlap(kind, x, y, ...)` | Returns the bodies and zones that touch a shape: overlap("circle", x, y, radius) or overlap("rect", x, y, width, height). |
+| `getGravity()` | Returns the gravity of the scene: x, y in pixels per second per second. |
+| `setGravity(x, y)` | Changes the gravity of the scene: setGravity(0, 0) makes everything float. |
 <!-- end -->
 
 ```lua
@@ -209,123 +209,123 @@ Joint settings can change while the game runs (`motorSpeed = 5`).
 <!-- piece:Body -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `motion` | enum | "scripted" | still: moves only when a script sets x/y. scripted: moved by move(). physics: simulated. |
-| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside. capsule has round ends. none: Hitboxes only. |
-| `width` | number (px) | 32 | Rectangle or capsule width. |
-| `height` | number (px) | 32 | Rectangle or capsule height. |
-| `radius` | number (px) | 16 | Circle radius. |
-| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in). |
-| `vx` | number (px/s) | 0 | Horizontal speed (px/s). |
-| `vy` | number (px/s) | 0 | Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now. |
-| `spin` | angle (°/s) | 0° | How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast. |
-| `slope` | angle (°) | 2578.31° | The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back. |
-| `mass` | number (kg) | 1 | Kilograms. A scripted body pushes physics bodies by its mass against theirs. |
+| `motion` | enum | "scripted" | still: it moves only when a script sets x or y. scripted: move() moves it. physics: the physics engine moves it. |
+| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside it. capsule has round ends. none means that only Hitboxes give it a shape. |
+| `width` | number (px) | 32 | The width of the rectangle or capsule. |
+| `height` | number (px) | 32 | The height of the rectangle or capsule. |
+| `radius` | number (px) | 16 | The radius of the circle. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... (8 corners at most; the engine fills in dents). |
+| `vx` | number (px/s) | 0 | The horizontal speed, in pixels per second. |
+| `vy` | number (px/s) | 0 | The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed. |
+| `spin` | angle (°/s) | 0° | How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed. |
+| `slope` | angle (°) | 2578.31° | The steepest surface that is still ground, in degrees. move() walks up it and does not slide back. |
+| `mass` | number (kg) | 1 | The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass. |
 | `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
-| `bounce` | number | 0 | How much it bounces: 0 none, 1 forever. |
+| `bounce` | number | 0 | How much it bounces: 0 is no bounce, 1 bounces forever. |
 | `gravityScale` | number | 1 | How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up. |
-| `drag` | number | 0 | Air resistance: slows its movement down. |
-| `spinDrag` | number | 0 | Slows its turning down. |
-| `fixedRotation` | bool | false | Never tip over or spin. |
-| `bullet` | bool | false | Continuous collision against moving bodies, for small fast objects. |
-| `asleep` | bool | false | At rest until touched. Physics bodies sleep when they stop. |
-| `passThrough` | tags | "" | Tags of things it doesn't bump into, like "ghost, pickup" ("tiles" for solid tiles). |
+| `drag` | number | 0 | Air resistance: it slows the movement down. |
+| `spinDrag` | number | 0 | Slows the turning down. |
+| `fixedRotation` | bool | false | When this is on, the body never tips over or turns. |
+| `bullet` | bool | false | When this is on, the physics engine checks collisions continuously against moving bodies. Use it for small, fast bodies. |
+| `asleep` | bool | false | When this is on, the body stays at rest until something touches it. Physics bodies go to sleep when they stop. |
+| `passThrough` | tags | "" | The tags of things that it does not bump into, for example "ghost, pickup" ("tiles" for solid tiles). |
 
 | Method | |
 | --- | --- |
-| `move()` | Moves by vx, vy for this step: slides along walls, climbs slopes, rides platforms, pushes physics bodies. |
-| `moveBy(dx, dy)` | Moves by an offset and stops at the first thing in the way; returns what it hit, or nil. |
-| `onGround()` | True if the last move ended standing on something. |
-| `onWall()` | True if the last move ran into a wall. |
-| `onCeiling()` | True if the last move ran into a ceiling. |
-| `applyImpulse(ix, iy, x?, y?)` | Instant change of velocity by impulse / mass. At a point, also spins. |
-| `applyForce(fx, fy, x?, y?)` | Force for this step; call every physicsUpdate. At its center or a point. |
-| `applyTorque(torque)` | Turns it steadily for this step (physics bodies). |
-| `applyAngularImpulse(impulse)` | A sudden twist (physics bodies). |
-| `push(ix, iy)` | The same as applyImpulse(ix, iy). |
-| `wake()` | Wakes a sleeping physics body. |
-| `grab(x, y, strength?)` | Holds it by a scene point for dragTo(); drop() releases with momentum. |
-| `dragTo(x, y)` | Moves the grabbed point towards x, y. |
-| `drop()` | Lets go after grab(); a physics body keeps its speed. |
-| `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) touching this one, or nil. |
-| `isTouching(other)` | True if it touches a piece (a body, zone or Tiles) or anything with a tag. |
-| `contacts()` | Current contacts: {piece, x, y, nx, ny, impulse}. |
-| `touchingTile(setting)` | The settings of a touching tile that has this setting (like "damage"), or nil. |
-| `getSize()` | The size of the box around its shapes: width, height. |
+| `move()` | Moves by vx, vy for this physics step. It slides along walls, climbs slopes, rides on platforms and pushes physics bodies. |
+| `moveBy(dx, dy)` | Moves by an offset and stops at the first thing in the way. Returns what it hit, or nil. |
+| `onGround()` | Returns true if the last move ended on top of something. |
+| `onWall()` | Returns true if the last move ran into a wall. |
+| `onCeiling()` | Returns true if the last move ran into a ceiling. |
+| `applyImpulse(ix, iy, x?, y?)` | Changes the speed immediately by impulse / mass. At a point, it also makes the body spin. |
+| `applyForce(fx, fy, x?, y?)` | Pushes with a force for this physics step, at the center or at a point. Call it in every physicsUpdate. |
+| `applyTorque(torque)` | Turns a physics body steadily for this physics step. |
+| `applyAngularImpulse(impulse)` | Gives a physics body a sudden twist. |
+| `push(ix, iy)` | Does the same as applyImpulse(ix, iy). |
+| `wake()` | Wakes up a physics body that sleeps. |
+| `grab(x, y, strength?)` | Holds the body at a point in the scene for dragTo(). drop() lets it go with its momentum. |
+| `dragTo(x, y)` | Moves the point that grab() holds towards x, y. |
+| `drop()` | Lets go after grab(). A physics body keeps its speed. |
+| `touching(tagOrPiece)` | Returns the first body or zone with a tag (or that piece) that touches this one, or nil. |
+| `isTouching(other)` | Returns true if it touches a piece (a body, zone or Tiles) or anything with a tag. |
+| `contacts()` | Returns the current contacts: {piece, x, y, nx, ny, impulse}. |
+| `touchingTile(setting)` | Returns the tile properties of a touching tile that has this tile property (for example "damage"), or nil. |
+| `getSize()` | Returns the size of the box around its shapes: width, height. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function hit(other, contact)` | Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse. |
-| `function entered(zone)` | It went into a zone. |
-| `function exited(zone)` | It left a zone. |
+| `function hit(other, contact)` | The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse. |
+| `function entered(zone)` | The engine calls it when the body goes into a zone. |
+| `function exited(zone)` | The engine calls it when the body leaves a zone. |
 <!-- end -->
 
 <!-- piece:Zone -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "auto" | Auto fits the Sprites and Shapes inside it. Shapes turn and scale with the Zone. |
-| `width` | number (px) | 32 | Rectangle or capsule width. |
-| `height` | number (px) | 32 | Rectangle or capsule height. |
-| `radius` | number (px) | 16 | Circle radius. |
-| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners). |
-| `detects` | tags | "" | Only notices things with one of these tags (empty: everything). |
-| `active` | bool | true | Notice things going in and out. |
+| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside it. The shapes turn and scale with the Zone. |
+| `width` | number (px) | 32 | The width of the rectangle or capsule. |
+| `height` | number (px) | 32 | The height of the rectangle or capsule. |
+| `radius` | number (px) | 16 | The radius of the circle. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... (8 corners at most). |
+| `detects` | tags | "" | The Zone notices only things with one of these tags. If it is empty, it notices everything. |
+| `active` | bool | true | When this is on, the Zone notices things that go in and out. |
 
 | Method | |
 | --- | --- |
-| `inside()` | A list of the bodies and zones inside it now. |
-| `touching(tagOrPiece)` | The first body or zone with a tag (or that piece) inside it, or nil. |
-| `isTouching(other)` | True if a piece (or anything with a tag) is inside it. |
+| `inside()` | Returns a list of the bodies and zones that are inside it now. |
+| `touching(tagOrPiece)` | Returns the first body or zone with a tag (or that piece) that is inside it, or nil. |
+| `isTouching(other)` | Returns true if a piece (or anything with a tag) is inside it. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function entered(other)` | A body or zone came in. |
-| `function exited(other)` | A body or zone left. |
+| `function entered(other)` | The engine calls it when a body or zone comes in. |
+| `function exited(other)` | The engine calls it when a body or zone leaves. |
 <!-- end -->
 
 <!-- piece:Hitbox -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `shape` | enum | "rectangle" | The shape, placed and turned by the Hitbox's position and rotation. |
-| `width` | number (px) | 32 | Rectangle or capsule width. |
-| `height` | number (px) | 32 | Rectangle or capsule height. |
-| `radius` | number (px) | 16 | Circle radius. |
-| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... (up to 8 corners). |
-| `off` | bool | false | Turn this shape off. |
+| `shape` | enum | "rectangle" | The shape. The position and rotation of the Hitbox put it in place and turn it. |
+| `width` | number (px) | 32 | The width of the rectangle or capsule. |
+| `height` | number (px) | 32 | The height of the rectangle or capsule. |
+| `radius` | number (px) | 16 | The radius of the circle. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... (8 corners at most). |
+| `off` | bool | false | When this is on, this shape is off. |
 <!-- end -->
 
 <!-- piece:Joint -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `kind` | enum | "pin" | pin, weld, rope, spring, distance, slider (x axis), wheel (y axis spring) or mouse. |
-| `a` | piecepath | "" | The body it holds. |
-| `b` | piecepath | "" | The body it connects a to (empty: the place where the Joint is). |
-| `length` | number (px) | 0 | How far apart; 0 uses the distance when the joint is made. |
-| `spring` | bool | false | Springy: a pin or slider pulls back to where it started, a weld wobbles. |
-| `stiffness` | number (Hz) | 4 | How stiff the spring is: wobbles per second. |
-| `damping` | number | 0.5 | How quickly the spring stops wobbling: 1 doesn't overshoot. |
-| `motor` | bool | false | Drive it: turn a pin or wheel, or move a slider, at motorSpeed. |
-| `motorSpeed` | number | 90 | Degrees a second (pin, wheel) or pixels a second (slider, distance). |
-| `motorStrength` | number | 100000 | The most torque (pin, wheel) or force (slider, distance) the motor uses. |
-| `limit` | bool | false | Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper. |
-| `minAngle` | angle (°) | -2578.31° | The furthest a pin turns anticlockwise, in degrees. |
-| `maxAngle` | angle (°) | 2578.31° | The furthest a pin turns clockwise, in degrees. |
-| `lower` | number (px) | -50 | The furthest a slider or wheel goes back. |
-| `upper` | number (px) | 50 | The furthest a slider or wheel goes forward. |
-| `strength` | number | 0 | The most force a mouse joint pulls with; 0 is plenty for the body's mass. |
-| `collide` | bool | false | The two bodies still bump into each other. |
-| `breakForce` | number | 0 | Breaks (and sends broke) when pulled harder than this; 0 never breaks. |
+| `kind` | enum | "pin" | pin, weld, rope, spring, distance, slider (on the x axis), wheel (a spring on the y axis) or mouse. |
+| `a` | piecepath | "" | The body that the joint holds. |
+| `b` | piecepath | "" | The body that the joint connects a to. If it is empty, the joint connects a to the position of the Joint. |
+| `length` | number (px) | 0 | The distance between the bodies. 0 uses the distance at the time when the engine makes the joint. |
+| `spring` | bool | false | When this is on, the joint is springy: a pin or slider pulls back to where it started, and a weld wobbles. |
+| `stiffness` | number (Hz) | 4 | How stiff the spring is, in wobbles per second. |
+| `damping` | number | 0.5 | How fast the spring stops wobbling: 1 does not overshoot. |
+| `motor` | bool | false | When this is on, the joint drives the bodies: it turns a pin or wheel, or moves a slider, at motorSpeed. |
+| `motorSpeed` | number | 90 | The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance). |
+| `motorStrength` | number | 100000 | The maximum torque (pin, wheel) or force (slider, distance) that the motor uses. |
+| `limit` | bool | false | When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper. |
+| `minAngle` | angle (°) | -2578.31° | The maximum angle that a pin turns anticlockwise, in degrees. |
+| `maxAngle` | angle (°) | 2578.31° | The maximum angle that a pin turns clockwise, in degrees. |
+| `lower` | number (px) | -50 | The maximum distance that a slider or wheel moves back. |
+| `upper` | number (px) | 50 | The maximum distance that a slider or wheel moves forward. |
+| `strength` | number | 0 | The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body. |
+| `collide` | bool | false | When this is on, the two bodies still bump into each other. |
+| `breakForce` | number | 0 | The joint breaks (and sends broke) when a pull is stronger than this. 0 means that it never breaks. |
 
 | Method | |
 | --- | --- |
-| `getAngle()` | How far a pin has turned, in degrees. |
-| `getTranslation()` | How far a slider has slid (pixels). |
-| `getLength()` | How far apart a rope, spring or distance joint's ends are. |
-| `getSpeed()` | How fast a pin turns (degrees a second) or a slider slides (pixels a second). |
-| `getForce()` | How hard the joint pulls now. |
-| `getTorque()` | How hard the joint twists now. |
-| `isBroken()` | True once breakForce broke it. |
+| `getAngle()` | Returns how far a pin has turned, in degrees. |
+| `getTranslation()` | Returns how far a slider has moved, in pixels. |
+| `getLength()` | Returns the distance between the ends of a rope, spring or distance joint. |
+| `getSpeed()` | Returns how fast a pin turns (degrees per second) or a slider moves (pixels per second). |
+| `getForce()` | Returns how hard the joint pulls now. |
+| `getTorque()` | Returns how hard the joint twists now. |
+| `isBroken()` | Returns true after breakForce has broken the joint. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function broke()` | It was pulled harder than breakForce and let go. |
+| `function broke()` | The engine calls it when a pull is stronger than breakForce and the joint lets go. |
 <!-- end -->

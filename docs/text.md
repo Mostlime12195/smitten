@@ -242,13 +242,13 @@ local lines = smitten.text.wrap("A long sentence to cut up", { width = 120, size
 <!-- module:text -->
 | Function | |
 | --- | --- |
-| `smitten.text.effect(name, fn)` | Adds an effect for rich text: after effect("bounce", fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece. |
-| `smitten.text.effects()` | The names of every effect, sorted. |
-| `smitten.text.measure(text, options?)` | How big a text is when drawn: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing. |
-| `smitten.text.wrap(text, options?)` | The lines a text is broken into at a width: wrap("a long sentence", { width = 120 }) gives a list of strings. |
-| `smitten.text.strip(text)` | The text without its tags: strip("[b]Hi[/b]") is "Hi". |
-| `smitten.text.escape(text)` | Makes text safe to put inside rich text (a player's name): square brackets are shown, not read as tags. |
-| `smitten.text.color(value)` | A color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil. |
+| `smitten.text.effect(name, fn)` | Adds an effect for rich text. After effect("bounce", fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. You can change c.x, c.y, c.rotation, c.scale, c.color, c.alpha and c.visible. You can read c.index, c.count, c.char, c.line, c.time, c.since, c.args and c.piece. |
+| `smitten.text.effects()` | Returns the names of all effects, sorted. |
+| `smitten.text.measure(text, options?)` | Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing. |
+| `smitten.text.wrap(text, options?)` | Returns the lines of a text when it wraps at a width: wrap("a long sentence", { width = 120 }) returns a list of strings. |
+| `smitten.text.strip(text)` | Returns the text without its markup: strip("[b]Hi[/b]") is "Hi". |
+| `smitten.text.escape(text)` | Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup. |
+| `smitten.text.color(value)` | Returns a color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil. |
 <!-- end -->
 
 ## Links
@@ -353,42 +353,42 @@ and `linkPressed(name)`: see [UI](ui.md#label).
 <!-- piece:Text -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `text` | text | "Text" | What it says. |
-| `font` | resource | "" | A .ttf/.otf font file, "pixel" for the built-in pixel font, or empty for the default font. |
-| `size` | int (px) | 16 | Font size. |
-| `color` | color | {1, 1, 1, 1} | Text color. |
-| `align` | enum | "center" | Lines up the text around the piece's position. justify stretches wrapped lines to the same width. |
-| `wrap` | number (px) | 0 | Wrap lines longer than this; 0 never wraps. |
-| `wrapBy` | enum | "word" | Where a line that's too long is broken: between words, or after any character (for writing without spaces, like Japanese). |
-| `rich` | bool | false | Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
-| `outline` | bool | false | A dark outline around the text. |
-| `fontBold` | resource | "" | The font file for [b]bold[/b] words. Empty: the font is made thicker instead. |
-| `fontItalic` | resource | "" | The font file for [i]italic[/i] words. Empty: the font is slanted instead. |
-| `lineHeight` | number | 1 | How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them. |
-| `letterSpacing` | number (px) | 0 | Extra room between letters (negative squeezes them together). |
-| `outlineWidth` | number (px) | 0 | How thick the outline is. 0 keeps it one screen pixel thin. |
-| `outlineColor` | color | {0, 0, 0, 0.8} | The outline's color. |
-| `shadow` | bool | false | A shadow behind the text. |
-| `shadowColor` | color | {0, 0, 0, 0.5} | The shadow's color. |
-| `shadowX` | number (px) | 2 | How far right the shadow falls (negative: left). |
-| `shadowY` | number (px) | 2 | How far down the shadow falls (negative: up). |
-| `visibleCharacters` | int | -1 | How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect. |
-| `visibleRatio` | number | 1 | How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly. |
+| `text` | text | "Text" | The text that the piece shows. |
+| `font` | resource | "" | A .ttf or .otf font file, "pixel" for the built-in pixel font, or empty for the default font. |
+| `size` | int (px) | 16 | The font size. |
+| `color` | color | {1, 1, 1, 1} | The text color. |
+| `align` | enum | "center" | Aligns the text around the position of the piece. justify stretches wrapped lines to the same width. |
+| `wrap` | number (px) | 0 | The text wraps lines that are longer than this. 0 means that lines never wrap. |
+| `wrapBy` | enum | "word" | Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese). |
+| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `outline` | bool | false | When this is on, the text has a dark outline. |
+| `fontBold` | resource | "" | The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker. |
+| `fontItalic` | resource | "" | The font file for [i]italic[/i] words. If it is empty, the engine slants the font. |
+| `lineHeight` | number | 1 | The distance between lines: 1 is the font's own spacing, 1.5 leaves half a line between them. |
+| `letterSpacing` | number (px) | 0 | Extra space between letters. A negative value pushes them closer together. |
+| `outlineWidth` | number (px) | 0 | The thickness of the outline. 0 keeps it one screen pixel thin. |
+| `outlineColor` | color | {0, 0, 0, 0.8} | The color of the outline. |
+| `shadow` | bool | false | When this is on, the text has a shadow behind it. |
+| `shadowColor` | color | {0, 0, 0, 0.5} | The color of the shadow. |
+| `shadowX` | number (px) | 2 | How far right the shadow is. A negative value moves it left. |
+| `shadowY` | number (px) | 2 | How far down the shadow is. A negative value moves it up. |
+| `visibleCharacters` | int | -1 | The number of characters that show, counting from the start: 0 shows none, -1 shows all. reveal() increases this for a typewriter effect. |
+| `visibleRatio` | number | 1 | The part of the text that shows: 0 is none, 0.5 is the first half, 1 is all of it. Tween it to show the text gradually. |
 
 | Method | |
 | --- | --- |
-| `measure()` | How big the text is as it's laid out now: width, height. |
-| `lineCount()` | How many lines the text takes. |
-| `characterCount()` | How many characters the text has (tags and line breaks don't count). |
-| `characterRect(index)` | Where a character is, measured from the piece's position: x, y, width, height. For putting a cursor or a sparkle on it. |
-| `characterAt(x, y)` | The number of the character at a point (measured from the piece's position), or nil. |
-| `linkAt(x, y)` | The name of the [link=name] at a point (measured from the piece's position), or nil. |
-| `reveal(charactersPerSecond?, from?)` | Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace. |
-| `skip()` | Shows all of the text now, and ends a reveal(). |
+| `measure()` | Returns the size of the text in its current layout: width, height. |
+| `lineCount()` | Returns the number of lines in the text. |
+| `characterCount()` | Returns the number of characters in the text. Markup and line breaks do not count. |
+| `characterRect(index)` | Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character. |
+| `characterAt(x, y)` | Returns the number of the character at a point (measured from the position of the piece), or nil. |
+| `linkAt(x, y)` | Returns the name of the [link=name] at a point (measured from the position of the piece), or nil. |
+| `reveal(charactersPerSecond?, from?)` | Shows the text one character at a time, like a typewriter (30 characters per second if you do not give a speed). Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the speed. |
+| `skip()` | Shows all of the text now and stops a reveal(). |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function revealed(index, char)` | reveal() showed one more character: play a blip, or wait at a full stop. |
-| `function finished()` | reveal() has shown the whole text. |
-| `function eachCharacter(c)` | Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. |
+| `function revealed(index, char)` | The engine calls it when reveal() shows one more character. Use it to play a blip, or to wait at a full stop. |
+| `function finished()` | The engine calls it when reveal() has shown all of the text. |
+| `function eachCharacter(c)` | The engine calls it for every character each time it draws the text. Use it to move or color the character: c.y = math.sin(c.time * 4 + c.index) * 3. You can change x, y, rotation, scale, color, alpha and visible of c. You can read index, count, char, line, time and since. The engine uses the same table c for every character, so do not keep it. |
 <!-- end -->
