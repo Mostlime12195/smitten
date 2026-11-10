@@ -8,7 +8,8 @@ const PLAYER_URL = 'player.html?embed=1';
 export class Runner {
   /**
    * host: element the iframe goes into.
-   * handlers: {onState(state), onLog(level, text), onError(text), onTitle(title), onQuit(code), onShortcut(event)}
+   * handlers: {onState(state), onLog(level, text), onError(text), onTitle(title), onQuit(code), onShortcut(event),
+   *            onClip({recording, saving, seconds, supported})}
    */
   constructor(host, handlers) {
     this.host = host;
@@ -84,6 +85,9 @@ export class Runner {
         break;
       case 'title':
         this.handlers.onTitle?.(msg.title);
+        break;
+      case 'clip':
+        this.handlers.onClip?.(msg);
         break;
       case 'missing-module':
         this.handlers.onMissingModule?.(msg.name);

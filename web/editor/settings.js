@@ -26,6 +26,8 @@ export const DEFAULTS = {
   clearConsoleOnRun: true,
   scaleMode: 'fit',         // 'fit' | 'integer' | 'none'
   jit: true,
+  clipRecord: false,        // the game bar's Record: keep the last seconds for a clip
+  clipSeconds: 10,
   // Console
   consoleTimestamps: false,
   consoleWrap: true,

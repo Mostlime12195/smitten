@@ -130,12 +130,14 @@ body.embed .splash { display: none; }
   position: fixed;
   right: 8px;
   bottom: 8px;
-  opacity: 0;
-  transition: opacity .2s;
+  display: flex;
+  gap: 6px;
   z-index: 5;
 }
 #toolbar[hidden] { display: none; }
-body:hover #toolbar { opacity: 0.85; }
+#toolbar button { opacity: 0; transition: opacity .2s, transform 0.15s var(--ease); }
+body:hover #toolbar button { opacity: 0.85; }
+#toolbar button[hidden] { display: none; }
 #toolbar button {
   display: grid;
   place-items: center;
@@ -148,11 +150,78 @@ body:hover #toolbar { opacity: 0.85; }
   border-radius: 8px;
   backdrop-filter: blur(8px);
   cursor: pointer;
-  transition: transform 0.15s var(--ease);
 }
 #toolbar button:hover { transform: scale(1.06); }
 #toolbar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 body.embed #toolbar { display: none; }
+
+/* Clips: while it records, the Record button is red, and a small dot in the
+   corner says so when the toolbar is out of sight. The page around the
+   canvas is not in the recording. */
+#btn-record .dot { fill: currentColor; stroke: none; }
+#btn-record[aria-pressed="true"] { color: #ff5a5f; }
+#rec-dot {
+  display: none;
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5a5f;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+body.recording #rec-dot { display: block; }
+body.recording:hover #rec-dot { display: none; }
+#clip-menu {
+  position: fixed;
+  right: 8px;
+  bottom: 50px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--panel);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+#clip-menu[hidden] { display: none; }
+#clip-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 10px;
+  font: inherit;
+  color: var(--fg);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+#clip-menu button:hover, #clip-menu button:focus-visible { background: rgba(255, 255, 255, 0.1); outline: none; }
+#clip-menu kbd { color: var(--muted); font: 12px/1 system-ui, sans-serif; }
+#clip-status {
+  position: fixed;
+  right: 8px;
+  bottom: 50px;
+  z-index: 6;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--panel);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  overflow-wrap: anywhere;
+}
+#clip-status[hidden] { display: none; }
+#clip-status.error { color: #ffb1b1; }
+body.embed #clip-status { bottom: 8px; }
 /* Touch screens have no hover to reveal it, and an invisible button would
    take the game's touches; games there go fullscreen with fullscreen(true). */
 @media (hover: none) { #toolbar { display: none; } }

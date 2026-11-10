@@ -324,7 +324,24 @@ async function openProject(id) {
     ed.liveBtn.setAttribute('aria-pressed', String(ed.liveOn));
     showLivePanels(ed.liveOn);
   });
-  ed.gameView = h('div', { class: 'game-view', hidden: true }, h('div', { class: 'game-bar' }, ed.gameTitle, ed.liveBtn, restart, back), gameHost);
+  // Clips: Record keeps the last seconds of the game (the player does the
+  // work, web/player/clips.js); Clip saves them as a video or a GIF.
+  ed.clip = { recording: false, saving: false };
+  ed.recordBtn = h('button', { type: 'button', class: 'tool-btn record-btn', 'aria-pressed': 'false' }, icon('record', 14), 'Record');
+  ed.recordBtn.addEventListener('click', () => {
+    const on = !ed.clip.recording;
+    // Stays on for the next runs too, until it is pressed again.
+    settings.set('clipRecord', on);
+    ed.runner.post({ type: 'clip', record: on });
+    ed.runner.focus();
+  });
+  ed.clipBtn = h('button', { type: 'button', class: 'tool-btn', disabled: true, 'aria-haspopup': 'menu' }, icon('download', 14), 'Clip', icon('chevronDown', 12));
+  ed.clipBtn.addEventListener('click', () => showMenu(ed.clipBtn, [
+    { label: 'Video (WebM, with sound)', icon: 'download', shortcut: 'F9', action: () => saveClip('webm') },
+    { label: 'GIF', icon: 'image', shortcut: 'Shift+F9', action: () => saveClip('gif') },
+  ], { onClose: () => ed.runner.focus() }));
+  showClipState();
+  ed.gameView = h('div', { class: 'game-view', hidden: true }, h('div', { class: 'game-bar' }, ed.gameTitle, ed.recordBtn, ed.clipBtn, ed.liveBtn, restart, back), gameHost);
   area.append(ed.gameView);
   ed.runner = new Runner(gameHost, {
     onState: (s) => runState(s),
@@ -346,6 +363,10 @@ async function openProject(id) {
     onQuit: () => stop(),
     onShortcut: (e) => handleGlobalKey(e),
     onMissingModule: (name) => missingModule(name),
+    onClip: (msg) => {
+      ed.clip = { recording: !!msg.recording, saving: !!msg.saving, seconds: msg.seconds, supported: msg.supported !== false };
+      showClipState();
+    },
   });
 
   project.addEventListener('file', (e) => {
@@ -1029,7 +1050,30 @@ async function play(scenePath = null) {
   ed.console.separator?.(scenePath ? `Playing ${scenePath}` : 'Playing');
   ed.gameView.hidden = false;
   ed.gameTitle.textContent = project.name;
-  ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query: { jit: settings.get('jit') ? '1' : '0' } });
+  const query = { jit: settings.get('jit') ? '1' : '0', clipSeconds: String(settings.get('clipSeconds')) };
+  if (settings.get('clipRecord')) query.record = '1';
+  ed.clip = { recording: false, saving: false };
+  showClipState();
+  ed.runner.run({ files, modules: includedModules(project) }, { focus: settings.get('focusGameOnRun'), query });
+}
+
+// The game bar's Record and Clip, from what the player says.
+function showClipState() {
+  const { recording, saving, supported = true } = ed.clip;
+  const seconds = ed.clip.seconds || settings.get('clipSeconds');
+  ed.recordBtn.setAttribute('aria-pressed', String(recording));
+  ed.recordBtn.disabled = !supported;
+  ed.recordBtn.title = !supported
+    ? 'This browser cannot record the game. Try Chrome, Edge or Firefox.'
+    : recording ? 'Stop recording' : `Record: keep the last ${seconds} seconds of the game, to save as a clip`;
+  ed.clipBtn.disabled = !recording || saving;
+  ed.clipBtn.title = recording ? `Save the last ${seconds} seconds as a video (F9) or a GIF (Shift+F9)` : 'Press Record first: then Clip saves the last seconds of the game';
+}
+
+function saveClip(format) {
+  if (!ed.clip.recording || ed.clip.saving) return;
+  ed.runner.post({ type: 'clip', save: format });
+  ed.runner.focus();
 }
 
 function stop() {
@@ -1271,6 +1315,7 @@ function openDocs(page = '', anchor = '') {
 
 const SHORTCUTS = [
   ['Play the game', `F5 or ${modKey}+Enter`], ['Play this scene', `F6 or ${modKey}+Shift+Enter`], ['Stop', `F8 or ${modKey}+.`], ['Docs', 'F1'],
+  ['Save a clip while the game records (video / GIF)', 'F9 / Shift+F9'],
   ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
   ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a piece', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a piece', 'F2'],
   ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
@@ -1366,6 +1411,8 @@ function handleGlobalKey(e) {
   if (e.key === 'F5') { play(e.shiftKey ? null : ed.lastRun ?? null); return true; }
   if (e.key === 'F6') { const d = sceneWs().doc; if (d) play(d.path); return true; }
   if (e.key === 'F8') { stop(); return true; }
+  // While the game records: a clip as a video, or a GIF with Shift.
+  if (e.key === 'F9' && !mod && !e.altKey && ed.runner.active && ed.clip.recording) { if (!e.repeat) saveClip(e.shiftKey ? 'gif' : 'webm'); return true; }
   // The same without F-keys (Chromebooks have none). Enter in a dialog is the dialog's.
   if (mod && !e.altKey && e.key === 'Enter' && !document.querySelector('dialog[open]')) {
     const d = sceneWs().doc;

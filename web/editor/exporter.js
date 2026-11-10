@@ -180,7 +180,8 @@ export async function buildGameZip(files) {
   return zipFiles(files);
 }
 
-const WEB_ASSETS = ['player.html', 'player.js', 'player.css', 'smitten.mjs', 'smitten.wasm'];
+// clips.js, gif.js and webm.js: Record and Save clip (the player loads them only when they are used).
+const WEB_ASSETS = ['player.html', 'player.js', 'player.css', 'clips.js', 'gif.js', 'webm.js', 'smitten.mjs', 'smitten.wasm'];
 
 function escapeHtml(s) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -211,6 +212,9 @@ export async function buildWebExport(files, title, modules = []) {
     'index.html': html,
     'player.js': assets['player.js'],
     'player.css': assets['player.css'],
+    'clips.js': assets['clips.js'],
+    'gif.js': assets['gif.js'],
+    'webm.js': assets['webm.js'],
     'smitten.mjs': assets['smitten.mjs'],
     'smitten.wasm': assets['smitten.wasm'],
     'game.zip': await buildGameZip(files),

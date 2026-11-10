@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
-PLAYER_FILES = ["player.js", "player.css", "smitten.mjs", "smitten.wasm"]
+PLAYER_FILES = ["player.js", "player.css", "clips.js", "gif.js", "webm.js", "smitten.mjs", "smitten.wasm"]
 
 
 def make_game_zip(folder: Path, dest: Path):

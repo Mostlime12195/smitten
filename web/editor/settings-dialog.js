@@ -260,6 +260,8 @@ function buildSections(shortcutGroups) {
         { key: 'focusGameOnRun', label: 'Focus the game when it starts', desc: 'Keyboard input goes to the game instead of the editor.', control: () => switchControl('focusGameOnRun') },
         { key: 'clearConsoleOnRun', label: 'Clear the console on run', control: () => switchControl('clearConsoleOnRun') },
         { key: 'scaleMode', label: 'Game scaling', desc: 'How a fixed-size window fits the game panel. Pixel-perfect uses whole-number scales and sharp pixels.', control: () => selectControl('scaleMode', [['fit', 'Fit'], ['integer', 'Pixel-perfect'], ['none', 'Actual size']]) },
+        { key: 'clipRecord', label: 'Record clips', desc: 'Keeps the last seconds of the running game, so that Clip in the game bar can save them as a video or a GIF. Record in the game bar changes this too. Recording uses some of the computer\'s power.', keywords: 'video gif capture screen recording', control: () => switchControl('clipRecord') },
+        { key: 'clipSeconds', label: 'Clip length', desc: 'How many seconds a clip keeps. A change starts with the next run.', keywords: 'video gif capture', control: () => stepperControl('clipSeconds', { min: 3, max: 60, unit: ' s' }) },
         { key: 'jit', label: 'Lua JIT compiler', desc: 'Compiles hot Lua code to WebAssembly. Turn off to compare speed or rule it out when debugging.', control: () => switchControl('jit') },
       ],
     },

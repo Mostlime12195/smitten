@@ -455,3 +455,5 @@ body.moving-window, body.moving-window * { cursor: grabbing !important; user-sel
 }
 .live-banner .icon { color: var(--success); animation: run-pulse 1.8s ease-in-out infinite; }
 .game-bar .tool-btn[aria-pressed="true"] { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); border-color: transparent; }
+.game-bar .record-btn[aria-pressed="true"] { color: var(--danger); background: var(--danger-soft); }
+.game-bar .record-btn[aria-pressed="true"] .icon { animation: run-pulse 1.8s ease-in-out infinite; }

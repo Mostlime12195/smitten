@@ -13,7 +13,12 @@
 // the player reloads with it added.
 //
 // Messages sent to the embedding page all carry source: 'love-player':
-//   ready, started, log {level, text}, error {text}, quit {code}, title {title}
+//   ready, started, log {level, text}, error {text}, quit {code}, title {title},
+//   clip {recording, saving, seconds}, clip-saved {name, format, size}
+//
+// Clips (clips.js): ?record=1 records from the start, ?clipSeconds=N sets how
+// many seconds a clip keeps (10). Embedded, {type: 'clip', record: true|false}
+// and {type: 'clip', save: 'webm'|'gif'} do what the toolbar's buttons do.
 // build.py replaces this with a hash of the engine files, so browsers never
 // combine a cached smitten.wasm with a newer smitten.mjs (or vice versa).
 const BUILD = '__SMITTEN_BUILD__';
@@ -84,6 +89,25 @@ for (const type of ['pointerdown', 'keydown', 'touchend']) {
   window.addEventListener(type, () => {
     for (const ctx of audioContexts) if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   }, { capture: true });
+}
+
+// Clips record the game's sound where the engine's WebAudio meets the
+// speakers: remember each node that is connected to a destination, so a
+// recording can listen to the same nodes. Nothing else changes.
+const audioOutputs = new Map();  // AudioContext -> Set of nodes
+let onAudioOutput = null;
+if (window.AudioNode && window.AudioDestinationNode) {
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (target, ...rest) {
+    const result = connect.call(this, target, ...rest);
+    if (target instanceof AudioDestinationNode) {
+      let outputs = audioOutputs.get(this.context);
+      if (!outputs) audioOutputs.set(this.context, outputs = new Set());
+      outputs.add(this);
+      onAudioOutput?.(this);
+    }
+    return result;
+  };
 }
 
 document.body.classList.toggle('embed', embedded);
@@ -263,9 +287,12 @@ watchPixelRatio();
 
 // Tells the page around the player (the sharing site, the editor) the game's
 // resolution and stretch mode.
+let gameDisplay = null;
+
 function onDisplay(json) {
   let display;
   try { display = JSON.parse(json); } catch { return; }
+  gameDisplay = display;
   if (window.parent !== window) window.parent.postMessage({ source: 'love-player', type: 'display', ...display }, '*');
 }
 
@@ -274,6 +301,154 @@ $('#btn-fullscreen').addEventListener('click', () => {
   else document.documentElement.requestFullscreen?.();
   canvas.focus();
 });
+
+// ---------------------------------------------------------------------------
+// Clips: Record keeps the last seconds of the game (clips.js, loaded the
+// first time it is needed); Save clip downloads them as a video or a GIF.
+// Off until someone presses Record (or ?record=1), so it costs nothing then.
+
+const clipsSupported = !!HTMLCanvasElement.prototype.captureStream && typeof MediaRecorder !== 'undefined';
+const clipSeconds = Math.min(60, Math.max(1, Math.round(Number(params.get('clipSeconds')) || 10)));
+const recordButton = $('#btn-record');
+const clipButton = $('#btn-clip');
+const clipMenu = $('#clip-menu');
+const clipStatusEl = $('#clip-status');
+let clipsModule = null;
+let recorder = null;
+let clipSaving = false;
+let clipStatusTimer = 0;
+
+recordButton.hidden = !clipsSupported;
+for (const el of [recordButton, clipButton]) el.title = el.title.replace('10 seconds', `${clipSeconds} seconds`);
+
+function clipState() {
+  const recording = !!recorder?.recording;
+  document.body.classList.toggle('recording', recording);
+  recordButton.setAttribute('aria-pressed', String(recording));
+  recordButton.title = recording ? 'Stop recording' : `Record: keep the last ${clipSeconds} seconds, to save as a clip`;
+  clipButton.hidden = !recording;
+  if (!recording) closeClipMenu();
+  post({ type: 'clip', recording, saving: clipSaving, seconds: clipSeconds, supported: clipsSupported });
+}
+
+function clipStatus(text, kind = '') {
+  clearTimeout(clipStatusTimer);
+  clipStatusEl.textContent = text;
+  clipStatusEl.className = kind;
+  clipStatusEl.hidden = !text;
+  if (text && kind) clipStatusTimer = setTimeout(() => { clipStatusEl.hidden = true; }, kind === 'error' ? 6000 : 3500);
+}
+
+async function setRecording(on) {
+  if (!clipsSupported || on === !!recorder?.recording) return;
+  if (!on) {
+    recorder.stop();
+    onAudioOutput = null;
+    clipState();
+    return;
+  }
+  try {
+    clipsModule ??= await import('./clips.js');
+    recorder ??= new clipsModule.ClipRecorder({
+      canvas,
+      seconds: clipSeconds,
+      display: () => gameDisplay,
+      onFrame: afterEngineFrames,
+      // The engine's AudioContext: the newest one with something connected to its speakers.
+      audio: () => {
+        let found = null;
+        for (const [context, outputs] of audioOutputs) if (context.state !== 'closed' && outputs.size) found = { context, outputs };
+        return found;
+      },
+    });
+    recorder.start();
+    onAudioOutput = (node) => recorder?.listen(node);
+  } catch (e) {
+    clipStatus(e?.message || String(e), 'error');
+  }
+  clipState();
+}
+
+async function saveClip(format) {
+  if (!recorder?.recording || clipSaving) return;
+  closeClipMenu();
+  clipSaving = true;
+  clipState();
+  const gif = format === 'gif';
+  clipStatus(gif ? 'Making the GIF…' : 'Saving the video…');
+  try {
+    const blob = gif
+      ? await recorder.gif({ onProgress: (p) => clipStatus(`Making the GIF… ${Math.round(p * 100)}%`) })
+      : await recorder.video();
+    const name = clipsModule.clipName(document.title, new Date(), gif ? 'gif' : 'webm');
+    clipsModule.download(blob, name);
+    const size = blob.size < 1e6 ? `${Math.max(1, Math.round(blob.size / 1e3))} KB` : `${(blob.size / 1e6).toFixed(1)} MB`;
+    clipStatus(`Saved “${name}” (${size}${!gif && !recorder.withSound ? ', without sound' : ''}).`, 'done');
+    post({ type: 'clip-saved', name, format: gif ? 'gif' : 'webm', size: blob.size, sound: !gif && recorder.withSound });
+  } catch (e) {
+    clipStatus(e?.message || String(e), 'error');
+  } finally {
+    clipSaving = false;
+    clipState();
+  }
+}
+
+// The engine draws a frame in each requestAnimationFrame callback; the
+// recording copies it at the end of that callback, while the picture is
+// still there. Only while something records: otherwise nothing is wrapped.
+let enginePaused = false;
+function afterEngineFrames(fn) {
+  const raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = (cb) => raf.call(window, (t) => {
+    cb(t);
+    if (running && !enginePaused) fn(t);
+  });
+  return () => { window.requestAnimationFrame = raf; };
+}
+
+function closeClipMenu() {
+  clipMenu.hidden = true;
+  clipButton.setAttribute('aria-expanded', 'false');
+}
+
+recordButton.addEventListener('click', () => {
+  setRecording(!recorder?.recording);
+  canvas.focus();
+});
+clipButton.addEventListener('click', () => {
+  const open = clipMenu.hidden;
+  clipMenu.hidden = !open;
+  clipButton.setAttribute('aria-expanded', String(open));
+  if (open) clipMenu.querySelector('button').focus();
+  else canvas.focus();
+});
+for (const item of clipMenu.querySelectorAll('button')) {
+  item.addEventListener('click', () => {
+    saveClip(item.dataset.format);
+    canvas.focus();
+  });
+}
+// Keys on the menu are not game input; Escape closes it.
+for (const type of ['keydown', 'keyup', 'keypress']) {
+  clipMenu.addEventListener(type, (e) => {
+    e.stopPropagation();
+    if (type === 'keydown' && e.key === 'Escape') {
+      closeClipMenu();
+      canvas.focus();
+    }
+  });
+}
+window.addEventListener('pointerdown', (e) => {
+  if (!clipMenu.hidden && !clipMenu.contains(e.target) && !clipButton.contains(e.target)) closeClipMenu();
+}, { capture: true });
+// While it records, F9 saves a video and Shift+F9 a GIF (the game does not
+// get those keys then). In the editor, the editor's own F9 does it.
+window.addEventListener('keydown', (e) => {
+  if (embedded || e.key !== 'F9' || !recorder?.recording || e.ctrlKey || e.altKey || e.metaKey) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (!e.repeat) saveClip(e.shiftKey ? 'gif' : 'webm');
+}, { capture: true });
 
 // ---------------------------------------------------------------------------
 // File dialogs. Browsers only open file pickers in response to a click or
@@ -494,6 +669,8 @@ async function start(game) {
   $('#toolbar').hidden = false;
   canvas.focus();
   post({ type: 'started' });
+  if (params.get('record') === '1') setRecording(true);
+  else clipState();
 
   // SDL writes the LÖVE window title to document.title. Report it to the
   // embedding page, but keep a packaged game's page title over LÖVE's
@@ -682,8 +859,15 @@ if (embedded) {
     // Live tweaking: messages for the running game (love/src/modules/engine/live.lua).
     else if (msg.type === 'live' && running && Module) Module.ccall('loveweb_live_post', null, ['string'], [JSON.stringify(msg.message)]);
     else if (msg.type === 'stop') Module?._loveweb_quit();
-    else if (msg.type === 'pause') Module?._loveweb_set_paused(msg.paused ? 1 : 0);
+    else if (msg.type === 'pause') {
+      enginePaused = !!msg.paused;
+      Module?._loveweb_set_paused(msg.paused ? 1 : 0);
+    }
     else if (msg.type === 'focus') canvas.focus();
+    else if (msg.type === 'clip' && running) {
+      if (typeof msg.record === 'boolean') setRecording(msg.record);
+      if (msg.save === 'webm' || msg.save === 'gif') saveClip(msg.save);
+    }
   });
   engineReady.then(() => post({ type: 'ready' }));
 } else if (gameUrl) {
