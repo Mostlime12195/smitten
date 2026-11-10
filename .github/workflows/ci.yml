@@ -39,6 +39,12 @@ jobs:
       - name: Server tests
         run: python3 tools/serve_test.py
 
+      # The pathfinders are plain Lua 5.1, tested without the engine.
+      - name: Pathfinding tests
+        run: |
+          sudo apt-get install -y -q lua5.1
+          lua5.1 tools/paths-tests/test.lua
+
   build:
     runs-on: ubuntu-latest
     steps:
