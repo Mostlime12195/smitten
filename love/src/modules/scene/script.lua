@@ -505,9 +505,11 @@ local function checkTopLevel(n, k, v)
 	end
 end
 
--- A script's function with the name of one of the piece's methods would
--- replace it: `function move()` on a Body, and move() inside it calls itself
--- while the body stands still, with no error. Say so instead.
+-- A script's function with the name of one of the piece's methods replaces
+-- it: `function move()` on a Body, and the body stands still with no error,
+-- because move() is now the script's. Sometimes that's meant (a boss with
+-- its own wake()), so it's a warning in the output, once for each script.
+local warned = {}
 local function checkMethod(n, k)
 	if type(k) ~= "string" then return end
 	local schema = require("love.scene.schema")
@@ -516,8 +518,14 @@ local function checkMethod(n, k)
 		local def = schema.types[name]
 		if not def then return end
 		if def.methods and def.methods[k] then
-			error(("every %s already has %s(), and a function with the same name would replace it. Give yours another name."):format(
-				n.type, k), 3)
+			local info = debug.getinfo(3, "Sl")
+			local where = info and (info.short_src .. ":" .. info.currentline) or "?"
+			if not warned[where .. k] then
+				warned[where .. k] = true
+				print(("Warning: %s: every %s already has %s(), and this function replaces it. "
+					.. "If you wanted the piece's own %s() too, give yours another name."):format(where, n.type, k, k))
+			end
+			return
 		end
 		name = def.extends
 	end

@@ -47,9 +47,10 @@ Assigning to a name that isn't `local` stores it on the piece, where other
 scripts can read it (`other.hp`). `self` is the piece itself, for when you
 need to pass it somewhere.
 
-A function of yours can't have the name of something the piece already
-does: `function move()` on a Body would replace its `move()`, so Smitten
-stops with an error that says so. Pick another name, like `walk()`.
+A function of yours with the name of something the piece already does
+replaces it: `function move()` on a Body means `move()` is yours, and the
+body no longer moves by itself. Smitten says so in Output when the game
+starts. If that isn't what you meant, pick another name, like `walk()`.
 
 A few details: `spawn()` adds a new piece to the scene, while
 `self:spawn()` adds it inside this piece; `type()` is Lua's function, so a

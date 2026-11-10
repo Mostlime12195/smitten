@@ -1,6 +1,7 @@
--- A function with the name of a Body's method: the engine should refuse it.
+-- A function with the name of a Body's method: it replaces the method, and
+-- the engine says so.
 speed = 100
 
 function move()
-  vx = speed
+  moved = true
 end

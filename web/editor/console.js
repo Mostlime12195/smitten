@@ -130,7 +130,9 @@ export class ConsolePanel {
     if (text.startsWith('Error: ')) { this.inError = true; return; }
     if (this.inError && (text.startsWith('\t') || text.startsWith('stack traceback'))) return;
     this.inError = false;
-    this.append(h('div', { class: `line ${level}`, dataset: { level } }, this.linkify(text)));
+    // The engine's warnings (a function that replaces a piece's method...) stand out.
+    const warning = text.startsWith('Warning: ') ? ' warning' : '';
+    this.append(h('div', { class: `line ${level}${warning}`, dataset: { level } }, this.linkify(text)));
   }
 
   error(text) {

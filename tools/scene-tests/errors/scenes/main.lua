@@ -1,6 +1,6 @@
 -- Checks what the engine says when a script goes wrong: errors in plain
 -- words with a "did you mean", tracebacks without the engine's own lines,
--- and the guard for a function named like one of the piece's methods.
+-- and the warning for a function named like one of the piece's methods.
 -- Prints PASS or FAIL for each check, then DONE (tools/scene-tests/run.mjs
 -- reads them).
 
@@ -70,18 +70,29 @@ local function checks()
   text = shown(function() error("my own error") end)
   has("own error kept", text, "my own error")
 
-  -- A function named like a method of the piece.
-  ok, err = pcall(make, "Body", {}, "scripts/shadow.lua")
-  has("method: refused", tostring(ok), "false")
-  has("method: says which", err, "every Body already has move()")
-  has("method: where", err, "scripts/shadow.lua:4:")
-  ok, err = pcall(make, "Sprite", {}, "scripts/shadow-play.lua")
-  has("method: Sprite play()", err, "every Sprite already has play()")
-  -- move() is no method of a Sprite, and events are the script's to define.
-  ok, err = pcall(make, "Sprite", {}, "scripts/shadow.lua")
-  has("method: free name on another type", tostring(ok), "true")
-  ok, err = pcall(make, "Body", {}, "scripts/events.lua")
-  has("method: events allowed", tostring(ok) .. tostring(err), "true")
+  -- A function named like a method of the piece replaces it, with a warning
+  -- in the output (once for each script).
+  local said = {}
+  local realPrint = _G.print
+  _G.print = function(...) said[#said + 1] = table.concat({ ... }, " ") end
+  local results = {
+    { pcall(make, "Body", {}, "scripts/shadow.lua") },
+    { pcall(make, "Body", {}, "scripts/shadow.lua") },
+    { pcall(make, "Sprite", {}, "scripts/shadow-play.lua") },
+    { pcall(make, "Sprite", {}, "scripts/shadow.lua") },   -- move() is no method of a Sprite
+    { pcall(make, "Body", {}, "scripts/events.lua") },     -- events are the script's to define
+  }
+  _G.print = realPrint
+  local all = table.concat(said, "\n")
+  has("method: still loads", tostring(results[1][1]) .. tostring(results[3][1]), "truetrue")
+  has("method: says which", all, "every Body already has move()")
+  has("method: where", all, "Warning: scripts/shadow.lua:5:")
+  has("method: Sprite play()", all, "every Sprite already has play()")
+  has("method: once for each script, and only for methods", tostring(#said), "2")
+  has("method: not called yet", tostring(results[1][2].moved), "nil")
+  results[1][2]:move()
+  has("method: the script's function is the one that runs", tostring(results[1][2].moved), "true")
+  has("method: other scripts load", tostring(results[4][1]) .. tostring(results[5][1]), "truetrue")
 
   -- jumpSpeed() uses the script's fallGravity; a script of before, with a
   -- big gravity, still works.
