@@ -76,7 +76,9 @@ local function step(co, ok, tag, ...)
 	end
 	if tag == WAIT then
 		local seconds = ...
+		-- A task without a piece (a smitten.boards callback) has owner true.
 		local owner = owners[co]
+		if owner == true then owner = nil end
 		require("love.tween").after(seconds, function() resumeWith(co) end, owner)
 		return
 	end
