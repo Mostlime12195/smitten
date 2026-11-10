@@ -87,7 +87,7 @@ export const SCRIPT_API_GROUPS = [
       ['rnd', 'rnd(n)', 'rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items.'],
       ['choose', 'choose(...)', 'One of its arguments, at random.'],
       ['dist', 'dist(a, b)', 'The distance between two pieces, or dist(x1, y1, x2, y2).'],
-      ['jumpSpeed', 'jumpSpeed(height, gravity)', 'How fast to go up to jump this high (with the piece\'s gravity).'],
+      ['jumpSpeed', 'jumpSpeed(height, gravity)', 'How fast to go up to jump this high, with the script\'s gravity variable (or the gravity given; 1800 if there is neither).'],
     ],
   },
   {
@@ -125,7 +125,7 @@ export const SCRIPT_API_GROUPS = [
       ['line', 'line(x1, y1, x2, y2, ...)', 'A line through points.'],
       ['dot', 'dot(x, y)', 'One pixel.'],
       ['write', 'write(text, x, y, options)', 'Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height.'],
-      ['sprite', 'sprite(image, x, y, options)', 'An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }).'],
+      ['sprite', 'sprite(image, x, y, options)', 'An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees.'],
     ],
   },
 ];
@@ -136,4 +136,4 @@ export const SCRIPT_API = SCRIPT_API_GROUPS.flatMap((g) => g.items);
 export const SCRIPT_API_NAMES = new Set(SCRIPT_API.map(([name]) => name));
 
 /** Callbacks the engine calls on a script, if it has them. */
-export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'pressed', 'released', 'tick', 'finished', 'hovered', 'unhovered', 'revealed', 'eachCharacter', 'linkPressed'];
+export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'clicked', 'touched', 'untouched', 'tick', 'finished', 'hovered', 'unhovered', 'revealed', 'eachCharacter', 'linkPressed'];

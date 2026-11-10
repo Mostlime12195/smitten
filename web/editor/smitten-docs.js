@@ -156,7 +156,8 @@ export const MODULE_HELPERS = {
     sign: ['v', '1, 0 or -1.'],
     round: ['v, step?', 'v rounded to the nearest multiple of step.'],
     distance: ['x1, y1, x2, y2', 'The distance between two points.'],
-    angle: ['x1, y1, x2, y2', 'The angle from one point to another, in radians.'],
+    angle: ['x1, y1, x2?, y2?', 'The angle of a direction, angle(x, y), or from one point to another, angle(x1, y1, x2, y2), in degrees: 0 is right, 90 is down.'],
+    direction: ['angle, length?', 'The x, y of a step of length (1 if left out) at an angle in degrees: vx, vy = smitten.math.direction(rotation, 200).'],
     randomFloat: ['a, b', 'A random number with a fraction, from a to b.'],
   },
   timer: {

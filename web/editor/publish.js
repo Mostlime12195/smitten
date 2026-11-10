@@ -36,7 +36,7 @@ const PENDING_REMIX_KEY = 'smitten-editor.remix-pending';
 export const DEFAULT_PLATFORM_URL = 'http://localhost:8787';
 // Smitten's version (web/editor/core/project.js, ENGINE_VERSION), sent with
 // each game; publishDialog's engineVersion option overrides it.
-const SMITTEN_VERSION = '0.2.0';
+const SMITTEN_VERSION = '0.3.0';
 
 // The site's limits (it checks them too: platform/deploy/env.example).
 const MAX_GAME_BYTES = 25 * 1024 * 1024;

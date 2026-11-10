@@ -19,6 +19,7 @@ export class SceneWorkspace extends EventTarget {
     this.app = app;
     this.project = app.project;
     this.docs = new Map(); // path -> SceneDoc
+    this.parsed = new Map(); // path -> { text, data }: scene files as parsed JSON
     this.order = [];
     this.active = null;
     this.view = null;
@@ -105,9 +106,15 @@ export class SceneWorkspace extends EventTarget {
     return this.view || null;
   }
 
+  /** A scene file's parsed JSON (the same object until the file changes), or null. */
   readScene(path) {
     const text = this.project.readText(path);
-    return text ? JSON.parse(text) : null;
+    if (!text) return null;
+    const had = this.parsed.get(path);
+    if (had && had.text === text) return had.data;
+    const data = JSON.parse(text);
+    this.parsed.set(path, { text, data });
+    return data;
   }
 
   /** Opens a scene file in a tab (or switches to it). */

@@ -8,7 +8,7 @@ removeOffscreen = true
 local age = 0
 
 function physicsUpdate(dt)
-  local dx, dy = math.cos(rotation), math.sin(rotation)
+  local dx, dy = smitten.math.direction(rotation)
   if move then
     vx, vy = dx * speed, dy * speed
     move()

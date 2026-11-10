@@ -16,6 +16,8 @@ const MAX_ZOOM = 32;
 const HANDLE_R = 5; // handle half-size, CSS px
 const DRAG_START = 3; // px before a press becomes a drag
 const ROTATE_SNAP = Math.PI / 12; // 15 degrees
+// Scenes keep angles in degrees; the drawing maths here is in radians.
+const RAD = Math.PI / 180;
 const SCALE_SNAP = 0.1;
 const TOOLS = ['select', 'move', 'rotate', 'scale', 'paint'];
 const DEFAULT_FAMILY = '"Noto Sans", "Helvetica Neue", Arial, sans-serif';
@@ -1084,7 +1086,7 @@ export class Viewport2D {
       if (e.is2d) {
         if (!this.get(n, 'visible')) return;
         e.pm = m;
-        m = mul(m, trs(num(this.get(n, 'x')), num(this.get(n, 'y')), num(this.get(n, 'rotation')), num(this.get(n, 'scaleX'), 1), num(this.get(n, 'scaleY'), 1)));
+        m = mul(m, trs(num(this.get(n, 'x')), num(this.get(n, 'y')), num(this.get(n, 'rotation')) * RAD, num(this.get(n, 'scaleX'), 1), num(this.get(n, 'scaleY'), 1)));
         const t = colorOf(this.get(n, 'tint'));
         tint = [tint[0] * t[0], tint[1] * t[1], tint[2] * t[2], tint[3] * t[3]];
         z += Math.trunc(num(this.get(n, 'layer')));
@@ -1730,8 +1732,8 @@ export class Viewport2D {
     const life = Math.max(0.01, num(this.get(n, 'lifetime'), 1));
     const speed = num(this.get(n, 'speed'), 100);
     const spr = clamp(num(this.get(n, 'speedRandom'), 0.5), 0, 1);
-    const dir = num(this.get(n, 'direction'), -Math.PI / 2);
-    const spread = num(this.get(n, 'spread'), 0.5);
+    const dir = num(this.get(n, 'direction'), -90) * RAD;
+    const spread = num(this.get(n, 'spread'), 30) * RAD;
     const gx = num(this.get(n, 'gravityX'));
     const gy = num(this.get(n, 'gravityY'));
     const s0 = num(this.get(n, 'sizeStart'), 8);
@@ -1845,7 +1847,7 @@ export class Viewport2D {
       if (c.kind === 'shape' && this.get(c.node, 'shape') === 'circle') circle = { e: c, x: cx, y: cy, r: num(this.get(c.node, 'radius')) * Math.abs(sx) };
       if (c.kind === 'shape' && this.get(c.node, 'shape') === 'polygon') {
         // The polygon's points, through the Shape's own position, turn and scale.
-        const rot = num(this.get(c.node, 'rotation'));
+        const rot = num(this.get(c.node, 'rotation')) * RAD;
         const cos = Math.cos(rot);
         const sin = Math.sin(rot);
         const pts = this.get(c.node, 'points') || [];
@@ -2189,8 +2191,8 @@ export class Viewport2D {
         g.setLineDash([]);
       } else if (e.kind === 'particles' && !e.node.readonly) {
         const n = e.node;
-        const dir = num(this.get(n, 'direction'), -Math.PI / 2) + (this.get(n, 'localCoords') ? Math.atan2(e.m[1], e.m[0]) : 0);
-        const spread = Math.min(Math.PI, Math.abs(num(this.get(n, 'spread'), 0.5)));
+        const dir = num(this.get(n, 'direction'), -90) * RAD + (this.get(n, 'localCoords') ? Math.atan2(e.m[1], e.m[0]) : 0);
+        const spread = Math.min(Math.PI, Math.abs(num(this.get(n, 'spread'), 30) * RAD));
         const len = clamp(num(this.get(n, 'speed'), 100) * num(this.get(n, 'lifetime'), 1) * 0.5 * this.view.zoom, 28, 140);
         const [sx, sy] = this.toScreen(e.m[4], e.m[5]);
         g.beginPath();
@@ -2956,7 +2958,7 @@ export class Viewport2D {
       } else if (en.m) {
         items.push({
           node: n, entry: en, pinv: invert(en.pm) || IDENTITY, g0: [en.m[4], en.m[5]],
-          x0: num(this.get(n, 'x')), y0: num(this.get(n, 'y')), rot0: num(this.get(n, 'rotation')),
+          x0: num(this.get(n, 'x')), y0: num(this.get(n, 'y')), rot0: num(this.get(n, 'rotation')) * RAD,
           sx0: num(this.get(n, 'scaleX'), 1), sy0: num(this.get(n, 'scaleY'), 1),
           flip: Math.sign(en.pm[0] * en.pm[3] - en.pm[1] * en.pm[2]) || 1,
         });
@@ -3094,7 +3096,7 @@ export class Viewport2D {
     if (this.snapOn(e) || e.shiftKey) rot = Math.round(rot / step) * step;
     const applied = (rot - p.rot0) * p.flip;
     d.shown = rot;
-    d.gesture.set(d.items.map((it) => [it.node, { rotation: roundTo(it.rot0 + applied * it.flip, 1e-6) }]));
+    d.gesture.set(d.items.map((it) => [it.node, { rotation: roundTo((it.rot0 + applied * it.flip) / RAD, 1e-4) }]));
   }
 
   updateScale(d, world, e) {

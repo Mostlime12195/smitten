@@ -13,7 +13,7 @@ function physicsUpdate(dt)
   local tx, ty = other:worldPosition()
   local dx, dy = tx - px, ty - py
   local d = math.sqrt(dx * dx + dy * dy)
-  if turnToFace then rotation = math.atan2(dy, dx) end
+  if turnToFace then rotation = angleTo(other) end
   local going = d > stopDistance and d > 0
   if move then
     vx = if going then dx / d * speed else 0

@@ -7,7 +7,9 @@ import { h, icon, hydrateIcons, showMenu, toast, promptDialog, confirmDialog, op
 import { settings, applyTheme } from './settings.js';
 import { openSettings } from './settings-dialog.js';
 import * as store from './fs-store.js';
-import { loadSchema, typeDef, isA, properties, methods, events } from './core/schema.js';
+import { loadSchema, getSchema, typeDef, isA, properties, methods, events } from './core/schema.js';
+import { isOldProject, updateProject as planUpdate, applyUpdate, reportText } from './core/update-project.js';
+import { libraryScript } from './core/templates.js';
 import { SCRIPT_LIBRARY } from './core/script-library.js';
 import { Project } from './core/project.js';
 import { SceneDoc } from './core/scene-doc.js';
@@ -218,7 +220,13 @@ async function openProject(id) {
   ed.status.modules.addEventListener('click', () => openProjectSettings('modules'));
   ed.status.hackatime = h('button', { type: 'button', title: 'Time logged on Hackatime today (Settings › Hackatime)', hidden: true });
   ed.status.hackatime.addEventListener('click', () => openSettings({ section: 'hackatime' }));
-  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.hackatime, ed.status.modules);
+  // A project from before version 3 plays by the old rules until it's updated.
+  ed.status.rules = h('button', { type: 'button', hidden: true, title: 'This project was made with an older Smitten and keeps its rules (angles in radians, pressed() on Buttons). Click to see what updating it changes.' }, 'Older rules · Update…');
+  ed.status.rules.addEventListener('click', () => updateProjectRules());
+  const showRules = () => { ed.status.rules.hidden = !isOldProject(project.settings()); };
+  project.addEventListener('settings', showRules);
+  showRules();
+  const statusbar = h('footer', { class: 'statusbar' }, ed.status.left, h('span', { class: 'spacer' }), ed.status.right, ed.status.rules, ed.status.hackatime, ed.status.modules);
   app.replaceChildren(h('div', { id: 'editor' }, titlebar, shell, statusbar));
 
   // Panels
@@ -454,7 +462,7 @@ function migrateProject(project) {
   }
   for (const id of Object.keys(scripts)) {
     const sc = SCRIPT_LIBRARY.find((x) => x.id === id);
-    if (sc && !project.has(`scripts/${sc.file}`)) project.write(`scripts/${sc.file}`, sc.source);
+    if (sc && !project.has(`scripts/${sc.file}`)) project.write(`scripts/${sc.file}`, libraryScript(sc.id, project.settings().version));
   }
   if (changed) {
     toast(`Updated ${changed} scene${changed === 1 ? '' : 's'} to Smitten's pieces${dropped ? `; ${dropped} 3D piece${dropped === 1 ? ' was' : 's were'} left out, since Smitten is 2D now` : ''}.`, { timeout: 8000 });
@@ -853,7 +861,8 @@ async function attachScript(node) {
   } else if (path.startsWith('lib:')) {
     const sc = SCRIPT_LIBRARY.find((x) => `lib:${x.id}` === path);
     path = `scripts/${sc.file}`;
-    if (!ed.project.has(path)) ed.project.write(path, sc.source);
+    // Written for the rules the project plays by (an old project's are older).
+    if (!ed.project.has(path)) ed.project.write(path, libraryScript(sc.id, ed.project.settings().version));
   }
   doc.setScript(node, path);
   if (sel.value === 'new' || sel.value.startsWith('lib:')) openFile(path);
@@ -1056,6 +1065,7 @@ function mainMenu() {
     { label: 'New script…', icon: 'code', action: () => newScript() },
     '-',
     { label: 'Project settings…', icon: 'sliders', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
+    ...(isOldProject(ed.project.settings()) ? [{ label: 'Update this project…', icon: 'upload', action: () => updateProjectRules() }] : []),
     { label: 'Publish…', icon: 'publish', action: () => publish() },
     { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportGame() },
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
@@ -1072,6 +1082,56 @@ function mainMenu() {
     '-',
     { label: 'All games', icon: 'home', action: () => { location.hash = ''; } },
   ];
+}
+
+/**
+ * "Update this project": brings a project from before version 3 to the new
+ * rules (core/update-project.js). Shows what will change and what to look
+ * at first; only when the maker says so, and after keeping a copy.
+ */
+async function updateProjectRules() {
+  await saveAll();
+  if (!ed) return;
+  const project = ed.project;
+  const plan = (declare) => planUpdate(project.snapshot(), getSchema(), { declare });
+  const first = plan(true);
+  if (!first.report.old) {
+    toast('This project already uses the newest rules.');
+    return;
+  }
+  const r = first.report;
+  const declare = h('input', { type: 'checkbox', checked: true });
+  const names = r.undeclared.reduce((n, s) => n + s.names.length, 0);
+  const details = h('pre', { class: 'update-report', style: 'max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 12px; margin: 8px 0 0' }, reportText(r, { preview: true }));
+  const ok = await openDialog({
+    title: 'Update this project',
+    wide: true,
+    body: h('div', {},
+      h('p', { class: 'insp-desc' }, 'This project was made with an older Smitten. It still plays exactly as it did, by the old rules. Updating it switches to the new ones: angles in degrees (rotation = 90), clicked() for Buttons, an error when a script sets a name it never made, and gravityScale for a Body.'),
+      h('p', { class: 'insp-desc' }, 'Smitten changes what it safely can (scenes, and pressed() on Buttons) and lists the lines only you can check. A copy of the project as it is now is kept beside it.'),
+      names ? h('label', { style: 'display: flex; gap: 8px; align-items: center; margin: 8px 0' }, declare,
+        h('span', {}, `Add the ${names} missing variable${names === 1 ? '' : 's'} to the top of ${r.undeclared.length === 1 ? 'the script' : 'their scripts'} (name = nil)`)) : null,
+      details),
+    actions: [{ label: 'Not now', value: false, ghost: true }, { label: 'Update this project', value: true, primary: true }],
+  });
+  if (!ok || !ed || ed.project !== project) return;
+  let final;
+  try {
+    await saveAll();
+    const taken = (await store.listProjects()).map((p) => p.name);
+    final = await applyUpdate(project, getSchema(), {
+      declare: names > 0 && declare.checked,
+      backupName: uniqueName(`${project.name} (before update)`, taken),
+      duplicate: store.duplicateProject,
+    });
+  } catch (e) {
+    toast(`The project wasn't updated: a copy couldn't be kept first (${e.message}).`, { type: 'error', timeout: 8000 });
+    return;
+  }
+  await saveAll();
+  const summary = reportText(final.report);
+  for (const line of `Updated this project to the new rules.\n${summary}`.split('\n')) ed.console?.log('out', line);
+  toast('Updated. The lines to check are in the Output panel, and a copy from before is among your games.', { type: 'success', timeout: 8000 });
 }
 
 async function openProjectSettings(tab) {

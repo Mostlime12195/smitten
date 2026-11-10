@@ -2,14 +2,14 @@
 -- platforms. A classic platformer enemy. Attach it to a scripted Body.
 
 speed = 80           -- pixels per second
-fallGravity = 1800   -- how fast it falls
+gravity = 1800       -- how fast it falls
 turnAtEdges = true   -- turn around instead of walking off a platform
 
 local facing = 1
 
 function physicsUpdate(dt)
   vx = facing * speed
-  vy = math.min(vy + fallGravity * dt, 1000)
+  vy = math.min(vy + gravity * dt, 1000)
   local wasOnGround = onGround()
   local oldX, oldY = x, y
   move()

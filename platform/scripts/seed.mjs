@@ -98,7 +98,7 @@ for (const ex of TEMPLATES.filter((t) => t.id !== 'empty')) {
   const code = Object.values(files).map(String).join('\n');
   const modules = MODULES.filter(([, re]) => re.test(code)).map(([id]) => id);
   const form = new FormData();
-  form.append('meta', JSON.stringify({ title: ex.name, description: ex.description, modules, engineVersion: '0.2.0' }));
+  form.append('meta', JSON.stringify({ title: ex.name, description: ex.description, modules, engineVersion: '0.3.0' }));
   form.append('game', new Blob([zip(files)], { type: 'application/zip' }), 'game.zip');
   const res = await fetch(`${base}/api/games`, { method: 'POST', body: form, headers: { Cookie: cookie, Origin: base } });
   const data = await res.json();

@@ -6,9 +6,13 @@
 // props holds only what differs from the default (for an instance: what it
 // overrides). get(node, key) gives the value in effect.
 
-import { defaultOf, properties, equal, clone, typeDef } from './schema.js';
+import { defaultOf, properties, equal, clone, typeDef, getSchema } from './schema.js';
+import { isOldScene, upgradeScene } from './update-project.js';
 
 let nextId = 1;
+
+// Old scenes placed in others, converted: parsed JSON -> its version 3 form.
+const upgraded = new WeakMap();
 
 export class SceneDoc extends EventTarget {
   /**
@@ -24,6 +28,12 @@ export class SceneDoc extends EventTarget {
     this.redoStack = [];
     this.selection = new Set();
     this.dirty = false;
+    // A scene saved with the old rules (radians, a Body's gravity) is worked
+    // on with the new ones, and saved as version 3 once it's edited.
+    if (isOldScene(data)) {
+      data = clone(data);
+      upgradeScene(data, getSchema(), (p) => this.rawScene(p));
+    }
     this.root = this.fromEntry(data.root, null);
     this.extra = {};
     for (const [k, v] of Object.entries(data)) {
@@ -39,7 +49,7 @@ export class SceneDoc extends EventTarget {
   }
 
   static empty(path, rootType = 'Group', name = 'Root', ctx) {
-    return new SceneDoc(path, { format: 'smitten.scene', version: 2, root: { name, type: rootType } }, ctx);
+    return new SceneDoc(path, { format: 'smitten.scene', version: 3, root: { name, type: rootType } }, ctx);
   }
 
   // ---------------------------------------------------------------------------
@@ -62,12 +72,27 @@ export class SceneDoc extends EventTarget {
     return n;
   }
 
-  instanceData(path) {
+  /** Another scene's parsed JSON as it's saved, or null. */
+  rawScene(path) {
     try {
       return this.ctx.readScene ? this.ctx.readScene(path) : null;
     } catch {
       return null;
     }
+  }
+
+  /** Another scene's parsed JSON, in the new rules (see the constructor). */
+  instanceData(path) {
+    const data = this.rawScene(path);
+    if (!data || !isOldScene(data) || !data.root) return data;
+    // Converted once for each parsed copy.
+    let done = upgraded.get(data);
+    if (!done) {
+      done = clone(data);
+      upgradeScene(done, getSchema(), (p) => this.rawScene(p));
+      upgraded.set(data, done);
+    }
+    return done;
   }
 
   instanceRootType(path, seen = new Set()) {
@@ -193,7 +218,7 @@ export class SceneDoc extends EventTarget {
       if (n.children.length) e.children = n.children.map(ser);
       return e;
     };
-    return { format: 'smitten.scene', version: 2, ...this.extra, root: ser(this.root) };
+    return { format: 'smitten.scene', version: 3, ...this.extra, root: ser(this.root) };
   }
 
   toText() {

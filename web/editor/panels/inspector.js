@@ -230,7 +230,8 @@ export class InspectorPanel {
   editor(node, key, def, value, set) {
     switch (def.type) {
       case 'number': case 'int': return numberEditor(value, def, set);
-      case 'angle': return numberEditor(value, { ...def, unit: '°', step: 1 }, set, (v) => v * 180 / Math.PI, (v) => v * Math.PI / 180);
+      // Angles are degrees everywhere: in scenes, in scripts and here.
+      case 'angle': return numberEditor(value, { unit: '°', step: 1, ...def }, set);
       case 'bool': {
         const sw = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(!!value), 'aria-label': key });
         sw.addEventListener('click', () => set(!value));

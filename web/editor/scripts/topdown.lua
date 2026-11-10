@@ -13,7 +13,7 @@ function physicsUpdate(dt)
   move()
 
   local moving = math.abs(vx) > 5 or math.abs(vy) > 5
-  if turnToFace and moving then rotation = math.atan2(vy, vx) end
+  if turnToFace and moving then rotation = smitten.math.angle(vx, vy) end
   local sprite = findChildOfType("Sprite")
   if sprite then
     if dx ~= 0 and not turnToFace then sprite.flipX = dx < 0 end

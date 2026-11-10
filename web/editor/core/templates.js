@@ -6,17 +6,34 @@
 import { SCRIPT_LIBRARY } from './script-library.js';
 
 const json = (v) => JSON.stringify(v, null, 2) + '\n';
-const scene = (root) => json({ format: 'smitten.scene', version: 2, root });
+const scene = (root) => json({ format: 'smitten.scene', version: 3, root });
 const settings = (name, main, display = {}) => json({
-  format: 'smitten.project', version: 2, name, main,
+  format: 'smitten.project', version: 3, name, main,
   display: { width: 1280, height: 720, stretch: 'expand', ...display },
 });
 
-/** The source of a ready-made script. */
-export function libraryScript(id) {
+// The ready-made scripts are written for the rules of version 3 (degrees).
+// Most read the same under the old rules; these lines don't, and are
+// swapped when a script goes into a project that hasn't been updated.
+const OLD_RULES = {
+  spin: [['turnsPerSecond * 360 * dt', 'turnsPerSecond * math.pi * 2 * dt']],
+};
+
+/**
+ * The source of a ready-made script, for a project of a format version
+ * (smitten.json's "version"; the newest when left out).
+ */
+export function libraryScript(id, version = 3) {
   const s = SCRIPT_LIBRARY.find((x) => x.id === id);
   if (!s) throw new Error(`no ready-made script called ${id}`);
-  return s.source;
+  let source = s.source;
+  if (version < 3) {
+    for (const [from, to] of OLD_RULES[id] || []) {
+      if (!source.includes(from)) throw new Error(`the ${id} script has no "${from}" to swap for the old rules`);
+      source = source.replace(from, to);
+    }
+  }
+  return source;
 }
 
 /** A ready-made script with more code added at the end. */
@@ -146,7 +163,7 @@ function physicsToy(name) {
   const drag = { script: 'scripts/drag.lua' };
   const things = [];
   for (let i = 0; i < 8; i++) {
-    things.push(p(`Crate${i + 1}`, 'Body', { motion: 'physics', x: 140 + (i % 4) * 54, y: 120 + Math.floor(i / 4) * 56, rotation: 0.15 * i, friction: 0.5 },
+    things.push(p(`Crate${i + 1}`, 'Body', { motion: 'physics', x: 140 + (i % 4) * 54, y: 120 + Math.floor(i / 4) * 56, rotation: 9 * i, friction: 0.5 },
       [look(48, 48, [0.82, 0.58 + (i % 3) * 0.06, 0.34, 1], { cornerRadius: 4 })], { ...drag, tags: ['thing'] }));
   }
   for (let i = 0; i < 3; i++) {
@@ -163,7 +180,7 @@ function physicsToy(name) {
       wall('LeftWall', -20, 360, 40, 720),
       wall('RightWall', 1300, 360, 40, 720),
       // Things roll down the ramp and off its end.
-      wall('Ramp', 330, 440, 520, 24, { rotation: 0.42, friction: 0.05 }),
+      wall('Ramp', 330, 440, 520, 24, { rotation: 24, friction: 0.05 }),
       // A seesaw: a plank pinned on a triangle.
       p('Stand', 'Body', { x: 900, y: 655, motion: 'still', shape: 'polygon', points: [0, -36, 40, 26, -40, 26] },
         [p('Look', 'Shape', { shape: 'polygon', points: [0, -36, 40, 26, -40, 26], color: dark })]),
@@ -230,9 +247,9 @@ function pixelPlatformer(name) {
   }
   files['scripts/player.lua'] = files['scripts/player.lua']
     .replace('speed = 220', 'speed = 70').replace('acceleration = 2400', 'acceleration = 700')
-    .replace('jumpHeight = 96', 'jumpHeight = 28').replace('fallGravity = 1800', 'fallGravity = 600')
+    .replace('jumpHeight = 96', 'jumpHeight = 28').replace('gravity = 1800', 'gravity = 600')
     .replace('maxFallSpeed = 1000', 'maxFallSpeed = 300');
   files['scripts/level.lua'] = files['scripts/level.lua'].replace('player.y > 900', 'player.y > 230');
-  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('speed = 80', 'speed = 25').replace('fallGravity = 1800', 'fallGravity = 600');
+  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('speed = 80', 'speed = 25').replace('gravity = 1800', 'gravity = 600');
   return files;
 }

@@ -6,8 +6,11 @@
 
 import * as store from '../fs-store.js';
 
-export const ENGINE_VERSION = '0.2.0';
+export const ENGINE_VERSION = '0.3.0';
 
+// What a smitten.json that leaves something out means. A project with no
+// version is an old one: new projects say 3 (core/templates.js), and the
+// rules they play by go with it (core/update-project.js).
 export const DEFAULT_SETTINGS = {
   format: 'smitten.project',
   version: 2,
