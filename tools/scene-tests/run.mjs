@@ -8,7 +8,8 @@
 // itself; CHROME and CHROME_FLAGS are as in tools/stress/run.mjs.
 //
 //   errors, lights,   print PASS or FAIL for each check, then DONE
-//   paths, levels
+//   paths, levels,
+//   players
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
 //   boards,           smitten.boards without the games site, and inside
@@ -38,6 +39,7 @@ const CASES = {
   // and inside a page that stands in for a game's page there.
   boards: { game: 'tools/scene-tests/boards.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },
   'boards-site': { url: '/tools/scene-tests/boards-site.html', until: /^DONE /, check: (lines) => mode(lines, 'site') || selfChecking(lines) },
+  players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 

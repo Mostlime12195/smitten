@@ -1,0 +1,13 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Players test",
+  "main": "scenes/main.scene",
+  "display": { "width": 640, "height": 360, "stretch": "fit" },
+  "input": {
+    "dash": ["k", "pad:b"],
+    "players": {
+      "2": { "jump": ["return", "pad:a"], "left": ["left", "pad:dpleft"] }
+    }
+  }
+}
