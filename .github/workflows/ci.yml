@@ -70,6 +70,11 @@ jobs:
           sudo apt-get install -y -q lua5.1
           lua5.1 tools/paths-tests/test.lua
 
+      # build.py embeds the engine's Lua without comments: luac5.1 must make
+      # the same bytecode from every stripped file as from the original.
+      - name: Embedded Lua tests
+        run: python3 tools/build-tests/strip_lua_test.py
+
       # So are the text engine's parser and layout, with a made-up font.
       - name: Text tests
         run: lua5.1 tools/text-tests/test.lua
@@ -111,6 +116,22 @@ jobs:
         run: |
           source ~/emsdk/emsdk_env.sh
           python3 build.py
+
+      # TEMPORARY (play-build measurements): the engine after wasm-opt -Oz.
+      - name: Measure wasm-opt -Oz
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          mkdir -p oz/modules
+          for f in smitten.wasm modules/physics2d.wasm modules/synth.wasm; do
+            wasm-opt -Oz -all dist/$f -o oz/$f || echo "wasm-opt failed on $f"
+            ls -l dist/$f oz/$f
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oz
+          path: oz
+          retention-days: 3
 
       - uses: actions/setup-node@v4
         with:
