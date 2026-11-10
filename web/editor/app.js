@@ -1395,8 +1395,8 @@ function buildAnimatePanel(el) {
         if (ed.ws !== 'scene') return;
         if (!ed.dock.isVisible('animate') || !el.offsetWidth) ed.dock.show('animate');
         // Room for a few tracks.
-        if (ed.dock.layout.sizes.bottom < 220) {
-          ed.dock.layout.sizes.bottom = 220;
+        if (ed.dock.layout.sizes.bottom < 240) {
+          ed.dock.layout.sizes.bottom = 240;
           ed.dock.applySizes();
           ed.dock.changed();
         }

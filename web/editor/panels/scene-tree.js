@@ -112,7 +112,7 @@ export class SceneTreePanel {
   /** Everything a row shows but its selection, as a string. */
   signature(n, depth, kids) {
     const doc = this.doc;
-    const visible = !n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI')) ? doc.get(n, 'visible') !== false : null;
+    const visible = !n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI')) ? (doc.getSaved || doc.get).call(doc, n, 'visible') !== false : null;
     return JSON.stringify([depth, n.name, n.type, n.type === 'Body' ? doc.get(n, 'motion') : null, kids.length > 0, this.isOpen(n),
       doc.scriptOf(n), n.instance, this.warning(n), visible, !!n.readonly, n === doc.root,
       n.readonly ? this.instanceOwner(n)?.instance : null]);
@@ -178,7 +178,8 @@ export class SceneTreePanel {
     const warn = this.warning(n);
     if (warn) badges.append(h('span', { class: 'node-badge', title: warn, style: 'color: var(--warning)' }, icon('alert', 14)));
     if (!n.readonly && (isA(n.type, 'Group') || isA(n.type, 'UI'))) {
-      const visible = doc.get(n, 'visible') !== false;
+      // (The eye shows the scene's own value, not the Animate panel's preview.)
+      const visible = (doc.getSaved || doc.get).call(doc, n, 'visible') !== false;
       const b = h('button', { type: 'button', class: `node-badge ${visible ? '' : 'off'}`, title: visible ? 'Hide' : 'Show' }, icon(visible ? 'eye' : 'eyeOff', 14));
       b.addEventListener('click', (e) => { e.stopPropagation(); doc.setProp(cur(), 'visible', !visible, { label: visible ? 'Hide' : 'Show' }); });
       badges.append(b);

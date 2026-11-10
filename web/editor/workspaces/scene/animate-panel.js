@@ -216,6 +216,7 @@ export class AnimatePanel {
     this.recordBtn?.setAttribute('aria-pressed', String(on));
     this.root.classList.toggle('recording', on);
     this.updatePreview();
+    this.draw();
   }
 
   setTime(t, { snap = true } = {}) {
@@ -286,6 +287,7 @@ export class AnimatePanel {
     this.canvas = null;
     this.timeInput = null;
     this.recordBtn = null;
+    this.playBtn = null;
     const doc = this.doc;
     if (!doc) {
       this.root.append(this.empty('Open a scene to animate its pieces.'));
@@ -388,7 +390,8 @@ export class AnimatePanel {
       });
       len.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') len.blur(); });
       bar.append(h('label', { class: 'anp-field' }, 'Length', len, h('span', { class: 'num-unit' }, 's')));
-      const loop = h('button', { type: 'button', class: 'tool-btn', 'aria-pressed': String(!!anim.loop), title: 'Loop: start again at the end' }, icon('repeat', 14), 'Loop');
+      const loop = h('button', { type: 'button', class: 'tool-btn anp-loop', 'aria-pressed': String(!!anim.loop), 'aria-label': 'Loop',
+        title: anim.loop ? 'Loop is on: the animation starts again at the end' : 'Loop is off: the animation stops at the end' }, icon('repeat', 14));
       loop.addEventListener('click', () => A.setAnimation(doc, this.animator, this.anim, { loop: !anim.loop }, { label: anim.loop ? 'Stop looping' : 'Loop' }));
       bar.append(loop);
       const snap = h('select', { class: 'input anp-snap', 'aria-label': 'Snap', title: 'Keys and the playhead snap to this step (hold Alt to not snap)' },

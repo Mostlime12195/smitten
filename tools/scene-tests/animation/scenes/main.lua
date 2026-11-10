@@ -14,6 +14,8 @@ local g = smitten.graphics
 game.passed = 0
 game.failed = 0
 game.animatorSteps = 0
+game.clock = 0
+game.lastDt = 0
 
 local function check(name, ok, why)
   if ok then
@@ -76,7 +78,8 @@ local function shared()
       count += 1
       local first, last = keyframes.callRange(list, r[1], r[2], r[3])
       local ids = {}
-      for k = first, last, if r[1] <= r[2] then 1 else -1 do ids[#ids + 1] = list[k].id end
+      local step = if r[1] <= r[2] then 1 else -1
+      for k = first, last, step do ids[#ids + 1] = list[k].id end
       if not same(ids, case.expect[i]) and not bad then bad = `{case.name} {r[1]}..{r[2]}: {table.concat(ids, ",")}` end
     end
   end
@@ -176,10 +179,12 @@ local function running()
   local heard = {}
   anim:on("finished", function(name) heard[#heard + 1] = name end)
   local result = {}
+  -- The Animator moves on in this frame too, after this: by game.lastDt.
   task(function()
-    local t0 = time()
+    local t0 = game.clock - game.lastDt
     result.ok = anim:animate("open")
-    result.seconds = time() - t0
+    result.seconds = game.clock - t0
+    result.lastDt = game.lastDt
     result.y = doorA:find("Panel").y
     result.playing = anim.playing
   end)
@@ -189,7 +194,8 @@ local function running()
     frames += 1
   end
   check("animate() goes on after the end", result.ok == true, tostring(result.ok))
-  check("animate() waits for the length", type(result.seconds) == "number" and result.seconds >= 0.45, result.seconds)
+  check("animate() waits for the length of the animation", type(result.seconds) == "number" and result.seconds >= 0.5 - 1e-6
+    and result.seconds < 0.5 + result.lastDt + 1e-6, result.seconds)
   check("when it goes on, the pieces are at the end", near(result.y, -64) and result.playing == false, result.y)
   check("finished in the running scene", #heard == 1 and heard[1] == "open")
   check("call keys in the running scene", doorA.creaks == "start,middle,end", doorA.creaks)
@@ -198,7 +204,6 @@ local function running()
   -- A task that waits while the animation is stopped goes on with false.
   local stopped = nil
   task(function() stopped = anim:animate("open", true) end)
-  frame(3)
   anim:stop()
   check("stop() ends animate() with false", stopped == false, tostring(stopped))
   local ok, err = pcall(function() anim:animate("open") end)

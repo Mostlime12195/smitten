@@ -25,10 +25,12 @@
   white-space: nowrap;
 }
 
+.anp-bar > *, .anp-keybar > * { flex-shrink: 0; }
+.anp-bar { flex-wrap: wrap; row-gap: 2px; }
 .anp-keybar { min-height: 32px; background: var(--panel-2); }
 .anp-bar .spacer, .anp-keybar .spacer { flex: 1; }
 .anp-bar .input, .anp-keybar .input { height: 24px; }
-.anp-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border-strong); flex: none; }
+.anp-sep { width: 1px; height: 18px; margin: 0 2px; background: var(--border-strong); flex: none; }
 
 .anp-who {
   display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 6px; border: none; border-radius: var(--radius-sm);
@@ -36,9 +38,10 @@
 }
 .anp-who:hover { background: var(--hover); }
 
-.anp-pick { width: 130px; flex: none; }
-.anp-time, .anp-len { width: 54px; flex: none; }
-.anp-snap { width: 74px; flex: none; }
+.anp-pick { width: 112px; flex: none; }
+.anp-loop { padding: 0 6px; }
+.anp-bar .anp-time, .anp-bar .anp-len { width: 44px; flex: none; padding: 0 6px; }
+.anp-snap { width: 66px; flex: none; }
 .anp-field { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-muted); flex: none; }
 .anp-field.grow { flex: 1 1 140px; min-width: 120px; }
 .anp-field.grow > .input, .anp-field.grow > span { flex: 1; min-width: 0; }

@@ -125,6 +125,17 @@ export class SceneDoc extends EventTarget {
     return defaultOf(node.type, key);
   }
 
+  /** The value of a property as the scene has it, without a preview. */
+  getSaved(node, key) {
+    const preview = this.preview;
+    this.preview = null;
+    try {
+      return this.get(node, key);
+    } finally {
+      this.preview = preview;
+    }
+  }
+
   /** All properties in effect, defaults included. */
   allProps(node) {
     const out = {};
