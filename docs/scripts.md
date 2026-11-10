@@ -214,6 +214,8 @@ Easings: `linear`, `outQuad` (the default), `inQuad`, `inOutQuad`,
 | `round(value, step)` | Returns value, rounded to the nearest step (1 if you leave it out). |
 | `rnd(n)` | rnd() returns 0 to 1. rnd(n) returns 0 to n. rnd(list) returns one of its items. |
 | `choose(...)` | Returns one of its arguments, at random. |
+| `seed(n)` | seed(42) makes rnd() and choose() give the same numbers after it every time. seed() makes numbers that nobody can guess. Returns the seed. |
+| `noise(x, y, z)` | Returns smooth noise from 0 to 1 at a point (y and z are optional). Points that are close together give values that are close together. |
 | `dist(a, b)` | Returns the distance between two pieces, or between two points: dist(x1, y1, x2, y2). |
 | `jumpSpeed(height, gravity)` | Returns the upward speed for a jump of this height. It uses the gravity variable of the script, or the gravity that you give, or 1800 if there is neither. |
 <!-- end -->

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Random numbers and noise · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Random numbers and noise.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random" aria-current="page">Random and noise</a><ul class="nav-sub"><li><a href="#seeds">Seeds</a></li><li><a href="#random-numbers-of-their-own">Random numbers of their own</a></li><li><a href="#noise">Noise</a></li><li><a href="#example-a-cave-and-hills-from-a-seed">Example: a cave and hills from a seed</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Random numbers and noise</h1>
+<p><code>rnd()</code> gives a new random number each time. Usually you want a different game each time. Sometimes you want the same &quot;random&quot; numbers again: the same level from a level number, a daily puzzle, or a replay. A <strong>seed</strong> does that. <strong>Noise</strong> gives smooth random values for hills, caves, clouds and wobbling things.</p>
+<h2 id="seeds"><a class="anchor" href="#seeds" aria-hidden="true">#</a>Seeds</h2>
+<p><code>seed(n)</code> sets where the random numbers start. After <code>seed(42)</code>, <code>rnd()</code> gives the same numbers every time the game runs, in every browser.</p>
+<pre><code class="lang-lua">level = <span class="tk-n">3</span>
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-f">seed</span>(level)          <span class="tk-c">-- level 3 is the same every time</span>
+  <span class="tk-k">for</span> i = <span class="tk-n">1</span>, <span class="tk-n">10</span> <span class="tk-k">do</span>
+    <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/coin.scene&quot;</span>, { x = <span class="tk-f">rnd</span>(<span class="tk-n">600</span>), y = <span class="tk-f">rnd</span>(<span class="tk-n">300</span>) })
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>A seed is a whole number or a string, like <code>seed(&quot;daily 2026-11-10&quot;)</code>. <code>seed()</code> with no number picks a new seed that nobody can guess. It also returns that seed, so you can show it and use it again later:</p>
+<pre><code class="lang-lua">worldSeed = <span class="tk-f">seed</span>()
+<span class="tk-f">print</span>(<span class="tk-s">&quot;World &quot;</span> .. worldSeed)</code></pre>
+<p>A seed changes the numbers from <code>rnd()</code>, <code>choose()</code>, and <code>smitten.math.random</code>, <code>randomFloat</code>, <code>randomNormal</code>, <code>chance</code>, <code>pick</code> and <code>shuffle</code>. It does not change Particles or a Camera's shake: they use random numbers of their own. Lua's own <code>math.random</code> also has its own numbers, and a seed does not change them. Use <code>rnd()</code> for numbers that must repeat.</p>
+<h2 id="random-numbers-of-their-own"><a class="anchor" href="#random-numbers-of-their-own" aria-hidden="true">#</a>Random numbers of their own</h2>
+<p>A world generator and the game often both need random numbers. If they use the same numbers, an extra <code>rnd()</code> in gameplay changes the world. Give the generator its own random numbers with <code>smitten.math.newRandom(seed)</code>:</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> r = smitten.math.<span class="tk-f">newRandom</span>(worldSeed)
+<span class="tk-k">local</span> x = r:<span class="tk-f">rnd</span>(<span class="tk-n">600</span>)             <span class="tk-c">-- the same as rnd(), but its own</span>
+<span class="tk-k">local</span> kind = r:<span class="tk-f">choose</span>(<span class="tk-s">&quot;tree&quot;</span>, <span class="tk-s">&quot;rock&quot;</span>, <span class="tk-s">&quot;bush&quot;</span>)</code></pre>
+<p><code>newRandom()</code> with no seed picks one that nobody can guess.</p>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>rnd(n)</code></td><td><code>rnd()</code>: 0 to 1. <code>rnd(n)</code>: 0 to n. <code>rnd(list)</code>: one of its items</td></tr>
+<tr><td><code>choose(...)</code></td><td>One of its arguments</td></tr>
+<tr><td><code>random(a, b)</code></td><td>A whole number from a to b. <code>random(n)</code>: from 1 to n</td></tr>
+<tr><td><code>randomFloat(a, b)</code></td><td>A number with a fraction, from a to b</td></tr>
+<tr><td><code>randomNormal(spread, middle)</code></td><td>A number that is usually near <code>middle</code></td></tr>
+<tr><td><code>chance(p)</code></td><td>True with probability p: <code>chance(0.25)</code> is true a quarter of the time</td></tr>
+<tr><td><code>pick(list)</code></td><td>One item of a list</td></tr>
+<tr><td><code>shuffle(list)</code></td><td>Puts the items of the list in a random order, and returns the list</td></tr>
+<tr><td><code>getSeed()</code>, <code>setSeed(seed)</code></td><td>The seed it started from, and a new start</td></tr>
+<tr><td><code>getState()</code>, <code>setState(state)</code></td><td>Where it is now, as a string. Save the string, and continue from the same place later</td></tr></tbody>
+</table></div>
+<h2 id="noise"><a class="anchor" href="#noise" aria-hidden="true">#</a>Noise</h2>
+<p><code>noise(x, y)</code> gives a value from 0 to 1. Points that are close together give values that are close together, so the values go up and down smoothly. The same point always gives the same value. Use <code>noise(x)</code> for a line and <code>noise(x, y, z)</code> for 3D. Make <code>z</code> the time for noise that changes slowly:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  rotation = (<span class="tk-f">noise</span>(<span class="tk-f">time</span>() * <span class="tk-n">2</span>) - <span class="tk-n">0.5</span>) * <span class="tk-n">20</span>   <span class="tk-c">-- a gentle wobble</span>
+<span class="tk-k">end</span></code></pre>
+<p>For terrain, <code>smitten.math.newNoise(options)</code> makes noise with these options:</p>
+<div class="table"><table>
+<thead><tr><th>Option</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>seed</code></td><td>(a new one)</td><td>A different seed gives a different landscape. The same seed gives the same landscape</td></tr>
+<tr><td><code>scale</code></td><td>100</td><td>The size of the hills and holes, in the units you give to <code>get()</code></td></tr>
+<tr><td><code>octaves</code></td><td>1</td><td>Layers of finer detail on top: 3 or 4 make rough, natural shapes</td></tr>
+<tr><td><code>roughness</code></td><td>0.5</td><td>How strong each finer layer is: 0 gives only the first layer</td></tr></tbody>
+</table></div>
+<p><code>n:get(x, y)</code> gives the value at a point, from 0 to 1. <code>get(x)</code> and <code>get(x, y, z)</code> also work. You can change the options later: <code>n.scale = 20</code>. <code>n:getSeed()</code> gives the seed.</p>
+<p>Noise with more octaves stays nearer the middle, 0.5, more of the time.</p>
+<h2 id="example-a-cave-and-hills-from-a-seed"><a class="anchor" href="#example-a-cave-and-hills-from-a-seed" aria-hidden="true">#</a>Example: a cave and hills from a seed</h2>
+<p>This script is on a Tiles piece. It fills the Tiles with rock where the noise is high, and leaves air where it is low. Then it cuts the sky above a line of hills. The same <code>caveSeed</code> always makes the same cave.</p>
+<pre><code class="lang-lua">caveSeed = <span class="tk-n">1</span>
+rock = <span class="tk-n">0</span>             <span class="tk-c">-- the tile to fill with</span>
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">local</span> cave = smitten.math.<span class="tk-f">newNoise</span>({ seed = caveSeed, scale = <span class="tk-n">12</span>, octaves = <span class="tk-n">3</span> })
+  <span class="tk-k">local</span> hills = smitten.math.<span class="tk-f">newNoise</span>({ seed = caveSeed, scale = <span class="tk-n">30</span>, octaves = <span class="tk-n">2</span> })
+  <span class="tk-k">for</span> column = <span class="tk-n">0</span>, <span class="tk-n">59</span> <span class="tk-k">do</span>
+    <span class="tk-k">local</span> ground = math.<span class="tk-f">floor</span>(<span class="tk-n">5</span> + hills:<span class="tk-f">get</span>(column) * <span class="tk-n">10</span>)
+    <span class="tk-k">for</span> row = ground, <span class="tk-n">29</span> <span class="tk-k">do</span>
+      <span class="tk-k">if</span> cave:<span class="tk-f">get</span>(column, row) &gt; <span class="tk-n">0.5</span> <span class="tk-k">then</span> <span class="tk-f">setTile</span>(column, row, rock) <span class="tk-k">end</span>
+    <span class="tk-k">end</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<ul><li>Change <code>caveSeed</code> in the Inspector for another cave.</li><li>Change <code>0.5</code> to change how much of it is rock.</li><li>Change <code>scale</code> to make the holes bigger or smaller.</li><li>To fill the Tiles again, call <code>clear()</code> first.</li></ul>
+<h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
+<div class="table"><table>
+<thead><tr><th>Call</th><th></th></tr></thead>
+<tbody><tr><td><code>seed(n)</code></td><td><code>seed(42)</code>: the random numbers repeat after it. <code>seed()</code>: numbers that nobody can guess. Returns the seed</td></tr>
+<tr><td><code>noise(x, y, z)</code></td><td>Smooth noise from 0 to 1 at a point (<code>y</code> and <code>z</code> are optional)</td></tr>
+<tr><td><code>smitten.math.seed(n)</code></td><td>The same as <code>seed(n)</code></td></tr>
+<tr><td><code>smitten.math.noise(x, y, z)</code></td><td>The same as <code>noise(x, y, z)</code></td></tr>
+<tr><td><code>smitten.math.newRandom(seed)</code></td><td>Random numbers of their own, with the methods above</td></tr>
+<tr><td><code>smitten.math.newNoise(options)</code></td><td>Noise with a seed, a scale and octaves. Its <code>get(x, y)</code> gives a value from 0 to 1</td></tr>
+<tr><td><code>smitten.math.shuffle(list)</code></td><td>Puts the items of a list in a random order, and returns the list</td></tr></tbody>
+</table></div>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="pathfinding"><span>Previous</span>Pathfinding</a><a class="next" href="saving"><span>Next</span>Saving</a></nav>
+  </main>
+</div>
+</body>
+</html>

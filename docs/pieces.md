@@ -448,7 +448,7 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 ### Zone
 
-An area that detects bodies and zones that go in and out. It does not block them, and it ignores still bodies.
+An area that detects bodies and zones that go in and out. It does not block them, and it ignores still bodies. When forces is on, it changes the gravity, drag and push of physics bodies inside it.
 
 Extends [Group](#group). Uses the physics2d (Box2D) module.
 
@@ -461,6 +461,16 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... (8 corners at most). |
 | `detects` | tags | "" | The Zone notices only things with one of these tags. If it is empty, it notices everything. |
 | `active` | bool | true | When this is on, the Zone notices things that go in and out. |
+| `forces` | bool | false | When this is on, the Zone changes how physics bodies move inside it: gravity, drag and a steady push. |
+| `gravity` | enum | "scene" | scene: bodies feel only the scene's gravity. add: the Zone's gravity adds to the scene's gravity. replace: bodies feel the Zone's gravity instead. |
+| `toCenter` | bool | false | When this is on, the Zone pulls towards its position, like a planet, and not in one direction. |
+| `gravityX` | number (px/s²) | 0 | The Zone's gravity, to the right (negative is to the left). |
+| `gravityY` | number (px/s²) | 0 | The Zone's gravity, down (negative is up). With replace, 0 and 0 make bodies float. |
+| `gravityStrength` | number (px/s²) | 980 | How hard the Zone pulls towards its position. The pull is the same everywhere in the Zone. |
+| `drag` | number | 0 | Slows down the movement of bodies inside, like water or thick air. It adds to their own drag. |
+| `spinDrag` | number | 0 | Slows down the turning of bodies inside. |
+| `pushX` | number | 0 | A steady push to the right on each body inside, for wind, currents and conveyor belts. A heavy body speeds up less. |
+| `pushY` | number | 0 | A steady push down on each body inside (negative is up). |
 
 | Method | |
 | --- | --- |

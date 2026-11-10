@@ -161,6 +161,71 @@ script. It also calls them in the script of the Body that went in.
 
 Zones do not see `still` bodies.
 
+### Forces in zones
+
+A Zone can change how physics bodies move while they are inside it. Turn
+on its `forces` property. Then the Zone can give bodies its own gravity,
+slow them down with drag and push them with a steady force.
+
+| Property | |
+| --- | --- |
+| `gravity` | `scene`: bodies feel only the scene's gravity. `add`: the Zone's gravity adds to the scene's gravity. `replace`: bodies feel the Zone's gravity and not the scene's gravity |
+| `gravityX`, `gravityY` | The Zone's gravity, in pixels per second per second. `replace` with 0 and 0 makes bodies float |
+| `toCenter`, `gravityStrength` | Pull towards the Zone's position, like a planet. The pull has the same strength everywhere in the Zone |
+| `drag`, `spinDrag` | Slow down the movement and the turning of bodies inside. They add to the body's own `drag` and `spinDrag` |
+| `pushX`, `pushY` | A steady push on each body inside. It is a force, so a heavy body speeds up less than a light body |
+
+These rules apply:
+
+- Only `physics` bodies feel the forces. A `scripted` body moves only
+  when its script moves it, and a Zone ignores `still` bodies.
+- A body's `gravityScale` multiplies the Zone's gravity, as it multiplies
+  the scene's gravity. It does not change the push or the drag.
+- The Zone's gravity and push use the scene's directions. They do not
+  turn when the Zone turns.
+- `detects` also limits who feels the forces. A Zone with `active =
+  false` does nothing.
+- Zones can overlap. Gravity from `add` zones, drags and pushes all add
+  up. If two or more zones replace gravity, the zone that the body went
+  into last wins.
+- A Zone with `forces` off, the default, works as it always did.
+
+Scripts can change all of these properties while the game runs. For
+example, `Fan.forces = false` turns a fan off.
+
+#### Recipes
+
+**Water.** Make a Zone the size of the water. Set `gravity` to
+`replace`, `gravityY` to `-150` and `drag` to `3`. Things that fall in
+slow down and then float up to the top. This is not true buoyancy: a
+heavy crate and a light ball float the same way. To make a thing sink,
+set the Zone's `detects` to `floats` and tag only the floating things
+`floats`. The Zone then ignores the rest, and they fall through. Add a
+splash in the Zone's script:
+
+```lua
+function entered(other)
+  if other.motion == "physics" and math.abs(other.vy) > 100 then sfx("splash") end
+end
+```
+
+**Wind.** Set `pushX` to `300` and leave `gravity` at `scene`. Light
+things blow away, and heavy things only slide.
+
+**Conveyor belt.** Make a thin Zone along the top of the belt. Set
+`pushX` to the strength of the belt. Use a negative value to go left.
+
+**Planet.** Make a circle Zone around a round `still` Body. Set
+`gravity` to `replace`, turn on `toCenter` and set `gravityStrength`.
+Things fall onto the planet from every side. Bodies that move fast enough
+go into orbit.
+
+**Black hole.** Use `add` and `toCenter` with a large `gravityStrength`,
+and add some `drag`. Things fall in and stay near the center.
+
+**Space.** Use `replace` with `gravityX` and `gravityY` at 0. Bodies
+inside float and keep their speed.
+
 ## Tiles
 
 Solid tiles in a Tiles piece are walls and floors with smooth seams, so
@@ -197,7 +262,9 @@ Raycasts do not see Zones, and they do not see the back sides of tiles.
 You set the gravity of the scene in **Project settings › Physics**
 (`physics.gravity`, `[0, 980]` by default). `setGravity(0, 0)` turns it
 off, for a level in space. `getGravity()` gets it. Scripted bodies apply
-their own gravity in their script, as in the example above.
+their own gravity in their script, as in the example above. A Zone can
+change the gravity in one part of the scene: see
+[Forces in zones](#forces-in-zones).
 
 ## Joints
 
@@ -288,6 +355,16 @@ stronger than that force. Then it sends the `broke` event. `getAngle()`,
 | `points` | points | {0, -16, 16, 16, -16, 16} | The corner points x1, y1, x2, y2, ... (8 corners at most). |
 | `detects` | tags | "" | The Zone notices only things with one of these tags. If it is empty, it notices everything. |
 | `active` | bool | true | When this is on, the Zone notices things that go in and out. |
+| `forces` | bool | false | When this is on, the Zone changes how physics bodies move inside it: gravity, drag and a steady push. |
+| `gravity` | enum | "scene" | scene: bodies feel only the scene's gravity. add: the Zone's gravity adds to the scene's gravity. replace: bodies feel the Zone's gravity instead. |
+| `toCenter` | bool | false | When this is on, the Zone pulls towards its position, like a planet, and not in one direction. |
+| `gravityX` | number (px/s²) | 0 | The Zone's gravity, to the right (negative is to the left). |
+| `gravityY` | number (px/s²) | 0 | The Zone's gravity, down (negative is up). With replace, 0 and 0 make bodies float. |
+| `gravityStrength` | number (px/s²) | 980 | How hard the Zone pulls towards its position. The pull is the same everywhere in the Zone. |
+| `drag` | number | 0 | Slows down the movement of bodies inside, like water or thick air. It adds to their own drag. |
+| `spinDrag` | number | 0 | Slows down the turning of bodies inside. |
+| `pushX` | number | 0 | A steady push to the right on each body inside, for wind, currents and conveyor belts. A heavy body speeds up less. |
+| `pushY` | number | 0 | A steady push down on each body inside (negative is up). |
 
 | Method | |
 | --- | --- |
