@@ -69,7 +69,7 @@
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   <span class="tk-k">for</span> i, name <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">load</span>(<span class="tk-s">&quot;saves&quot;</span>, {})) <span class="tk-k">do</span>
     <span class="tk-k">local</span> b = self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;Button&quot;</span>, { text = name })
-    b:<span class="tk-f">on</span>(<span class="tk-s">&quot;pressed&quot;</span>, <span class="tk-k">function</span>() <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/game.scene&quot;</span>, { save = name }) <span class="tk-k">end</span>)
+    b:<span class="tk-f">on</span>(<span class="tk-s">&quot;clicked&quot;</span>, <span class="tk-k">function</span>() <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/game.scene&quot;</span>, { save = name }) <span class="tk-k">end</span>)
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h3 id="scroll"><a class="anchor" href="#scroll" aria-hidden="true">#</a>Scroll</h3>

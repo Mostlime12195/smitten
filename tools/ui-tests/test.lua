@@ -649,7 +649,7 @@ do
 	end
 	eq("focus: down reaches every piece that can have it", table.concat(names, " "), "Play Volume Full Name Quit")
 	local play = byName(top, "Play")
-	local presses = heard(play, "pressed")
+	local presses = heard(play, "clicked")
 	play:focus()
 	tap(top, "return")
 	eq("focus: accept still presses a Button", #presses, 1)
@@ -690,7 +690,7 @@ do
 	check("scroll: a piece scrolled out of sight can't be clicked", ui.pick(150, 90, false) == nil)
 	eq("scroll: one in sight can", ui.pick(150, 105, false), byName(top, "Item2"))
 	local item3 = byName(top, "Item3")
-	local presses = heard(item3, "pressed")
+	local presses = heard(item3, "clicked")
 	local r = item3._rect
 	click(top, 150, r[2] + 5)
 	eq("scroll: a click inside still clicks", #presses, 1)
@@ -736,7 +736,7 @@ do
 		} },
 	})
 	local panel, a, b = byName(top, "Panel"), byName(top, "A"), byName(top, "B")
-	local pa, pb, pp = heard(a, "pressed"), heard(b, "pressed"), heard(panel, "pressed")
+	local pa, pb, pp = heard(a, "clicked"), heard(b, "clicked"), heard(panel, "clicked")
 	frame(top)
 	frame(top)
 	check("button: autofocus", b:isFocused())

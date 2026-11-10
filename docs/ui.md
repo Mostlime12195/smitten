@@ -71,7 +71,7 @@ Pieces made while the game runs line up like the rest:
 function ready()
   for i, name in ipairs(load("saves", {})) do
     local b = self:spawn("Button", { text = name })
-    b:on("pressed", function() go("scenes/game.scene", { save = name }) end)
+    b:on("clicked", function() go("scenes/game.scene", { save = name }) end)
   end
 end
 ```
