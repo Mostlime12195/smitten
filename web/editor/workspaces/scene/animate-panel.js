@@ -394,8 +394,8 @@ export class AnimatePanel {
         title: anim.loop ? 'Loop is on: the animation starts again at the end' : 'Loop is off: the animation stops at the end' }, icon('repeat', 14));
       loop.addEventListener('click', () => A.setAnimation(doc, this.animator, this.anim, { loop: !anim.loop }, { label: anim.loop ? 'Stop looping' : 'Loop' }));
       bar.append(loop);
-      const snap = h('select', { class: 'input anp-snap', 'aria-label': 'Snap', title: 'Keys and the playhead snap to this step (hold Alt to not snap)' },
-        ...SNAPS.map((s) => h('option', { value: String(s), selected: s === this.snap }, s ? `${s} s` : 'Off')));
+      const snap = h('select', { class: 'input anp-snap', 'aria-label': 'Snap', title: 'Keys and the playhead snap to this step, in seconds (hold Alt to not snap)' },
+        ...SNAPS.map((s) => h('option', { value: String(s), selected: s === this.snap }, s ? String(s) : 'Off')));
       snap.addEventListener('change', () => {
         this.snap = Number(snap.value);
         try { localStorage.setItem(SNAP_KEY, String(this.snap)); } catch { /* private mode */ }

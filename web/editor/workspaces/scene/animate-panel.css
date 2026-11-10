@@ -41,7 +41,7 @@
 .anp-pick { width: 112px; flex: none; }
 .anp-loop { padding: 0 6px; }
 .anp-bar .anp-time, .anp-bar .anp-len { width: 44px; flex: none; padding: 0 6px; }
-.anp-snap { width: 66px; flex: none; }
+.anp-snap { width: 72px; flex: none; }
 .anp-field { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-muted); flex: none; }
 .anp-field.grow { flex: 1 1 140px; min-width: 120px; }
 .anp-field.grow > .input, .anp-field.grow > span { flex: 1; min-width: 0; }
