@@ -432,6 +432,45 @@ try {
     const mid = Math.round(W2 / 2);
     check('pen: with pixel brushes, Size set on the brush works for the eraser end', gap(mid - 50) > 0 && gap(mid - 50) < gap(mid + 50) && gap(mid + 50) === 16, { light: gap(mid - 50), heavy: gap(mid + 50) });
   }
+  // Pixel brush, 1 pixel, 100% opacity, pressure on opacity (pixel art with a
+  // pen): a light stroke gives crisp pixels with partial alpha, also for the
+  // eraser end. No antialiasing: one pixel wide.
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Opacity'), 'the Pen menu');
+  await click(menuItem('Opacity'));
+  await setSize(1);
+  await penStroke(cy + 120 * z2, 0.3);
+  await penStroke(cy + 125 * z2, 1);
+  await frame();
+  {
+    const rowL = await rowAlpha(Math.round(W2 / 2 + 120)), rowH = await rowAlpha(Math.round(W2 / 2 + 125));
+    const light = rowL[Math.round(W2 / 2)], heavy = rowH[Math.round(W2 / 2)];
+    const colL = await rowAlpha(Math.round(W2 / 2 + 119));
+    check('pixel brush: a light stroke at 100% opacity has partial alpha', light > 60 && light < 140, light);
+    check('pixel brush: full pressure is full alpha', heavy === 255, heavy);
+    check('pixel brush: the light stroke is one crisp pixel wide (no soft edge)', colL[Math.round(W2 / 2)] === 0, colL[Math.round(W2 / 2)]);
+  }
+  await setSize(4);
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Nothing'), 'the Pen menu');
+  await click(menuItem('Nothing'));
+  await mouseStroke(cy + 110 * z2);
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Opacity'), 'the Pen menu');
+  await click(menuItem('Opacity'));
+  await page.eval(`(() => {
+    const c = ${spr}.querySelector('.spr-canvas');
+    const ev = (type, y, buttons) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 80, pointerType: 'pen', isPrimary: true,
+      button: type === 'pointermove' ? -1 : 5, buttons, pressure: buttons ? 0.3 : 0, clientX: ${cx}, clientY: y }));
+    ev('pointerdown', ${cy + 100 * z2}, 32);
+    for (let i = 1; i <= 10; i++) ev('pointermove', ${cy + 100 * z2} + i * ${2 * z2}, 32);
+    ev('pointerup', ${cy + 120 * z2}, 0);
+  })()`);
+  await frame();
+  {
+    const a = (await rowAlpha(Math.round(W2 / 2 + 110)))[Math.round(W2 / 2)];
+    check('pixel brush: a light press of the eraser end erases part of the alpha', a > 100 && a < 220, a);
+  }
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Smooth')`);
   await shot('pen');
 
