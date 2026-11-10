@@ -9,7 +9,7 @@
 //
 //   errors, lights,   print PASS or FAIL for each check, then DONE
 //   paths, levels,
-//   players, text, ui
+//   players, text, ui, forces
 //   rules3, rules2    the same checks in a project of version 3 (the new
 //                     rules: degrees, clicked(), undeclared names are
 //                     errors, gravityScale) and of version 2 (the old ones)
@@ -39,6 +39,8 @@ const CASES = {
   rigid: { game: 'tools/scene-tests/rigid.zip', seconds: 5, check: noErrors },
   physics: { game: 'tools/scene-tests/physics.zip', seconds: 5, check: noErrors },
   paths: { game: 'tools/scene-tests/paths.zip', until: /^DONE /, check: selfChecking },
+  // Forces in zones (gravity, drag, push), seeds, generators and noise.
+  forces: { game: 'tools/scene-tests/forces.zip', until: /^DONE /, check: selfChecking },
   // smitten.boards without the games site (the editor, an exported game),
   // and inside a page that stands in for a game's page there.
   boards: { game: 'tools/scene-tests/boards.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },

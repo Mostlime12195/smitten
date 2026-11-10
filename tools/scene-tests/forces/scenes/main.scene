@@ -1,0 +1,14 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Main",
+    "type": "Group",
+    "script": "scenes/main.lua",
+    "children": [
+      { "name": "View", "type": "Camera", "properties": { "x": 320, "y": 180 } },
+      { "name": "Sparks", "type": "Particles", "properties": { "x": 320, "y": 180, "emitting": false, "rate": 200 } },
+      { "name": "Cave", "type": "Tiles", "properties": { "tileset": "art/tiles.tileset", "solid": false, "y": 20000 } }
+    ]
+  }
+}

@@ -59,6 +59,10 @@ jobs:
       - name: UI tests
         run: lua5.1 tools/ui-tests/test.lua
 
+      # And seeds, generators and noise around love.math's (stand-ins here).
+      - name: Random tests
+        run: lua5.1 tools/random-tests/test.lua
+
   build:
     runs-on: ubuntu-latest
     steps:
