@@ -8,7 +8,7 @@
 //   node tools/stress/run.mjs --url 'http://localhost:8770/index.html' --eval file.js
 //
 // CHROME=/path/to/chrome picks the browser (default: Playwright's Chromium,
-// then Google Chrome). BASE=http://localhost:8770 is where serve.py runs.
+// then Google Chrome, then a Chrome or Chromium on the PATH). BASE=http://localhost:8770 is where serve.py runs.
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdtempSync, readdirSync } from 'node:fs';
@@ -31,7 +31,15 @@ function findChrome() {
       if (existsSync(p)) return p;
     }
   }
-  return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  const mac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  if (existsSync(mac)) return mac;
+  // Linux: whichever Chrome or Chromium is on the PATH.
+  for (const dir of (process.env.PATH || '').split(':')) {
+    for (const name of ['google-chrome', 'chromium', 'chromium-browser']) {
+      if (dir && existsSync(join(dir, name))) return join(dir, name);
+    }
+  }
+  return mac;
 }
 
 export async function launch({ headless = true } = {}) {
@@ -39,7 +47,9 @@ export async function launch({ headless = true } = {}) {
   const proc = spawn(findChrome(), [
     ...(headless ? ['--headless=new'] : []), `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smitten-stress-'))}`,
     '--no-first-run', '--enable-precise-memory-info', '--autoplay-policy=no-user-gesture-required', '--window-size=1400,900',
-    '--disable-background-timer-throttling', '--disable-renderer-backgrounding', 'about:blank',
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+    // CHROME_FLAGS: extra flags, e.g. "--no-sandbox --enable-unsafe-swiftshader" on a CI machine with no GPU.
+    ...(process.env.CHROME_FLAGS || '').split(' ').filter(Boolean), 'about:blank',
   ], { stdio: 'ignore' });
   let list;
   for (let i = 0; i < 100; i++) {

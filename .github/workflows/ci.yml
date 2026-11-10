@@ -1,0 +1,80 @@
+# Runs the tests and builds the engine on every push and pull request. The
+# built site (editor, player, engine) is kept as the "dist" artifact.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EMSDK_VERSION: 6.0.13
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Editor tests
+        run: node tools/editor-tests/test.mjs
+
+      - name: Tile format tests
+        run: node web/editor/workspaces/scene/cells.test.mjs
+
+      - name: Sharing site tests
+        run: node tools/platform-tests/test.mjs
+
+      - name: Server tests
+        run: python3 tools/serve_test.py
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Includes Emscripten's ports cache (SDL3, FreeType, HarfBuzz, ...).
+      - uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}-${{ runner.os }}
+
+      - name: Install Emscripten
+        run: |
+          [ -d ~/emsdk ] || git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          ~/emsdk/emsdk install $EMSDK_VERSION
+          ~/emsdk/emsdk activate $EMSDK_VERSION
+
+      - name: Build
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          python3 build.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The scene tests run the built engine in the runner's Chrome, which has
+      # no GPU: WebGL comes from SwiftShader.
+      - name: Scene tests
+        run: node tools/scene-tests/run.mjs
+        env:
+          CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dist
+          path: dist
+          retention-days: 30
