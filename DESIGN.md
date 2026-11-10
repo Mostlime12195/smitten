@@ -22,7 +22,7 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
 | Behavior | Scripts that are the piece's own code (no boilerplate, a short API like Pico-8's). Ready-made ones (platformer, patrol, pickup...) are copied into the project as ordinary Lua files to read and change; nothing is a hidden engine behavior | 5 |
 | Packaging | A game ships only the engine modules it uses (physics, video, sound generator) | 3 |
 | Editor | Flexible, modular and understandable; every tool opens ready to use; live tweaking while the game runs | 6 |
-| Sharing | A site to publish, play and remix games in the browser (prototype: Cloudflare Workers, R2, D1) | 7 |
+| Sharing | A site to publish, play and remix games in the browser (a Node server with SQLite, on Hack Club Nest) | 7 |
 | Language | Luau-like syntax in the parser, compiled to the Lua 5.1 bytecode the JIT runs | 8 |
 | Looks | General, not retro: pixel art is a template and a setting. Neutral editor theme; icons from Lucide | 6 |
 
@@ -316,4 +316,3 @@ smitten/
   already turns them), slopes in tiles.
 - An animation timeline for any property.
 - Hack Club sign-in, moderation tools and hosting for the sharing site.
-- The WebGPU experiment (README) if it pays off.

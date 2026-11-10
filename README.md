@@ -45,12 +45,12 @@ decisions behind Smitten.
 
 ```lua
 -- scripts/coin.lua, attached to a Zone: a script is the piece's own code
-points = 10               -- shown in the inspector
+worth = 10                -- shown in the inspector
 
 function entered(other)
   if other:is("player") then
     sfx("coin")
-    root():emit("scored", points)
+    root():emit("scored", worth)
     destroy()
   end
 end
@@ -70,7 +70,7 @@ end
 | `web/native/` | Web entry point (`web_main.cpp`) replacing LÖVE's blocking `main()` |
 | `web/player/` | The player page (standalone and embeddable); loads the modules a game needs |
 | `web/editor/` | The editor: `core/` (project, scene documents, schema, live tweaking), `shell/`, `panels/`, `workspaces/`, `dialogs/`, the tools in `tools/`, and the ready-made scripts in `scripts/` |
-| `platform/` | The sharing site prototype (Cloudflare Worker, R2, D1) |
+| `platform/` | The sharing site: a Node server with SQLite and game files on disk |
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a project folder or zip |
@@ -270,6 +270,11 @@ Tests:
   Bodies and tag filtering; `physics` for scene physics). Open one in
   the player with the test server (below); every line it prints says what
   it checked.
+- `node tools/scene-tests/run.mjs` runs the scene tests in a headless
+  Chrome and fails if one goes wrong (`errors` checks itself: what the
+  engine says when a script is wrong); `python3 tools/serve_test.py` tests
+  `serve.py`. CI (`.github/workflows/ci.yml`) runs all of these on every
+  push and keeps the built `dist/` as an artifact.
 - `python3 tools/stress/gen.py` and `node tools/stress/run.mjs` run stress
   projects and the scene tests in a headless Chrome (`physics-check`
   prints a digest to compare engine versions).

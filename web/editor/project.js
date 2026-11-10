@@ -6,7 +6,9 @@ export const DEFAULT_PALETTE = [
   '#29366f', '#3b5dc9', '#41a6f6', '#73eff7', '#f4f4f4', '#94b0c2', '#566c86', '#333c57',
 ];
 
-export const ENGINE_VERSION = '0.1.0';
+// One version for the editor: core/project.js has it.
+import { ENGINE_VERSION } from './core/project.js';
+export { ENGINE_VERSION };
 
 export const DEFAULT_MANIFEST = {
   format: 'smitten.project',
