@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pathfinding · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Pathfinding.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding" aria-current="page">Pathfinding</a><ul class="nav-sub"><li><a href="#grids">Grids</a></li><li><a href="#graphs">Graphs</a></li><li><a href="#walkable-areas">Walkable areas</a></li><li><a href="#following-a-path-agents">Following a path: agents</a></li><li><a href="#examples">Examples</a></li><li><a href="#seeing-what-s-going-on">Seeing what's going on</a></li><li><a href="#how-fast-it-is-and-when-to-plan">How fast it is, and when to plan</a></li><li><a href="#limits">Limits</a></li></ul></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Pathfinding</h1>
+<p><code>smitten.paths</code> finds a way from one place to another: round walls, through a maze, along roads. It gives you building blocks, not a ready-made enemy: a pathfinder answers &quot;which way?&quot;, and your script decides what to do with the answer.</p>
+<p>There are three pathfinders. Pick by how your level is made:</p>
+<div class="table"><table>
+<thead><tr><th>Your level</th><th>Use</th><th>Made with</th></tr></thead>
+<tbody><tr><td>Tiles, or anything on a square grid</td><td>A <strong>grid</strong></td><td><code>Tiles:newPathGrid()</code> or <code>smitten.paths.newGrid()</code></td></tr>
+<tr><td>A few places joined by routes you choose: waypoints, rooms, a road map</td><td>A <strong>graph</strong></td><td><code>smitten.paths.newGraph()</code></td></tr>
+<tr><td>Open ground to cross freely, with things in the way</td><td><strong>Walkable</strong> pieces</td><td>Drawn in the editor; <code>smitten.paths.findPath()</code></td></tr></tbody>
+</table></div>
+<p>They can be mixed: a graph for getting from town to town, a grid inside a dungeon.</p>
+<p><strong>A path is always a flat list of points</strong>, <code>{x1, y1, x2, y2, ...}</code>, the same shape as a Shape's <code>points</code>, from the start to the end. When there's no way, you get <code>nil</code>.</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> path = grid:<span class="tk-f">findPoints</span>(x, y, Player.x, Player.y)
+<span class="tk-k">if</span> path <span class="tk-k">then</span>
+  <span class="tk-k">for</span> i = <span class="tk-n">1</span>, #path, <span class="tk-n">2</span> <span class="tk-k">do</span>
+    <span class="tk-f">print</span>(path[i], path[i + <span class="tk-n">1</span>])
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>Nothing in <code>smitten.paths</code> moves a piece, looks for the player or decides when to give up: that's your script's job, and it's a few lines (below).</p>
+<h2 id="grids"><a class="anchor" href="#grids" aria-hidden="true">#</a>Grids</h2>
+<p>A grid is columns and rows of cells that are open or solid. Cells are numbered like a Tiles piece's: the first is column 0, row 0.</p>
+<h3 id="from-a-tiles-piece"><a class="anchor" href="#from-a-tiles-piece" aria-hidden="true">#</a>From a Tiles piece</h3>
+<pre><code class="lang-lua"><span class="tk-k">local</span> grid = Maze:<span class="tk-f">newPathGrid</span>()</code></pre>
+<p>Solid tiles become solid cells, everything else is open, and the grid covers the painted area. It keeps up with the tiles: after <code>Maze:setTile(...)</code>, <code>fill()</code> or <code>clear()</code>, the next search sees the change. Positions go through the Tiles piece, so the grid still fits if the piece is moved or scaled.</p>
+<div class="table"><table>
+<thead><tr><th>Option</th><th></th></tr></thead>
+<tbody><tr><td><code>diagonals</code></td><td><code>&quot;never&quot;</code> (the default: up, down, left, right), <code>&quot;always&quot;</code>, or <code>&quot;noCorners&quot;</code> (diagonal steps, but never squeezing past the corner of a solid cell)</td></tr>
+<tr><td><code>heuristic</code></td><td>How the search guesses the distance left: <code>&quot;manhattan&quot;</code>, <code>&quot;octile&quot;</code>, <code>&quot;euclidean&quot;</code> or <code>&quot;chebyshev&quot;</code>. The default suits <code>diagonals</code>; leave it alone unless you know you want another</td></tr>
+<tr><td><code>empty</code></td><td><code>&quot;open&quot;</code> (the default) or <code>&quot;solid&quot;</code>: whether cells with no tile can be walked on. Use <code>&quot;solid&quot;</code> when you paint the floor rather than the walls</td></tr>
+<tr><td><code>solid</code></td><td>Your own rule: <code>function(tiles, tile, info) return info.wall == true end</code>, where <code>info</code> is the tile's settings</td></tr>
+<tr><td><code>cost</code></td><td>The name of the tile setting that says how costly a tile is to cross (default <code>&quot;cost&quot;</code>)</td></tr>
+<tr><td><code>margin</code></td><td>Extra open cells around the painted area (default 0)</td></tr>
+<tr><td><code>column</code>, <code>row</code>, <code>columns</code>, <code>rows</code></td><td>Cover this rectangle of cells instead of the painted area</td></tr></tbody>
+</table></div>
+<p>A tile with a <code>cost</code> setting (a number above 0; add it to the tile in the tileset) costs that many times more to cross: mud with <code>cost</code> 3 is avoided unless the way round is more than three times as long.</p>
+<p>One-way tiles (<code>oneWay</code>) count as open: a grid can't know which way you're going through them. If that matters, give the grid your own cost function (below) that forbids the steps you don't want.</p>
+<h3 id="by-hand"><a class="anchor" href="#by-hand" aria-hidden="true">#</a>By hand</h3>
+<pre><code class="lang-lua"><span class="tk-k">local</span> grid = smitten.paths.<span class="tk-f">newGrid</span>(<span class="tk-n">40</span>, <span class="tk-n">30</span>, { cellSize = <span class="tk-n">16</span>, x = <span class="tk-n">0</span>, y = <span class="tk-n">0</span> })
+grid:<span class="tk-f">fillSolid</span>(<span class="tk-n">10</span>, <span class="tk-n">0</span>, <span class="tk-n">1</span>, <span class="tk-n">20</span>)        <span class="tk-c">-- a wall</span>
+grid:<span class="tk-f">setCost</span>(<span class="tk-n">3</span>, <span class="tk-n">4</span>, <span class="tk-n">5</span>)               <span class="tk-c">-- a swamp cell</span></code></pre>
+<p>Options: <code>cellSize</code> (or <code>cellWidth</code> and <code>cellHeight</code>), <code>x</code> and <code>y</code> (the scene position of the first cell's top-left corner), <code>firstColumn</code> and <code>firstRow</code> (the first cell's numbers, 0 by default), <code>diagonals</code> and <code>heuristic</code> as above.</p>
+<h3 id="what-a-grid-can-do"><a class="anchor" href="#what-a-grid-can-do" aria-hidden="true">#</a>What a grid can do</h3>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>grid:findPath(fromColumn, fromRow, toColumn, toRow, options)</code></td><td>The cheapest path as cells: <code>{column, row, column, row, ...}</code>, or <code>nil</code></td></tr>
+<tr><td><code>grid:findPoints(x1, y1, x2, y2, options)</code></td><td>The same between two points in the scene, as the centers of the cells: <code>{x, y, x, y, ...}</code>, or <code>nil</code>. Points outside the grid count as the nearest cell on its edge</td></tr>
+<tr><td><code>grid:setSolid(column, row, solid)</code>, <code>grid:isSolid(column, row)</code></td><td>Block or open a cell. Cells outside the grid are solid</td></tr>
+<tr><td><code>grid:fillSolid(column, row, columns, rows, solid)</code></td><td>Block or open a rectangle of cells</td></tr>
+<tr><td><code>grid:setCost(column, row, cost)</code>, <code>grid:getCost(column, row)</code></td><td>How costly a cell is to step into (1 is normal)</td></tr>
+<tr><td><code>grid:clear()</code></td><td>Open every cell, every cost back to 1</td></tr>
+<tr><td><code>grid:contains(column, row)</code></td><td>Whether the grid has that cell</td></tr>
+<tr><td><code>grid:cellAt(x, y)</code>, <code>grid:cellCenter(column, row)</code></td><td>From a scene position to a cell and back</td></tr>
+<tr><td><code>grid:refresh()</code></td><td>(Grids from Tiles) read every tile again. Rarely needed: changes made with <code>setTile</code> and <code>fill</code> are followed already. It undoes your own <code>setSolid</code> and <code>setCost</code></td></tr>
+<tr><td><code>grid.columns</code>, <code>grid.rows</code>, <code>grid.cellWidth</code>, <code>grid.cellHeight</code></td><td>Its size</td></tr></tbody>
+</table></div>
+<p>With <code>{ partial = true }</code>, a search that can't reach the goal returns the path to the reachable cell nearest to it instead of <code>nil</code>: an enemy walks up to the locked door rather than standing still.</p>
+<p>Asking for a cell the grid doesn't have is an error that says which cells it has. A solid start cell is fine (a walker pushed into a wall can still find its way out); a solid goal has no path unless <code>partial</code> is on.</p>
+<h3 id="your-own-rules"><a class="anchor" href="#your-own-rules" aria-hidden="true">#</a>Your own rules</h3>
+<p><code>grid.cost</code> replaces how much a step costs, and can forbid it:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- Never step down off a ledge (a one-way drop), and water costs double</span>
+grid.cost = <span class="tk-k">function</span>(fromColumn, fromRow, toColumn, toRow)
+  <span class="tk-k">if</span> Maze:<span class="tk-f">getTile</span>(toColumn, toRow) == LEDGE <span class="tk-k">and</span> toRow &lt; fromRow <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">nil</span> <span class="tk-k">end</span>
+  <span class="tk-k">return</span> <span class="tk-k">if</span> Maze:<span class="tk-f">getTile</span>(toColumn, toRow) == WATER <span class="tk-k">then</span> <span class="tk-n">2</span> <span class="tk-k">else</span> <span class="tk-n">1</span>
+<span class="tk-k">end</span></code></pre>
+<p>Return a number above 0, or <code>nil</code> to forbid the step. <code>grid.estimate = function(column, row, goalColumn, goalRow)</code> replaces the guess of the cost left; it must never guess too much, or paths stop being the cheapest. Set them back to <code>nil</code> for the built-in ones.</p>
+<h2 id="graphs"><a class="anchor" href="#graphs" aria-hidden="true">#</a>Graphs</h2>
+<p>A graph is points you place and connect yourself. The path follows the connections, so things walk exactly where you allowed: along a road, from door to door, between platforms.</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> graph = smitten.paths.<span class="tk-f">newGraph</span>()
+graph:<span class="tk-f">addPoint</span>(<span class="tk-s">&quot;gate&quot;</span>, <span class="tk-n">80</span>, <span class="tk-n">60</span>)
+graph:<span class="tk-f">addPoint</span>(<span class="tk-s">&quot;well&quot;</span>, <span class="tk-n">240</span>, <span class="tk-n">60</span>)
+graph:<span class="tk-f">addPoint</span>(<span class="tk-s">&quot;barn&quot;</span>, <span class="tk-n">240</span>, <span class="tk-n">200</span>)
+graph:<span class="tk-f">connect</span>(<span class="tk-s">&quot;gate&quot;</span>, <span class="tk-s">&quot;well&quot;</span>)
+graph:<span class="tk-f">connect</span>(<span class="tk-s">&quot;well&quot;</span>, <span class="tk-s">&quot;barn&quot;</span>)
+
+<span class="tk-k">local</span> ids = graph:<span class="tk-f">findPath</span>(<span class="tk-s">&quot;gate&quot;</span>, <span class="tk-s">&quot;barn&quot;</span>)       <span class="tk-c">-- {&quot;gate&quot;, &quot;well&quot;, &quot;barn&quot;}</span>
+<span class="tk-k">local</span> path = graph:<span class="tk-f">findPoints</span>(<span class="tk-s">&quot;gate&quot;</span>, <span class="tk-s">&quot;barn&quot;</span>)    <span class="tk-c">-- {80, 60, 240, 60, 240, 200}</span></code></pre>
+<p>A point's id is any number or name. A handy way to place points is to put marker pieces in the scene and read them when the game starts:</p>
+<pre><code class="lang-lua"><span class="tk-k">for</span> _, marker <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">tagged</span>(<span class="tk-s">&quot;waypoint&quot;</span>)) <span class="tk-k">do</span>
+  graph:<span class="tk-f">addPoint</span>(marker.name, marker.x, marker.y)
+<span class="tk-k">end</span></code></pre>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>graph:addPoint(id, x, y, weight)</code></td><td>Adds a point (or moves the one with that id). <code>weight</code> makes going there cost more: 1 is normal</td></tr>
+<tr><td><code>graph:removePoint(id)</code>, <code>graph:hasPoint(id)</code>, <code>graph:clear()</code></td><td></td></tr>
+<tr><td><code>graph:connect(a, b, bothWays)</code>, <code>graph:disconnect(a, b, bothWays)</code></td><td>Both ways unless <code>bothWays</code> is <code>false</code>: then only from <code>a</code> to <code>b</code> (a drop, a one-way street)</td></tr>
+<tr><td><code>graph:isConnected(a, b)</code></td><td>Whether you can go straight from <code>a</code> to <code>b</code></td></tr>
+<tr><td><code>graph:setDisabled(id, disabled)</code>, <code>graph:isDisabled(id)</code></td><td>A disabled point is left out of paths until it's enabled again: a locked door</td></tr>
+<tr><td><code>graph:setWeight(id, weight)</code>, <code>graph:getWeight(id)</code></td><td></td></tr>
+<tr><td><code>graph:getPosition(id)</code>, <code>graph:setPosition(id, x, y)</code></td><td></td></tr>
+<tr><td><code>graph:points()</code>, <code>graph:neighbors(id)</code></td><td>Every id; the ids a point leads to</td></tr>
+<tr><td><code>graph:closestPoint(x, y)</code></td><td>The id of the nearest point (skipping disabled ones)</td></tr>
+<tr><td><code>graph:closestPosition(x, y)</code></td><td>The nearest position on any connection: <code>x, y</code>, then the two ids it lies between</td></tr>
+<tr><td><code>graph:findPath(a, b, options)</code></td><td>The cheapest path as ids, or <code>nil</code></td></tr>
+<tr><td><code>graph:findPoints(a, b, options)</code></td><td>The same as positions: <code>{x, y, x, y, ...}</code></td></tr></tbody>
+</table></div>
+<p><code>{ partial = true }</code> works as on grids. A mistyped id is an error that suggests the one you probably meant.</p>
+<p>A step normally costs its length times the weight of the point it goes to. <code>graph.cost = function(fromId, toId)</code> replaces the length (return <code>nil</code> to forbid the step), and <code>graph.estimate = function(id, goalId)</code> the guess of what's left, for graphs where distance on screen isn't what matters: a subway map, a tech tree, a conversation.</p>
+<h2 id="walkable-areas"><a class="anchor" href="#walkable-areas" aria-hidden="true">#</a>Walkable areas</h2>
+<p>For ground that things cross freely, draw where they can walk. Add a <strong>Walkable</strong> piece (Add a piece › Bodies and zones) and shape its polygon: with it selected, drag a corner to move it, drag the small dot in the middle of an edge to add a corner, and drop a corner onto its neighbour to remove it. The <code>points</code> can also be typed in the Inspector.</p>
+<ul><li>Several Walkable pieces that overlap, or share an edge, join into one area. Overlap them a little rather than lining them up by eye.</li><li>A Walkable with <code>hole</code> on cuts its shape out instead: pillars, ponds, furniture.</li><li><code>active</code> off takes one out for a while: a bridge that's up, a door that's shut (a hole across the doorway).</li><li>Walkable pieces move, turn and scale like any piece, also while the game runs; the area is worked out again the next time it's asked about.</li></ul>
+<p>Then, from any script:</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> path = smitten.paths.<span class="tk-f">findPath</span>(x, y, targetX, targetY)</code></pre>
+<p>The path goes straight where it can and bends round the corners of walls and holes. A start or target outside the area counts as the nearest walkable point, so a click in the wrong place still gets a path.</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>A grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes one of itself with newPathGrid().</td></tr>
+<tr><td><code>smitten.paths.newGraph()</code></td><td>An empty graph: points you add and connect by hand, and paths along the connections.</td></tr>
+<tr><td><code>smitten.paths.newArea(areas, holes?)</code></td><td>A walkable area from polygons and holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }).</td></tr>
+<tr><td><code>smitten.paths.newAgent(options?)</code></td><td>Something that follows paths: it remembers a target and says which point to head for next. options: finder (a grid, graph or area; the scene's Walkable pieces if left out), reach, replan, partial, tags.</td></tr>
+<tr><td><code>smitten.paths.findPath(x1, y1, x2, y2, options?)</code></td><td>The short way between two points through the scene's Walkable pieces: {x, y, x, y, ...}, or nil. options: tags, partial.</td></tr>
+<tr><td><code>smitten.paths.closestPoint(x, y, options?)</code></td><td>The walkable point nearest a point: x, y.</td></tr>
+<tr><td><code>smitten.paths.isWalkable(x, y, options?)</code></td><td>True if a point is inside a Walkable piece and not in a hole.</td></tr>
+<tr><td><code>smitten.paths.getArea(options?)</code></td><td>The area built from the scene's Walkable pieces.</td></tr>
+<tr><td><code>smitten.paths.refresh()</code></td><td>Builds the scene's walkable area again; only needed after changing a Walkable's points in place.</td></tr>
+<tr><td><code>smitten.paths.length(path)</code></td><td>How long a path is, in pixels.</td></tr>
+<tr><td><code>smitten.paths.pointAt(path, distance)</code></td><td>The point a distance along a path from its start: x, y, and true once it's the end.</td></tr>
+<tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width.</td></tr></tbody>
+</table></div>
+<p><code>options</code> is a table: <code>tags = &quot;land, bridge&quot;</code> uses only the Walkable pieces (areas and holes) with one of those tags, so boats and people can each have their own ground; <code>partial = true</code> goes as near as possible when the target is on ground that can't be reached. <code>closestPoint</code>, <code>isWalkable</code> and <code>getArea</code> also take just the tags: <code>isWalkable(x, y, &quot;land&quot;)</code>.</p>
+<p><strong>The walker's size.</strong> A path hugs corners exactly, as if the walker were a dot. Draw areas a walker's half-width in from the walls, and holes that much bigger than the thing they go round, and nothing clips a corner.</p>
+<p><code>smitten.paths.newArea(areas, holes)</code> makes an area without pieces, from lists of polygons, with the same <code>findPath</code>, <code>closestPoint</code> and <code>isWalkable</code> as methods: for levels built in code.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>points</code></td><td>points</td><td>{-100, -60, 100, -60, 100, 60, -100, 60}</td><td>Corner points x1, y1, x2, y2, ... in order round the shape. Any number of corners; dents are fine.</td></tr>
+<tr><td><code>hole</code></td><td>bool</td><td>false</td><td>Cuts this shape out of the walkable areas it lies on, instead of adding to them: a pillar, a pond, a table.</td></tr>
+<tr><td><code>active</code></td><td>bool</td><td>true</td><td>Counts for paths. Turn it off to close an area (or fill a hole) for a while.</td></tr></tbody>
+</table></div>
+<h2 id="following-a-path-agents"><a class="anchor" href="#following-a-path-agents" aria-hidden="true">#</a>Following a path: agents</h2>
+<p>An agent remembers where it's going and the path there, and tells you the next point to head for. It never moves anything: you do, however your game moves things.</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> agent = smitten.paths.<span class="tk-f">newAgent</span>({ finder = grid })
+agent:<span class="tk-f">setTarget</span>(<span class="tk-n">600</span>, <span class="tk-n">200</span>)
+
+<span class="tk-c">-- every step:</span>
+<span class="tk-k">local</span> nextX, nextY = agent:<span class="tk-f">next</span>(x, y)     <span class="tk-c">-- x, y: where the piece is now</span></code></pre>
+<div class="table"><table>
+<thead><tr><th>Option</th><th></th></tr></thead>
+<tbody><tr><td><code>finder</code></td><td>What finds the paths: a grid, a graph, an area, or your own <code>function(x1, y1, x2, y2)</code> that returns a path or <code>nil</code>. Left out: the scene's Walkable pieces</td></tr>
+<tr><td><code>reach</code></td><td>How near a point counts as reached, in pixels (4). Make it bigger for fast movers: at least the distance covered in one step</td></tr>
+<tr><td><code>replan</code></td><td>The path is planned again once the target has moved this far from where it was planned to (16)</td></tr>
+<tr><td><code>partial</code></td><td>Go as near as possible when the target can't be reached (<code>true</code>)</td></tr>
+<tr><td><code>tags</code></td><td>With no finder: which Walkable pieces to use</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>agent:setTarget(x, y)</code></td><td>Where to go. Fine to call every frame with a moving target</td></tr>
+<tr><td><code>agent:next(x, y)</code></td><td>The point to head for from <code>x, y</code>. It drops points as you get within <code>reach</code> of them, and plans again when the target has moved far or the grid, graph or area has changed</td></tr>
+<tr><td><code>agent:isDone()</code></td><td>True once the end is reached (or there's no target)</td></tr>
+<tr><td><code>agent:isBlocked()</code></td><td>True if the last plan found no way</td></tr>
+<tr><td><code>agent:path()</code></td><td>The planned path, and the number of the point it's heading for</td></tr>
+<tr><td><code>agent:plan(x, y)</code></td><td>Plan again now</td></tr>
+<tr><td><code>agent:stop()</code>, <code>agent:getTarget()</code></td><td>Forget the target; read it</td></tr></tbody>
+</table></div>
+<p>Over a graph, an agent walks to the nearest point, along the connections, and stops at the point nearest the target. Over a grid it goes from cell center to cell center.</p>
+<p>Agents don't steer round each other or round other moving things. If two enemies should not overlap, make them Bodies (they'll bump) or keep them apart in your own code.</p>
+<h2 id="examples"><a class="anchor" href="#examples" aria-hidden="true">#</a>Examples</h2>
+<h3 id="an-enemy-that-chases-through-a-tile-maze"><a class="anchor" href="#an-enemy-that-chases-through-a-tile-maze" aria-hidden="true">#</a>An enemy that chases through a tile maze</h3>
+<p>A scripted Body next to a Tiles piece called <code>Maze</code>. The Body should be smaller than a tile.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/ghost.lua</span>
+speed = <span class="tk-n">90</span>
+
+<span class="tk-k">local</span> agent
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">local</span> grid = parent:<span class="tk-f">find</span>(<span class="tk-s">&quot;Maze&quot;</span>):<span class="tk-f">newPathGrid</span>()
+  agent = smitten.paths.<span class="tk-f">newAgent</span>({ finder = grid })
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
+  <span class="tk-k">local</span> player = <span class="tk-f">first</span>(<span class="tk-s">&quot;player&quot;</span>)
+  <span class="tk-k">if</span> <span class="tk-k">not</span> player <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
+  agent:<span class="tk-f">setTarget</span>(player.x, player.y)
+  <span class="tk-k">local</span> nextX, nextY = agent:<span class="tk-f">next</span>(x, y)
+  <span class="tk-k">local</span> dx, dy = nextX - x, nextY - y
+  <span class="tk-k">local</span> d = math.<span class="tk-f">sqrt</span>(dx * dx + dy * dy)
+  <span class="tk-k">if</span> agent:<span class="tk-f">isDone</span>() <span class="tk-k">or</span> d == <span class="tk-n">0</span> <span class="tk-k">then</span>
+    vx, vy = <span class="tk-n">0</span>, <span class="tk-n">0</span>
+  <span class="tk-k">else</span>
+    vx, vy = dx / d * speed, dy / d * speed
+  <span class="tk-k">end</span>
+  <span class="tk-f">move</span>()
+<span class="tk-k">end</span></code></pre>
+<p>Break a wall with <code>Maze:setTile(column, row, -1)</code> and the ghost takes the new shortcut by itself. To make it give up when the player is far, hide or lose the trail, add that around <code>setTarget</code>: it's your enemy.</p>
+<p>(<code>x</code>, <code>y</code> and <code>player.x</code> are right when the pieces sit directly in the scene. For pieces inside moved Groups, use <code>worldPosition()</code>.)</p>
+<h3 id="a-guard-that-patrols-between-waypoints"><a class="anchor" href="#a-guard-that-patrols-between-waypoints" aria-hidden="true">#</a>A guard that patrols between waypoints</h3>
+<p>Groups tagged <code>waypoint</code> mark the places; the script joins them in a ring and walks the guard along at a steady speed with <code>pointAt</code>.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/guard.lua</span>
+speed = <span class="tk-n">60</span>
+
+<span class="tk-k">local</span> graph = smitten.paths.<span class="tk-f">newGraph</span>()
+<span class="tk-k">local</span> stops = {}
+<span class="tk-k">local</span> route, walked, heading = <span class="tk-k">nil</span>, <span class="tk-n">0</span>, <span class="tk-n">1</span>
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">for</span> i, marker <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">tagged</span>(<span class="tk-s">&quot;waypoint&quot;</span>)) <span class="tk-k">do</span>
+    graph:<span class="tk-f">addPoint</span>(i, marker.x, marker.y)
+    <span class="tk-k">if</span> i &gt; <span class="tk-n">1</span> <span class="tk-k">then</span> graph:<span class="tk-f">connect</span>(i - <span class="tk-n">1</span>, i) <span class="tk-k">end</span>
+    stops[i] = i
+  <span class="tk-k">end</span>
+  <span class="tk-k">if</span> #stops &gt; <span class="tk-n">2</span> <span class="tk-k">then</span> graph:<span class="tk-f">connect</span>(#stops, <span class="tk-n">1</span>) <span class="tk-k">end</span>
+  route = graph:<span class="tk-f">findPoints</span>(graph:<span class="tk-f">closestPoint</span>(x, y), stops[heading])
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  <span class="tk-k">if</span> <span class="tk-k">not</span> route <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
+  walked += speed * dt
+  <span class="tk-k">local</span> px, py, arrived = smitten.paths.<span class="tk-f">pointAt</span>(route, walked)
+  x, y = px, py
+  <span class="tk-k">if</span> arrived <span class="tk-k">then</span>
+    <span class="tk-k">local</span> from = stops[heading]
+    heading = heading % #stops + <span class="tk-n">1</span>
+    route, walked = graph:<span class="tk-f">findPoints</span>(from, stops[heading]), <span class="tk-n">0</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>Cut a connection with <code>graph:disconnect(2, 3)</code> and the guard reaches stop 3 the other way round the ring.</p>
+<h3 id="click-to-move-across-open-ground"><a class="anchor" href="#click-to-move-across-open-ground" aria-hidden="true">#</a>Click to move across open ground</h3>
+<p>The scene has Walkable pieces; this goes on the character (any piece: here it's moved directly, with no Body).</p>
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/walker.lua</span>
+speed = <span class="tk-n">140</span>
+
+<span class="tk-k">local</span> agent = smitten.paths.<span class="tk-f">newAgent</span>()
+
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  <span class="tk-k">if</span> smitten.mouse.<span class="tk-f">pressed</span>(<span class="tk-n">1</span>) <span class="tk-k">then</span> agent:<span class="tk-f">setTarget</span>(<span class="tk-f">mouse</span>()) <span class="tk-k">end</span>
+  <span class="tk-k">if</span> agent:<span class="tk-f">isDone</span>() <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
+  <span class="tk-k">local</span> nextX, nextY = agent:<span class="tk-f">next</span>(x, y)
+  <span class="tk-f">moveToward</span>(nextX, nextY, speed * dt)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">draw</span>()
+  smitten.paths.<span class="tk-f">debugDraw</span>(agent)      <span class="tk-c">-- shows the path while you build the game</span>
+<span class="tk-k">end</span></code></pre>
+<h2 id="seeing-what-s-going-on"><a class="anchor" href="#seeing-what-s-going-on" aria-hidden="true">#</a>Seeing what's going on</h2>
+<p><code>smitten.paths.debugDraw(what)</code> draws a path, an agent's path, or an area's pieces, in scene coordinates, from any script's <code>draw()</code>. With nothing, it draws the scene's walkable area the way the pathfinder sees it: cut into simple pieces, holes removed. <code>options</code>: <code>color = {r, g, b, a}</code>, <code>width</code>. The editor's <strong>Shapes</strong> switch also outlines Walkable pieces in the running game.</p>
+<p>Two helpers for paths: <code>smitten.paths.length(path)</code> is how long one is in pixels, and <code>smitten.paths.pointAt(path, distance)</code> is the point that far along it (<code>x, y</code>, and <code>true</code> once that's the end).</p>
+<h2 id="how-fast-it-is-and-when-to-plan"><a class="anchor" href="#how-fast-it-is-and-when-to-plan" aria-hidden="true">#</a>How fast it is, and when to plan</h2>
+<p>A search costs more the more cells, points or corners it has to look at. These were measured on a small two-core server: in the engine in a browser tab (headless Chromium, with the JIT), and under plain Lua 5.1 without it. Your players' machines will differ; the proportions won't much.</p>
+<div class="table"><table>
+<thead><tr><th>Search</th><th>In the browser</th><th>Plain Lua 5.1</th></tr></thead>
+<tbody><tr><td>Grid 100 × 100, empty, corner to corner</td><td>2.5 ms</td><td>1.0 ms</td></tr>
+<tr><td>Grid 100 × 100, a maze that snakes through every column</td><td>19 ms</td><td>27 ms</td></tr>
+<tr><td>Grid 100 × 100, no way (looks at every reachable cell)</td><td>21 ms</td><td>28 ms</td></tr>
+<tr><td>Grid 32 × 32, the same maze</td><td></td><td>2.3 ms</td></tr>
+<tr><td>Grid 200 × 200, the same maze</td><td></td><td>120 ms</td></tr>
+<tr><td>Graph of 900 points, corner to corner</td><td></td><td>1.9 ms</td></tr>
+<tr><td>Walkable area with 48 holes: building it</td><td>45 ms</td><td>13 ms</td></tr>
+<tr><td>Walkable area with 48 holes: one path across it</td><td>1.7 ms</td><td>0.7 ms</td></tr></tbody>
+</table></div>
+<p>(<code>lua5.1 tools/paths-tests/test.lua time</code> runs them under plain Lua; <code>tools/scene-tests/paths</code> prints the browser ones.) A frame at 60 a second is 16.7 ms.</p>
+<p>What that means for a game:</p>
+<ul><li><strong>Don't plan every frame.</strong> An agent already waits until the target has moved <code>replan</code> pixels. With many enemies, raise <code>replan</code>, or give each a different moment to plan.</li><li><strong>A search with no way is the slow one</strong>: it looks at every cell it can reach before giving up. On big grids, avoid asking again and again for a target that's walled off (an agent doesn't: it asks again only when the target moves or the grid changes).</li><li><strong>Walkable areas are rebuilt whole</strong> when a Walkable piece moves or changes. Opening a door now and then is fine; a hole that moves every frame is not. For things that move all the time, use Bodies and let the walker bump, or a grid.</li><li>Grids, graphs and agents reuse their working memory: a search makes no garbage except the path it returns.</li></ul>
+<h2 id="limits"><a class="anchor" href="#limits" aria-hidden="true">#</a>Limits</h2>
+<ul><li>A grid path goes through cell centers, so it turns in steps. On open ground, Walkable pieces give smoother paths.</li><li>A path through Walkable pieces is the shortest through the pieces the search chose, and nearly always the shortest of all: in tests against the true shortest path on random rooms, 99% were within 2% of it and the worst was 9% longer.</li><li>Walkable polygons whose edges cross themselves have no clear inside: results are undefined. Areas that almost touch aren't joined.</li><li>No walker size (draw areas inset), no avoiding other walkers, no jumping or falling links between areas: build those from a graph or a grid's own cost function.</li><li>Changing a Walkable's <code>points</code> in place (<code>points[1] = 5</code>) isn't noticed: set a new list, or call <code>smitten.paths.refresh()</code>.</li></ul>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="physics"><span>Previous</span>Physics</a><a class="next" href="saving"><span>Next</span>Saving</a></nav>
+  </main>
+</div>
+</body>
+</html>

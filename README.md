@@ -74,7 +74,7 @@ end
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a project folder or zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, the JIT's suite) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, the JIT's suite) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -268,9 +268,14 @@ Tests:
   camera, sprites, particles, sound, saving, pausing, time scale, scene
   changes with values and transitions, UI focus; `rigid` for physics
   Bodies and tag filtering; `physics` for scene physics; `lights` for
-  Lights, Occluders and the Tint, by reading pixels back). Open one in
+  Lights, Occluders and the Tint, by reading pixels back; `paths` for
+  `smitten.paths` in the engine). Open one in
   the player with the test server (below); every line it prints says what
   it checked.
+- `lua5.1 tools/paths-tests/test.lua`: the pathfinders (`smitten.paths`)
+  under plain Lua, against a plain Dijkstra search on random grids and
+  graphs and the true shortest path on random rooms; add `time` for how
+  long searches take.
 - `node tools/scene-tests/run.mjs` runs the scene tests in a headless
   Chrome and fails if one goes wrong (`errors` and `lights` check themselves: what
   the engine says when a script is wrong, and what lights and shadows draw); `python3 tools/serve_test.py` tests
@@ -320,7 +325,8 @@ uploaded anywhere unless you share or publish.
 - **Attach a script**: a new one, a ready-made one (copied into your
   project), or one you already have.
 - **Scene view**: pan, zoom, grid and snapping, move/rotate/scale handles,
-  box selection, Body and Zone shapes, files dropped in as pieces, and tile
+  box selection, Body and Zone shapes, corner handles on polygons, lines
+  and Walkable areas, files dropped in as pieces, and tile
   painting with a tileset panel when a Tiles piece is selected.
 - **Play** (F5) runs the main scene and **Play scene** (F6) the open one.
   **Live tweaking**: while it runs, the Scene panel and Inspector show the

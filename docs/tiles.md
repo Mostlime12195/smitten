@@ -50,6 +50,17 @@ function ready()
 end
 ```
 
+## Finding paths through tiles
+
+`newPathGrid()` makes a grid that knows which cells are solid, for finding
+the way through a tile maze. It keeps up with `setTile()`, `fill()` and
+`clear()`. [Pathfinding](pathfinding.md) has the details.
+
+```lua
+local grid = Level:newPathGrid()
+local path = grid:findPoints(x, y, Player.x, Player.y)   -- {x, y, x, y, ...} or nil
+```
+
 ## Touching tiles
 
 A Body's `hit(other)` receives the Tiles piece when it bumps into solid
@@ -89,4 +100,5 @@ The tileset file format is in [File formats](formats.md#tilesets).
 | `cellCenter(column, row)` | The scene position of a cell's center. |
 | `getTileSize()` | The size of one cell in the scene: width, height. |
 | `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
+| `newPathGrid(options?)` | A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile(). |
 <!-- end -->

@@ -41,7 +41,7 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
   (`smitten.graphics`, `smitten.audio`, `smitten.keyboard`, ...) and
   Smitten's own modules next to them (`smitten.scene`, `smitten.input`,
   `smitten.tween`, `smitten.assets`, `smitten.storage`, `smitten.display`,
-  `smitten.physics`, `smitten.synth`). The engine's own code calls the same
+  `smitten.physics`, `smitten.paths`, `smitten.synth`). The engine's own code calls the same
   table `love` internally; game code doesn't see that name.
 - Helpers join the module they belong to: `smitten.math.chance/pick/clamp/
   lerp/approach`, `smitten.timer.after/every`, `smitten.mouse.pressed`,
@@ -99,7 +99,7 @@ Add a piece dialog, completions and [docs/pieces.md](docs/pieces.md) read.
 | Basic | `Group` (a position; holds other pieces or runs a script), `Timer` |
 | Things you see | `Sprite`, `Shape`, `Text`, `Tiles`, `Camera`, `Particles` |
 | Light and shadow | `Light` (point or sun), `Occluder`, `Tint` |
-| Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint` |
+| Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint`, `Walkable` (where things can walk, for `smitten.paths`) |
 | On-screen UI | `Label`, `Button`, `Panel`, `Picture`, `Bar` |
 | Sound | `Sound` |
 
@@ -222,8 +222,8 @@ in place; standard conventions; neutral looks with icons from
   and suggestions for what goes inside what. **Attach a script** offers a new
   script, a ready-made one, or one the project has.
 - **Scene view**: pan, zoom, grid and snapping, move/rotate/scale handles,
-  Body and Zone shapes drawn when Shapes is on, files dropped in as pieces,
-  tile painting.
+  Body and Zone shapes drawn when Shapes is on, corner handles on polygons,
+  lines and Walkable areas, files dropped in as pieces, tile painting.
 - **Live tweaking**: while a game runs, the Scene panel and Inspector show
   the running game's pieces with their current values. Changes go only to
   the running copy and are gone when it stops; the saved scene is never
@@ -278,8 +278,9 @@ Cupid's web port.
   is only the engine's internal name for it.
 - **Split into a core and optional modules** loaded only when used.
 - **New modules**: scenes and pieces, input actions, tweens and timers,
-  assets, saving, display scaling, JSON, scene physics on Box2D 3, the
-  sound generator, live tweaking.
+  assets, saving, display scaling, JSON, scene physics on Box2D 3,
+  pathfinding (grids, graphs and walkable areas: building blocks, no
+  ready-made AI), the sound generator, live tweaking.
 - **The main loop** runs the scene tree; `smitten.json` replaces `conf.lua`
   and the main scene replaces `main.lua`.
 - **Cut**: running LÖVE games (`main.lua`, `conf.lua`, the `love.*`

@@ -199,6 +199,7 @@ Extends [Group](#group).
 | `cellCenter(column, row)` | The scene position of a cell's center. |
 | `getTileSize()` | The size of one cell in the scene: width, height. |
 | `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
+| `newPathGrid(options?)` | A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile(). |
 
 ### Camera
 
@@ -464,6 +465,18 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | Event (a function in its script) | |
 | --- | --- |
 | `function broke()` | It was pulled harder than breakForce and let go. |
+
+### Walkable
+
+A polygon that says where things can walk. smitten.paths.findPath() finds a way through all the Walkable pieces in the scene.
+
+Extends [Group](#group).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `points` | points | {-100, -60, 100, -60, 100, 60, -100, 60} | Corner points x1, y1, x2, y2, ... in order round the shape. Any number of corners; dents are fine. |
+| `hole` | bool | false | Cuts this shape out of the walkable areas it lies on, instead of adding to them: a pillar, a pond, a table. |
+| `active` | bool | true | Counts for paths. Turn it off to close an area (or fill a hole) for a while. |
 
 ## On-screen UI
 

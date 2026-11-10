@@ -16,7 +16,8 @@ through a whole small game in about fifteen minutes.
   changing scenes and pausing.
 - [Input](input.md), [Sound and music](sound.md), [Camera](camera.md),
   [Tiles](tiles.md), [Lights](lights.md), [UI](ui.md),
-  [Physics](physics.md), [Saving](saving.md) and [Drawing](drawing.md)
-  each cover one part of a game.
+  [Physics](physics.md), [Pathfinding](pathfinding.md),
+  [Saving](saving.md) and [Drawing](drawing.md) each cover one part of a
+  game.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference:
   every function a script can call, and every piece's settings.
