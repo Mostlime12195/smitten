@@ -58,7 +58,8 @@ for (const [name, def] of Object.entries(types)) {
     check(`${name}:${m}() is defined in the engine`, new RegExp(`function \\w+[:.]${m}\\(|\\b\\w+\\.${m}\\s*=\\s*\\w`).test(engineLua));
   }
   for (const e of Object.keys(def.events || {})) {
-    if (!LIFECYCLE.has(e)) check(`${name} event ${e} is emitted`, engineLua.includes(`emit("${e}"`));
+    // Sent by name, or under the name the project's rules give it (engine/compat.lua).
+    if (!LIFECYCLE.has(e)) check(`${name} event ${e} is emitted`, engineLua.includes(`emit("${e}"`) || engineLua.includes(`.event("${e}")`));
   }
 }
 // Every piece is in a group of the Add a piece dialog and has an icon, and no
@@ -135,9 +136,9 @@ check('no Godot type names', !godot.some((t) => types[t]), godot.filter((t) => t
 // --- Scene documents ------------------------------------------------------------
 const files = new Map();
 const ctx = { readScene: (p) => (files.has(p) ? JSON.parse(files.get(p)) : null) };
-files.set('coin.scene', JSON.stringify({ format: 'smitten.scene', version: 2, root: { name: 'Coin', type: 'Zone', properties: { layer: 3 }, children: [{ name: 'Look', type: 'Shape' }] } }));
+files.set('coin.scene', JSON.stringify({ format: 'smitten.scene', version: 3, root: { name: 'Coin', type: 'Zone', properties: { layer: 3 }, children: [{ name: 'Look', type: 'Shape' }] } }));
 const levelText = JSON.stringify({
-  format: 'smitten.scene', version: 2,
+  format: 'smitten.scene', version: 3,
   root: { name: 'Level', type: 'Group', children: [
     { name: 'Player', type: 'Body', properties: { x: 10 }, script: 'player.lua', tags: ['player'] },
     { name: 'Coin', scene: 'coin.scene', properties: { x: 50 } },
@@ -450,6 +451,238 @@ check('different share links have different ids', new Set(['', 'a', 'b', 'ab', '
   check('a long word is cut', l.count === 3);
   l = layoutRich(parseRich('aa bb cc', false), metrics, width, { limit: 20, by: 'none' });
   check('wrapBy none', l.count === 1);
+}
+
+// --- Older projects: the rules of before version 3, and updating ---------------
+{
+  const up = await import(editor('core/update-project.js'));
+  const { libraryScript } = await import(editor('core/templates.js'));
+  const schema = schemaLib.getSchema();
+  const scene = (root, version = 2) => JSON.stringify({ format: 'smitten.scene', version, root });
+
+  // Degrees from radians: round numbers stay round.
+  check('toDegrees: 1.5708 is 90', up.toDegrees(1.5708) === 90);
+  check('toDegrees: pi is 180', up.toDegrees(Math.PI) === 180);
+  check('toDegrees: 0.7854 is 45', up.toDegrees(0.7854) === 45 && up.toDegrees(-0.7854) === -45);
+  check('toDegrees: 0.42 keeps its fraction', up.toDegrees(0.42) === 24.064227, String(up.toDegrees(0.42)));
+  check('toDegrees: 0 is 0', up.toDegrees(0) === 0);
+  check('isOldProject', up.isOldProject({ version: 2 }) && up.isOldProject({}) && !up.isOldProject({ version: 3 }) && !up.isOldProject({ version: 4 }));
+
+  // A scene: angles, gravity, defaults that changed.
+  const oldRoot = () => ({ name: 'R', type: 'Group', properties: { rotation: 1.5708, x: 4 }, children: [
+    { name: 'Crate', type: 'Body', properties: { motion: 'physics', gravity: 0.5, spin: 3.14159265, slope: 1 } },
+    { name: 'Hero', type: 'Body', script: 'scripts/p.lua', properties: { gravity: 1800 } },
+    { name: 'Dust', type: 'Particles' },
+    { name: 'Smoke', type: 'Particles', properties: { direction: 0.7854, spread: 0.2 } },
+    { name: 'Hinge', type: 'Joint', properties: { motor: true, minAngle: -0.5 } },
+    { name: 'Fast', type: 'Joint', properties: { kind: 'wheel', motorSpeed: 3.14159265 } },
+    { name: 'Rail', type: 'Joint', properties: { kind: 'slider', motorSpeed: 30 } },
+    { name: 'Rod', type: 'Joint', properties: { kind: 'distance' } },
+    { name: 'Label', type: 'Label', properties: { x: 1.5708 } },
+    { name: 'Placed', scene: 'other.scene', properties: { rotation: 0.7854, gravity: 2 } },
+  ] });
+  const data = JSON.parse(scene(oldRoot()));
+  const other = JSON.parse(scene({ name: 'Other', type: 'Body' }));
+  const count = up.upgradeScene(data, schema, (path) => (path === 'other.scene' ? other : null));
+  const kid = (name) => data.root.children.find((c) => c.name === name).properties;
+  check('upgradeScene: version 3', data.version === 3 && !up.isOldScene(data));
+  check('upgradeScene: rotation to degrees', data.root.properties.rotation === 90 && data.root.properties.x === 4);
+  check('upgradeScene: a Body\'s gravity is gravityScale', eq(kid('Crate'), { motion: 'physics', gravityScale: 0.5, spin: 180, slope: 57.29578 }), JSON.stringify(kid('Crate')));
+  check('upgradeScene: a big gravity is a script\'s variable', eq(kid('Hero'), { gravity: 1800 }), JSON.stringify(kid('Hero')));
+  check('upgradeScene: an old default that changed is written out', eq(kid('Dust'), { spread: 28.64789 }), JSON.stringify(kid('Dust')));
+  check('upgradeScene: set values are converted', eq(kid('Smoke'), { direction: 45, spread: 11.459156 }), JSON.stringify(kid('Smoke')));
+  check('upgradeScene: a pin\'s angles and motor', eq(kid('Hinge'), { motor: true, minAngle: -28.64789, motorSpeed: 114.591559 }), JSON.stringify(kid('Hinge')));
+  check('upgradeScene: a wheel\'s motor turns', eq(kid('Fast'), { kind: 'wheel', motorSpeed: 180 }), JSON.stringify(kid('Fast')));
+  check('upgradeScene: a slider\'s motor is pixels', eq(kid('Rail'), { kind: 'slider', motorSpeed: 30 }), JSON.stringify(kid('Rail')));
+  check('upgradeScene: a distance joint keeps its old motor speed', eq(kid('Rod'), { kind: 'distance', motorSpeed: 2 }), JSON.stringify(kid('Rod')));
+  check('upgradeScene: other numbers are left alone', eq(kid('Label'), { x: 1.5708 }));
+  check('upgradeScene: a placed scene\'s values go by its root\'s type', eq(kid('Placed'), { rotation: 45, gravityScale: 2 }), JSON.stringify(kid('Placed')));
+  check('upgradeScene: counts', count.angles === 8 && count.renamed === 2, JSON.stringify(count));
+  const before = JSON.stringify(data);
+  const again = up.upgradeScene(data, schema, () => null);
+  check('upgradeScene: a version 3 scene is left alone', JSON.stringify(data) === before && again.angles === 0);
+
+  // The editor works on an old scene in the new rules, and saves it as version 3.
+  const texts = { 'old.scene': scene(oldRoot()), 'other.scene': scene({ name: 'Other', type: 'Body', properties: { gravity: 3, rotation: 1.5708 } }) };
+  const parsed = {};
+  const ctx2 = { readScene: (path) => (texts[path] ? (parsed[path] ||= JSON.parse(texts[path])) : null) };
+  const oldDoc = SceneDoc.fromText('old.scene', texts['old.scene'], ctx2);
+  const node = (name) => oldDoc.root.children.find((c) => c.name === name);
+  check('an old scene opens in degrees', oldDoc.get(oldDoc.root, 'rotation') === 90 && oldDoc.get(node('Crate'), 'spin') === 180);
+  check('an old scene opens with gravityScale', oldDoc.get(node('Crate'), 'gravityScale') === 0.5 && oldDoc.get(node('Crate'), 'gravity') === undefined);
+  check('an old scene keeps its old defaults', oldDoc.get(node('Dust'), 'spread') === 28.64789 && oldDoc.get(node('Dust'), 'direction') === -90);
+  check('an old placed scene\'s own values are converted', oldDoc.get(node('Placed'), 'rotation') === 45 && oldDoc.get(node('Placed'), 'gravityScale') === 2);
+  const placedDoc = SceneDoc.fromText('level.scene', scene({ name: 'L', type: 'Group', children: [{ name: 'P', scene: 'other.scene' }] }, 3), ctx2);
+  check('an old scene placed in a new one is read in the new rules', placedDoc.get(placedDoc.root.children[0], 'gravityScale') === 3
+    && placedDoc.get(placedDoc.root.children[0], 'rotation') === 90);
+  check('opening doesn\'t change the file', !oldDoc.dirty && JSON.parse(texts['old.scene']).version === 2 && parsed['other.scene'].root.properties.gravity === 3);
+  const saved = JSON.parse(oldDoc.toText());
+  check('an old scene is saved as version 3', saved.version === 3 && saved.root.properties.rotation === 90
+    && saved.root.children[0].properties.gravityScale === 0.5);
+  check('a new scene is version 3', JSON.parse(SceneDoc.empty('n.scene').toText()).version === 3);
+
+  // Where a script assigns names.
+  const lua = [
+    '-- header',
+    'speed = 5',
+    'local facing, t = 1, 0',
+    'function update(dt)',
+    '  local a, b = 1, 2',
+    '  score = (score or 0) + 1',
+    '  vx = if dt > 0 then 3 else if dt < 0 then 2 else 1',
+    '  for i = 1, 3 do q = i end',
+    '  for k, v in pairs({}) do w.x = 1 end',
+    '  t += dt',
+    '  if a == b then z, a = 1, 2 else y = 3 end',
+    '  after(1, function(arg) inner = arg; arg = 2 end)',
+    '  local t2 = { field = 1, other = function() deep = 1 end }',
+    '  repeat r = 1 until r',
+    '  while a ~= b do a = b end',
+    '  s = `hi {name = 3}`',
+    '  self.thing, self.other = 4, 5',
+    '  call(named == 1, [[ x = 1 ]]) -- gone = 1',
+    '  --[[ lost = 1',
+    '  ]] kept = 2',
+    'end',
+    'late = 1',
+    'function Thing:method() self = nil; inMethod = 1 end',
+    'local function helper(p) p = 1; viaHelper = 2 end',
+    'if late then topIf = 1 end',
+  ].join('\n');
+  const found = up.luaAssignments(lua);
+  check('luaAssignments: declared at the top level', eq([...found.declared.keys()].sort(), ['late', 'speed', 'topIf', 'update']), [...found.declared.keys()].join(' '));
+  check('luaAssignments: assigned inside functions', eq([...found.inside.keys()].sort(),
+    ['deep', 'inMethod', 'inner', 'kept', 'q', 'r', 's', 'score', 'viaHelper', 'vx', 'y', 'z']), [...found.inside.keys()].sort().join(' '));
+  check('luaAssignments: the line', found.inside.get('score')[0] === 6 && found.inside.get('kept')[0] === 20 && found.declared.get('late') === 22);
+  check('angleLines', eq(up.angleLines('a = 1\nrotation = math.pi -- turn\n-- rotation here\nx = other.spread\nlocal direction = 1\n').map((l) => l.line), [2, 4]));
+  check('insertDeclarations: after the comment at the top', up.insertDeclarations('-- A script.\n-- More.\n\nspeed = 1\n', ['a', 'b'])
+    === '-- A script.\n-- More.\n\n-- Variables the script makes later on (added when the project was updated).\na = nil\nb = nil\n\nspeed = 1\n');
+  check('insertDeclarations: with no comment', up.insertDeclarations('speed = 1\n', ['a']).startsWith('-- Variables the script makes later on (added when the project was updated).\na = nil\n\nspeed = 1'));
+  check('insertDeclarations: nothing to add', up.insertDeclarations('speed = 1\n', []) === 'speed = 1\n');
+
+  // A whole project.
+  const project = () => ({
+    'smitten.json': JSON.stringify({ format: 'smitten.project', version: 2, name: 'Old', main: 'scenes/a.scene' }),
+    'scenes/a.scene': scene({ name: 'R', type: 'Group', script: 'scripts/menu.lua', children: [
+      { name: 'Play', type: 'Button', script: 'scripts/btn.lua' },
+      { name: 'Pad', type: 'TouchButton', script: 'scripts/pad.lua' },
+      { name: 'Hero', type: 'Body', script: 'scripts/p.lua', properties: { gravity: 0.5, rotation: 1.5708, lives: 3 } },
+      { name: 'Twin', type: 'Body', script: 'scripts/p.lua', properties: { lives: 2 } },
+      { name: 'Both', type: 'Group', script: 'scripts/both.lua' },
+      { name: 'Also', type: 'Button', script: 'scripts/both.lua' },
+    ] }),
+    'scenes/done.scene': scene({ name: 'D', type: 'Group', properties: { rotation: 90 } }, 3),
+    'scripts/btn.lua': 'function pressed()\n  on("pressed", f)\n  self:on("pressed", f)\n  count = 1\nend\n',
+    'scripts/pad.lua': 'function pressed() end\nfunction released() end\n',
+    'scripts/p.lua': 'speed = 1\nfunction update(dt)\n  rotation = rotation + math.pi * dt\n  vx = 3\n  lives = lives - 1\n  scroe = 2\n  if pressed("jump") then vy = -1 end\nend\n',
+    'scripts/menu.lua': '-- menu\nfunction ready()\n  Play:on("pressed", go)\n  find("Pad"):on("released", go)\n  find("Hero"):on("pressed", go)\n  other:on("pressed", go)\n  t.on("pressed")\nend\n',
+    'scripts/both.lua': 'function pressed() end\n',
+    'scripts/lib.lua': 'local M = {}\nfunction M.f() made = 1 end\nreturn M\n',
+    'notes.txt': 'rotation = math.pi',
+  });
+  const first = up.updateProject(project(), schema, { declare: true });
+  const r = first.report;
+  check('update: the version', JSON.parse(first.files['smitten.json']).version === 3 && JSON.parse(first.files['smitten.json']).name === 'Old');
+  check('update: old scenes are converted, new ones left', eq(r.scenes.map((x) => x.path), ['scenes/a.scene']) && !('scenes/done.scene' in first.files));
+  const hero = JSON.parse(first.files['scenes/a.scene']).root.children[2].properties;
+  check('update: the scene', JSON.parse(first.files['scenes/a.scene']).version === 3 && eq(hero, { gravityScale: 0.5, rotation: 90, lives: 3 }), JSON.stringify(hero));
+  check('update: a Button\'s pressed() is clicked()', first.files['scripts/btn.lua'].includes('function clicked()\n  on("clicked", f)\n  self:on("clicked", f)\n'), first.files['scripts/btn.lua']);
+  check('update: a TouchButton\'s events', first.files['scripts/pad.lua'] === 'function touched() end\nfunction untouched() end\n', first.files['scripts/pad.lua']);
+  check('update: on() on a child that\'s a Button', first.files['scripts/menu.lua'].includes('Play:on("clicked", go)') && first.files['scripts/menu.lua'].includes('find("Pad"):on("untouched", go)'));
+  check('update: on() it can\'t place is left', first.files['scripts/menu.lua'].includes('find("Hero"):on("pressed", go)') && first.files['scripts/menu.lua'].includes('other:on("pressed", go)')
+    && first.files['scripts/menu.lua'].includes('t.on("pressed")'));
+  check('update: the input call is left alone', first.files['scripts/p.lua'].includes('if pressed("jump") then'));
+  check('update: a script on a Button and something else is left', !('scripts/both.lua' in first.files));
+  const look = (why) => r.look.filter((l) => l.why === why).map((l) => `${l.path}:${l.line}`);
+  check('update: events to look at', eq(look('event'), ['scripts/both.lua:1', 'scripts/menu.lua:6']), look('event').join(' '));
+  check('update: angles to look at', eq(look('angle'), ['scripts/p.lua:3']), look('angle').join(' '));
+  check('update: undeclared names', eq(r.undeclared, [{ path: 'scripts/btn.lua', names: [{ name: 'count', line: 4 }] }, { path: 'scripts/p.lua', names: [{ name: 'scroe', line: 6 }] }]), JSON.stringify(r.undeclared));
+  check('update: properties and Inspector values aren\'t undeclared', !JSON.stringify(r.undeclared).includes('vx') && !JSON.stringify(r.undeclared).includes('lives'));
+  check('update: old-style scripts and modules are left', !('scripts/lib.lua' in first.files) && !JSON.stringify(r.undeclared).includes('made'));
+  check('update: declarations are added', first.files['scripts/p.lua'].startsWith('-- Variables the script makes later on (added when the project was updated).\nscroe = nil\n\nspeed = 1\n')
+    && first.files['scripts/btn.lua'].includes('count = nil\n'), first.files['scripts/p.lua']);
+  check('update: other files are left', !('notes.txt' in first.files));
+  const plain = up.updateProject(project(), schema);
+  check('update: declarations only when asked', !('scripts/p.lua' in plain.files) && plain.report.undeclared.length === 2 && !plain.report.declared);
+  const text = up.reportText(r);
+  check('update: the report in words', text.includes('1 scene converted') && text.includes('scripts/btn.lua:1: function pressed() is now function clicked()')
+    && text.includes('scripts/p.lua:3: rotation = rotation + math.pi * dt') && text.includes('scripts/p.lua:6: scroe') && text.includes('scripts/menu.lua:6: other:on("pressed", go)'), text);
+  const ahead = up.reportText(r, { preview: true });
+  check('update: the report before it happens', ahead.includes('1 scene will be converted') && ahead.includes('function pressed() becomes function clicked()')
+    && ahead.includes('each needs a line at the top of its script') && !ahead.includes('was added'), ahead);
+  // Updated once, there is nothing more to do, and nothing left undeclared.
+  const updated = { ...project(), ...first.files };
+  const second = up.updateProject(updated, schema, { declare: true });
+  check('update: doing it again changes nothing', !second.report.old && Object.keys(second.files).length === 0);
+  const recheck = up.updateProject({ ...updated, 'smitten.json': project()['smitten.json'] }, schema, { declare: true });
+  check('update: an updated project has nothing left to change', recheck.report.undeclared.length === 0 && recheck.report.events.length === 0
+    && recheck.report.scenes.length === 0 && eq(Object.keys(recheck.files), ['smitten.json']), JSON.stringify(recheck.report));
+
+  // Updating an open project keeps a copy first.
+  {
+    const st = fakeStore();
+    const pr = new Project({ id: 'p', name: 'Old' }, project(), [], st);
+    const copies = [];
+    const duplicate = async (id, name) => { copies.push({ id, name, files: pr.snapshot(), disk: { ...st.disk } }); return { id: 'copy' }; };
+    const done = await up.applyUpdate(pr, schema, { declare: true, backupName: 'Old (before update)', duplicate });
+    check('applyUpdate: a copy is kept, as it was', copies.length === 1 && copies[0].id === 'p' && copies[0].name === 'Old (before update)'
+      && JSON.parse(copies[0].files['smitten.json']).version === 2 && copies[0].files['scripts/btn.lua'].startsWith('function pressed()'));
+    check('applyUpdate: the project is updated and saved', pr.settings().version === 3 && pr.readText('scripts/btn.lua').includes('function clicked()')
+      && JSON.parse(st.disk['smitten.json']).version === 3 && done.backup.id === 'copy' && done.report.old);
+    const twice = await up.applyUpdate(pr, schema, { declare: true, backupName: 'x', duplicate });
+    check('applyUpdate: nothing to do the second time', copies.length === 1 && twice.backup === null && !twice.report.old);
+    const pr2 = new Project({ id: 'q', name: 'Old' }, project(), [], fakeStore());
+    let failedWith = '';
+    try { await up.applyUpdate(pr2, schema, { duplicate: async () => { throw new Error('no room'); } }); } catch (e) { failedWith = e.message; }
+    check('applyUpdate: no copy, no update', failedWith === 'no room' && pr2.settings().version === 2 && pr2.readText('scripts/btn.lua').startsWith('function pressed()'));
+  }
+
+  // New projects play by the new rules, with scripts written for them.
+  for (const t of TEMPLATES) {
+    const out = t.build('Test');
+    check(`${t.id}: is version 3`, JSON.parse(out['smitten.json']).version === 3);
+    check(`${t.id}: its scenes are version 3`, Object.keys(out).filter((x) => x.endsWith('.scene')).every((x) => !up.isOldScene(JSON.parse(out[x]))));
+    const asOld = { ...out, 'smitten.json': out['smitten.json'].replace('"version": 3', '"version": 2') };
+    const rep = up.updateProject(asOld, schema).report;
+    check(`${t.id}: its scripts make their variables at the top`, rep.undeclared.length === 0, JSON.stringify(rep.undeclared));
+    check(`${t.id}: its scripts use the new event names`, rep.events.length === 0 && rep.look.every((l) => l.why !== 'event'));
+    for (const [path, src] of Object.entries(out)) {
+      if (path.endsWith('.lua')) check(`${t.id}: ${path} has no radians`, !/math\.pi|math\.atan2|fallGravity/.test(src) || path === 'scripts/bob.lua', path);
+    }
+  }
+  for (const sc of SCRIPT_LIBRARY) {
+    const found2 = up.luaAssignments(sc.source);
+    const stray = [...found2.inside.keys()].filter((n) => !found2.declared.has(n) && !Object.values(schema.types).some((d) => d.properties && n in d.properties));
+    check(`${sc.file}: makes its variables at the top`, stray.length === 0, stray.join(' '));
+  }
+  check('the spin script turns in degrees', libraryScript('spin').includes('turnsPerSecond * 360 * dt') && libraryScript('spin', 3) === libraryScript('spin'));
+  check('...and in radians for a project with the old rules', libraryScript('spin', 2).includes('turnsPerSecond * math.pi * 2 * dt') && !libraryScript('spin', 2).includes('360'));
+  check('other ready-made scripts are the same under both rules', SCRIPT_LIBRARY.filter((x) => x.id !== 'spin').every((x) => libraryScript(x.id, 2) === libraryScript(x.id, 3)));
+
+  // The two rules tests are the same project apart from its version.
+  const tree = (dir, base = dir, out = {}) => {
+    for (const name of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, name.name);
+      if (name.isDirectory()) tree(full, base, out);
+      else out[full.slice(base.length + 1)] = readFileSync(full).toString('base64');
+    }
+    return out;
+  };
+  const rules3 = tree(join(root, 'tools', 'scene-tests', 'rules3'));
+  const rules2 = tree(join(root, 'tools', 'scene-tests', 'rules2'));
+  const differing = Object.keys({ ...rules3, ...rules2 }).filter((k) => rules3[k] !== rules2[k]);
+  check('rules2 and rules3 differ only in smitten.json', eq(differing, ['smitten.json']), differing.join(' '));
+  const v = (files) => JSON.parse(Buffer.from(files['smitten.json'], 'base64').toString()).version;
+  check('rules2 is version 2 and rules3 version 3', v(rules2) === 2 && v(rules3) === 3);
+  const smoke = JSON.parse(readFileSync(join(root, 'tools', 'scene-tests', 'smoke', 'smitten.json'), 'utf8'));
+  check('the smoke test stays a version 2 project', smoke.version === 2);
+
+  // The engine's own table of old defaults says the same as the editor's.
+  const compatLua = readFileSync(join(root, 'love', 'src', 'modules', 'engine', 'compat.lua'), 'utf8');
+  for (const [type, olds] of Object.entries(up.OLD_DEFAULTS)) {
+    const line = compatLua.split('\n').find((l) => l.trim().startsWith(`${type} = {`)) || '';
+    for (const [prop, value] of Object.entries(olds)) check(`compat.lua has ${type}.${prop} = ${value}`, line.includes(`${prop} = ${value}`), line);
+  }
 }
 
 console.log(`${passed} passed, ${failed} failed`);

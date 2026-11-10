@@ -1,6 +1,6 @@
 {
  "format": "smitten.scene",
- "version": 2,
+ "version": 3,
  "root": {
   "name": "Main",
   "type": "Group",
@@ -41,7 +41,7 @@
      "motion": "physics",
      "x": 200,
      "y": 40,
-     "rotation": 0.0,
+     "rotation": 0,
      "bounce": 0.2
     },
     "children": [
@@ -71,7 +71,7 @@
      "motion": "physics",
      "x": 230,
      "y": 35,
-     "rotation": 0.2,
+     "rotation": 11.459156,
      "bounce": 0.2
     },
     "children": [
@@ -101,7 +101,7 @@
      "motion": "physics",
      "x": 260,
      "y": 40,
-     "rotation": 0.4,
+     "rotation": 22.918312,
      "bounce": 0.2
     },
     "children": [
@@ -131,7 +131,7 @@
      "motion": "physics",
      "x": 290,
      "y": 35,
-     "rotation": 0.6000000000000001,
+     "rotation": 34.377468,
      "bounce": 0.2
     },
     "children": [
@@ -161,7 +161,7 @@
      "motion": "physics",
      "x": 200,
      "y": 80,
-     "rotation": 0.8,
+     "rotation": 45.836624,
      "bounce": 0.2
     },
     "children": [
@@ -191,7 +191,7 @@
      "motion": "physics",
      "x": 230,
      "y": 75,
-     "rotation": 1.0,
+     "rotation": 57.29578,
      "bounce": 0.2
     },
     "children": [
@@ -221,7 +221,7 @@
      "motion": "physics",
      "x": 260,
      "y": 80,
-     "rotation": 1.2000000000000002,
+     "rotation": 68.754935,
      "bounce": 0.2
     },
     "children": [
@@ -251,7 +251,7 @@
      "motion": "physics",
      "x": 290,
      "y": 75,
-     "rotation": 1.4000000000000001,
+     "rotation": 80.214091,
      "bounce": 0.2
     },
     "children": [
@@ -281,7 +281,7 @@
      "motion": "physics",
      "x": 200,
      "y": 120,
-     "rotation": 1.6,
+     "rotation": 91.673247,
      "bounce": 0.2
     },
     "children": [
@@ -311,7 +311,7 @@
      "motion": "physics",
      "x": 230,
      "y": 115,
-     "rotation": 1.8,
+     "rotation": 103.132403,
      "bounce": 0.2
     },
     "children": [
@@ -341,7 +341,7 @@
      "motion": "physics",
      "x": 260,
      "y": 120,
-     "rotation": 2.0,
+     "rotation": 114.591559,
      "bounce": 0.2
     },
     "children": [
@@ -371,7 +371,7 @@
      "motion": "physics",
      "x": 290,
      "y": 115,
-     "rotation": 2.2,
+     "rotation": 126.050715,
      "bounce": 0.2
     },
     "children": [

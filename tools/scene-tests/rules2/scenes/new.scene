@@ -1,0 +1,15 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "New",
+    "type": "Group",
+    "properties": { "rotation": 90 },
+    "children": [
+      { "name": "Body", "type": "Body", "properties": { "motion": "still", "gravityScale": 0.5, "spin": 180, "slope": 60 } },
+      { "name": "Dust", "type": "Particles", "properties": { "emitting": false } },
+      { "name": "Pin", "type": "Joint", "properties": { "minAngle": -30 } },
+      { "name": "Rail", "type": "Joint", "properties": { "kind": "slider" } }
+    ]
+  }
+}

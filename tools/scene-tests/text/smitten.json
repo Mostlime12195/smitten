@@ -1,6 +1,6 @@
 {
   "format": "smitten.project",
-  "version": 2,
+  "version": 3,
   "name": "Text test",
   "main": "scenes/main.scene",
   "display": { "width": 240, "height": 140, "stretch": "fit", "background": [0, 0, 0, 1] }

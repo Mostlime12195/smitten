@@ -159,7 +159,7 @@ local function checks()
   near("image light: its left half", d, 80, 60, 0.25 * (1 + 80 / 255), 0.25 * (1 + 190 / 255), 0.25 * (1 + 100 / 255), 0.04)
   near("image light: its right half", d, 120, 60, 0.25 * (1 + 150 / 255), 0.25 * (1 + 100 / 255), 0.25 * (1 + 60 / 255), 0.04)
   grey("image light: nothing past the picture", d, 100, 90, 0.25, 0.01)
-  light.rotation = math.pi / 2
+  light.rotation = 90
   d = shot()
   near("image light: turns with the piece", d, 100, 90, 0.25 * (1 + 150 / 255), 0.25 * (1 + 100 / 255), 0.25 * (1 + 60 / 255), 0.04)
   grey("image light: turned away", d, 130, 60, 0.25, 0.01)
@@ -348,7 +348,7 @@ local function checks()
   grey("auto occluder next to a Shape: shadow", d, 125, 60, 0.25, 0.01)
   grey("auto occluder next to a Shape: as tall as the Shape", d, 125, 40, 0.25, 0.01)
   check("auto occluder next to a Shape: not above", d:getPixel(125, 20) > 0.3)
-  crate.rotation = math.pi / 2
+  crate.rotation = 90
   d = shot()
   check("auto occluder turns with its piece", d:getPixel(125, 40) > 0.3 and d:getPixel(125, 60) < 0.26,
     ("%.3f %.3f"):format(d:getPixel(125, 40), d:getPixel(125, 60)))
@@ -389,7 +389,7 @@ local function checks()
   grey("sun: shadow to the right", d, 150, 60, 0.25, 0.01)
   grey("sun: none to the left", d, 50, 60, 0.5)
   grey("sun: none below", d, 100, 100, 0.5)
-  light.rotation = math.pi / 2
+  light.rotation = 90
   d = shot()
   grey("sun turned down: shadow below", d, 100, 100, 0.25, 0.01)
   grey("sun turned down: none to the right", d, 150, 60, 0.5)

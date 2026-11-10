@@ -94,12 +94,14 @@ local function checks()
   has("method: the script's function is the one that runs", tostring(results[1][2].moved), "true")
   has("method: other scripts load", tostring(results[4][1]) .. tostring(results[5][1]), "truetrue")
 
-  -- jumpSpeed() uses the script's fallGravity; a script of before, with a
-  -- big gravity, still works.
+  -- jumpSpeed() uses the script's gravity (an ordinary variable: a Body's
+  -- own multiplier is gravityScale); a script of before, which had to call
+  -- it fallGravity, still works.
   local p = make("Body", {}, "scripts/jumper.lua")
-  has("jumpSpeed: fallGravity", tostring(p.speedNow), "400")
+  has("jumpSpeed: gravity", tostring(p.speedNow), "400")
+  has("jumpSpeed: gravity is the script's", tostring(p.gravity) .. " " .. tostring(p.gravityScale), "800 1")
   p = make("Body", {}, "scripts/jumper-old.lua")
-  has("jumpSpeed: old gravity", tostring(p.speedNow), "400")
+  has("jumpSpeed: fallGravity", tostring(p.speedNow), "400")
   p = make("Body", {}, "scripts/jumper-plain.lua")
   has("jumpSpeed: default", tostring(p.speedNow), "600")
 end

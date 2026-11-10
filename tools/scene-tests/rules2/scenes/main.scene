@@ -1,0 +1,13 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Main",
+    "type": "Group",
+    "script": "scenes/main.lua",
+    "children": [
+      { "name": "Stage", "type": "Group" },
+      { "name": "Named", "type": "Body", "script": "scripts/names.lua", "properties": { "x": -500, "y": -500, "motion": "still", "fromInspector": 5 } }
+    ]
+  }
+}

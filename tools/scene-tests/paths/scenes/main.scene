@@ -1,6 +1,6 @@
 {
  "format": "smitten.scene",
- "version": 2,
+ "version": 3,
  "root": {
   "name": "Main",
   "type": "Group",
@@ -103,7 +103,7 @@
     "properties": {
      "x": 300,
      "y": 250,
-     "rotation": 0.7,
+     "rotation": 40.107046,
      "scaleX": 1.5
     }
    }

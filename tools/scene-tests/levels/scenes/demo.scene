@@ -1,25 +1,151 @@
 {
   "format": "smitten.scene",
-  "version": 2,
+  "version": 3,
   "root": {
-    "name": "Demo", "type": "Group", "script": "scenes/demo.lua",
+    "name": "Demo",
+    "type": "Group",
+    "script": "scenes/demo.lua",
     "children": [
-      { "name": "Sky", "type": "Background", "properties": { "scrollX": 0, "scrollY": 0 },
+      {
+        "name": "Sky",
+        "type": "Background",
+        "properties": {
+          "scrollX": 0,
+          "scrollY": 0
+        },
         "children": [
-          { "name": "Blue", "type": "Shape", "properties": { "x": 100, "y": 60, "width": 200, "height": 120, "color": [0.45, 0.7, 0.95, 1] } }
-        ] },
-      { "name": "Clouds", "type": "Background", "properties": { "scrollX": 0.1, "scrollY": 0, "repeatWidth": 120, "driftX": -6 },
+          {
+            "name": "Blue",
+            "type": "Shape",
+            "properties": {
+              "x": 100,
+              "y": 60,
+              "width": 200,
+              "height": 120,
+              "color": [
+                0.45,
+                0.7,
+                0.95,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Clouds",
+        "type": "Background",
+        "properties": {
+          "scrollX": 0.1,
+          "scrollY": 0,
+          "repeatWidth": 120,
+          "driftX": -6
+        },
         "children": [
-          { "name": "Cloud", "type": "Shape", "properties": { "x": 40, "y": 22, "width": 44, "height": 12, "cornerRadius": 6, "color": [1, 1, 1, 0.9] } },
-          { "name": "Cloud2", "type": "Shape", "properties": { "x": 95, "y": 38, "width": 30, "height": 9, "cornerRadius": 4, "color": [1, 1, 1, 0.7] } }
-        ] },
-      { "name": "Hills", "type": "Background", "properties": { "scrollX": 0.4, "scrollY": 0, "repeatWidth": 160 },
+          {
+            "name": "Cloud",
+            "type": "Shape",
+            "properties": {
+              "x": 40,
+              "y": 22,
+              "width": 44,
+              "height": 12,
+              "cornerRadius": 6,
+              "color": [
+                1,
+                1,
+                1,
+                0.9
+              ]
+            }
+          },
+          {
+            "name": "Cloud2",
+            "type": "Shape",
+            "properties": {
+              "x": 95,
+              "y": 38,
+              "width": 30,
+              "height": 9,
+              "cornerRadius": 4,
+              "color": [
+                1,
+                1,
+                1,
+                0.7
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Hills",
+        "type": "Background",
+        "properties": {
+          "scrollX": 0.4,
+          "scrollY": 0,
+          "repeatWidth": 160
+        },
         "children": [
-          { "name": "Hill", "type": "Shape", "properties": { "shape": "polygon", "points": [0, 100, 50, 52, 100, 84, 130, 64, 160, 100], "color": [0.35, 0.6, 0.45, 1] } },
-          { "name": "Ground", "type": "Shape", "properties": { "x": 80, "y": 110, "width": 160, "height": 22, "color": [0.35, 0.6, 0.45, 1] } }
-        ] },
-      { "name": "Level", "type": "Tiles", "properties": { "y": 72, "tileset": "art/terrain.tileset" } },
-      { "name": "Camera", "type": "Camera", "properties": { "x": 100, "y": 60 } }
+          {
+            "name": "Hill",
+            "type": "Shape",
+            "properties": {
+              "shape": "polygon",
+              "points": [
+                0,
+                100,
+                50,
+                52,
+                100,
+                84,
+                130,
+                64,
+                160,
+                100
+              ],
+              "color": [
+                0.35,
+                0.6,
+                0.45,
+                1
+              ]
+            }
+          },
+          {
+            "name": "Ground",
+            "type": "Shape",
+            "properties": {
+              "x": 80,
+              "y": 110,
+              "width": 160,
+              "height": 22,
+              "color": [
+                0.35,
+                0.6,
+                0.45,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Level",
+        "type": "Tiles",
+        "properties": {
+          "y": 72,
+          "tileset": "art/terrain.tileset"
+        }
+      },
+      {
+        "name": "Camera",
+        "type": "Camera",
+        "properties": {
+          "x": 100,
+          "y": 60
+        }
+      }
     ]
   }
 }

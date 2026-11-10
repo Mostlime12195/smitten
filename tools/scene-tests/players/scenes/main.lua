@@ -204,8 +204,8 @@ local function touch()
   local events = {}
   local function listen(piece, name)
     events[name] = { pressed = 0, released = 0 }
-    piece:on("pressed", function() events[name].pressed += 1 end)
-    piece:on("released", function() events[name].released += 1 end)
+    piece:on("touched", function() events[name].pressed += 1 end)
+    piece:on("untouched", function() events[name].released += 1 end)
   end
 
   -- A stick in the bottom left (its middle is at 80, 280), two buttons
@@ -215,7 +215,7 @@ local function touch()
   local fire = add("TouchButton", { anchor = "topLeft", x = 480, y = 240, width = 80, height = 80, action = "fire", player = 2, shape = "rectangle", text = "F" })
   local plain = add("Button", { x = 280, y = 20, width = 100, height = 40 })
   local clicks = 0
-  plain:on("pressed", function() clicks += 1 end)
+  plain:on("clicked", function() clicks += 1 end)
   listen(stick, "stick")
   listen(jump, "jump")
   listen(fire, "fire")

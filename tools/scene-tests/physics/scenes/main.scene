@@ -1,6 +1,6 @@
 {
  "format": "smitten.scene",
- "version": 2,
+ "version": 3,
  "root": {
   "name": "Main",
   "type": "Group",
@@ -27,7 +27,7 @@
      "x": 430,
      "y": 625,
      "motion": "still",
-     "rotation": -0.4
+     "rotation": -22.918312
     },
     "children": [
      {
@@ -53,7 +53,7 @@
      "x": 900,
      "y": 560,
      "motion": "still",
-     "rotation": 1.05
+     "rotation": 60.160568
     },
     "children": [
      {
@@ -280,7 +280,7 @@
      "x": 640,
      "y": 100,
      "motion": "physics",
-     "gravity": 0
+     "gravityScale": 0
     },
     "children": [
      {
@@ -312,7 +312,8 @@
      "x": 1100,
      "y": 100,
      "kind": "pin",
-     "a": "Bob"
+     "a": "Bob",
+     "motorSpeed": 114.591559
     }
    },
    {
@@ -340,7 +341,8 @@
      "x": 300,
      "y": 100,
      "kind": "rope",
-     "a": "Swing"
+     "a": "Swing",
+     "motorSpeed": 2
     }
    },
    {
@@ -443,7 +445,7 @@
      "x": 1200,
      "y": 400,
      "motion": "physics",
-     "gravity": 0
+     "gravityScale": 0
     },
     "children": [
      {

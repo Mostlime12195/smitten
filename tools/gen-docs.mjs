@@ -42,7 +42,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'],
       ['camera', 'Camera'], ['backgrounds', 'Backgrounds'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['text', 'Text'], ['ui', 'UI'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['leaderboards', 'Leaderboards']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['leaderboards', 'Leaderboards'], ['older-projects', 'Older projects']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],
@@ -115,9 +115,9 @@ function piecesPage() {
     '# Pieces',
     '',
     'Each piece has its own properties plus its base type\'s. In its own script:',
-    '`x = 10`, `move()`, `function pressed() end`. On another piece: `other.x`,',
-    '`other:move()`, `other:on("pressed", fn)`. Angles are radians in code,',
-    'degrees in the Inspector.',
+    '`x = 10`, `move()`, `function clicked() end`. On another piece: `other.x`,',
+    '`other:move()`, `other:on("clicked", fn)`. Angles are degrees, in code and',
+    'in the Inspector.',
     '',
   ];
   for (const g of schema.groups) {

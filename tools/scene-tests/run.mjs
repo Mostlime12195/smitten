@@ -10,6 +10,9 @@
 //   errors, lights,   print PASS or FAIL for each check, then DONE
 //   paths, levels,
 //   players
+//   rules3, rules2    the same checks in a project of version 3 (the new
+//                     rules: degrees, clicked(), undeclared names are
+//                     errors, gravityScale) and of version 2 (the old ones)
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
 //   boards,           smitten.boards without the games site, and inside
@@ -43,6 +46,19 @@ const CASES = {
   // Players' input and the touch pieces: its own checks, then real touches
   // from the browser on the stick, a button and the game behind them.
   players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking, touch: true, after: realTouches },
+  // The rules a project plays by: its smitten.json's version (the two
+  // projects are the same apart from it).
+  rules3: {
+    game: 'tools/scene-tests/rules3.zip', until: /^DONE /,
+    check: (lines) => selfChecking(lines) || rules(lines, 'new')
+      || (lines.some((l) => /^Warning: scripts\/oldbutton\.lua:4: a Button's event is clicked\(\)/.test(l)) ? null : 'no warning for function pressed() in a Button\'s script')
+      || (lines.some((l) => /^Warning: a Button's event is "clicked"/.test(l)) ? null : 'no warning for on("pressed") on a Button'),
+  },
+  rules2: {
+    game: 'tools/scene-tests/rules2.zip', until: /^DONE /,
+    check: (lines) => selfChecking(lines) || rules(lines, 'old')
+      || (lines.some((l) => /^Warning: /.test(l)) ? `an old project got a warning: ${lines.find((l) => /^Warning: /.test(l))}` : null),
+  },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 
@@ -54,6 +70,11 @@ function noErrors(lines) {
 function mode(lines, want) {
   const line = lines.find((l) => /^MODE /.test(l));
   return line === `MODE ${want}` ? null : noErrors(lines) || `expected "MODE ${want}", got ${line ? `"${line}"` : 'nothing'}`;
+}
+
+function rules(lines, want) {
+  const line = lines.find((l) => /^RULES /.test(l));
+  return line === `RULES ${want}` ? null : `expected "RULES ${want}", got ${line ? `"${line}"` : 'nothing'}`;
 }
 
 function selfChecking(lines) {

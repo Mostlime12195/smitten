@@ -1,0 +1,8 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Rules test",
+  "main": "scenes/main.scene",
+  "display": { "width": 640, "height": 360, "stretch": "fit" },
+  "physics": { "gravity": [0, 980] }
+}

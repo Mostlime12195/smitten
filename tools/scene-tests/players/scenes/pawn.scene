@@ -1,10 +1,16 @@
 {
   "format": "smitten.scene",
-  "version": 2,
+  "version": 3,
   "root": {
-    "name": "Pawn", "type": "Group", "script": "scenes/pawn.lua",
+    "name": "Pawn",
+    "type": "Group",
+    "script": "scenes/pawn.lua",
     "children": [
-      { "name": "Gun", "type": "Group", "script": "scenes/gun.lua" }
+      {
+        "name": "Gun",
+        "type": "Group",
+        "script": "scenes/gun.lua"
+      }
     ]
   }
 }

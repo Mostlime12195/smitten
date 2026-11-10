@@ -1,2 +1,2 @@
-gravity = 800
+fallGravity = 800
 speedNow = jumpSpeed(100)

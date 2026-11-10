@@ -113,7 +113,7 @@ local function checks()
   Pillar.x = 600
   -- A piece made while the game runs, turned a quarter: it covers
   -- 1980..2000 by 0..100.
-  local extra = spawn("Walkable", { x = 2000, y = 0, rotation = math.pi / 2, points = { 0, 0, 100, 0, 100, 20, 0, 20 } })
+  local extra = spawn("Walkable", { x = 2000, y = 0, rotation = 90, points = { 0, 0, 100, 0, 100, 20, 0, 20 } })
   extra:tag("far")
   check("area: a turned piece", paths.isWalkable(1990, 50) and not paths.isWalkable(2050, 10))
   check("area: tags", paths.isWalkable(1990, 50, { tags = "far" }) and not paths.isWalkable(450, 190, { tags = "far" }))
