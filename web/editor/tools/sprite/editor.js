@@ -182,6 +182,9 @@ export class SpriteEditor {
     this.spaceDown = false;
     this.pointers = new Map();
     this.gesture = null;
+    this.afterDrag = []; // saves that wait for the drag to end
+    this.needBase = null; // what to draw again: true (all) or an image box
+    this.needOverlay = false;
     this.undoStack = [];
     this.redoStack = [];
     this.undoBytes = 0;
@@ -254,14 +257,29 @@ export class SpriteEditor {
     this.renderInfo();
   }
 
+  /**
+   * Write the files. The editor saves by itself a moment after a change, so
+   * saving never ends a stroke or drops a selection that you move: it waits
+   * for the stroke to end, and saves lifted pixels where they are now.
+   */
   async save() {
     if (!this.loaded || this.failed) return;
-    this.commitFloating();
-    this.finishDrag();
+    if (this.drag && this.drag.kind !== 'pan') await new Promise((resolve) => this.afterDrag.push(resolve));
     const { doc, host } = this;
     const layout = doc.layout();
     const hadMeta = host.exists(this.metaPath) || host.exists(this.legacyPath);
-    const { png, json } = await encodeSprite(doc, this.pngPath, this.metaPath, hadMeta);
+    const savingId = this.undoStack.at(-1)?.id ?? 0;
+    // encodeSprite takes the pixels before its first await, so the lifted
+    // pixels are put down only for that moment.
+    let putBack = null;
+    if (this.floating) {
+      const f = this.frame, before = f.slice(), fl = this.floating;
+      draw.stamp(f, doc.fw, doc.fh, fl.data, fl.x, fl.y, fl.w, fl.h, true);
+      putBack = () => f.set(before);
+    }
+    const encoding = encodeSprite(doc, this.pngPath, this.metaPath, hadMeta);
+    putBack?.();
+    const { png, json } = await encoding;
     this.seen[this.pngPath] = png;
     if (json !== null) this.seen[this.metaPath] = json;
     await host.write(this.pngPath, png);
@@ -277,7 +295,8 @@ export class SpriteEditor {
     }
     doc.columns = layout.columns;
     doc.rows = layout.rows;
-    this.savedId = this.undoStack.at(-1)?.id ?? 0;
+    // Changes made while the files were written are not in them yet.
+    this.savedId = savingId;
     this.updateDirty();
     this.renderInfo();
   }
@@ -288,7 +307,7 @@ export class SpriteEditor {
     if (data === this.seen[path]) return;
     if (this.isDirty()) {
       this.seen[path] = data;
-      this.host.toast(`${path} changed outside the image editor. Your unsaved edits are kept; saving replaces the file.`, { type: 'info', timeout: 6000 });
+      this.host.toast(`${path} changed outside the sprite editor. Your unsaved edits are kept; saving replaces the file.`, { type: 'info', timeout: 6000 });
       return;
     }
     if (path === this.metaPath && data !== undefined) this.readPath = this.metaPath;
@@ -422,8 +441,16 @@ export class SpriteEditor {
       h('div', { class: 'spr-group' }, this.btnUndo, this.btnRedo, moreBtn));
 
     // Canvas
+    // The image (drawn again only where it changes) and, over it, the marks
+    // that follow the mouse pointer (brush outline, selection, origin).
     this.canvas = h('canvas', { class: 'spr-canvas' });
     this.ctx = this.canvas.getContext('2d');
+    this.overlay = h('canvas', { class: 'spr-canvas spr-overlay', 'aria-hidden': 'true' });
+    this.octx = this.overlay.getContext('2d');
+    // The brush outline and a small crosshair follow the mouse pointer as
+    // elements moved by a transform, so moving the mouse draws nothing again.
+    this.brushEl = h('div', { class: 'spr-brush-outline', 'aria-hidden': 'true', hidden: true });
+    this.crossEl = h('div', { class: 'spr-crosshair', 'aria-hidden': 'true', hidden: true });
     this.statusEl = h('div', { class: 'spr-status' }, this.statusInfo = h('span', {}), this.statusPos = h('span', {}));
     this.errorEl = h('div', { class: 'spr-error', hidden: true });
     this.emptyHint = h('div', { class: 'spr-empty-hint', hidden: true },
@@ -438,12 +465,12 @@ export class SpriteEditor {
       this.zoomLabel,
       this.iconButton('zoomIn', 'Zoom in (+)', () => this.zoomStep(1)),
       this.iconButton('fit', 'Fit to view (0)', () => this.fit()));
-    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas, this.emptyHint, this.statusEl, this.viewBar, this.errorEl);
+    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas, this.overlay, this.brushEl, this.crossEl, this.emptyHint, this.statusEl, this.viewBar, this.errorEl);
     this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
     this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
     this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e, true));
-    this.canvas.addEventListener('pointerleave', () => { if (!this.drag) { this.hover = null; this.renderStatus(); this.render(); } });
+    this.canvas.addEventListener('pointerleave', () => { if (!this.drag) { this.hover = null; this.renderStatus(); this.renderHover(); } });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
 
@@ -500,7 +527,7 @@ export class SpriteEditor {
       if (this.onKeyDown(e)) { e.preventDefault(); e.stopPropagation(); }
     });
     this.element.addEventListener('keyup', (e) => {
-      if (e.key === ' ' || e.code === 'Space') { this.spaceDown = false; this.updateCursor(); this.render(); }
+      if (e.key === ' ' || e.code === 'Space') { this.spaceDown = false; this.updateCursor(); this.renderHover(); }
     });
     this.onBlur = () => { this.spaceDown = false; this.updateCursor(); };
     window.addEventListener('blur', this.onBlur);
@@ -651,15 +678,7 @@ export class SpriteEditor {
       checkB: resolve('--border', '#2c2e33'),
       line: resolve('--fg', '#eeeeee'),
     };
-    const p = document.createElement('canvas');
-    p.width = p.height = 2;
-    const pc = p.getContext('2d');
-    pc.fillStyle = this.theme.checkA;
-    pc.fillRect(0, 0, 2, 2);
-    pc.fillStyle = this.theme.checkB;
-    pc.fillRect(0, 0, 1, 1);
-    pc.fillRect(1, 1, 1, 1);
-    this.checker = this.ctx.createPattern(p, 'repeat');
+    this.checkerKey = null;
     this.previewChecker = null;
   }
 
@@ -1228,7 +1247,7 @@ export class SpriteEditor {
 
   frameChanged(box = null) {
     this.updateFrameCanvas(this.current, box);
-    this.render();
+    this.renderBox(box);
   }
 
   /** Paint d's color through the mask over box. */
@@ -1548,7 +1567,7 @@ export class SpriteEditor {
     const x1 = Math.max(sx, p.x), y1 = Math.max(sy, p.y);
     this.selection = this.clipRect({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
     if (p.x !== sx || p.y !== sy) this.drag.moved = true;
-    this.render();
+    this.renderOverlay();
   }
 
   onPointerMove(e) {
@@ -1565,7 +1584,7 @@ export class SpriteEditor {
         this.renderStatus();
         this.updateCursor();
       }
-      this.render(); // the brush outline follows the pointer
+      this.renderHover(); // the brush outline follows the pointer
       return;
     }
     switch (d.kind) {
@@ -1612,7 +1631,7 @@ export class SpriteEditor {
       case 'origin':
         this.doc.origin = [clamp(Math.round(p.fx), 0, this.doc.fw), clamp(Math.round(p.fy), 0, this.doc.fh)];
         this.renderOrigin();
-        this.render();
+        this.renderOverlay();
         break;
       default:
     }
@@ -1641,6 +1660,7 @@ export class SpriteEditor {
     const d = this.drag;
     if (!d) return;
     this.drag = null;
+    this.flushAfterDrag();
     switch (d.kind) {
       case 'stroke':
         this.endPixelEdit();
@@ -1673,11 +1693,20 @@ export class SpriteEditor {
     this.renderStatus();
   }
 
+  /** Let the saves that waited for the drag go on (after this drag's undo entry is in). */
+  flushAfterDrag() {
+    if (!this.afterDrag.length) return;
+    const waiting = this.afterDrag;
+    this.afterDrag = [];
+    queueMicrotask(() => { for (const resolve of waiting) resolve(); });
+  }
+
   /** Abandon the current drag (undoing what it drew). */
   cancelDrag() {
     const d = this.drag;
     if (!d) return;
     this.drag = null;
+    this.flushAfterDrag();
     if (d.kind === 'stroke' || d.kind === 'shape') this.cancelPixelEdit();
     else if (d.kind === 'origin') { this.doc.origin = d.before.origin; this.renderOrigin(); }
     else if (d.kind === 'move') { this.floating.x = d.from[0]; this.floating.y = d.from[1]; }
@@ -1762,7 +1791,7 @@ export class SpriteEditor {
     }
     if (mod || e.altKey) return false;
     if (e.key === ' ') {
-      if (!this.spaceDown) { this.spaceDown = true; this.updateCursor(); this.render(); }
+      if (!this.spaceDown) { this.spaceDown = true; this.updateCursor(); this.renderHover(); }
       return true;
     }
     const tools = { b: 'brush', e: 'eraser', g: 'fill', i: 'picker', l: 'line', m: 'select', o: 'origin' };
@@ -1857,15 +1886,44 @@ export class SpriteEditor {
     const W = this.viewport.clientWidth, H = this.viewport.clientHeight;
     if (!W || !H) return;
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.width = Math.round(W * dpr);
-    this.canvas.height = Math.round(H * dpr);
-    this.canvas.style.width = `${W}px`;
-    this.canvas.style.height = `${H}px`;
+    for (const c of [this.canvas, this.overlay]) {
+      c.width = Math.round(W * dpr);
+      c.height = Math.round(H * dpr);
+      c.style.width = `${W}px`;
+      c.style.height = `${H}px`;
+    }
     if (!this.fitted && this.loaded) this.fit();
-    this.renderNow();
+    this.renderNow(true);
   }
 
+  /** Draw everything again (soon, once per frame). */
   render() {
+    this.needBase = true;
+    this.needOverlay = true;
+    this.schedule();
+  }
+
+  /** Draw only the marks over the image again (the brush outline, the selection). */
+  renderOverlay() {
+    this.needOverlay = true;
+    this.schedule();
+  }
+
+  /** The mouse pointer moved: move the brush outline (and the origin mark of the Origin tool). */
+  renderHover() {
+    if (this.tool === 'origin' && !this.doc.origin) this.needOverlay = true;
+    this.schedule();
+  }
+
+  /** Draw the part of the image in box (image pixels) again, and the marks. */
+  renderBox(box) {
+    if (!box) { this.render(); return; }
+    if (this.needBase !== true) this.needBase = draw.union(this.needBase, box);
+    this.needOverlay = true;
+    this.schedule();
+  }
+
+  schedule() {
     if (this.renderQueued || !this.visible) return;
     this.renderQueued = true;
     requestAnimationFrame(() => {
@@ -1874,27 +1932,78 @@ export class SpriteEditor {
     });
   }
 
-  renderNow() {
-    const { ctx, canvas, doc, zoom: z, theme } = this;
+  /** Where the image is on the canvas: {dpr, W, H, ox, oy, pw, ph, px, snap}. */
+  view() {
+    const { canvas, doc, zoom: z } = this;
     const dpr = canvas.width / (canvas.clientWidth || 1) || 1;
     const W = canvas.width / dpr, H = canvas.height / dpr;
-    if (!W || !H) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = theme.bg;
-    ctx.fillRect(0, 0, W, H);
-    if (!this.loaded || this.failed) return;
-    const { fw, fh } = doc;
     const px = 1 / dpr; // one device pixel
     const ox = Math.round(this.panX * dpr) / dpr, oy = Math.round(this.panY * dpr) / dpr;
-    const pw = fw * z, ph = fh * z;
-    const snap = (v) => Math.round(v * dpr) / dpr + px / 2;
+    return { dpr, W, H, ox, oy, pw: doc.fw * z, ph: doc.fh * z, px, snap: (v) => Math.round(v * dpr) / dpr + px / 2 };
+  }
+
+  renderNow(all = false) {
+    const base = all ? true : this.needBase;
+    const over = all || this.needOverlay || base === true;
+    this.needBase = null;
+    this.needOverlay = false;
+    if (!this.canvas.width || !this.canvas.height) return;
+    if (base) this.drawBase(base === true ? null : base);
+    if (over) this.drawOverlay();
+    this.placeBrushOutline();
+    if (base) this.startPreview();
+  }
+
+  /** The checkerboard behind the image: one pixel per cell, drawn scaled (much cheaper than a pattern fill). */
+  checkerCanvas(cell) {
+    const { fw, fh } = this.doc;
+    const cols = Math.ceil(fw / cell), rows = Math.ceil(fh / cell);
+    const key = `${cols}x${rows}`;
+    if (this.checkerKey === key) return this.checkerImg;
+    const c = this.checkerImg || document.createElement('canvas');
+    c.width = cols;
+    c.height = rows;
+    const cc = c.getContext('2d');
+    cc.fillStyle = this.theme.checkA;
+    cc.fillRect(0, 0, cols, rows);
+    cc.fillStyle = this.theme.checkB;
+    for (let y = 0; y < rows; y++) for (let x = y % 2; x < cols; x += 2) cc.fillRect(x, y, 1, 1);
+    this.checkerImg = c;
+    this.checkerKey = key;
+    return c;
+  }
+
+  /** The image, its grids and border; only inside box (image pixels) if given. */
+  drawBase(box) {
+    const { ctx, doc, zoom: z, theme } = this;
+    const { dpr, W, H, ox, oy, pw, ph, px, snap } = this.view();
+    if (!W || !H) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.save();
+    if (box) {
+      // Two screen pixels more on each side, for smoothing and the grid lines.
+      const x0 = Math.floor(ox + box.x0 * z) - 2, y0 = Math.floor(oy + box.y0 * z) - 2;
+      const x1 = Math.ceil(ox + box.x1 * z) + 2, y1 = Math.ceil(oy + box.y1 * z) + 2;
+      ctx.beginPath();
+      ctx.rect(x0, y0, x1 - x0, y1 - y0);
+      ctx.clip();
+    }
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, W, H);
+    if (!this.loaded || this.failed) { ctx.restore(); return; }
+    const { fw, fh } = doc;
 
     // Checkerboard cells: a power of two of image pixels, at least 8 screen pixels.
     let cell = 1;
     while (cell * z < 8) cell *= 2;
-    this.checker.setTransform(new DOMMatrix().translate(ox, oy).scale(cell * z));
-    ctx.fillStyle = this.checker;
-    ctx.fillRect(ox, oy, pw, ph);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, pw, ph);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    const checker = this.checkerCanvas(cell);
+    ctx.drawImage(checker, ox, oy, checker.width * cell * z, checker.height * cell * z);
+    ctx.restore();
 
     // Zoomed out, filter the image so it looks as it will; zoomed in, show the pixels.
     ctx.imageSmoothingEnabled = z < 1;
@@ -1911,9 +2020,13 @@ export class SpriteEditor {
     if (fl) ctx.drawImage(fl.canvas, ox + fl.x * z, oy + fl.y * z, fl.w * z, fl.h * z);
     ctx.imageSmoothingEnabled = false;
 
-    // Visible pixel range
-    const vx0 = clamp(Math.floor(-ox / z), 0, fw), vx1 = clamp(Math.ceil((W - ox) / z), 0, fw);
-    const vy0 = clamp(Math.floor(-oy / z), 0, fh), vy1 = clamp(Math.ceil((H - oy) / z), 0, fh);
+    // Visible pixel range (only the part being drawn again, if any)
+    let vx0 = clamp(Math.floor(-ox / z), 0, fw), vx1 = clamp(Math.ceil((W - ox) / z), 0, fw);
+    let vy0 = clamp(Math.floor(-oy / z), 0, fh), vy1 = clamp(Math.ceil((H - oy) / z), 0, fh);
+    if (box) {
+      vx0 = Math.max(vx0, box.x0 - 1); vx1 = Math.min(vx1, box.x1 + 1);
+      vy0 = Math.max(vy0, box.y0 - 1); vy1 = Math.min(vy1, box.y1 + 1);
+    }
     const gridLines = (stepX, stepY, alpha) => {
       ctx.beginPath();
       for (let x = Math.ceil(vx0 / stepX) * stepX; x <= vx1; x += stepX) {
@@ -1938,6 +2051,22 @@ export class SpriteEditor {
     ctx.lineWidth = px;
     ctx.strokeStyle = theme.border;
     ctx.strokeRect(snap(ox) - px, snap(oy) - px, Math.round(pw * dpr) / dpr + px, Math.round(ph * dpr) / dpr + px);
+    ctx.restore();
+  }
+
+  /** The marks over the image: mirror lines, brush outline, selection, origin. */
+  drawOverlay() {
+    const { octx: ctx, doc, zoom: z, theme } = this;
+    const { dpr, W, H, ox, oy, pw, ph, px, snap } = this.view();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    // With no marks, hide it: one full-size layer less for the browser to put on screen.
+    const empty = !(this.mirrorX || this.mirrorY || this.floating || this.selection || doc.origin || (this.tool === 'origin' && this.hover));
+    if (this.overlay.hidden !== empty) this.overlay.hidden = empty;
+    if (empty) return;
+    if (!W || !H || !this.loaded || this.failed) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { fw, fh } = doc;
 
     // Mirror axes
     if (this.mirrorX || this.mirrorY) {
@@ -1952,10 +2081,8 @@ export class SpriteEditor {
       ctx.restore();
     }
 
-    this.drawBrushOutline(ox, oy, snap, px);
-
     // Selection outline
-    const s = fl || this.selection;
+    const s = this.floating || this.selection;
     if (s) {
       const sx = snap(ox + s.x * z), sy = snap(oy + s.y * z);
       ctx.save();
@@ -1977,52 +2104,49 @@ export class SpriteEditor {
   }
 
   /** The brush's footprint under the pointer: a circle (smooth) or the pixels it covers (pixel). */
-  drawBrushOutline(ox, oy, snap, px) {
-    const { ctx, zoom: z } = this;
+  placeBrushOutline() {
+    const { zoom: z, brushEl, crossEl } = this;
     const hv = this.hover;
     const t = this.drag?.kind === 'stroke' ? this.drag.tool : this.tool;
-    if (!hv || this.spaceDown || this.gesture || !(t === 'brush' || t === 'eraser' || (t === 'line' && !this.drag))) return;
-    if (this.drag && this.drag.kind !== 'stroke') return;
-    ctx.save();
-    ctx.lineWidth = Math.max(1, px);
-    if (this.mode === 'pixel') {
-      const off = Math.floor((this.size - 1) / 2);
-      const bx = ox + (hv.x - off) * z, by = oy + (hv.y - off) * z, bs = this.size * z;
-      if (bs >= 3) {
-        ctx.strokeStyle = MARK_DARK;
-        ctx.strokeRect(snap(bx) - px, snap(by) - px, bs + px, bs + px);
-        ctx.strokeStyle = MARK_LIGHT;
-        ctx.strokeRect(snap(bx), snap(by), bs - px, bs - px);
-      }
-    } else {
-      const cx = ox + hv.fx * z, cy = oy + hv.fy * z, r = (this.size / 2) * z;
-      if (r >= 3) {
-        for (const [color, rr] of [[MARK_DARK, r + px], [MARK_LIGHT, r]]) {
-          ctx.strokeStyle = color;
-          ctx.beginPath();
-          ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-      if (this.canvas.style.cursor === 'none') {
-        // Small crosshair at the center, since the system cursor is hidden.
-        ctx.strokeStyle = MARK_DARK;
-        ctx.beginPath();
-        ctx.moveTo(cx - 4, cy + 0.5); ctx.lineTo(cx + 4, cy + 0.5);
-        ctx.moveTo(cx + 0.5, cy - 4); ctx.lineTo(cx + 0.5, cy + 4);
-        ctx.stroke();
-        ctx.strokeStyle = MARK_LIGHT;
-        ctx.beginPath();
-        ctx.moveTo(cx - 4, cy); ctx.lineTo(cx + 4, cy);
-        ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + 4);
-        ctx.stroke();
+    let show = !!hv && this.loaded && !this.failed && !this.spaceDown && !this.gesture
+      && (t === 'brush' || t === 'eraser' || (t === 'line' && !this.drag)) && (!this.drag || this.drag.kind === 'stroke');
+    let cross = false;
+    let x = 0, y = 0, w = 0, h = 0, round = false;
+    if (show) {
+      const { ox, oy, dpr } = this.view();
+      const snap = (v) => Math.round(v * dpr) / dpr;
+      if (this.mode === 'pixel') {
+        const off = Math.floor((this.size - 1) / 2);
+        x = snap(ox + (hv.x - off) * z);
+        y = snap(oy + (hv.y - off) * z);
+        w = h = this.size * z;
+        show = w >= 3;
+      } else {
+        const r = (this.size / 2) * z;
+        const cx = ox + hv.fx * z, cy = oy + hv.fy * z;
+        x = cx - r; y = cy - r; w = h = 2 * r;
+        round = true;
+        cross = this.canvas.style.cursor === 'none';
+        show = r >= 3;
+        if (cross) crossEl.style.transform = `translate(${cx - 4.5}px, ${cy - 4.5}px)`;
       }
     }
-    ctx.restore();
+    if (show) {
+      const size = `${w}x${h}${round ? 'r' : ''}`;
+      if (this.brushSize !== size) {
+        this.brushSize = size;
+        brushEl.style.width = `${w}px`;
+        brushEl.style.height = `${h}px`;
+        brushEl.classList.toggle('round', round);
+      }
+      brushEl.style.transform = `translate(${x}px, ${y}px)`;
+    }
+    if (brushEl.hidden === show) brushEl.hidden = !show;
+    if (crossEl.hidden === cross) crossEl.hidden = !cross;
   }
 
   drawOriginMarker(x, y, alpha) {
-    const { ctx } = this;
+    const { octx: ctx } = this;
     ctx.save();
     ctx.lineCap = 'round';
     for (const [color, width, a] of [[MARK_DARK, 4, 0.7], [this.theme.accent, 2, 1]]) {
@@ -2049,8 +2173,11 @@ export class SpriteEditor {
     if (hv && hv.x >= 0 && hv.y >= 0 && hv.x < doc.fw && hv.y < doc.fh) parts.push(`${hv.x}, ${hv.y}`);
     const s = this.floating || this.selection;
     if (s) parts.push(`${s.w}×${s.h} selected`);
-    this.statusPos.textContent = parts.join('  ·  ');
-    this.statusInfo.textContent = doc.count > 1 ? `Frame ${this.current} of ${doc.count}` : '';
+    // Only when the text changes: each change makes the page lay out again.
+    const pos = parts.join('  ·  ');
+    const info = doc.count > 1 ? `Frame ${this.current} of ${doc.count}` : '';
+    if (this.statusPos.textContent !== pos) this.statusPos.textContent = pos;
+    if (this.statusInfo.textContent !== info) this.statusInfo.textContent = info;
   }
 
   renderInfo() {
@@ -2097,8 +2224,10 @@ export class SpriteEditor {
   selectAnimation(name) {
     this.selectedAnim = name;
     this.previewStart = performance.now();
+    this.previewDirty = true;
     this.renderAnimations();
     this.renderFrames();
+    this.startPreview();
   }
 
   editAnimation(name, fn) {
@@ -2209,11 +2338,12 @@ export class SpriteEditor {
   startPreview() {
     if (this.previewRaf || !this.visible) return;
     this.previewStart ??= performance.now();
+    // It runs every frame only while an animation plays, or while a change
+    // waits to show (the preview updates a few times per second during a stroke).
     const tick = (t) => {
       this.previewRaf = null;
       if (!this.visible) return;
-      this.drawPreview(t);
-      this.previewRaf = requestAnimationFrame(tick);
+      if (this.drawPreview(t)) this.previewRaf = requestAnimationFrame(tick);
     };
     this.previewRaf = requestAnimationFrame(tick);
   }
@@ -2223,11 +2353,12 @@ export class SpriteEditor {
     this.previewRaf = null;
   }
 
+  /** Draw the preview if it changed. Returns true if it needs the next frame too. */
   drawPreview(t) {
     const { doc } = this;
     const c = this.previewCanvas;
     const W = c.clientWidth, H = c.clientHeight;
-    if (!W || !H || !this.loaded || this.failed) return;
+    if (!W || !H || !this.loaded || this.failed) return false;
     const dpr = window.devicePixelRatio || 1;
     if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
       c.width = Math.round(W * dpr);
@@ -2238,6 +2369,7 @@ export class SpriteEditor {
     const fps = anim ? anim.fps : DEFAULT_FPS;
     const loop = anim ? anim.loop : true;
     let frame = this.current;
+    const animating = frames.length > 1 && this.previewPlaying && fps > 0;
     if (frames.length && this.previewPlaying && fps > 0) {
       const steps = Math.floor(((t - this.previewStart) / 1000) * fps);
       if (loop) frame = frames[steps % frames.length];
@@ -2249,7 +2381,10 @@ export class SpriteEditor {
     } else if (frames.length && !this.previewPlaying) {
       frame = frames.includes(this.current) ? this.current : frames[0];
     }
-    if (frame === this.previewShown && !this.previewDirty && this.previewSize === `${W}x${H}`) return;
+    if (frame === this.previewShown && !this.previewDirty && this.previewSize === `${W}x${H}`) return animating;
+    const drawing = this.drag && (this.drag.kind === 'stroke' || this.drag.kind === 'shape');
+    if (drawing && frame === this.previewShown && t - (this.previewDrawnAt || 0) < 120) return true;
+    this.previewDrawnAt = t;
     this.previewShown = frame;
     this.previewSize = `${W}x${H}`;
     this.previewDirty = false;
@@ -2268,6 +2403,7 @@ export class SpriteEditor {
     ctx.imageSmoothingQuality = 'high';
     const src = this.frameCanvases[frame];
     if (src) ctx.drawImage(src, x, y, w, h);
+    return animating;
   }
 
   patternCanvas() {

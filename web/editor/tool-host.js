@@ -131,7 +131,12 @@ export class ToolHost {
     const e = this.open.get(path);
     if (!e) return false;
     await e.instance.save();
-    if (e.dirty) {
+    // A change made while the tool saved is not in the files yet: keep the
+    // tab dirty (the workspace then saves again soon).
+    if (e.instance.isDirty?.()) {
+      e.dirty = true;
+      this.app.setDirty(path, true);
+    } else if (e.dirty) {
       e.dirty = false;
       this.app.setDirty(path, false);
     }
