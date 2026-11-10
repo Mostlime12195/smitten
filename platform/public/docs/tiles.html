@@ -29,31 +29,33 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Tiles</h1>
-<p>A <strong>Tiles</strong> piece is a grid painted with tiles from a tileset: a picture cut into squares, where each tile can have settings like <code>solid</code> (blocks bodies), <code>oneWay</code> (only solid from above) or anything of your own, such as <code>damage</code>. You paint it in the scene view, and scripts can read and change it while the game runs, for breakable blocks, doors or procedurally built levels.</p>
-<p>Cells are counted in columns and rows from the Tiles piece's position: (0, 0) is its top-left cell, and negative numbers work too. Each cell holds a tile number, counted from 0 across the tileset picture, or -1 when it's empty.</p>
+<p>A <strong>Tiles</strong> piece is a grid of cells that you paint with tiles from a tileset. A tileset is a picture with a grid of squares, and each square is one tile. Each tile can have <strong>tile properties</strong>. For example:</p>
+<ul><li><code>solid</code>: the tile blocks bodies.</li><li><code>oneWay</code>: the tile is solid only from above.</li><li>A tile property of your own, such as <code>damage</code>.</li></ul>
+<p>You paint the tiles in the scene view. Scripts can read and change the cells while the game runs: for blocks that break, for doors, or for levels that a script makes.</p>
+<p>Cell numbers are columns and rows from the position of the Tiles piece. The top-left cell is (0, 0), and negative numbers are also correct. Each cell holds a tile number or -1. Tile numbers start at 0 and count across the tileset picture. The number -1 means that the cell is empty.</p>
 <h2 id="reading-and-changing-cells"><a class="anchor" href="#reading-and-changing-cells" aria-hidden="true">#</a>Reading and changing cells</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>getTile(column, row)</code>, <code>setTile(column, row, tile)</code></td><td>Read or change one cell; -1 empties it</td></tr>
+<tbody><tr><td><code>getTile(column, row)</code>, <code>setTile(column, row, tile)</code></td><td>Get or change one cell. The tile -1 empties the cell</td></tr>
 <tr><td><code>fill(column, row, columns, rows, tile)</code></td><td>Fill a rectangle of cells</td></tr>
-<tr><td><code>clear()</code></td><td>Empty every cell</td></tr>
-<tr><td><code>cellsWith(tile)</code></td><td>Every painted cell (or every cell with that tile), as <code>{column, row, tile}</code></td></tr>
-<tr><td><code>neighbors(column, row, diagonal)</code></td><td>The cells around one, as <code>{column, row, tile}</code></td></tr>
-<tr><td><code>tileInfo(tile)</code></td><td>A tile's settings: <code>solid</code>, <code>name</code>, <code>damage</code>...</td></tr>
-<tr><td><code>isSolid(column, row)</code></td><td>Whether that cell's tile is solid</td></tr></tbody>
+<tr><td><code>clear()</code></td><td>Empty all cells</td></tr>
+<tr><td><code>cellsWith(tile)</code></td><td>All painted cells (or all cells with that tile), as <code>{column, row, tile}</code></td></tr>
+<tr><td><code>neighbors(column, row, diagonal)</code></td><td>The cells next to one cell, as <code>{column, row, tile}</code></td></tr>
+<tr><td><code>tileInfo(tile)</code></td><td>The tile properties of a tile: <code>solid</code>, <code>name</code>, <code>damage</code>...</td></tr>
+<tr><td><code>isSolid(column, row)</code></td><td>Whether the tile in that cell is solid</td></tr></tbody>
 </table></div>
-<p>Solid tiles start blocking bodies as soon as they change.</p>
+<p>When you change a cell, a solid tile in it blocks bodies immediately.</p>
 <h2 id="cells-and-positions"><a class="anchor" href="#cells-and-positions" aria-hidden="true">#</a>Cells and positions</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>cellAt(x, y)</code></td><td>The cell under a point in the scene</td></tr>
-<tr><td><code>tileAt(x, y)</code></td><td>The tile under a point, or -1</td></tr>
-<tr><td><code>cellPosition(column, row)</code>, <code>cellCenter(column, row)</code></td><td>A cell's corner or center in the scene</td></tr>
-<tr><td><code>getTileSize()</code></td><td>How big one cell is in the scene</td></tr>
+<tbody><tr><td><code>cellAt(x, y)</code></td><td>The cell at a point in the scene</td></tr>
+<tr><td><code>tileAt(x, y)</code></td><td>The tile at a point, or -1</td></tr>
+<tr><td><code>cellPosition(column, row)</code>, <code>cellCenter(column, row)</code></td><td>The corner or the center of a cell, in the scene</td></tr>
+<tr><td><code>getTileSize()</code></td><td>The size of one cell in the scene</td></tr>
 <tr><td><code>getBounds()</code></td><td>The painted area: x, y, width, height</td></tr></tbody>
 </table></div>
-<p>A common trick is to paint markers in the tile map and turn them into pieces when the level starts:</p>
-<pre><code class="lang-lua"><span class="tk-c">-- Turn every coin tile (tile 7) into a real coin</span>
+<p>You can paint marker tiles in the Tiles piece and change them into pieces when the level starts:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- Change each coin tile (tile 7) into a coin piece</span>
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   <span class="tk-k">for</span> _, c <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(Level:<span class="tk-f">cellsWith</span>(<span class="tk-n">7</span>)) <span class="tk-k">do</span>
     <span class="tk-k">local</span> cx, cy = Level:<span class="tk-f">cellCenter</span>(c.column, c.row)
@@ -62,30 +64,33 @@
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="finding-paths-through-tiles"><a class="anchor" href="#finding-paths-through-tiles" aria-hidden="true">#</a>Finding paths through tiles</h2>
-<p><code>newPathGrid()</code> makes a grid that knows which cells are solid, for finding the way through a tile maze. It keeps up with <code>setTile()</code>, <code>fill()</code> and <code>clear()</code>. <a href="pathfinding">Pathfinding</a> has the details.</p>
+<p><code>newPathGrid()</code> makes a grid that knows which cells are solid. Use it to find the way through a maze of tiles. The grid follows the changes that <code>setTile()</code>, <code>fill()</code> and <code>clear()</code> make. <a href="pathfinding">Pathfinding</a> tells you more about grids.</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> grid = Level:<span class="tk-f">newPathGrid</span>()
 <span class="tk-k">local</span> path = grid:<span class="tk-f">findPoints</span>(x, y, Player.x, Player.y)   <span class="tk-c">-- {x, y, x, y, ...} or nil</span></code></pre>
 <h2 id="touching-tiles"><a class="anchor" href="#touching-tiles" aria-hidden="true">#</a>Touching tiles</h2>
-<p>A Body's <code>hit(other)</code> receives the Tiles piece when it bumps into solid tiles. <code>touchingTile(setting)</code> returns the settings of a touched tile that has that setting, which suits hazards:</p>
+<p>When a Body hits solid tiles, the engine calls its <code>hit(other)</code> with the Tiles piece as <code>other</code>. <code>touchingTile(setting)</code> gives the tile properties of a touched tile that has the tile property <code>setting</code>. This is good for hazards:</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> t = <span class="tk-f">touchingTile</span>(<span class="tk-s">&quot;damage&quot;</span>)
 <span class="tk-k">if</span> t <span class="tk-k">then</span> <span class="tk-f">hurt</span>(t.damage) <span class="tk-k">end</span></code></pre>
-<p>With <strong>castShadows</strong> on, the tiles marked solid block <a href="lights#shadows">Lights</a> that have shadows on.</p>
+<p>When <strong>castShadows</strong> is on, the solid tiles block the <a href="lights#shadows">Lights</a> that have shadows on.</p>
 <h2 id="terrains"><a class="anchor" href="#terrains" aria-hidden="true">#</a>Terrains</h2>
-<p>A <strong>terrain</strong> is a set of tiles that draw one material in all its shapes: the lone tile, the edges, the corners, the middle. Paint with a terrain and each cell takes the tile that fits its neighbours, so a platform gets its ends and a lake its shore without picking tiles by hand. A tileset can hold several terrains (grass, stone, water), and a tile belongs to one.</p>
-<p>To make one, select a Tiles piece and open <strong>Terrains</strong> at the side of the Tiles panel:</p>
-<ol><li><strong>New terrain</strong>, and give it a name.</li><li>Mark its tiles. With <strong>Mark its tiles</strong> on, each tile in the picture is split in nine: click the <strong>middle</strong> of every tile of the terrain, then the <strong>sides and corners</strong> where that tile joins more of the same. A tile with grass reaching its right side gets its right side marked; the tile in the middle of a field gets everything.</li><li><strong>Paint with it</strong>. The brush, the rectangle, the bucket and the eraser now fit the edges of what they change and of the cells around it. One stroke is one undo step, as always. To go back to plain tiles, set <strong>Paint with</strong> to <strong>Picked tiles</strong> (or pick a tile).</li></ol>
-<p>If your picture is drawn in a usual layout, <strong>Fill in from a layout</strong> marks the whole sheet in one go: pick the sheet's top-left tile first. Any other arrangement works too, marked by hand.</p>
-<p><strong>Neighbours that count</strong> says how the terrain looks around a cell:</p>
+<p>A <strong>terrain</strong> is a set of tiles that show one material in all its shapes. The shapes are the tile that is alone, the edges, the corners and the middle. When you paint with a terrain, each cell gets the tile that fits the cells next to it. A platform gets its ends and a lake gets its shore, and you do not pick the tiles yourself. A tileset can have many terrains (grass, stone, water). A tile is part of one terrain only.</p>
+<p>To make a terrain, select a Tiles piece. Then open <strong>Terrains</strong> at the side of the Tiles panel, and do these steps:</p>
+<ol><li>Click <strong>New terrain</strong>.</li><li>Give the terrain a name.</li><li>Mark the tiles of the terrain. When <strong>Mark its tiles</strong> is on, each tile in the picture has nine parts:
+<ol><li>Click the <strong>middle</strong> of each tile of the terrain.</li><li>Click the <strong>sides and corners</strong> where that tile joins more of the same terrain.</li></ol>
+<p>For example, if the grass in a tile goes to the right side of the tile, mark the right side. For a tile in the middle of an area of grass, mark all the parts.</p></li><li>Click <strong>Paint with it</strong>.</li><li>Paint the terrain in the scene view. The brush, the rectangle, the bucket and the eraser fit the edges of the cells that they change. They also fit the edges of the cells around those cells. One stroke is one undo step, as with all painting.</li></ol>
+<p>To paint with plain tiles again, set <strong>Paint with</strong> to <strong>Picked tiles</strong>, or pick a tile.</p>
+<p>If your picture has one of the usual layouts (below), choose the layout in <strong>Fill in from a layout</strong>. This marks the full sheet in one step. Before you do this, pick the top-left tile of the sheet. You can also mark the tiles of a different layout by hand.</p>
+<p><strong>Neighbours that count</strong> sets which cells around a cell change its tile:</p>
 <div class="table"><table>
 <thead><tr><th></th><th>A cell looks at</th><th>Different tiles</th></tr></thead>
-<tbody><tr><td><strong>Sides and corners</strong></td><td>its four sides, and a corner when both sides next to it are the same terrain</td><td>47 (a &quot;blob&quot; set)</td></tr>
-<tr><td><strong>Sides</strong></td><td>its four sides</td><td>16</td></tr>
-<tr><td><strong>Corners</strong></td><td>each corner: in when the three cells around that corner are the same terrain</td><td>16 (a 2 × 2 or &quot;wang corner&quot; set)</td></tr></tbody>
+<tbody><tr><td><strong>Sides and corners</strong></td><td>Its four sides. It also looks at a corner when the two sides next to that corner are the same terrain</td><td>47 (a &quot;blob&quot; set)</td></tr>
+<tr><td><strong>Sides</strong></td><td>Its four sides</td><td>16</td></tr>
+<tr><td><strong>Corners</strong></td><td>Each corner. A corner counts when the three cells around that corner are the same terrain</td><td>16 (a 2 × 2 or &quot;wang corner&quot; set)</td></tr></tbody>
 </table></div>
-<p>Two or more tiles with the <strong>same marks</strong> are variants: each cell picks one by its position, so it's always the same one and nothing flickers. A set with tiles missing still works: a cell takes the nearest tile there is (a wrong side counts for more than a wrong corner).</p>
+<p>If two or more tiles have the <strong>same marks</strong>, they are variants. Each cell picks one variant from its position. Because of this, a cell always shows the same variant, and the tiles do not flicker. A set that does not have all its tiles also works. In that case, a cell gets the nearest tile that the set has. A wrong side counts more than a wrong corner.</p>
 <h3 id="the-layouts"><a class="anchor" href="#the-layouts" aria-hidden="true">#</a>The layouts</h3>
-<p>Each tile is drawn here as its nine parts: <code>#</code> where the terrain is, <code>.</code> where it isn't. The middle is always <code>#</code>.</p>
-<p><strong>16 tiles, 4 × 4 (sides)</strong>: a column, a 3 × 3 block and a row.</p>
+<p>Here, each tile shows its nine parts. A <code>#</code> is a part with the terrain, and a <code>.</code> is a part without it. The middle is always <code>#</code>.</p>
+<p><strong>16 tiles, 4 × 4 (sides)</strong>: a column, a block of 3 × 3 and a row.</p>
 <pre><code> ...  ...  ...  ...
  .#.  .##  ###  ##.      top end, then the block's top row
  .#.  .#.  .#.  .#.
@@ -101,7 +106,7 @@
  ...  ...  ...  ...
  .#.  .##  ###  ##.      the lone tile, then a row: left end, middle, right end
  ...  ...  ...  ...</code></pre>
-<p><strong>16 tiles, 4 × 4 (corners)</strong>: every mix of the four corners, counted up-right 1, down-right 2, down-left 4, up-left 8, in reading order (the first tile has no corner, the last has all four).</p>
+<p><strong>16 tiles, 4 × 4 (corners)</strong>: all the mixes of the four corners, in reading order. Each corner has a number: up-right 1, down-right 2, down-left 4, up-left 8. The first tile has no corner, and the last tile has all four.</p>
 <pre><code> ...  ..#  ...  ..#
  .#.  .#.  .#.  .#.
  ...  ...  ..#  ..#
@@ -117,13 +122,13 @@
  #..  #.#  #..  #.#
  .#.  .#.  .#.  .#.
  #..  #..  #.#  #.#</code></pre>
-<p><strong>47 tiles, 8 × 6 (sides and corners)</strong>: the 47 blob tiles in the order of their number, where the parts of a tile count</p>
+<p><strong>47 tiles, 8 × 6 (sides and corners)</strong>: the 47 blob tiles, in the sequence of their numbers. Each part of a tile has this number:</p>
 <pre><code> 128 |  1 |  2
  ----+----+----
   64 |    |  4
  ----+----+----
   32 | 16 |  8</code></pre>
-<p>and a tile's number is the sum of the parts where the terrain carries on (the tile numbering of the well-known &quot;blob&quot; tileset). The sheet, in reading order, with the last square unused:</p>
+<p>The number of a tile is the sum of the parts where the terrain continues. This is the tile numbering of the well-known &quot;blob&quot; tileset. This is the sheet, in reading order. The last square has no tile:</p>
 <pre><code>   0   1   4   5   7  16  17  20
   21  23  28  29  31  64  65  68
   69  71  80  81  84  85  87  92
@@ -133,39 +138,43 @@
 <h3 id="terrains-in-scripts"><a class="anchor" href="#terrains-in-scripts" aria-hidden="true">#</a>Terrains in scripts</h3>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain (by name) in a cell and fits the 8 cells around it; <code>nil</code> erases</td></tr>
+<tbody><tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain (by name) in a cell, and fits the 8 cells around it. <code>nil</code> erases</td></tr>
 <tr><td><code>fillTerrain(column, row, columns, rows, terrain)</code></td><td>The same for a rectangle of cells</td></tr>
 <tr><td><code>getTerrain(column, row)</code></td><td>The name of the terrain in a cell, or <code>nil</code></td></tr>
-<tr><td><code>terrains()</code></td><td>The names of the tileset's terrains</td></tr></tbody>
+<tr><td><code>terrains()</code></td><td>The names of the terrains of the tileset</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua"><span class="tk-c">-- Dig a hole where the player clicks: the grass around it grows new edges</span>
+<pre><code class="lang-lua"><span class="tk-c">-- Make a hole where the player clicks. The grass around it gets new edges.</span>
 <span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;mouse:1&quot;</span>) <span class="tk-k">then</span>
     <span class="tk-k">local</span> column, row = Level:<span class="tk-f">cellAt</span>(<span class="tk-f">mouse</span>())
     Level:<span class="tk-f">setTerrain</span>(column, row, <span class="tk-k">nil</span>)
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<pre><code class="lang-lua"><span class="tk-c">-- A random cave, with all its walls fitted</span>
+<pre><code class="lang-lua"><span class="tk-c">-- A random cave. All its walls fit.</span>
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   Level:<span class="tk-f">fillTerrain</span>(<span class="tk-n">0</span>, <span class="tk-n">0</span>, <span class="tk-n">60</span>, <span class="tk-n">40</span>, <span class="tk-s">&quot;rock&quot;</span>)
   <span class="tk-k">for</span> i = <span class="tk-n">1</span>, <span class="tk-n">400</span> <span class="tk-k">do</span>
     Level:<span class="tk-f">setTerrain</span>(math.<span class="tk-f">random</span>(<span class="tk-n">1</span>, <span class="tk-n">58</span>), math.<span class="tk-f">random</span>(<span class="tk-n">1</span>, <span class="tk-n">38</span>), <span class="tk-k">nil</span>)
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>setTile</code> stays exact: it puts the tile you say and leaves the neighbours alone. Cells only ever hold tile numbers; which terrain a cell is comes from its tile, so maps need nothing new and a tileset can gain terrains later.</p>
+<p><code>setTile</code> is exact: it puts the tile that you give in the cell, and it does not change the cells next to it. Cells hold only tile numbers. The terrain of a cell comes from its tile. Because of this, maps do not need new data, and you can add terrains to a tileset later.</p>
 <h2 id="animated-tiles"><a class="anchor" href="#animated-tiles" aria-hidden="true">#</a>Animated tiles</h2>
-<p>A tile can be an <strong>animation</strong>: it shows other tiles in turn, for water, lava, torches or conveyor belts. In the Tiles panel open <strong>Animation</strong>, drag over the frames in the picture (first to last) and press <strong>Animate with these tiles</strong>. The first tile is the one you paint with, and its settings (solid, damage...) are the ones that count; the picture plays it.</p>
+<p>A tile can be an <strong>animation</strong>: it shows other tiles in turn. Use this for water, lava, torches or conveyor belts. To make an animated tile:</p>
+<ol><li>In the Tiles panel, open <strong>Animation</strong>.</li><li>Drag across the animation frames in the picture, from the first to the last.</li><li>Click <strong>Animate with these tiles</strong>.</li></ol>
+<p>You paint with the first tile. The tile properties of the first tile (<code>solid</code>, <code>damage</code>...) are the ones that count. The picture shows the animation.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><strong>Frames</strong></td><td>The tiles it shows, in order</td></tr>
-<tr><td><strong>Frames a second</strong></td><td>How fast, when every frame takes the same time</td></tr>
-<tr><td><strong>Seconds for each frame</strong></td><td>A time for each frame instead, like <code>0.8, 0.1, 0.1</code></td></tr>
-<tr><td><strong>Random start</strong></td><td>Every cell starts at a different point of the loop, so a lake doesn't ripple all in step</td></tr></tbody>
+<tbody><tr><td><strong>Frames</strong></td><td>The tiles that it shows, in sequence</td></tr>
+<tr><td><strong>Frames a second</strong></td><td>The speed, when all animation frames have the same time</td></tr>
+<tr><td><strong>Seconds for each frame</strong></td><td>A different time for each animation frame, for example <code>0.8, 0.1, 0.1</code></td></tr>
+<tr><td><strong>Random start</strong></td><td>Each cell starts at a different point of the loop, so that a lake does not move in one wave</td></tr></tbody>
 </table></div>
-<p>Animated tiles follow the game's clock: they stop while the game is paused and slow down with <code>timeScale()</code>. The Tiles piece's <strong>animate</strong> property turns them all off (<code>Level.animate = false</code> freezes them on the frame they show). They cost nothing between frame changes, however many there are.</p>
+<p>Animated tiles use the clock of the game: they stop while the game pauses, and they go slower with <code>timeScale()</code>. The <strong>animate</strong> property of the Tiles piece stops all of them: <code>Level.animate = false</code> stops them on the animation frame that they show. Between changes of animation frame, they use no time, for any number of animated tiles.</p>
 <h2 id="slopes"><a class="anchor" href="#slopes" aria-hidden="true">#</a>Slopes</h2>
-<p>Tiles are square: a solid tile blocks with its whole cell. For a ramp or a hill, paint the slope's tiles without <code>solid</code> and put a still <strong>Body</strong> over them with a polygon <strong>Shape</strong> in the slope's outline; bodies moved with <code>move()</code> walk up slopes as steep as their <code>slope</code> setting (<a href="physics">Physics</a>).</p>
-<p>The tileset file format is in <a href="formats#tilesets">File formats</a>.</p>
+<p>Tiles are square: a solid tile blocks its full cell. For a ramp or a hill, do these steps:</p>
+<ol><li>Paint the tiles of the slope without <code>solid</code>.</li><li>Put a still <strong>Body</strong> over them.</li><li>In the Body, put a polygon <strong>Shape</strong> with the outline of the slope.</li></ol>
+<p>Bodies that move with <code>move()</code> go up slopes that are not steeper than their <code>slope</code> property (<a href="physics">Physics</a>).</p>
+<p>The file format of tilesets is in <a href="formats#tilesets">File formats</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: a picture cut into tiles, with settings such as solid.</td></tr>

@@ -1,24 +1,25 @@
 # Pathfinding
 
-`smitten.paths` finds a way from one place to another: round walls, through
-a maze, along roads. It gives you building blocks, not a ready-made enemy:
-a pathfinder answers "which way?", and your script decides what to do with
-the answer.
+`smitten.paths` finds a way from one place to another: around walls,
+through a maze, along roads. It gives you building blocks, not an enemy
+that is ready to use. A pathfinder tells you which way to go. Your script
+decides what to do with that answer.
 
-There are three pathfinders. Pick by how your level is made:
+There are three pathfinders. Choose one for the type of level that you
+make:
 
-| Your level | Use | Made with |
+| Your level | Use | How to make it |
 | --- | --- | --- |
-| Tiles, or anything on a square grid | A **grid** | `Tiles:newPathGrid()` or `smitten.paths.newGrid()` |
-| A few places joined by routes you choose: waypoints, rooms, a road map | A **graph** | `smitten.paths.newGraph()` |
-| Open ground to cross freely, with things in the way | **Walkable** pieces | Drawn in the editor; `smitten.paths.findPath()` |
+| Tiles, or a different square grid | A **grid** | `Tiles:newPathGrid()` or `smitten.paths.newGrid()` |
+| Some places with routes between them that you choose: waypoints, rooms, a road map | A **graph** | `smitten.paths.newGraph()` |
+| Open ground that walkers can go across freely, with obstacles | **Walkable** pieces | Draw them in the editor. Then use `smitten.paths.findPath()` |
 
-They can be mixed: a graph for getting from town to town, a grid inside a
-dungeon.
+You can use more than one pathfinder in a game. For example, use a graph
+to go from town to town, and a grid in a dungeon.
 
-**A path is always a flat list of points**, `{x1, y1, x2, y2, ...}`, the
-same shape as a Shape's `points`, from the start to the end. When there's
-no way, you get `nil`.
+**A path is always a flat list of points**, `{x1, y1, x2, y2, ...}`, from
+the start to the end. It has the same form as the `points` of a Shape.
+When there is no way, you get `nil`.
 
 ```lua
 local path = grid:findPoints(x, y, Player.x, Player.y)
@@ -29,13 +30,15 @@ if path then
 end
 ```
 
-Nothing in `smitten.paths` moves a piece, looks for the player or decides
-when to give up: that's your script's job, and it's a few lines (below).
+`smitten.paths` does not move pieces, does not look for the player, and
+does not decide when to stop. Your script does these things, in some
+lines of code (see the examples below).
 
 ## Grids
 
-A grid is columns and rows of cells that are open or solid. Cells are
-numbered like a Tiles piece's: the first is column 0, row 0.
+A grid has columns and rows of cells, and each cell is open or solid. The
+cell numbers are the same as in a Tiles piece: the first cell is column 0,
+row 0.
 
 ### From a Tiles piece
 
@@ -43,29 +46,31 @@ numbered like a Tiles piece's: the first is column 0, row 0.
 local grid = Maze:newPathGrid()
 ```
 
-Solid tiles become solid cells, everything else is open, and the grid
-covers the painted area. It keeps up with the tiles: after
+Solid tiles become solid cells, and all other cells are open. The grid
+covers the painted area. The grid follows the changes to the tiles. After
 `Maze:setTile(...)`, `fill()` or `clear()`, the next search sees the
-change. Positions go through the Tiles piece, so the grid still fits if
-the piece is moved or scaled.
+change. The grid changes positions through the Tiles piece. Because of
+this, the grid continues to fit when you move or scale the piece.
 
 | Option | |
 | --- | --- |
-| `diagonals` | `"never"` (the default: up, down, left, right), `"always"`, or `"noCorners"` (diagonal steps, but never squeezing past the corner of a solid cell) |
-| `heuristic` | How the search guesses the distance left: `"manhattan"`, `"octile"`, `"euclidean"` or `"chebyshev"`. The default suits `diagonals`; leave it alone unless you know you want another |
-| `empty` | `"open"` (the default) or `"solid"`: whether cells with no tile can be walked on. Use `"solid"` when you paint the floor rather than the walls |
-| `solid` | Your own rule: `function(tiles, tile, info) return info.wall == true end`, where `info` is the tile's settings |
-| `cost` | The name of the tile setting that says how costly a tile is to cross (default `"cost"`) |
-| `margin` | Extra open cells around the painted area (default 0) |
-| `column`, `row`, `columns`, `rows` | Cover this rectangle of cells instead of the painted area |
+| `diagonals` | `"never"` (the default: up, down, left, right), `"always"`, or `"noCorners"`. With `"noCorners"`, a path can go diagonally, but it never goes across the corner of a solid cell |
+| `heuristic` | How the search estimates the remaining distance: `"manhattan"`, `"octile"`, `"euclidean"` or `"chebyshev"`. The default is correct for the `diagonals` that you use. Do not change it, unless you know that you need a different one |
+| `empty` | `"open"` (the default) or `"solid"`: whether walkers can go on cells that have no tile. Use `"solid"` when you paint the floor, not the walls |
+| `solid` | Your own rule: `function(tiles, tile, info) return info.wall == true end`. `info` has the tile properties of the tile |
+| `cost` | The name of the tile property that tells the cost of a tile (default `"cost"`) |
+| `margin` | Open cells to add around the painted area (default 0) |
+| `column`, `row`, `columns`, `rows` | Cover this rectangle of cells, not the painted area |
 
-A tile with a `cost` setting (a number above 0; add it to the tile in the
-tileset) costs that many times more to cross: mud with `cost` 3 is avoided
-unless the way round is more than three times as long.
+You can give a tile a `cost` tile property in the tileset: a number more
+than 0. Then a path through that tile costs that many times more. For
+example, mud has a `cost` of 3. A path goes through the mud only if the
+way around it is more than three times as long.
 
-One-way tiles (`oneWay`) count as open: a grid can't know which way you're
-going through them. If that matters, give the grid your own cost function
-(below) that forbids the steps you don't want.
+One-way tiles (`oneWay`) are open cells. A grid cannot know in which
+direction a walker goes through them. If this is important, give the grid
+your own cost function (see below), and make it stop the steps that you do
+not want.
 
 ### By hand
 
@@ -75,56 +80,66 @@ grid:fillSolid(10, 0, 1, 20)        -- a wall
 grid:setCost(3, 4, 5)               -- a swamp cell
 ```
 
-Options: `cellSize` (or `cellWidth` and `cellHeight`), `x` and `y` (the
-scene position of the first cell's top-left corner), `firstColumn` and
-`firstRow` (the first cell's numbers, 0 by default), `diagonals` and
-`heuristic` as above.
+The options are:
+
+- `cellSize` (or `cellWidth` and `cellHeight`).
+- `x` and `y`: the position in the scene of the top-left corner of the
+  first cell.
+- `firstColumn` and `firstRow`: the numbers of the first cell (0 by
+  default).
+- `diagonals` and `heuristic`, as above.
 
 ### What a grid can do
 
 | | |
 | --- | --- |
-| `grid:findPath(fromColumn, fromRow, toColumn, toRow, options)` | The cheapest path as cells: `{column, row, column, row, ...}`, or `nil` |
-| `grid:findPoints(x1, y1, x2, y2, options)` | The same between two points in the scene, as the centers of the cells: `{x, y, x, y, ...}`, or `nil`. Points outside the grid count as the nearest cell on its edge |
-| `grid:setSolid(column, row, solid)`, `grid:isSolid(column, row)` | Block or open a cell. Cells outside the grid are solid |
-| `grid:fillSolid(column, row, columns, rows, solid)` | Block or open a rectangle of cells |
-| `grid:setCost(column, row, cost)`, `grid:getCost(column, row)` | How costly a cell is to step into (1 is normal) |
-| `grid:clear()` | Open every cell, every cost back to 1 |
+| `grid:findPath(fromColumn, fromRow, toColumn, toRow, options)` | The path with the lowest cost, as cells: `{column, row, column, row, ...}`, or `nil` |
+| `grid:findPoints(x1, y1, x2, y2, options)` | The same, between two points in the scene, as the centers of the cells: `{x, y, x, y, ...}`, or `nil`. A point outside the grid is the same as the nearest cell on the edge of the grid |
+| `grid:setSolid(column, row, solid)`, `grid:isSolid(column, row)` | Make a cell solid or open, or get which it is. Cells outside the grid are solid |
+| `grid:fillSolid(column, row, columns, rows, solid)` | Make a rectangle of cells solid or open |
+| `grid:setCost(column, row, cost)`, `grid:getCost(column, row)` | The cost of a step into a cell (1 is usual) |
+| `grid:clear()` | Make all cells open, and set all costs to 1 |
 | `grid:contains(column, row)` | Whether the grid has that cell |
-| `grid:cellAt(x, y)`, `grid:cellCenter(column, row)` | From a scene position to a cell and back |
-| `grid:refresh()` | (Grids from Tiles) read every tile again. Rarely needed: changes made with `setTile` and `fill` are followed already. It undoes your own `setSolid` and `setCost` |
+| `grid:cellAt(x, y)`, `grid:cellCenter(column, row)` | Change a position in the scene to a cell, and a cell to a position |
+| `grid:refresh()` | (Grids from Tiles only) Read all the tiles again. You almost never need this, because the grid already follows the changes from `setTile` and `fill`. It removes the changes that you made with `setSolid` and `setCost` |
 | `grid.columns`, `grid.rows`, `grid.cellWidth`, `grid.cellHeight` | Its size |
 
-With `{ partial = true }`, a search that can't reach the goal returns the
-path to the reachable cell nearest to it instead of `nil`: an enemy walks
-up to the locked door rather than standing still.
+With `{ partial = true }`, a search that cannot get to the goal does not
+give `nil`. It gives the path to the cell that is nearest to the goal and
+that the search can get to. For example, an enemy walks to the locked door
+and does not stand still.
 
-Asking for a cell the grid doesn't have is an error that says which cells
-it has. A solid start cell is fine (a walker pushed into a wall can still
-find its way out); a solid goal has no path unless `partial` is on.
+If you ask for a cell that the grid does not have, you get an error. The
+error tells which cells the grid has. A path can start in a solid cell, so
+a walker that something pushes into a wall can find its way out. A solid
+goal has no path, unless `partial` is on.
 
 ### Your own rules
 
-`grid.cost` replaces how much a step costs, and can forbid it:
+`grid.cost` replaces the cost of a step. It can also stop a step:
 
 ```lua
--- Never step down off a ledge (a one-way drop), and water costs double
+-- Do not step down from a ledge (a one-way drop). Water costs two times more.
 grid.cost = function(fromColumn, fromRow, toColumn, toRow)
   if Maze:getTile(toColumn, toRow) == LEDGE and toRow < fromRow then return nil end
   return if Maze:getTile(toColumn, toRow) == WATER then 2 else 1
 end
 ```
 
-Return a number above 0, or `nil` to forbid the step. `grid.estimate =
-function(column, row, goalColumn, goalRow)` replaces the guess of the cost
-left; it must never guess too much, or paths stop being the cheapest. Set
-them back to `nil` for the built-in ones.
+Return a number more than 0, or return `nil` to stop the step.
+
+`grid.estimate = function(column, row, goalColumn, goalRow)` replaces the
+estimate of the remaining cost. The estimate must never be too high. If it
+is too high, the paths do not always have the lowest cost.
+
+To use the built-in functions again, set `grid.cost` and `grid.estimate`
+to `nil`.
 
 ## Graphs
 
-A graph is points you place and connect yourself. The path follows the
-connections, so things walk exactly where you allowed: along a road, from
-door to door, between platforms.
+A graph is a set of points that you put and connect yourself. The path
+follows the connections, so walkers go only where you permit: along a
+road, from door to door, between platforms.
 
 ```lua
 local graph = smitten.paths.newGraph()
@@ -138,8 +153,9 @@ local ids = graph:findPath("gate", "barn")       -- {"gate", "well", "barn"}
 local path = graph:findPoints("gate", "barn")    -- {80, 60, 240, 60, 240, 200}
 ```
 
-A point's id is any number or name. A handy way to place points is to put
-marker pieces in the scene and read them when the game starts:
+The id of a point can be any number or name. An easy way to put the
+points is with marker pieces. Put them in the scene, and read them when
+the game starts:
 
 ```lua
 for _, marker in ipairs(tagged("waypoint")) do
@@ -149,54 +165,65 @@ end
 
 | | |
 | --- | --- |
-| `graph:addPoint(id, x, y, weight)` | Adds a point (or moves the one with that id). `weight` makes going there cost more: 1 is normal |
+| `graph:addPoint(id, x, y, weight)` | Adds a point (or moves the point with that id). `weight` makes a step to the point cost more. 1 is usual |
 | `graph:removePoint(id)`, `graph:hasPoint(id)`, `graph:clear()` | |
-| `graph:connect(a, b, bothWays)`, `graph:disconnect(a, b, bothWays)` | Both ways unless `bothWays` is `false`: then only from `a` to `b` (a drop, a one-way street) |
-| `graph:isConnected(a, b)` | Whether you can go straight from `a` to `b` |
-| `graph:setDisabled(id, disabled)`, `graph:isDisabled(id)` | A disabled point is left out of paths until it's enabled again: a locked door |
+| `graph:connect(a, b, bothWays)`, `graph:disconnect(a, b, bothWays)` | In the two directions, unless `bothWays` is `false`. If it is `false`, only from `a` to `b` (a drop, a one-way street) |
+| `graph:isConnected(a, b)` | Whether a walker can go directly from `a` to `b` |
+| `graph:setDisabled(id, disabled)`, `graph:isDisabled(id)` | Paths do not use a disabled point until you enable it again. Use this for a locked door |
 | `graph:setWeight(id, weight)`, `graph:getWeight(id)` | |
 | `graph:getPosition(id)`, `graph:setPosition(id, x, y)` | |
-| `graph:points()`, `graph:neighbors(id)` | Every id; the ids a point leads to |
-| `graph:closestPoint(x, y)` | The id of the nearest point (skipping disabled ones) |
-| `graph:closestPosition(x, y)` | The nearest position on any connection: `x, y`, then the two ids it lies between |
-| `graph:findPath(a, b, options)` | The cheapest path as ids, or `nil` |
-| `graph:findPoints(a, b, options)` | The same as positions: `{x, y, x, y, ...}` |
+| `graph:points()`, `graph:neighbors(id)` | All the ids. The ids that a point connects to |
+| `graph:closestPoint(x, y)` | The id of the nearest point that is not disabled |
+| `graph:closestPosition(x, y)` | The nearest position on a connection: `x, y`, then the two ids at the ends of that connection |
+| `graph:findPath(a, b, options)` | The path with the lowest cost, as ids, or `nil` |
+| `graph:findPoints(a, b, options)` | The same, as positions: `{x, y, x, y, ...}` |
 
-`{ partial = true }` works as on grids. A mistyped id is an error that
-suggests the one you probably meant.
+`{ partial = true }` works as on grids. If you type an id incorrectly, you
+get an error. The error tells you the id that you possibly wanted.
 
-A step normally costs its length times the weight of the point it goes to.
-`graph.cost = function(fromId, toId)` replaces the length (return `nil` to
-forbid the step), and `graph.estimate = function(id, goalId)` the guess of
-what's left, for graphs where distance on screen isn't what matters: a
-subway map, a tech tree, a conversation.
+Usually, the cost of a step is its length, multiplied by the weight of the
+point that the step goes to. `graph.cost = function(fromId, toId)`
+replaces the length. Return `nil` from it to stop the step.
+`graph.estimate = function(id, goalId)` replaces the estimate of the
+remaining cost. These functions are for graphs where the distance on the
+screen is not important: a subway map, a tech tree, a conversation.
 
 ## Walkable areas
 
-For ground that things cross freely, draw where they can walk. Add a
-**Walkable** piece (Add a piece › Bodies and zones) and shape its polygon:
-with it selected, drag a corner to move it, drag the small dot in the
-middle of an edge to add a corner, and drop a corner onto its neighbour to
-remove it. The `points` can also be typed in the Inspector.
+For ground that walkers can go across freely, draw the area where they can
+walk:
 
-- Several Walkable pieces that overlap, or share an edge, join into one
-  area. Overlap them a little rather than lining them up by eye.
-- A Walkable with `hole` on cuts its shape out instead: pillars, ponds,
-  furniture.
-- `active` off takes one out for a while: a bridge that's up, a door
-  that's shut (a hole across the doorway).
-- Walkable pieces move, turn and scale like any piece, also while the game
-  runs; the area is worked out again the next time it's asked about.
+1. Add a **Walkable** piece (Add a piece › Bodies and zones).
+2. Select it.
+3. Change the shape of its polygon:
+   - To move a corner, drag it.
+   - To add a corner, drag the small dot in the middle of an edge.
+   - To remove a corner, drag it onto the corner next to it.
 
-Then, from any script:
+You can also type the `points` in the Inspector.
+
+- When Walkable pieces overlap, or have an edge in common, they join into
+  one area. Make them overlap a small distance. Do not try to align them
+  exactly by eye.
+- A Walkable with `hole` on removes its shape from the area: for pillars,
+  ponds, furniture.
+- With `active` off, the Walkable is not part of the area for a time. Use
+  this for a bridge that is up, or a door that is shut (a hole across the
+  door).
+- You can move, turn and scale Walkable pieces as all other pieces, also
+  while the game runs. The engine calculates the area again the next time
+  that a script uses it.
+
+Then use this function in a script:
 
 ```lua
 local path = smitten.paths.findPath(x, y, targetX, targetY)
 ```
 
-The path goes straight where it can and bends round the corners of walls
-and holes. A start or target outside the area counts as the nearest
-walkable point, so a click in the wrong place still gets a path.
+The path goes in a straight line where it can. It turns at the corners of
+walls and holes. If the start or the target is outside the area, the path
+uses the nearest point in the area. Because of this, a click at an
+incorrect place also gets a path.
 
 <!-- module:paths -->
 | Function | |
@@ -215,75 +242,73 @@ walkable point, so a click in the wrong place still gets a path.
 | `smitten.paths.debugDraw(what?, options?)` | Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width. |
 <!-- end -->
 
-`options` is a table: `tags = "land, bridge"` uses only the Walkable
-pieces (areas and holes) with one of those tags, so boats and people can
-each have their own ground; `partial = true` goes as near as possible when
-the target is on ground that can't be reached. `closestPoint`,
-`isWalkable` and `getArea` also take just the tags: `isWalkable(x, y,
-"land")`.
+`options` is a table:
 
-**The walker's size.** A path hugs corners exactly, as if the walker were
-a dot. Draw areas a walker's half-width in from the walls, and holes that
-much bigger than the thing they go round, and nothing clips a corner.
+- `tags = "land, bridge"` uses only the Walkable pieces (areas and holes)
+  with one of those tags. With this, boats and people can each have their
+  own ground.
+- `partial = true` goes as near as possible when the walkers cannot get to
+  the ground of the target.
 
-`smitten.paths.newArea(areas, holes)` makes an area without pieces, from
-lists of polygons, with the same `findPath`, `closestPoint` and
-`isWalkable` as methods: for levels built in code.
+`closestPoint`, `isWalkable` and `getArea` also accept only the tags:
+`isWalkable(x, y, "land")`.
 
-<!-- piece:Walkable -->
-| Property | Type | Default | |
-| --- | --- | --- | --- |
-| `points` | points | {-100, -60, 100, -60, 100, 60, -100, 60} | Corner points x1, y1, x2, y2, ... in order round the shape. Any number of corners; dents are fine. |
-| `hole` | bool | false | Cuts this shape out of the walkable areas it lies on, instead of adding to them: a pillar, a pond, a table. |
-| `active` | bool | true | Counts for paths. Turn it off to close an area (or fill a hole) for a while. |
-<!-- end -->
+**The size of the walker.** A path touches the corners exactly, as if the
+walker is a dot. Draw the areas half the width of a walker away from the
+walls. Make each hole larger than the thing that it goes around, by the
+same distance. Then no walker goes across a corner.
+
+`smitten.paths.newArea(areas, holes)` makes an area from lists of
+polygons, without pieces. The area has `findPath`, `closestPoint` and
+`isWalkable` as methods. Use it for levels that a script makes.
+
 
 ## Following a path: agents
 
-An agent remembers where it's going and the path there, and tells you the
-next point to head for. It never moves anything: you do, however your game
+An agent keeps the target and the path to it. It tells you the next point
+to go to. It never moves pieces: you move them, in the way that your game
 moves things.
 
 ```lua
 local agent = smitten.paths.newAgent({ finder = grid })
 agent:setTarget(600, 200)
 
--- every step:
-local nextX, nextY = agent:next(x, y)     -- x, y: where the piece is now
+-- at each step:
+local nextX, nextY = agent:next(x, y)     -- x, y: the position of the piece now
 ```
 
 | Option | |
 | --- | --- |
-| `finder` | What finds the paths: a grid, a graph, an area, or your own `function(x1, y1, x2, y2)` that returns a path or `nil`. Left out: the scene's Walkable pieces |
-| `reach` | How near a point counts as reached, in pixels (4). Make it bigger for fast movers: at least the distance covered in one step |
-| `replan` | The path is planned again once the target has moved this far from where it was planned to (16) |
-| `partial` | Go as near as possible when the target can't be reached (`true`) |
-| `tags` | With no finder: which Walkable pieces to use |
+| `finder` | What finds the paths: a grid, a graph, an area, or your own `function(x1, y1, x2, y2)` that returns a path or `nil`. If you do not give a finder, the agent uses the Walkable pieces of the scene |
+| `reach` | When the walker is this near to a point, in pixels, the agent goes to the next point (4). For walkers that move fast, make it larger: at least the distance that they move in one step |
+| `replan` | When the target moves this distance from its position at the last plan, the agent makes a new plan (16) |
+| `partial` | Go as near as possible when the agent cannot get to the target (`true`) |
+| `tags` | If there is no finder: the Walkable pieces to use |
 
 | | |
 | --- | --- |
-| `agent:setTarget(x, y)` | Where to go. Fine to call every frame with a moving target |
-| `agent:next(x, y)` | The point to head for from `x, y`. It drops points as you get within `reach` of them, and plans again when the target has moved far or the grid, graph or area has changed |
-| `agent:isDone()` | True once the end is reached (or there's no target) |
+| `agent:setTarget(x, y)` | Where to go. You can call it in each frame with a target that moves |
+| `agent:next(x, y)` | The point to go to from `x, y`. It removes a point from the path when `x, y` is in the `reach` distance of that point. It plans again when the target moves far, or when the grid, graph or area changes |
+| `agent:isDone()` | True when the agent is at the end (or has no target) |
 | `agent:isBlocked()` | True if the last plan found no way |
-| `agent:path()` | The planned path, and the number of the point it's heading for |
+| `agent:path()` | The planned path, and the number of the point that the agent goes to now |
 | `agent:plan(x, y)` | Plan again now |
-| `agent:stop()`, `agent:getTarget()` | Forget the target; read it |
+| `agent:stop()`, `agent:getTarget()` | Remove the target. Get the target |
 
-Over a graph, an agent walks to the nearest point, along the connections,
-and stops at the point nearest the target. Over a grid it goes from cell
-center to cell center.
+On a graph, an agent goes to the nearest point, then along the
+connections, and stops at the point nearest to the target. On a grid, it
+goes from the center of a cell to the center of the next cell.
 
-Agents don't steer round each other or round other moving things. If two
-enemies should not overlap, make them Bodies (they'll bump) or keep them
-apart in your own code.
+Agents do not go around other agents or around other things that move. If
+two enemies must not overlap, make them Bodies (they hit each other). Or
+keep them apart with your own code.
 
 ## Examples
 
 ### An enemy that chases through a tile maze
 
-A scripted Body next to a Tiles piece called `Maze`. The Body should be
-smaller than a tile.
+The enemy is a scripted Body next to a Tiles piece with the name `Maze`.
+The Body must be smaller than a tile.
 
 ```lua
 -- scripts/ghost.lua
@@ -312,17 +337,19 @@ function physicsUpdate(dt)
 end
 ```
 
-Break a wall with `Maze:setTile(column, row, -1)` and the ghost takes the
-new shortcut by itself. To make it give up when the player is far, hide
-or lose the trail, add that around `setTarget`: it's your enemy.
+If you remove a wall with `Maze:setTile(column, row, -1)`, the ghost
+finds the new shorter way by itself. You can make the ghost stop the
+chase when the player is far away, hides, or is out of sight. To do this,
+add code around `setTarget`. You decide how the enemy behaves.
 
-(`x`, `y` and `player.x` are right when the pieces sit directly in the
-scene. For pieces inside moved Groups, use `worldPosition()`.)
+`x`, `y` and `player.x` are correct when the pieces are directly in the
+scene. For pieces inside Groups that you moved, use `worldPosition()`.
 
 ### A guard that patrols between waypoints
 
-Groups tagged `waypoint` mark the places; the script joins them in a ring
-and walks the guard along at a steady speed with `pointAt`.
+Groups with the tag `waypoint` mark the places. The script connects them
+in a ring. It moves the guard along the ring at a constant speed with
+`pointAt`.
 
 ```lua
 -- scripts/guard.lua
@@ -355,13 +382,14 @@ function update(dt)
 end
 ```
 
-Cut a connection with `graph:disconnect(2, 3)` and the guard reaches stop
-3 the other way round the ring.
+If you remove a connection with `graph:disconnect(2, 3)`, the guard goes
+to stop 3 the other way around the ring.
 
 ### Click to move across open ground
 
-The scene has Walkable pieces; this goes on the character (any piece: here
-it's moved directly, with no Body).
+The scene has Walkable pieces. Attach this script to the character. The
+character can be any piece. Here, the script moves it directly, without a
+Body.
 
 ```lua
 -- scripts/walker.lua
@@ -377,74 +405,79 @@ function update(dt)
 end
 
 function draw()
-  smitten.paths.debugDraw(agent)      -- shows the path while you build the game
+  smitten.paths.debugDraw(agent)      -- shows the path while you make the game
 end
 ```
 
-## Seeing what's going on
+## Drawing paths and areas
 
-`smitten.paths.debugDraw(what)` draws a path, an agent's path, or an area's
-pieces, in scene coordinates, from any script's `draw()`. With nothing, it
-draws the scene's walkable area the way the pathfinder sees it: cut into
-simple pieces, holes removed. `options`: `color = {r, g, b, a}`, `width`.
-The editor's **Shapes** switch also outlines Walkable pieces in the
-running game.
+`smitten.paths.debugDraw(what)` draws a path, the path of an agent, or the
+parts of an area. It draws in scene coordinates, from the `draw()` of a
+script. Without `what`, it draws the walkable area of the scene as the
+pathfinder sees it: cut into simple parts, without the holes. The `options` are `color = {r, g, b, a}` and `width`. The
+**Shapes** switch of the editor also shows the outlines of Walkable pieces
+in the game while it runs.
 
-Two helpers for paths: `smitten.paths.length(path)` is how long one is in
-pixels, and `smitten.paths.pointAt(path, distance)` is the point that far
-along it (`x, y`, and `true` once that's the end).
+There are two helpers for paths:
+
+- `smitten.paths.length(path)` gives the length of a path in pixels.
+- `smitten.paths.pointAt(path, distance)` gives the point at that distance
+  along the path: `x, y`, and `true` when that point is the end.
 
 ## How fast it is, and when to plan
 
-A search costs more the more cells, points or corners it has to look at.
-These were measured on a small two-core server: in the engine in a
-browser tab (headless Chromium, with the JIT), and under plain Lua 5.1
-without it. Your players' machines will differ; the proportions won't
-much.
+A search costs more when it must look at more cells, points or corners.
+We measured these times on a small server with two cores. One set of
+times is from the engine in a browser tab (headless Chromium, with the
+JIT). The other set is from plain Lua 5.1, without the JIT. The machines of
+your players are different, but the proportions are almost the same.
 
 | Search | In the browser | Plain Lua 5.1 |
 | --- | --- | --- |
 | Grid 100 × 100, empty, corner to corner | 2.5 ms | 1.0 ms |
-| Grid 100 × 100, a maze that snakes through every column | 19 ms | 27 ms |
-| Grid 100 × 100, no way (looks at every reachable cell) | 21 ms | 28 ms |
+| Grid 100 × 100, a maze that goes through each column | 19 ms | 27 ms |
+| Grid 100 × 100, no way (looks at each cell that it can get to) | 21 ms | 28 ms |
 | Grid 32 × 32, the same maze | | 2.3 ms |
 | Grid 200 × 200, the same maze | | 120 ms |
 | Graph of 900 points, corner to corner | | 1.9 ms |
-| Walkable area with 48 holes: building it | 45 ms | 13 ms |
+| Walkable area with 48 holes: making it | 45 ms | 13 ms |
 | Walkable area with 48 holes: one path across it | 1.7 ms | 0.7 ms |
 
-(`lua5.1 tools/paths-tests/test.lua time` runs them under plain Lua;
-`tools/scene-tests/paths` prints the browser ones.) A frame at 60 a second
-is 16.7 ms.
+`lua5.1 tools/paths-tests/test.lua time` runs these searches in plain Lua.
+`tools/scene-tests/paths` shows the times in the browser. At 60 frames a
+second, one frame is 16.7 ms.
 
-What that means for a game:
+This is what the times mean for a game:
 
-- **Don't plan every frame.** An agent already waits until the target has
-  moved `replan` pixels. With many enemies, raise `replan`, or give each a
-  different moment to plan.
-- **A search with no way is the slow one**: it looks at every cell it can
-  reach before giving up. On big grids, avoid asking again and again for a
-  target that's walled off (an agent doesn't: it asks again only when the
-  target moves or the grid changes).
-- **Walkable areas are rebuilt whole** when a Walkable piece moves or
-  changes. Opening a door now and then is fine; a hole that moves every
-  frame is not. For things that move all the time, use Bodies and let the
-  walker bump, or a grid.
-- Grids, graphs and agents reuse their working memory: a search makes no
-  garbage except the path it returns.
+- **Do not plan in each frame.** An agent already waits until the target
+  moves `replan` pixels. If you have many enemies, make `replan` larger.
+  Or let each enemy plan at a different time.
+- **A search that finds no way is the slow one.** It looks at each cell
+  that it can get to before it stops. On large grids, do not ask again and
+  again for a target that has walls all around it. An agent does not do this: it
+  asks again only when the target moves or the grid changes.
+- **The engine makes Walkable areas again in full** when a Walkable piece
+  moves or changes. If a door opens from time to time, this is not a
+  problem. If a hole moves in each frame, the cost is too high. For things that move all the
+  time, use Bodies and let the walker hit them, or use a grid.
+- Grids, graphs and agents use their working memory again. A search makes
+  no garbage, except the path that it returns.
 
 ## Limits
 
-- A grid path goes through cell centers, so it turns in steps. On open
-  ground, Walkable pieces give smoother paths.
-- A path through Walkable pieces is the shortest through the pieces the
-  search chose, and nearly always the shortest of all: in tests against the
-  true shortest path on random rooms, 99% were within 2% of it and the
-  worst was 9% longer.
-- Walkable polygons whose edges cross themselves have no clear inside:
-  results are undefined. Areas that almost touch aren't joined.
-- No walker size (draw areas inset), no avoiding other walkers, no jumping
-  or falling links between areas: build those from a graph or a grid's own
-  cost function.
-- Changing a Walkable's `points` in place (`points[1] = 5`) isn't noticed:
-  set a new list, or call `smitten.paths.refresh()`.
+- A path on a grid goes through the centers of the cells, so it turns in
+  steps. On open ground, Walkable pieces give smoother paths.
+- A path through Walkable pieces is the shortest path through the parts
+  that the search chose. It is almost always the shortest path of all. We
+  compared it with the true shortest path in random rooms. In these tests,
+  99% of the paths were less than 2% longer, and the worst path was 9%
+  longer.
+- If the edges of a Walkable polygon cross each other, the polygon has no
+  clear inside. Then the results are not defined. Areas that almost touch
+  do not join.
+- There is no walker size (draw the areas smaller), no avoidance of other
+  walkers, and no links for jumps or falls between areas. Make these from
+  a graph, or from the cost function of a grid.
+- If you change the `points` of a Walkable directly (`points[1] = 5`), the
+  engine does not see the change. Set a new list, or call
+  `smitten.paths.refresh()`.
