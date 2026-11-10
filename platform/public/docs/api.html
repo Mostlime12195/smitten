@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Script API</h1>
-<p>Names a script can use without <code>smitten.</code>. How names resolve: <a href="scripts#names">Scripts</a>.</p>
+<p>A script can use these names without <code>smitten.</code>. <a href="scripts#how-names-are-found">Scripts</a> tells how the engine finds a name.</p>
 <h2 id="input"><a class="anchor" href="#input" aria-hidden="true">#</a>Input</h2>
 <p>See <a href="input">Input</a>.</p>
 <div class="table"><table>
@@ -146,7 +146,7 @@
 <tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
 </table></div>
 <h2 id="script-functions"><a class="anchor" href="#script-functions" aria-hidden="true">#</a>Script functions</h2>
-<p>Called by the engine when a script defines them.</p>
+<p>The engine calls these functions when a script has them.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th>Pieces</th><th></th></tr></thead>
 <tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The piece and its children joined the scene. The scene root gets go()'s extra values.</td></tr>

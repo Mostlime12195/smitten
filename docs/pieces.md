@@ -1,8 +1,9 @@
 # Pieces
 
-Each piece has its own properties plus its base type's. In its own script:
-`x = 10`, `move()`, `function clicked() end`. On another piece: `other.x`,
-`other:move()`, `other:on("clicked", fn)`. Angles are degrees, in code and
+Each piece has its own properties and the properties of its base type. In the
+script of the piece, use the names directly: `x = 10`, `move()`,
+`function clicked() end`. For a different piece, use the piece: `other.x`,
+`other:move()`, `other:on("clicked", fn)`. Angles are in degrees, in code and
 in the Inspector.
 
 ## Basic
@@ -11,7 +12,7 @@ in the Inspector.
 
 Everything in a scene is a piece. Pieces nest: a piece's children belong to it.
 
-A base for other types; not added itself.
+A base for other piece types. You do not add it to a scene yourself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -476,7 +477,7 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 
 An extra collision shape for the Body or Zone it's inside.
 
-Extends [Group](#group). Goes inside a Body or Zone.
+Extends [Group](#group). Put it inside a Body or Zone.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |
@@ -546,7 +547,7 @@ Extends [Group](#group).
 
 The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.
 
-Extends [Piece](#piece). A base for other types; not added itself.
+Extends [Piece](#piece). A base for other piece types. You do not add it to a scene yourself.
 
 | Property | Type | Default | |
 | --- | --- | --- | --- |

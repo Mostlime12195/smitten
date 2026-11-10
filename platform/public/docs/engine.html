@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>The engine table</h1>
-<p><code>smitten</code> holds the engine: drawing (<code>smitten.graphics</code>), sound (<code>smitten.audio</code>, <code>smitten.sound</code>), input devices (<code>smitten.keyboard</code>, <code>smitten.mouse</code>, <code>smitten.joystick</code>, <code>smitten.touch</code>), files (<code>smitten.filesystem</code>), <code>smitten.math</code>, <code>smitten.timer</code>, <code>smitten.window</code> and the rest, and Smitten's own modules. This page lists Smitten's modules and the helpers it adds to the others.</p>
+<p><code>smitten</code> holds the engine. It has drawing (<code>smitten.graphics</code>), sound (<code>smitten.audio</code>, <code>smitten.sound</code>), input devices (<code>smitten.keyboard</code>, <code>smitten.mouse</code>, <code>smitten.joystick</code>, <code>smitten.touch</code>) and files (<code>smitten.filesystem</code>). It also has <code>smitten.math</code>, <code>smitten.timer</code>, <code>smitten.window</code>, the other modules, and Smitten's own modules. This page gives Smitten's own modules, and the helpers that Smitten adds to the other modules.</p>
 <h2 id="smitten-s-modules"><a class="anchor" href="#smitten-s-modules" aria-hidden="true">#</a>Smitten's modules</h2>
 <h3 id="smitten-scene"><a class="anchor" href="#smitten-scene" aria-hidden="true">#</a>smitten.scene</h3>
 <p>See <a href="scenes">Scenes and pieces</a>.</p>
@@ -87,7 +87,7 @@
 <tr><td><code>smitten.input.vibrate(strength, seconds, player?)</code></td><td>Rumbles gamepads (all, or one player's).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-tween"><a class="anchor" href="#smitten-tween" aria-hidden="true">#</a>smitten.tween</h3>
-<p><code>smitten.tween(target, seconds, values, easing)</code>. Easings: <a href="scripts#waiting">Scripts</a>.</p>
+<p><code>smitten.tween(target, seconds, values, easing)</code>. The easings are in <a href="scripts#waiting">Scripts</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.tween.to(target, seconds, values, easing?, done?)</code></td><td>Changes numbers smoothly; smitten.tween(...) does the same.</td></tr>
@@ -96,7 +96,7 @@
 <tr><td><code>smitten.tween.easingNames()</code></td><td>Every easing's name (linear, outQuad, outBack, outBounce, ...).</td></tr></tbody>
 </table></div>
 <h3 id="smitten-assets"><a class="anchor" href="#smitten-assets" aria-hidden="true">#</a>smitten.assets</h3>
-<p>Loads and caches files. Paths are relative to the project folder.</p>
+<p>Loads files and keeps them in memory. Paths are relative to the project folder.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.assets.image(path)</code></td><td>An Image, cached.</td></tr>
@@ -139,7 +139,7 @@
 <tr><td><code>smitten.boards.list(callback?)</code></td><td>The game's leaderboards: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-json"><a class="anchor" href="#smitten-json" aria-hidden="true">#</a>smitten.json</h3>
-<p>JSON text to Lua values and back.</p>
+<p>Changes JSON text to Lua values, and Lua values to JSON text.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.json.decode(text)</code></td><td>JSON text to Lua values.</td></tr>
@@ -147,7 +147,7 @@
 </table></div>
 <p>Fields: <code>null</code>.</p>
 <h3 id="smitten-physics"><a class="anchor" href="#smitten-physics" aria-hidden="true">#</a>smitten.physics</h3>
-<p>Queries on the running scene's physics. See <a href="physics">Physics</a>.</p>
+<p>Queries about the physics of the scene that runs. See <a href="physics">Physics</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.physics.raycast(x1, y1, x2, y2, tags?)</code></td><td>The first body or tiles a line touches, nearest first: {piece, x, y, nx, ny, fraction}, or nil.</td></tr>
@@ -158,7 +158,7 @@
 <tr><td><code>smitten.physics.setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-paths"><a class="anchor" href="#smitten-paths" aria-hidden="true">#</a>smitten.paths</h3>
-<p>Finding a way from one place to another. See <a href="pathfinding">Pathfinding</a>.</p>
+<p>Finds a way from one place to another. See <a href="pathfinding">Pathfinding</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.paths.newGrid(columns, rows, options?)</code></td><td>A grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = &quot;noCorners&quot; }). A Tiles piece makes one of itself with newPathGrid().</td></tr>
@@ -175,7 +175,7 @@
 <tr><td><code>smitten.paths.debugDraw(what?, options?)</code></td><td>Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-text"><a class="anchor" href="#smitten-text" aria-hidden="true">#</a>smitten.text</h3>
-<p>Rich text, measuring and effects. See <a href="text">Text</a>.</p>
+<p>Rich text, text measurement and text effects. See <a href="text">Text</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.text.effect(name, fn)</code></td><td>Adds an effect for rich text: after effect(&quot;bounce&quot;, fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece.</td></tr>

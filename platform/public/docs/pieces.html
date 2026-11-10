@@ -29,11 +29,11 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Pieces</h1>
-<p>Each piece has its own properties plus its base type's. In its own script: <code>x = 10</code>, <code>move()</code>, <code>function clicked() end</code>. On another piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;clicked&quot;, fn)</code>. Angles are degrees, in code and in the Inspector.</p>
+<p>Each piece has its own properties and the properties of its base type. In the script of the piece, use the names directly: <code>x = 10</code>, <code>move()</code>, <code>function clicked() end</code>. For a different piece, use the piece: <code>other.x</code>, <code>other:move()</code>, <code>other:on(&quot;clicked&quot;, fn)</code>. Angles are in degrees, in code and in the Inspector.</p>
 <h2 id="basic"><a class="anchor" href="#basic" aria-hidden="true">#</a>Basic</h2>
 <h3 id="piece"><a class="anchor" href="#piece" aria-hidden="true">#</a>Piece</h3>
 <p>Everything in a scene is a piece. Pieces nest: a piece's children belong to it.</p>
-<p>A base for other types; not added itself.</p>
+<p>A base for other piece types. You do not add it to a scene yourself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>pausable</code></td><td>bool</td><td>true</td><td>Stops while the game is paused. Off: this piece and its children keep running (pause menus).</td></tr></tbody>
@@ -449,7 +449,7 @@
 </table></div>
 <h3 id="hitbox"><a class="anchor" href="#hitbox" aria-hidden="true">#</a>Hitbox</h3>
 <p>An extra collision shape for the Body or Zone it's inside.</p>
-<p>Extends <a href="#group">Group</a>. Goes inside a Body or Zone.</p>
+<p>Extends <a href="#group">Group</a>. Put it inside a Body or Zone.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape, placed and turned by the Hitbox's position and rotation.</td></tr>
@@ -509,7 +509,7 @@
 <h2 id="on-screen-ui"><a class="anchor" href="#on-screen-ui" aria-hidden="true">#</a>On-screen UI</h2>
 <h3 id="ui"><a class="anchor" href="#ui" aria-hidden="true">#</a>UI</h3>
 <p>The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.</p>
-<p>Extends <a href="#piece">Piece</a>. A base for other types; not added itself.</p>
+<p>Extends <a href="#piece">Piece</a>. A base for other piece types. You do not add it to a scene yourself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead.</td></tr>
