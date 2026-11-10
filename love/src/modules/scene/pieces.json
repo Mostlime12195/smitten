@@ -464,11 +464,12 @@
       "extends": "Piece", "group": "ui", "icon": "ui", "abstract": true,
       "description": "The base of UI pieces: a rectangle on the screen, placed from a corner, an edge or the center.",
       "properties": {
-        "anchor": { "type": "enum", "options": ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight", "fill"], "default": "topLeft", "group": "Layout", "description": "What x and y are measured from. fill covers the screen or the parent UI piece." },
+        "anchor": { "type": "enum", "options": ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight", "fill"], "default": "topLeft", "group": "Layout", "description": "What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead." },
         "x": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
         "y": { "type": "number", "default": 0, "group": "Layout", "unit": "px", "description": "Distance in from the anchor." },
         "width": { "type": "number", "default": 160, "min": 0, "group": "Layout", "unit": "px", "description": "Width (ignored with fill)." },
         "height": { "type": "number", "default": 40, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "grow": { "type": "number", "default": 0, "min": 0, "group": "Layout", "description": "Inside a Row or Column: its share of the room left over (two pieces with 1 split it in half). 0 keeps its own size." },
         "visible": { "type": "bool", "default": true, "group": "Look", "description": "Show this piece and everything inside it." },
         "opacity": { "type": "number", "default": 1, "min": 0, "max": 1, "step": 0.05, "group": "Look", "description": "0 is invisible, 1 is solid." }
       },
@@ -538,7 +539,11 @@
         "fit": { "type": "enum", "options": ["none", "shrink"], "default": "none", "group": "Button", "description": "shrink makes the words smaller until they fit inside the button." },
         "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
         "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." },
-        "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has keyboard focus when the scene starts." }
+        "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has keyboard focus when the scene starts." },
+        "skin": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture to draw instead of the colored box. Its corners keep their size and its middle stretches. It's drawn lighter under the pointer and darker while held, unless the next two say otherwise." },
+        "skinHover": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "The picture while the pointer is over the button or it has the focus. Empty: the skin, a little lighter." },
+        "skinDown": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "The picture while the button is held down. Empty: the skin, a little darker." },
+        "skinEdges": { "type": "string", "default": "8", "group": "Skin", "description": "How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom." }
       },
       "methods": {
         "focus": { "args": "", "doc": "Gives it keyboard focus." },
@@ -554,7 +559,9 @@
         "color": { "type": "color", "default": [0.08, 0.09, 0.12, 0.85], "group": "Panel", "description": "Fill color." },
         "cornerRadius": { "type": "number", "default": 8, "min": 0, "group": "Panel", "unit": "px", "description": "Rounds the corners." },
         "borderColor": { "type": "color", "default": [1, 1, 1, 0.15], "group": "Panel", "description": "Outline color." },
-        "borderWidth": { "type": "number", "default": 1, "min": 0, "group": "Panel", "unit": "px", "description": "Outline thickness; 0 for none." }
+        "borderWidth": { "type": "number", "default": 1, "min": 0, "group": "Panel", "unit": "px", "description": "Outline thickness; 0 for none." },
+        "skin": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture to draw instead of the colored box. Its corners keep their size and its middle stretches, so one small picture makes a panel of any size." },
+        "skinEdges": { "type": "string", "default": "8", "group": "Skin", "description": "How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom." }
       },
       "events": { "clicked": { "args": "", "doc": "The panel was clicked or tapped (not on a button inside it)." } }
     },
@@ -632,6 +639,159 @@
       "events": {
         "touched": { "args": "", "doc": "A finger pressed the button (or slid onto it)." },
         "untouched": { "args": "", "doc": "The finger let go, or slid off." }
+      }
+    },
+    "TextInput": {
+      "extends": "UI", "group": "ui", "icon": "textInput",
+      "description": "A box to type in: a name, a chat line, a number. Click or tap it and type; on phones the keyboard comes up.",
+      "properties": {
+        "width": { "type": "number", "default": 200, "min": 0, "group": "Layout", "unit": "px", "description": "Width (ignored with fill)." },
+        "height": { "type": "number", "default": 36, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "text": { "type": "text", "default": "", "group": "TextInput", "description": "What's typed in it. Read it from a script, or set it." },
+        "placeholder": { "type": "string", "default": "", "group": "TextInput", "description": "Faint words shown while it's empty: \"Your name\"." },
+        "multiline": { "type": "bool", "default": false, "group": "TextInput", "description": "Several lines: Enter starts a new line and long lines wrap." },
+        "maxLength": { "type": "int", "default": 0, "min": 0, "group": "TextInput", "description": "The most characters it takes. 0 is no limit." },
+        "secret": { "type": "bool", "default": false, "group": "TextInput", "description": "Shows dots instead of the characters, for passwords." },
+        "allow": { "type": "enum", "options": ["anything", "numbers", "letters", "only"], "default": "anything", "group": "TextInput", "description": "What can be typed. numbers: digits, a minus sign in front and one decimal point. letters: letters and digits, no spaces or symbols. only: the characters you list." },
+        "allowCharacters": { "type": "string", "default": "", "group": "TextInput", "description": "The characters that can be typed, like abcdef0123456789.", "when": { "allow": ["only"] } },
+        "disabled": { "type": "bool", "default": false, "group": "TextInput", "description": "Can't be typed in; drawn faded." },
+        "autofocus": { "type": "bool", "default": false, "group": "TextInput", "description": "Ready to type in when the scene starts." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Look", "description": "A .ttf/.otf font, \"pixel\", or empty for the default font." },
+        "size": { "type": "int", "default": 18, "min": 1, "group": "Look", "unit": "px", "description": "Font size." },
+        "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Look", "description": "Text color (the blinking caret's too)." },
+        "placeholderColor": { "type": "color", "default": [1, 1, 1, 0.4], "group": "Look", "description": "The placeholder's color." },
+        "background": { "type": "color", "default": [0.05, 0.06, 0.09, 0.9], "group": "Look", "description": "The box's color." },
+        "borderColor": { "type": "color", "default": [1, 1, 1, 0.3], "group": "Look", "description": "The outline's color. The outline takes the selection's color while it's being typed in." },
+        "selectionColor": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Look", "description": "The color behind selected text." },
+        "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Look", "unit": "px", "description": "Rounds the corners." },
+        "skin": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture to draw instead of the colored box. Its corners keep their size and its middle stretches." },
+        "skinEdges": { "type": "string", "default": "8", "group": "Skin", "description": "How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom." }
+      },
+      "methods": {
+        "focus": { "args": "", "doc": "Starts typing in it, as a click does." },
+        "blur": { "args": "", "doc": "Stops typing in it." },
+        "isFocused": { "args": "", "doc": "True while it's being typed in." },
+        "selectAll": { "args": "", "doc": "Selects all of its text, so typing replaces it." }
+      },
+      "events": {
+        "changed": { "args": "text", "doc": "The text changed by typing, deleting or pasting (not when a script sets it)." },
+        "submitted": { "args": "text", "doc": "Enter was pressed (in a multiline one: Ctrl+Enter)." },
+        "focused": { "args": "", "doc": "It began being typed in." },
+        "blurred": { "args": "", "doc": "It stopped being typed in: the focus went elsewhere, or Escape was pressed." }
+      }
+    },
+    "Slider": {
+      "extends": "UI", "group": "ui", "icon": "slider",
+      "description": "A knob to drag along a track to pick a number: volume, brightness, speed.",
+      "properties": {
+        "height": { "type": "number", "default": 24, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "value": { "type": "number", "default": 50, "group": "Slider", "description": "The number it's at, between min and max." },
+        "min": { "type": "number", "default": 0, "group": "Slider", "description": "The value at the left end (the bottom, when vertical)." },
+        "max": { "type": "number", "default": 100, "group": "Slider", "description": "The value at the right end (the top, when vertical)." },
+        "step": { "type": "number", "default": 0, "min": 0, "group": "Slider", "description": "The value moves in jumps this big: 1 for whole numbers, 10 for tens. 0 moves smoothly." },
+        "vertical": { "type": "bool", "default": false, "group": "Slider", "description": "Runs bottom to top instead of left to right." },
+        "disabled": { "type": "bool", "default": false, "group": "Slider", "description": "Can't be moved; drawn faded." },
+        "autofocus": { "type": "bool", "default": false, "group": "Slider", "description": "Has keyboard focus when the scene starts." },
+        "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Look", "description": "The color of the filled part of the track." },
+        "background": { "type": "color", "default": [0, 0, 0, 0.45], "group": "Look", "description": "The color of the rest of the track." },
+        "knobColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Look", "description": "The knob's color (or a tint for its image)." },
+        "skin": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture for the track instead of the drawn one. Its ends keep their size and its middle stretches." },
+        "skinEdges": { "type": "string", "default": "8", "group": "Skin", "description": "How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom." },
+        "knobImage": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture for the knob, instead of the drawn one." }
+      },
+      "methods": {
+        "focus": { "args": "", "doc": "Gives it keyboard focus: the arrow keys or a stick then move it." },
+        "isFocused": { "args": "", "doc": "True while it has the keyboard focus." }
+      },
+      "events": {
+        "changed": { "args": "value", "doc": "The player moved the slider (not when a script sets value)." }
+      }
+    },
+    "Checkbox": {
+      "extends": "UI", "group": "ui", "icon": "checkbox",
+      "description": "A box to tick, or a switch to flip, with words beside it. Give several the same group and only one of them can be on: a choice.",
+      "properties": {
+        "height": { "type": "number", "default": 28, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "checked": { "type": "bool", "default": false, "group": "Checkbox", "description": "Ticked (or switched on)." },
+        "text": { "type": "text", "default": "Checkbox", "group": "Checkbox", "description": "The words beside it." },
+        "look": { "type": "enum", "options": ["box", "switch"], "default": "box", "group": "Checkbox", "description": "box is a square with a tick. switch slides left and right. In a group, a box is drawn round." },
+        "group": { "type": "string", "default": "", "group": "Checkbox", "description": "Checkboxes inside the same piece with the same group name are a choice: ticking one unticks the others. Empty: it's on its own." },
+        "disabled": { "type": "bool", "default": false, "group": "Checkbox", "description": "Can't be changed; drawn faded." },
+        "autofocus": { "type": "bool", "default": false, "group": "Checkbox", "description": "Has keyboard focus when the scene starts." },
+        "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Look", "description": "A font, or empty for the default." },
+        "size": { "type": "int", "default": 18, "min": 1, "group": "Look", "unit": "px", "description": "Font size." },
+        "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Look", "description": "The box's color when it's ticked." },
+        "background": { "type": "color", "default": [0, 0, 0, 0.45], "group": "Look", "description": "The box's color when it isn't." },
+        "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Look", "description": "The color of the words and the tick." },
+        "skin": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture for the box when it isn't ticked, instead of the drawn one." },
+        "skinChecked": { "type": "resource", "kinds": ["image"], "default": "", "group": "Skin", "description": "A picture for the box when it's ticked." }
+      },
+      "methods": {
+        "toggle": { "args": "", "doc": "Flips it, as a click does (toggled() runs)." },
+        "focus": { "args": "", "doc": "Gives it keyboard focus: accept then flips it." },
+        "isFocused": { "args": "", "doc": "True while it has the keyboard focus." }
+      },
+      "events": {
+        "toggled": { "args": "checked", "doc": "It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked." }
+      }
+    },
+    "Row": {
+      "extends": "UI", "group": "ui", "icon": "row",
+      "description": "Lines up the UI pieces inside it left to right, so you don't place each one by hand.",
+      "properties": {
+        "width": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Width. 0 fits what's inside it." },
+        "height": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Height. 0 fits what's inside it." },
+        "gap": { "type": "number", "default": 8, "group": "Row", "unit": "px", "description": "The room between one piece and the next." },
+        "padding": { "type": "number", "default": 0, "min": 0, "group": "Row", "unit": "px", "description": "The room between its edges and the pieces inside." },
+        "alignItems": { "type": "enum", "options": ["start", "center", "end", "stretch"], "default": "center", "group": "Row", "description": "Top to bottom: start puts the pieces at the top, end at the bottom, stretch makes them all as tall as the row." },
+        "justify": { "type": "enum", "options": ["start", "center", "end", "spaceBetween"], "default": "start", "group": "Row", "description": "Where the pieces go when the row is wider than they are: start is the left, end the right, spaceBetween spreads them from edge to edge." }
+      }
+    },
+    "Column": {
+      "extends": "UI", "group": "ui", "icon": "column",
+      "description": "Stacks the UI pieces inside it top to bottom: a menu, a list of settings.",
+      "properties": {
+        "width": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Width. 0 fits what's inside it." },
+        "height": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Height. 0 fits what's inside it." },
+        "gap": { "type": "number", "default": 8, "group": "Column", "unit": "px", "description": "The room between one piece and the next." },
+        "padding": { "type": "number", "default": 0, "min": 0, "group": "Column", "unit": "px", "description": "The room between its edges and the pieces inside." },
+        "alignItems": { "type": "enum", "options": ["start", "center", "end", "stretch"], "default": "stretch", "group": "Column", "description": "Left to right: start puts the pieces at the left, end at the right, stretch makes them all as wide as the column." },
+        "justify": { "type": "enum", "options": ["start", "center", "end", "spaceBetween"], "default": "start", "group": "Column", "description": "Where the pieces go when the column is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge." }
+      }
+    },
+    "Grid": {
+      "extends": "UI", "group": "ui", "icon": "gridLayout",
+      "description": "Lays the UI pieces inside it out in columns, row after row: an inventory, a level select.",
+      "properties": {
+        "width": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Width: the columns share it. 0 fits what's inside it." },
+        "height": { "type": "number", "default": 0, "min": 0, "group": "Layout", "unit": "px", "description": "Height. 0 fits what's inside it." },
+        "columns": { "type": "int", "default": 2, "min": 1, "group": "Grid", "description": "How many pieces go in a row before the next row starts." },
+        "gap": { "type": "number", "default": 8, "group": "Grid", "unit": "px", "description": "The room between one piece and the next, both ways." },
+        "padding": { "type": "number", "default": 0, "min": 0, "group": "Grid", "unit": "px", "description": "The room between its edges and the pieces inside." },
+        "alignItems": { "type": "enum", "options": ["start", "center", "end", "stretch"], "default": "stretch", "group": "Grid", "description": "Where each piece sits in its cell: start is the top-left corner, end the bottom-right, stretch fills the cell." },
+        "justify": { "type": "enum", "options": ["start", "center", "end", "spaceBetween"], "default": "start", "group": "Grid", "description": "Where the rows go when the grid is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge." }
+      }
+    },
+    "Scroll": {
+      "extends": "UI", "group": "ui", "icon": "scroll",
+      "description": "A window onto a list longer than it is: it stacks the UI pieces inside it and scrolls them with the wheel, a drag or a flick.",
+      "properties": {
+        "width": { "type": "number", "default": 240, "min": 0, "group": "Layout", "unit": "px", "description": "Width (ignored with fill)." },
+        "height": { "type": "number", "default": 160, "min": 0, "group": "Layout", "unit": "px", "description": "Height (ignored with fill)." },
+        "direction": { "type": "enum", "options": ["vertical", "horizontal"], "default": "vertical", "group": "Scroll", "description": "vertical stacks the pieces top to bottom, each as wide as the Scroll, and scrolls up and down. horizontal lines them up left to right and scrolls sideways." },
+        "gap": { "type": "number", "default": 8, "group": "Scroll", "unit": "px", "description": "The room between one piece and the next." },
+        "padding": { "type": "number", "default": 0, "min": 0, "group": "Scroll", "unit": "px", "description": "The room between its edges and the pieces inside." },
+        "scrollX": { "type": "number", "default": 0, "min": 0, "group": "Scroll", "unit": "px", "description": "How far it's scrolled sideways (horizontal ones)." },
+        "scrollY": { "type": "number", "default": 0, "min": 0, "group": "Scroll", "unit": "px", "description": "How far down it's scrolled." },
+        "scrollbar": { "type": "bool", "default": true, "group": "Scroll", "description": "Shows a thin bar at the edge while there's more than fits." },
+        "barColor": { "type": "color", "default": [1, 1, 1, 0.4], "group": "Scroll", "description": "The scrollbar's color." }
+      },
+      "methods": {
+        "scrollTo": { "args": "piece", "doc": "Scrolls just far enough to show a piece inside it: List:scrollTo(List.Item20)." },
+        "scrollLimit": { "args": "", "doc": "How far it can scroll: the biggest scrollX and scrollY." }
+      },
+      "events": {
+        "scrolled": { "args": "x, y", "doc": "The player scrolled it." }
       }
     },
 

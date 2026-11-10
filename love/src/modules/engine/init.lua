@@ -184,6 +184,8 @@ local function hookHandlers()
 		local orig = handlers[name]
 		local pointer = POINTER[name]
 		local mouse = name == "mousepressed" or name == "mousereleased"
+		local typing = name == "keypressed" or name == "textinput"
+		local wheel = name == "wheelmoved"
 		if orig then
 			handlers[name] = function(a, b, c, d, e, f, ...)
 				-- A scene with touch pieces: a touch on one of them is theirs,
@@ -198,8 +200,18 @@ local function hookHandlers()
 				end
 				if mouse then
 					engine._mouse(name, a, b, c, d, e)
+				elseif typing then
+					-- A TextInput that's being typed in takes keys and text:
+					-- the game doesn't see them as its own input (typing "w"
+					-- doesn't walk).
+					local ui = loaded["love.scene.ui"]
+					if not (ui and ui.focused and ui.keyEvent(name, a, b, c)) then input._event(name, a, b, c, d, e) end
 				else
 					input._event(name, a, b, c, d, e)
+					if wheel then
+						local ui = loaded["love.scene.ui"]
+						if ui and scene() and scene().current then ui.wheel(a, b) end
+					end
 				end
 				return orig(a, b, c, d, e, f, ...)
 			end
