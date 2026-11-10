@@ -315,6 +315,8 @@ Tests:
   uses the cases in `tools/scene-tests/animation/keyframe-cases.json`,
   which also check the copy in the engine (`keyframes.lua`).
   `node tools/scene-tests/make-anim-fixture.mjs` writes these cases.
+- `node web/editor/tools/sprite/draw.test.mjs`: the drawing helpers of the
+  sprite editor (flood fill and pixel lines).
 - `node web/editor/tools/wav/wav.test.mjs`: WAV files and the changes
   that the sound file editor makes (trim, volume, normalize, speed), and
   sample instruments in the song model.
@@ -326,7 +328,9 @@ Tests:
 - `node tools/editor-tests/paint.mjs`: the sprite editor in the built
   editor, in a headless Chrome. It finds the **Sprites** workspace and
   **New** > **Sprite**. It draws two strokes while the editor saves, and
-  checks that the saved PNG has all of each stroke.
+  checks that the saved PNG has all of each stroke. It also counts how much
+  the editor draws. A stroke in a selection draws only the changed part. A
+  stroke outside the image draws nothing.
 - `node tools/clip-tests/test.mjs`: clips (`web/player/clips.js`). It
   tests the GIF encoder (it decodes each GIF again), the reading, joining,
   cutting and writing of WebM files, and the ring of recordings, with a

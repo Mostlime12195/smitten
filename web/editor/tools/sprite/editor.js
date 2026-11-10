@@ -185,6 +185,9 @@ export class SpriteEditor {
     this.afterDrag = []; // saves that wait for the drag to end
     this.needBase = null; // what to draw again: true (all) or an image box
     this.needOverlay = false;
+    // How much drawing happened (tools/editor-tests/paint.mjs checks that a
+    // stroke draws only the changed part, and no marks).
+    this.stats = { fullDraws: 0, partDraws: 0, overlayDraws: 0 };
     this.undoStack = [];
     this.redoStack = [];
     this.undoBytes = 0;
@@ -521,6 +524,7 @@ export class SpriteEditor {
       this.top,
       h('div', { class: 'spr-body' }, rail, this.viewport, this.sidePanel),
       this.framesBar);
+    this.element.sprStats = this.stats;
     this.probe = h('span', { class: 'spr-probe', 'aria-hidden': 'true' });
     this.element.append(this.probe);
     this.element.addEventListener('keydown', (e) => {
@@ -777,7 +781,7 @@ export class SpriteEditor {
     else if (this.tool === 'select' && this.hover && this.insideSelection(this.hover.x, this.hover.y)) c = 'move';
     else if (this.drag?.kind === 'move') c = 'move';
     else if ((this.tool === 'brush' || this.tool === 'eraser') && this.mode === 'smooth' && this.size * this.zoom >= 6) c = 'none';
-    this.canvas.style.cursor = c;
+    if (this.canvas.style.cursor !== c) this.canvas.style.cursor = c;
   }
 
   showMoreMenu(anchor) {
@@ -1445,9 +1449,18 @@ export class SpriteEditor {
   nudge(dx, dy) {
     if (!this.floating) this.liftSelection(false);
     if (!this.floating) return;
-    this.floating.x += dx;
-    this.floating.y += dy;
-    this.render();
+    this.moveFloating(this.floating.x + dx, this.floating.y + dy);
+  }
+
+  /** Put the lifted pixels at x, y: draws again only where they were and where they are now. */
+  moveFloating(x, y) {
+    const f = this.floating;
+    if (f.x === x && f.y === y) return;
+    const old = { x0: f.x, y0: f.y, x1: f.x + f.w, y1: f.y + f.h };
+    f.x = x;
+    f.y = y;
+    this.renderBox(draw.union(old, { x0: x, y0: y, x1: x + f.w, y1: y + f.h }));
+    this.renderOverlay();
   }
 
   flip(horizontal) {
@@ -1484,8 +1497,7 @@ export class SpriteEditor {
   // Pointer input
 
   /** Image coordinates under a pointer event: whole pixel (x, y) and exact (fx, fy). */
-  toPixel(e) {
-    const r = this.canvas.getBoundingClientRect();
+  toPixel(e, r = this.canvas.getBoundingClientRect()) {
     const fx = (e.clientX - r.left - this.panX) / this.zoom;
     const fy = (e.clientY - r.top - this.panY) / this.zoom;
     return { x: Math.floor(fx), y: Math.floor(fy), fx, fy };
@@ -1575,7 +1587,9 @@ export class SpriteEditor {
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.gesture) { this.updateGesture(); return; }
     }
-    const p = this.toPixel(e);
+    // One layout read for the event and its coalesced events.
+    const rect = this.canvas.getBoundingClientRect();
+    const p = this.toPixel(e, rect);
     const prevHover = this.hover;
     this.hover = p;
     const d = this.drag;
@@ -1597,7 +1611,7 @@ export class SpriteEditor {
         const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
         let box = null;
         for (const ev of events.length ? events : [e]) {
-          const q = this.toPixel(ev);
+          const q = this.toPixel(ev, rect);
           const still = this.mode === 'pixel'
             ? q.x === d.last.x && q.y === d.last.y
             : Math.hypot(q.fx - d.last.fx, q.fy - d.last.fy) < 0.25;
@@ -1606,6 +1620,7 @@ export class SpriteEditor {
           d.last = q;
         }
         this.paintBox(d, box);
+        this.schedule(); // the brush outline follows, even where nothing is painted
         break;
       }
       case 'shape': {
@@ -1624,9 +1639,7 @@ export class SpriteEditor {
         this.updateSelectionDrag(p);
         break;
       case 'move':
-        this.floating.x = d.from[0] + p.x - d.grab[0];
-        this.floating.y = d.from[1] + p.y - d.grab[1];
-        this.render();
+        this.moveFloating(d.from[0] + p.x - d.grab[0], d.from[1] + p.y - d.grab[1]);
         break;
       case 'origin':
         this.doc.origin = [clamp(Math.round(p.fx), 0, this.doc.fw), clamp(Math.round(p.fy), 0, this.doc.fh)];
@@ -1915,11 +1928,10 @@ export class SpriteEditor {
     this.schedule();
   }
 
-  /** Draw the part of the image in box (image pixels) again, and the marks. */
+  /** Draw the part of the image in box (image pixels) again. The marks over it stay. */
   renderBox(box) {
     if (!box) { this.render(); return; }
     if (this.needBase !== true) this.needBase = draw.union(this.needBase, box);
-    this.needOverlay = true;
     this.schedule();
   }
 
@@ -1948,9 +1960,13 @@ export class SpriteEditor {
     this.needBase = null;
     this.needOverlay = false;
     if (!this.canvas.width || !this.canvas.height) return;
-    if (base) this.drawBase(base === true ? null : base);
-    if (over) this.drawOverlay();
+    if (base) {
+      if (base === true) this.stats.fullDraws++; else this.stats.partDraws++;
+      this.drawBase(base === true ? null : base);
+    }
+    if (over) { this.stats.overlayDraws++; this.drawOverlay(); }
     this.placeBrushOutline();
+    if (this.statusDirty) this.writeStatus();
     if (base) this.startPreview();
   }
 
@@ -2166,7 +2182,15 @@ export class SpriteEditor {
     ctx.restore();
   }
 
+  /** The status text changes once per frame at most (a change makes the page lay out again). */
   renderStatus() {
+    this.statusDirty = true;
+    if (this.visible) this.schedule();
+    else this.writeStatus();
+  }
+
+  writeStatus() {
+    this.statusDirty = false;
     const { doc } = this;
     const hv = this.hover;
     const parts = [];

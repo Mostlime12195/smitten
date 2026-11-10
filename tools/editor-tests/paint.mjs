@@ -156,6 +156,45 @@ try {
   }
   check('the tab is saved (no dot)', await page.eval(`!document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"] .dirty-dot')`));
 
+  // How much a stroke draws (counted by the editor, so this does not depend
+  // on the speed of the machine): only the changed part of the image, never
+  // all of it, and not the marks over it; nothing at all outside the image.
+  const stats = () => page.eval(`JSON.stringify(${spr}.sprStats)`).then(JSON.parse);
+  const key = async (k, code, vk, modifiers = 0) => {
+    await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: k, code, windowsVirtualKeyCode: vk, modifiers });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk, modifiers });
+  };
+  const frame = () => page.eval('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))');
+  await page.eval(`${spr}.focus()`);
+  await key('m', 'KeyM', 77);
+  await mouse('mouseMoved', cx - 80 * zoom, cy - 80 * zoom, 0);
+  await mouse('mousePressed', cx - 80 * zoom, cy - 80 * zoom);
+  await mouse('mouseMoved', cx + 80 * zoom, cy + 80 * zoom);
+  await mouse('mouseReleased', cx + 80 * zoom, cy + 80 * zoom, 0);
+  await key('b', 'KeyB', 66);
+  const counted = async (x0, y0, x1, y1) => {
+    await mouse('mouseMoved', x0, y0, 0);
+    await mouse('mousePressed', x0, y0);
+    await frame();
+    const a = await stats();
+    for (let i = 1; i <= 30; i++) { await mouse('mouseMoved', x0 + ((x1 - x0) * i) / 30, y0 + ((y1 - y0) * i) / 30); await sleep(10); }
+    await frame();
+    const b = await stats();
+    await mouse('mouseReleased', x1, y1, 0);
+    return { full: b.fullDraws - a.fullDraws, part: b.partDraws - a.partDraws, marks: b.overlayDraws - a.overlayDraws };
+  };
+  const inSel = await counted(cx - 60 * zoom, cy, cx + 60 * zoom, cy + 20 * zoom);
+  check('a stroke in a selection draws only the changed part', inSel.full === 0 && inSel.part > 0, inSel);
+  check('a stroke in a selection does not draw the selection outline again', inSel.marks === 0, inSel);
+  await page.eval(`${spr}.focus()`);
+  await key('d', 'KeyD', 68, 2);
+  const dot = `document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"] .dirty-dot')`;
+  await until(`!${dot}`, 'the save of the stroke before');
+  const outside = await counted(cl + 10, ct + 10, cl + 200, ct + 14);
+  check('a stroke outside the image draws nothing', outside.full === 0 && outside.part === 0 && outside.marks === 0, outside);
+  await sleep(100);
+  check('a stroke outside the image changes nothing (the tab stays saved)', await page.eval(`!${dot}`));
+
   // The menu of an image in the Files panel says where it opens.
   const row = (p) => `[...document.querySelectorAll('.tree-row')].find((r) => r.dataset.path === ${JSON.stringify(p)})`;
   if (!await page.eval(`!!${row(saved)}`)) await click(row('sprites'));

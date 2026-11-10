@@ -186,11 +186,23 @@ export function square(mask, cx, cy, size, clip) {
   return mask.mark(box);
 }
 
-/** A line of squares from pixel (x0, y0) to pixel (x1, y1). */
+/**
+ * A line of squares from pixel (x0, y0) to pixel (x1, y1) (Bresenham, so a
+ * fast stroke has no gaps). Returns the box of the line (null if it is all
+ * outside the image or the clip), without making objects for each pixel.
+ */
 export function pixelLine(mask, x0, y0, x1, y1, size, clip) {
-  let box = null;
-  line(x0, y0, x1, y1, (x, y) => { box = union(box, square(mask, x, y, size, clip)); });
-  return box;
+  const off = Math.floor((size - 1) / 2);
+  const area = clipBox(Math.min(x0, x1) - off, Math.min(y0, y1) - off, Math.max(x0, x1) - off + size, Math.max(y0, y1) - off + size, mask.w, mask.h, clip);
+  if (!area) return null;
+  const { data, w } = mask;
+  line(x0, y0, x1, y1, (x, y) => {
+    const ax0 = Math.max(x - off, area.x0), ax1 = Math.min(x - off + size, area.x1);
+    if (ax1 <= ax0) return;
+    const ye = Math.min(y - off + size, area.y1);
+    for (let yy = Math.max(y - off, area.y0); yy < ye; yy++) data.fill(255, yy * w + ax0, yy * w + ax1);
+  });
+  return mask.mark(area);
 }
 
 function fillSpan(mask, y, xa, xb, clip, acc) {
@@ -292,20 +304,21 @@ export function floodMask(mask, buf, w, h, x, y, tolerance, contiguous, clip) {
     }
     return mask.mark({ x0: bx0, y0: by0, x1: bx1 + 1, y1: by1 + 1 });
   }
-  const seen = new Uint8Array(w * h);
+  // The mask itself marks the pixels already filled (no buffer of the image's size for each fill).
+  if (data[y * w + x]) return null;
   const ok = (px, py) => {
     const p = py * w + px;
-    return !seen[p] && match(p);
+    return !data[p] && match(p);
   };
   const stack = [x, y];
   while (stack.length) {
     const py = stack.pop(), px = stack.pop();
-    if (seen[py * w + px]) continue;
+    if (data[py * w + px]) continue;
     let lx = px;
     while (lx > area.x0 && ok(lx - 1, py)) lx--;
     let rx = px;
     while (rx < area.x1 - 1 && ok(rx + 1, py)) rx++;
-    for (let cx = lx; cx <= rx; cx++) { seen[py * w + cx] = 1; data[py * w + cx] = 255; }
+    data.fill(255, py * w + lx, py * w + rx + 1);
     if (lx < bx0) bx0 = lx; if (rx > bx1) bx1 = rx;
     if (py < by0) by0 = py; if (py > by1) by1 = py;
     for (const ny of [py - 1, py + 1]) {
