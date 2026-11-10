@@ -92,7 +92,21 @@ end
 function love.errorhandler(msg)
 	msg = tostring(msg)
 
-	error_printer(msg, 2)
+	-- The message in plain words and the game's own lines of the traceback
+	-- (love.engine.errors); as Lua gave them if that fails.
+	local frames = nil
+	do
+		local ok, errors = pcall(require, "love.engine.errors")
+		local ok2, text, list
+		if ok then ok2, text, list = pcall(errors.report, msg, debug.traceback("", 2)) end
+		if ok and ok2 then msg, frames = text, list end
+	end
+
+	if frames then
+		print("Error: " .. msg .. (#frames > 0 and ("\nstack traceback:\n\t" .. table.concat(frames, "\n\t")) or ""))
+	else
+		error_printer(msg, 2)
+	end
 
 	if not love.window then
 		return
@@ -152,10 +166,15 @@ function love.errorhandler(msg)
 
 	table.insert(err, "\n")
 
-	for l in trace:gmatch("([^\n]+)") do
-		if not l:match("boot.lua") then
-			l = l:gsub("stack traceback:", "Traceback\n")
-			table.insert(err, l)
+	if frames then
+		if #frames > 0 then table.insert(err, "Traceback\n") end
+		for _, l in ipairs(frames) do table.insert(err, l) end
+	else
+		for l in trace:gmatch("([^\n]+)") do
+			if not l:match("boot.lua") then
+				l = l:gsub("stack traceback:", "Traceback\n")
+				table.insert(err, l)
+			end
 		end
 	end
 

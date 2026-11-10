@@ -1,0 +1,1 @@
+speedNow = jumpSpeed(100)

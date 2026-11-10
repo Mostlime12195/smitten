@@ -66,7 +66,13 @@ local resumeWith
 local function step(co, ok, tag, ...)
 	if not ok then
 		owners[co] = nil
-		error(debug.traceback(co, tostring(tag)), 0)
+		-- The error in plain words, with the task's own frames (the handler
+		-- only sees the engine's, which resumed it).
+		local errors = require("love.engine.errors")
+		local text = errors.explain(tag, co)
+		local frames = errors.frames(debug.traceback(co))
+		if #frames > 0 then text = text .. "\nstack traceback:\n\t" .. table.concat(frames, "\n\t") end
+		error(text, 0)
 	end
 	if tag == WAIT then
 		local seconds = ...
@@ -423,6 +429,7 @@ function api.setGravity(x, y) return physics().setGravity(x, y) end
 
 -- Calls that use the piece: given it first, bound to it in each script.
 local pieceApi = {}
+M.pieceApi = pieceApi
 
 function pieceApi.task(n, fn, ...)
 	if type(fn) ~= "function" then error("task() needs a function", 2) end
@@ -441,9 +448,12 @@ function pieceApi.every(n, seconds, fn)
 	return require("love.tween").every(seconds, fn, n)
 end
 
----How fast to go up to jump this high, with the piece's gravity (or g).
+---How fast to go up to jump this high, with the piece's fallGravity (or g).
 function pieceApi.jumpSpeed(n, height, g)
-	g = g or (type(n.gravity) == "number" and n.gravity > 50 and n.gravity) or 1800
+	-- Scripts used to call their variable gravity, which is also a Body's
+	-- property (a multiplier around 1): a big one is such a script's.
+	g = g or (type(n.fallGravity) == "number" and n.fallGravity)
+		or (type(n.gravity) == "number" and n.gravity > 50 and n.gravity) or 1800
 	return math.sqrt(2 * g * height)
 end
 
@@ -495,6 +505,24 @@ local function checkTopLevel(n, k, v)
 	end
 end
 
+-- A script's function with the name of one of the piece's methods would
+-- replace it: `function move()` on a Body, and move() inside it calls itself
+-- while the body stands still, with no error. Say so instead.
+local function checkMethod(n, k)
+	if type(k) ~= "string" then return end
+	local schema = require("love.scene.schema")
+	local name = n.type
+	while name do
+		local def = schema.types[name]
+		if not def then return end
+		if def.methods and def.methods[k] then
+			error(("every %s already has %s(), and a function with the same name would replace it. Give yours another name."):format(
+				n.type, k), 3)
+		end
+		name = def.extends
+	end
+end
+
 ---Gives a piece its script: runs the file in the piece's own environment.
 function M.instantiate(n, s)
 	local info = s.__smitten
@@ -542,6 +570,7 @@ function M.instantiate(n, s)
 		end,
 		__newindex = function(_, k, v)
 			if type(v) == "function" then
+				if defining then checkMethod(n, k) end
 				fns[k] = v
 				if DIRECT[k] or (type(k) == "string" and k:sub(1, 1) == "_") then
 					n[k] = function(_, ...) return v(...) end
