@@ -325,6 +325,18 @@ function api.choose(...)
 	return (select(love.math.random(1, select("#", ...)), ...))
 end
 
+---seed(42): rnd(), choose() and the rest give the same numbers every time
+---after it. seed(): numbers nobody can guess. Returns the seed.
+function api.seed(n)
+	if n ~= nil and type(n) ~= "number" and type(n) ~= "string" then
+		error("a seed is a number or a string, like seed(42) or seed(\"level 1\"), not a " .. type(n), 2)
+	end
+	return love.math.seed(n)
+end
+
+---Smooth noise from 0 to 1: noise(x), noise(x, y), noise(x, y, z).
+function api.noise(x, y, z) return love.math.noise(x, y, z) end
+
 ---The distance between two pieces (or anything with x, y), or two points.
 function api.dist(a, b, c, d)
 	if type(a) == "table" then a, b, c, d = a.x, a.y, b.x, b.y end

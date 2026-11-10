@@ -159,6 +159,11 @@ export const MODULE_HELPERS = {
     angle: ['x1, y1, x2?, y2?', 'Returns the angle in degrees of a direction, angle(x, y), or from one point to another, angle(x1, y1, x2, y2). 0 is right, 90 is down.'],
     direction: ['angle, length?', 'Returns the x, y of a step with a length (1 if you leave it out) at an angle in degrees: vx, vy = smitten.math.direction(rotation, 200).'],
     randomFloat: ['a, b', 'Returns a random number with a fraction, from a to b.'],
+    seed: ['n?', 'seed(42) makes random, chance, pick, shuffle, rnd() and choose() give the same numbers after it every time. seed() makes numbers that nobody can guess. Returns the seed.'],
+    shuffle: ['list', 'Puts the items of a list in a random order, and returns the same list.'],
+    newRandom: ['seed?', 'Returns a random number generator of its own. The same seed gives the same numbers, and the other random numbers of the game do not change. Methods: rnd, choose, random, randomFloat, chance, pick, shuffle, randomNormal, getSeed, getState, setState.'],
+    noise: ['x, y?, z?', 'Returns smooth noise from 0 to 1 at a point. The same point always gives the same value.'],
+    newNoise: ['options?', 'Returns noise with a seed, for hills and caves: newNoise({ seed = 7, scale = 40, octaves = 4, roughness = 0.5 }). Its get(x, y?, z?) returns a value from 0 to 1.'],
   },
   timer: {
     after: ['seconds, fn', 'Calls fn once, later. Returns a handle with :cancel().'],

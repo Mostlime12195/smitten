@@ -83,6 +83,13 @@ local function extendModules()
 		end
 		---A random number with a fraction, from a to b.
 		function m.randomFloat(a, b) return a + (b - a) * m.random() end
+		-- Seeds, generators of their own and noise (engine/random.lua).
+		local random = require("love.engine.random").install({
+			random = m.random, setRandomSeed = m.setRandomSeed, newRandomGenerator = m.newRandomGenerator,
+			simplexNoise = m.simplexNoise, now = love.timer and love.timer.getTime,
+		})
+		m.seed, m.shuffle, m.noise = random.seed, random.shuffle, random.noise
+		m.newRandom, m.newNoise = random.newRandom, random.newNoise
 	end
 
 	if love.timer then

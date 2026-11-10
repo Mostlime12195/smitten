@@ -484,6 +484,8 @@ end
 -- The view: where the camera (the current one, by default) looks, with
 -- limits and shake. Returns the matrix from scene coordinates to game
 -- coordinates.
+local shakeRandom = nil
+
 local function cameraMatrix(cam)
 	local display = require("love.display")
 	cam = cam or currentCamera()
@@ -505,8 +507,11 @@ local function cameraMatrix(cam)
 	end
 	if (cam._shakeLeft or 0) > 0 then
 		local s = cam._shake * (cam._shakeLeft / cam._shakeTime)
-		cx = cx + (love.math.random() * 2 - 1) * s
-		cy = cy + (love.math.random() * 2 - 1) * s
+		-- Its own random numbers, so shaking doesn't change what a seeded
+		-- game's rnd() gives (engine/random.lua).
+		shakeRandom = shakeRandom or love.math.newRandomGenerator(os.time())
+		cx = cx + (shakeRandom:random() * 2 - 1) * s
+		cy = cy + (shakeRandom:random() * 2 - 1) * s
 	end
 	local ox, oy = display.viewX + vw / 2, display.viewY + vh / 2
 	return zoom, 0, 0, zoom, ox - cx * zoom, oy - cy * zoom
