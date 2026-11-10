@@ -459,6 +459,47 @@ export function flip(buf, w, h, horizontal) {
   buf.set(out);
 }
 
+/** A w×h buffer turned a quarter turn: a new h×w buffer (clockwise or counterclockwise). */
+export function rotate90(buf, w, h, clockwise = true) {
+  const out = new Uint8ClampedArray(buf.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // Clockwise, the pixel at (x, y) goes to (h - 1 - y, x) of the h-wide result.
+      const nx = clockwise ? h - 1 - y : y, ny = clockwise ? x : w - 1 - x;
+      out.set(buf.subarray((y * w + x) * 4, (y * w + x) * 4 + 4), (ny * h + nx) * 4);
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Mirror drawing
+
+/**
+ * Point p ({x, y, fx, fy}: a whole pixel and the exact position) seen in a
+ * mirror: across the up-and-down line at ax (if mx) and the left-and-right
+ * line at ay (if my). ax and ay are in image units, in steps of 0.5: fw / 2
+ * is the middle of the image, and a whole number is a line between pixels.
+ */
+export function mirrorPoint(p, ax, ay, mx, my) {
+  return {
+    x: mx ? Math.round(2 * ax - 1 - p.x) : p.x,
+    y: my ? Math.round(2 * ay - 1 - p.y) : p.y,
+    fx: mx ? 2 * ax - p.fx : p.fx,
+    fy: my ? 2 * ay - p.fy : p.fy,
+    pr: p.pr,
+  };
+}
+
+/** The segment from a to b and its mirror images (2 with one mirror line, 4 with both). */
+export function mirrorSegments(a, b, ax, ay, mx, my) {
+  const out = [[a, b]];
+  if (mx) out.push([mirrorPoint(a, ax, ay, true, false), mirrorPoint(b, ax, ay, true, false)]);
+  if (my) out.push([mirrorPoint(a, ax, ay, false, true), mirrorPoint(b, ax, ay, false, true)]);
+  if (mx && my) out.push([mirrorPoint(a, ax, ay, true, true), mirrorPoint(b, ax, ay, true, true)]);
+  return out;
+}
+
 function words(a) {
   return a.byteOffset % 4 === 0 ? new Uint32Array(a.buffer, a.byteOffset, a.length >> 2) : null;
 }

@@ -7,8 +7,12 @@
 // openFile/project/ui, and this class gives element, show, hide, focus,
 // handleKey, save, reload and destroy.
 
-import { SpriteDoc, spritePaths, loadSprite, encodeSprite, stemOf, DEFAULT_FPS, META_EXT } from './doc.js';
+import { SpriteDoc, spritePaths, loadSprite, encodeSprite, stemOf, DEFAULT_FPS, META_EXT, sameSnapshot } from './doc.js';
 import * as draw from './draw.js';
+import * as sel from './select.js';
+import { makeSnapper, snapColor, snapPixels, imageColors } from './palette.js';
+import { sheetGrid, cutSheet, filledCells } from './sheet.js';
+import { decodePNG } from './png.js';
 import { sicon } from './icons.js';
 import { encodePNG } from './png.js';
 
@@ -35,6 +39,7 @@ const CACHE_MAX_PIXELS = 6 * 1024 * 1024;
 const ZOOM_SETTLE_MS = 160; // while you zoom, the kept image is stretched; it is drawn sharp this long after the last step
 const PRESSURE_LABELS = { off: 'Nothing', size: 'Size', opacity: 'Opacity', both: 'Size and opacity' };
 const PRESSURE_SHORT = { off: 'Pen: off', size: 'Pen: size', opacity: 'Pen: opacity', both: 'Pen: both' };
+const MIRROR_HANDLE = 14; // screen pixels from the image edge to the handle of a mirror line
 const PEN_GRACE_MS = 1000; // fingers are ignored this long after the pen was last seen
 
 const TOOLS = [
@@ -153,6 +158,7 @@ export class SpriteEditor {
     this.loaded = false;
     this.failed = null;
     this.current = 0;
+    this.layer = 0; // the layer you paint on (0 is the bottom one)
     const prefs = (this.prefs = loadPrefs());
     this.pixelProject = isPixelProject(host);
     this.tool = 'brush';
@@ -181,6 +187,7 @@ export class SpriteEditor {
     this.onion = prefs.onion ?? false;
     this.recent = Array.isArray(prefs.recent) ? prefs.recent.filter((c) => draw.hexToRgba(c)).slice(0, MAX_RECENT) : [];
     this.paletteId = prefs.palette || 'none';
+    this.paletteLock = !!prefs.paletteLock; // paint only with palette colors
     this.primary = [0, 0, 0, 255];
     this.secondary = TRANSPARENT.slice();
     this.hsv = [0, 0, 0];
@@ -252,7 +259,9 @@ export class SpriteEditor {
   pressureMode() {
     return this.pressure[`pen:${this.mode}`] || this.pressure[`brush:${this.mode}`] || (this.mode === 'smooth' ? 'size' : 'off');
   }
-  get frame() { return this.doc.frames[this.current]; }
+  /** The pixels you paint on: the current layer in the current frame. */
+  get frame() { return this.doc.cel(this.layer, this.current); }
+  get currentLayer() { return this.doc.layers[this.layer]; }
 
   // -------------------------------------------------------------------------
   // Files
@@ -282,6 +291,7 @@ export class SpriteEditor {
   setDoc(doc, keepView) {
     this.doc = doc;
     this.current = keepView ? clamp(this.current, 0, doc.count - 1) : 0;
+    this.layer = keepView ? clamp(this.layer, 0, doc.layers.length - 1) : doc.layers.length - 1;
     this.selection = null;
     this.floating = null;
     this.editBase = null;
@@ -298,6 +308,7 @@ export class SpriteEditor {
     this.renderAnimations();
     this.renderOrigin();
     this.renderInfo();
+    this.renderLayers();
   }
 
   /**
@@ -316,9 +327,10 @@ export class SpriteEditor {
     // pixels are put down only for that moment.
     let putBack = null;
     if (this.floating) {
-      const f = this.frame, before = f.slice(), fl = this.floating;
-      draw.stamp(f, doc.fw, doc.fh, fl.data, fl.x, fl.y, fl.w, fl.h, true);
-      putBack = () => f.set(before);
+      const f = this.frame, before = f.slice(), fl = this.floating, at = this.current;
+      sel.drop(f, doc.fw, doc.fh, fl);
+      doc.reflatten(at);
+      putBack = () => { f.set(before); doc.reflatten(at); };
     }
     const encoding = encodeSprite(doc, this.pngPath, this.metaPath, hadMeta);
     putBack?.();
@@ -522,6 +534,7 @@ export class SpriteEditor {
     this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e, true));
     this.canvas.addEventListener('pointerleave', () => { if (!this.drag) { this.hover = null; this.renderStatus(); this.renderHover(); } });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.canvas.addEventListener('dblclick', (e) => { if (this.mirrorHandleAt(e)) this.centerMirror(); });
     this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
 
     // Side panel: color, preview and animations, sprite settings
@@ -544,8 +557,10 @@ export class SpriteEditor {
         this.originBody,
         this.infoEl));
     this.settings.button.title = 'Origin and sheet layout';
+    this.buildLayers();
     this.sidePanel = h('div', { class: 'spr-side' },
       this.colorSection,
+      this.layersSection,
       h('section', { class: 'spr-section' },
         h('div', { class: 'spr-section-head' }, 'Preview', h('span', { class: 'spr-spacer' }), this.btnPreviewPlay),
         h('div', { class: 'spr-preview' }, this.previewCanvas),
@@ -628,6 +643,7 @@ export class SpriteEditor {
     this.paletteSelect = h('select', { class: 'spr-select', 'aria-label': 'Palette', title: 'Show a set of colors to pick from' });
     this.paletteSelect.addEventListener('change', () => { this.paletteId = this.paletteSelect.value; this.persist(); this.renderPalette(); });
     this.paletteGrid = h('div', { class: 'spr-swatches', 'aria-label': 'Palette colors' });
+    this.btnLock = this.iconButton('lock', 'Lock to the palette: paint only with the colors of this palette (the nearest one)', () => this.setPaletteLock(!this.paletteLock), { 'aria-pressed': 'false' });
 
     this.colorSection = h('section', { class: 'spr-section spr-color' },
       h('div', { class: 'spr-section-head' }, 'Color'),
@@ -643,7 +659,7 @@ export class SpriteEditor {
       this.alphaBar,
       this.recentHead,
       this.recentGrid,
-      h('div', { class: 'spr-subhead spr-subhead-row' }, h('span', {}, 'Palette'), this.paletteSelect),
+      h('div', { class: 'spr-subhead spr-subhead-row' }, h('span', {}, 'Palette'), h('span', { class: 'spr-spacer' }), this.btnLock, this.paletteSelect),
       this.paletteGrid);
   }
 
@@ -686,7 +702,7 @@ export class SpriteEditor {
       sizes: this.sizes, hardness: this.hardness, opacity: this.opacity, tolerance: this.tolerance,
       contiguous: this.contiguous, filled: this.filled, pixelGrid: this.pixelGrid, grid: this.grid,
       gridW: this.gridW, gridH: this.gridH, onion: this.onion, recent: this.recent, palette: this.paletteId,
-      pressure: this.pressure, pressureMin: this.pressureMin,
+      pressure: this.pressure, pressureMin: this.pressureMin, paletteLock: this.paletteLock,
     });
     savePrefs(this.prefs);
   }
@@ -831,7 +847,8 @@ export class SpriteEditor {
 
   updateCursor() {
     let c = 'crosshair';
-    if (this.spaceDown || this.drag?.kind === 'pan') c = this.drag?.kind === 'pan' ? 'grabbing' : 'grab';
+    if (this.overHandle || this.drag?.kind === 'axis') c = (this.drag?.axis || this.overHandle) === 'x' ? 'ew-resize' : 'ns-resize';
+    else if (this.spaceDown || this.drag?.kind === 'pan') c = this.drag?.kind === 'pan' ? 'grabbing' : 'grab';
     else if (this.tool === 'select' && this.hover && this.insideSelection(this.hover.x, this.hover.y)) c = 'move';
     else if (this.drag?.kind === 'move') c = 'move';
     else if ((this.tool === 'brush' || this.tool === 'eraser') && this.mode === 'smooth' && this.size * this.zoom >= 6) c = 'none';
@@ -847,12 +864,17 @@ export class SpriteEditor {
       { label: 'Scale image…', icon: 'maximize', action: () => this.resizeDialog('image') },
       { label: 'Resize canvas…', action: () => this.resizeDialog('canvas') },
       { label: 'Split into frames…', icon: 'hash', action: () => this.splitDialog() },
+      { label: 'Import sprite sheet…', icon: 'grid', action: () => this.importSheetDialog() },
+      { label: 'Flatten layers', disabled: !this.doc.layered, action: () => this.change(() => { this.doc.flattenLayers(); this.layer = 0; }) },
       '-',
       { label: this.grid ? 'Hide grid' : 'Show grid', icon: 'grid', action: () => { this.grid = !this.grid; this.persist(); this.render(); } },
       { label: `Grid size (${this.gridW}×${this.gridH})…`, action: () => this.gridDialog() },
       '-',
       { label: sel ? 'Flip selection horizontally' : 'Flip horizontally', shortcut: 'Shift+H', action: () => this.flip(true) },
       { label: sel ? 'Flip selection vertically' : 'Flip vertically', shortcut: 'Shift+V', action: () => this.flip(false) },
+      { label: sel ? 'Turn selection right' : 'Turn right', icon: 'rotate', shortcut: 'R', action: () => this.rotate(true) },
+      { label: sel ? 'Turn selection left' : 'Turn left', shortcut: 'Shift+R', action: () => this.rotate(false) },
+      { label: 'Mirror lines to the middle', disabled: this.mirrorAtX == null && this.mirrorAtY == null, action: () => this.centerMirror() },
       '-',
       { label: 'Select all', shortcut: `${m}+A`, action: () => { this.setTool('select'); this.selectAll(); } },
       { label: 'Deselect', shortcut: `${m}+D`, disabled: !sel, action: () => this.deselect() },
@@ -861,6 +883,9 @@ export class SpriteEditor {
       { label: 'Paste', shortcut: `${m}+V`, disabled: !clipboard, action: () => this.paste() },
       '-',
       { label: 'Clear origin', disabled: !this.doc.origin, action: () => this.setOrigin(null, true) },
+      '-',
+      { label: 'Palette from an image…', icon: 'palette', action: () => this.paletteFromImageDialog() },
+      { label: 'Change this layer to the palette colors', disabled: !this.snapper(), action: () => this.snapLayerToPalette() },
     ]);
   }
 
@@ -948,7 +973,83 @@ export class SpriteEditor {
     const pal = list.find((p) => p.id === this.paletteId);
     this.paletteGrid.replaceChildren(...pal.colors.map((c) => this.swatch(c, c)));
     this.paletteGrid.hidden = !pal.colors.length;
+    this.btnLock.disabled = !pal.colors.length;
+    this.btnLock.setAttribute('aria-pressed', String(this.paletteLock && !!pal.colors.length));
+    this.btnLock.replaceChildren(sicon(this.paletteLock ? 'lock' : 'unlock'));
     this.renderColor();
+  }
+
+  /** The current palette to snap colors to (null with no palette). */
+  snapper() {
+    const pal = this.palettes().find((p) => p.id === this.paletteId);
+    const key = pal ? `${pal.id}:${pal.colors.join(',')}` : '';
+    if (this.snapperKey !== key) {
+      this.snapperKey = key;
+      this.snapperCache = pal ? makeSnapper(pal.colors) : null;
+    }
+    return this.snapperCache;
+  }
+
+  /** The palette to snap painting to: only when locked. */
+  lockedSnapper() {
+    return this.paletteLock ? this.snapper() : null;
+  }
+
+  setPaletteLock(on) {
+    this.paletteLock = !!on;
+    this.persist();
+    const snap = this.lockedSnapper();
+    if (snap) {
+      // The two colors become palette colors at once, so what you see is what paints.
+      this.setPrimary(snapColor(snap, this.primary));
+      if (this.secondary[3]) this.setSecondary(snapColor(snap, this.secondary));
+    }
+    this.renderPalette();
+  }
+
+  /** Every pixel of the current layer (all frames) to the nearest palette color: one undo step. */
+  snapLayerToPalette() {
+    const snap = this.snapper();
+    if (!snap) return;
+    const { fw, fh } = this.doc;
+    this.change(() => {
+      const l = this.currentLayer;
+      l.cels = l.cels.map((c) => { const n = c.slice(); snapPixels(n, fw, { x0: 0, y0: 0, x1: fw, y1: fh }, snap); return n; });
+      this.doc.changed();
+    });
+  }
+
+  /** Make the project palette (in smitten.json) from the colors of an image. */
+  async paletteFromImageDialog() {
+    const { h } = this.ui;
+    const { host } = this;
+    const pngs = (host.list?.() || []).filter((p) => /\.png$/i.test(p)).sort();
+    const source = h('select', { class: 'spr-select', 'aria-label': 'Image' },
+      h('option', { value: '' }, 'This image (all frames)'), ...pngs.map((p) => h('option', { value: p }, p)));
+    const max = h('select', { class: 'spr-select', 'aria-label': 'Colors at most' }, ...[8, 16, 32, 64].map((n) => h('option', { value: String(n), selected: n === 32 }, String(n))));
+    const body = h('div', { class: 'spr-form-stack' },
+      h('p', { class: 'spr-form-note' }, 'The project palette gets the colors of the image, the most used first. It replaces the project palette that there is now.'),
+      h('div', { class: 'spr-form-grid' }, this.field('Image', source), this.field('Colors at most', max)));
+    if (!await this.formDialog({ title: 'Palette from an image', body, okLabel: 'Make palette', focus: source })) return;
+    let data;
+    if (!source.value) {
+      const frames = this.doc.frames;
+      data = new Uint8ClampedArray(frames.reduce((n, f) => n + f.length, 0));
+      let o = 0;
+      for (const f of frames) { data.set(f, o); o += f.length; }
+    } else {
+      try { data = (await decodePNG(host.read(source.value))).data; } catch (e) { host.toast(`${source.value} could not be read: ${e.message}`, { type: 'error' }); return; }
+    }
+    const { colors, total } = imageColors(data, Number(max.value));
+    if (!colors.length) { host.toast('The image has no colors (it is all transparent).', { type: 'info' }); return; }
+    let manifest = {};
+    try { manifest = JSON.parse(host.read('smitten.json') || '{}') || {}; } catch { manifest = {}; }
+    manifest.palette = colors;
+    await host.write('smitten.json', `${JSON.stringify(manifest, null, 2)}\n`);
+    this.paletteId = 'project';
+    this.persist();
+    this.renderPalette();
+    host.toast(total > colors.length ? `The project palette has the ${colors.length} most used of the ${total} colors.` : `The project palette has the ${colors.length} colors of the image.`, { type: 'success' });
   }
 
   renderRecent() {
@@ -962,7 +1063,7 @@ export class SpriteEditor {
     const { fw, fh } = this.doc;
     if (p.x < 0 || p.y < 0 || p.x >= fw || p.y >= fh) return;
     const i = (p.y * fw + p.x) * 4;
-    const f = this.frame;
+    const f = this.doc.frames[this.current]; // what you see, all layers
     const c = f[i + 3] === 0 ? TRANSPARENT.slice() : [f[i], f[i + 1], f[i + 2], f[i + 3]];
     if (secondary) this.setSecondary(c); else if (!sameColor(c, this.primary)) this.setPrimary(c);
   }
@@ -973,7 +1074,7 @@ export class SpriteEditor {
   rebuildFrames() {
     const { doc } = this;
     const { h } = this.ui;
-    this.builtFor = { fw: doc.fw, fh: doc.fh, frames: doc.frames.slice() };
+    this.builtFor = { fw: doc.fw, fh: doc.fh, frames: doc.frames.slice(), version: doc.flatVersion };
     this.frameCanvases = doc.frames.map(() => {
       const c = document.createElement('canvas');
       c.width = doc.fw;
@@ -1054,8 +1155,7 @@ export class SpriteEditor {
 
   addFrame(duplicate) {
     this.change(() => {
-      const data = duplicate ? this.frame.slice() : new Uint8ClampedArray(this.doc.fw * this.doc.fh * 4);
-      this.doc.insertFrame(this.current + 1, data);
+      this.doc.insertFrame(this.current + 1, duplicate ? this.doc.copyFrame(this.current) : null);
       this.current += 1;
     });
   }
@@ -1144,26 +1244,33 @@ export class SpriteEditor {
     this.finishDrag();
     this.commitFloating();
     const before = this.doc.snapshot();
-    const beforeCurrent = this.current;
+    const beforeCurrent = this.current, beforeLayer = this.layer;
     fn();
-    const after = this.doc.snapshot();
-    const same = before.fw === after.fw && before.fh === after.fh && before.columns === after.columns
-      && before.frames.length === after.frames.length && before.frames.every((f, i) => f === after.frames[i])
-      && JSON.stringify([before.origin, before.animations]) === JSON.stringify([after.origin, after.animations]);
-    if (!same) {
-      const kept = new Set(before.frames);
-      const bytes = after.frames.reduce((n, f) => n + (kept.has(f) ? 0 : f.length), 0);
-      this.pushUndo({ kind: 'doc', before, after, beforeCurrent, afterCurrent: this.current, bytes });
-    }
+    this.pushDocUndo(before, beforeCurrent, beforeLayer);
     this.afterStructureChange();
+  }
+
+  /** An undo entry from a snapshot taken before a change to now (none if nothing changed). */
+  pushDocUndo(before, beforeCurrent, beforeLayer) {
+    const after = this.doc.snapshot();
+    if (sameSnapshot(before, after)) return;
+    const kept = new Set(before.layers.flatMap((l) => l.cels));
+    const bytes = after.layers.reduce((n, l) => n + l.cels.reduce((m, f) => m + (kept.has(f) ? 0 : f.length), 0), 0);
+    this.pushUndo({ kind: 'doc', before, after, beforeCurrent, afterCurrent: this.current, beforeLayer, afterLayer: this.layer, bytes });
   }
 
   afterStructureChange() {
     if (this.selection) this.selection = this.clipRect(this.selection);
     const built = this.builtFor;
     const { doc } = this;
-    if (built && built.fw === doc.fw && built.fh === doc.fh && built.frames.length === doc.count && built.frames.every((f, i) => f === doc.frames[i])) {
-      // Same frames (an origin or animation change): no new thumbnails needed.
+    this.layer = clamp(this.layer, 0, doc.layers.length - 1);
+    const frames = doc.frames; // flattened again here if the layers changed
+    if (built && built.fw === doc.fw && built.fh === doc.fh && built.frames.length === doc.count && built.frames.every((f, i) => f === frames[i])) {
+      // Same frame buffers: new thumbnails only if the layers were flattened again.
+      if (built.version !== doc.flatVersion) {
+        built.version = doc.flatVersion;
+        frames.forEach((_, i) => this.updateFrameCanvas(i));
+      }
       this.current = clamp(this.current, 0, doc.count - 1);
       this.renderFrames();
       this.renderInfo();
@@ -1174,6 +1281,7 @@ export class SpriteEditor {
     this.renderToolbar();
     this.renderAnimations();
     this.renderOrigin();
+    this.renderLayers();
   }
 
   pushUndo(entry) {
@@ -1194,17 +1302,18 @@ export class SpriteEditor {
     if (this.editBase) return;
     this.editBase = this.frame.slice();
     this.editFrame = this.current;
+    this.editLayer = this.layer;
   }
 
   /** Record what changed since beginPixelEdit (only the changed rectangle is kept). */
   endPixelEdit() {
     if (!this.editBase) return;
     const { fw, fh } = this.doc;
-    const f = this.doc.frames[this.editFrame];
+    const f = this.doc.layers[this.editLayer]?.cels[this.editFrame];
     const r = f && f.length === this.editBase.length ? draw.diffRect(this.editBase, f, fw, fh) : null;
     if (r) {
       this.pushUndo({
-        kind: 'pixels', frame: this.editFrame, rect: r,
+        kind: 'pixels', frame: this.editFrame, layer: this.editLayer, rect: r,
         before: draw.extract(this.editBase, fw, fh, r.x, r.y, r.w, r.h),
         after: draw.extract(f, fw, fh, r.x, r.y, r.w, r.h),
         bytes: r.w * r.h * 8,
@@ -1215,7 +1324,8 @@ export class SpriteEditor {
 
   cancelPixelEdit() {
     if (!this.editBase) return;
-    this.doc.frames[this.editFrame].set(this.editBase);
+    this.doc.cel(this.editLayer, this.editFrame).set(this.editBase);
+    this.doc.reflatten(this.editFrame);
     this.updateFrameCanvas(this.editFrame);
     this.editBase = null;
   }
@@ -1244,14 +1354,17 @@ export class SpriteEditor {
     if (e.kind === 'pixels') {
       const { fw, fh } = this.doc;
       const r = e.rect;
-      draw.stamp(this.doc.frames[e.frame], fw, fh, e[which], r.x, r.y, r.w, r.h);
+      draw.stamp(this.doc.cel(e.layer, e.frame), fw, fh, e[which], r.x, r.y, r.w, r.h);
+      this.doc.reflatten(e.frame, toBox(r));
       this.updateFrameCanvas(e.frame, toBox(r));
       this.updateEmptyHint();
       if (this.current !== e.frame) { this.current = e.frame; this.renderFrames(); }
+      if (this.layer !== e.layer) { this.layer = e.layer; this.renderLayers(); }
       this.render();
     } else {
       this.doc.restore(e[which]);
       this.current = which === 'before' ? e.beforeCurrent : e.afterCurrent;
+      this.layer = (which === 'before' ? e.beforeLayer : e.afterLayer) ?? this.layer;
       const resized = e.before.fw !== e.after.fw || e.before.fh !== e.after.fh;
       this.afterStructureChange();
       if (resized) this.fit();
@@ -1289,21 +1402,40 @@ export class SpriteEditor {
     return this.mask;
   }
 
-  mirror(p, mx, my) {
-    const { fw, fh } = this.doc;
-    return { x: mx ? fw - 1 - p.x : p.x, y: my ? fh - 1 - p.y : p.y, fx: mx ? fw - p.fx : p.fx, fy: my ? fh - p.fy : p.fy, pr: p.pr };
-  }
+  /** Where the mirror lines are, in image units (the middle unless you moved them; steps of 0.5). */
+  get axisX() { return this.mirrorAtX ?? this.doc.fw / 2; }
+  get axisY() { return this.mirrorAtY ?? this.doc.fh / 2; }
 
   /** [a, b] and its mirror images. */
   mirrorPairs(a, b) {
-    const out = [[a, b]];
-    if (this.mirrorX) out.push([this.mirror(a, true, false), this.mirror(b, true, false)]);
-    if (this.mirrorY) out.push([this.mirror(a, false, true), this.mirror(b, false, true)]);
-    if (this.mirrorX && this.mirrorY) out.push([this.mirror(a, true, true), this.mirror(b, true, true)]);
-    return out;
+    return draw.mirrorSegments(a, b, this.axisX, this.axisY, this.mirrorX, this.mirrorY);
+  }
+
+  /**
+   * The handle of a mirror line under a pointer event ('x' for the up-and-down
+   * line, 'y' for the left-and-right one), or null. The handles are small
+   * circles just outside the image, at the top and at the left.
+   */
+  mirrorHandleAt(e) {
+    if (!this.mirrorX && !this.mirrorY) return null;
+    const r = this.canvas.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    const { ox, oy } = this.view();
+    const z = this.zoom;
+    if (this.mirrorX && Math.hypot(sx - (ox + this.axisX * z), sy - (oy - MIRROR_HANDLE)) <= 9) return 'x';
+    if (this.mirrorY && Math.hypot(sx - (ox - MIRROR_HANDLE), sy - (oy + this.axisY * z)) <= 9) return 'y';
+    return null;
+  }
+
+  /** Put the mirror lines back in the middle of the image. */
+  centerMirror() {
+    this.mirrorAtX = null;
+    this.mirrorAtY = null;
+    this.renderOverlay();
   }
 
   frameChanged(box = null) {
+    this.doc.reflatten(this.current, box);
     this.updateFrameCanvas(this.current, box);
     this.renderBox(box);
   }
@@ -1312,6 +1444,8 @@ export class SpriteEditor {
   paintBox(d, box) {
     if (!box) return;
     draw.composite(this.frame, this.editBase, this.mask, this.doc.fw, box, d.color, this.opacity / 100, d.erase);
+    // Locked to the palette: every pixel the stroke covers ends on a palette color.
+    if (d.snap) snapPixels(this.frame, this.doc.fw, box, d.snap, this.mask);
     this.frameChanged(box);
   }
 
@@ -1406,11 +1540,12 @@ export class SpriteEditor {
     d.shownEnd = b;
     if (area) {
       draw.composite(this.frame, this.editBase, this.mask, this.doc.fw, area, d.color, this.opacity / 100, d.erase);
+      if (d.snap) snapPixels(this.frame, this.doc.fw, area, d.snap, this.mask);
       this.frameChanged(area);
     }
   }
 
-  doFill(p, color, global) {
+  doFill(p, color, global, snap = null) {
     const { fw, fh } = this.doc;
     const erase = color[3] === 0;
     this.beginPixelEdit();
@@ -1420,6 +1555,7 @@ export class SpriteEditor {
     let box = null;
     for (const [q] of this.mirrorPairs(p, p)) box = draw.union(box, draw.floodMask(this.mask, this.editBase, fw, fh, q.x, q.y, tol, !global, clip));
     if (box) draw.composite(this.frame, this.editBase, this.mask, fw, box, color, this.opacity / 100, erase);
+    if (box && snap) snapPixels(this.frame, fw, box, snap, this.mask);
     this.endPixelEdit();
     if (box) this.frameChanged(box);
     if (!erase) this.addRecent(color);
@@ -1445,9 +1581,8 @@ export class SpriteEditor {
     const { fw, fh } = this.doc;
     const s = this.selection;
     this.beginPixelEdit();
-    const data = draw.extract(this.frame, fw, fh, s.x, s.y, s.w, s.h);
-    if (!copy) draw.stamp(this.frame, fw, fh, new Uint8ClampedArray(s.w * s.h * 4), s.x, s.y, s.w, s.h);
-    this.floating = this.makeFloating(s.x, s.y, s.w, s.h, data);
+    const f = sel.lift(this.frame, fw, fh, s, copy);
+    this.floating = this.makeFloating(f.x, f.y, f.w, f.h, f.data);
     this.frameChanged(toBox(s));
   }
 
@@ -1455,7 +1590,7 @@ export class SpriteEditor {
     const fl = this.floating;
     if (!fl) return;
     const { fw, fh } = this.doc;
-    draw.stamp(this.frame, fw, fh, fl.data, fl.x, fl.y, fl.w, fl.h, true);
+    sel.drop(this.frame, fw, fh, fl);
     this.floating = null;
     this.selection = this.clipRect(fl);
     this.endPixelEdit();
@@ -1500,8 +1635,7 @@ export class SpriteEditor {
     this.commitFloating();
     const { fw, fh } = this.doc;
     const c = clipboard;
-    const x = c.x + c.w <= fw && c.x >= 0 ? c.x : 0;
-    const y = c.y + c.h <= fh && c.y >= 0 ? c.y : 0;
+    const { x, y } = sel.pastePosition(c.x, c.y, c.w, c.h, fw, fh);
     this.beginPixelEdit();
     this.floating = this.makeFloating(x, y, c.w, c.h, c.data.slice());
     this.selection = null;
@@ -1542,12 +1676,32 @@ export class SpriteEditor {
     this.renderStatus();
   }
 
+  /**
+   * Turn the selection a quarter turn (all of the image if nothing is
+   * selected). The pixels stay lifted, so you can move them before they drop.
+   */
+  rotate(clockwise) {
+    this.finishDrag();
+    const { fw, fh } = this.doc;
+    if (!this.floating) {
+      if (!this.selection) this.selection = { x: 0, y: 0, w: fw, h: fh };
+      this.liftSelection(false);
+    }
+    const f = this.floating;
+    if (!f) return;
+    const r = sel.rotated(f, clockwise);
+    this.floating = this.makeFloating(r.x, r.y, r.w, r.h, r.data);
+    if (this.tool !== 'select') { this.tool = 'select'; this.renderToolbar(); this.updateCursor(); }
+    this.renderStatus();
+    this.render();
+  }
+
   flip(horizontal) {
     const { fw, fh } = this.doc;
     if (this.floating) {
-      const f = this.floating;
-      draw.flip(f.data, f.w, f.h, horizontal);
-      this.updateFloatingCanvas(f);
+      const f = sel.flipped(this.floating, horizontal);
+      this.floating.data = f.data;
+      this.updateFloatingCanvas(this.floating);
       this.render();
       return;
     }
@@ -1614,6 +1768,11 @@ export class SpriteEditor {
       this.updateCursor();
       return;
     }
+    const handle = e.button === 0 && this.mirrorHandleAt(e);
+    if (handle) {
+      this.drag = { kind: 'axis', axis: handle, id: e.pointerId };
+      return;
+    }
     const pen = e.pointerType === 'pen';
     const eraserButton = e.button === 5 || (pen && (e.buttons & 32) !== 0); // the eraser end of a pen
     if (e.button !== 0 && e.button !== 2 && !eraserButton) return;
@@ -1622,14 +1781,20 @@ export class SpriteEditor {
     let tool = eraserButton ? 'eraser' : barrel ? 'picker' : this.tool;
     if (e.altKey && tool !== 'select' && tool !== 'origin') tool = 'picker';
     if (tool !== 'select') this.commitFloating();
-    const color = secondary ? this.secondary : this.primary;
+    if (this.currentLayer.hidden && tool !== 'picker' && tool !== 'origin') {
+      this.host.toast(`The layer "${this.currentLayer.name}" is hidden. Show it (the eye button in Layers) to paint on it.`, { type: 'info', timeout: 3000 });
+      return;
+    }
+    const snap = tool === 'eraser' ? null : this.lockedSnapper();
+    const pick = secondary ? this.secondary : this.primary;
+    const color = snap ? snapColor(snap, pick) : pick;
     const pressure = pen && (tool === 'brush' || tool === 'eraser') && this.pressureMode() !== 'off' ? this.pressureMode() : null;
-    const base = { id: e.pointerId, pointerType: e.pointerType, tool, color, erase: tool === 'eraser' || color[3] === 0, pressure };
+    const base = { id: e.pointerId, pointerType: e.pointerType, tool, color, erase: tool === 'eraser' || color[3] === 0, pressure, snap };
 
     if (tool === 'brush' || tool === 'eraser') {
       this.startStroke(base, p, e.shiftKey);
     } else if (tool === 'fill') {
-      this.doFill(p, color, this.contiguous === e.shiftKey);
+      this.doFill(p, color, this.contiguous === e.shiftKey, snap);
     } else if (SHAPES.has(tool)) {
       this.beginPixelEdit();
       this.prepareMask();
@@ -1690,7 +1855,9 @@ export class SpriteEditor {
     this.hover = p;
     const d = this.drag;
     if (!d || d.id !== e.pointerId) {
-      if (!prevHover || prevHover.x !== p.x || prevHover.y !== p.y) {
+      const overHandle = this.mirrorHandleAt(e);
+      if (!prevHover || prevHover.x !== p.x || prevHover.y !== p.y || overHandle !== this.overHandle) {
+        this.overHandle = overHandle;
         this.renderStatus();
         this.updateCursor();
       }
@@ -1740,6 +1907,12 @@ export class SpriteEditor {
       case 'origin':
         this.doc.origin = [clamp(Math.round(p.fx), 0, this.doc.fw), clamp(Math.round(p.fy), 0, this.doc.fh)];
         this.renderOrigin();
+        this.renderOverlay();
+        break;
+      case 'axis':
+        // In steps of half a pixel: on a line between pixels, or through the middle of one.
+        if (d.axis === 'x') this.mirrorAtX = clamp(Math.round(p.fx * 2) / 2, 0, this.doc.fw);
+        else this.mirrorAtY = clamp(Math.round(p.fy * 2) / 2, 0, this.doc.fh);
         this.renderOverlay();
         break;
       default:
@@ -1914,6 +2087,7 @@ export class SpriteEditor {
       else this.setTool(this.lastShape);
       return true;
     }
+    if (k === 'r') { this.rotate(!e.shiftKey); return true; }
     if (e.shiftKey && k === 'h') { this.flip(true); return true; }
     if (e.shiftKey && k === 'v') { this.flip(false); return true; }
     switch (k) {
@@ -2288,6 +2462,8 @@ export class SpriteEditor {
         fl.canvas.classList.toggle('smooth', z < 1);
       }
       fl.canvas.style.transform = `translate(${ox + fl.x * z}px, ${oy + fl.y * z}px)`;
+      const layer = this.currentLayer;
+      fl.canvas.style.opacity = layer.hidden ? '0' : String(layer.opacity);
     }
     const s = this.loaded && !this.failed ? fl || this.selection : null;
     if (s) {
@@ -2316,16 +2492,27 @@ export class SpriteEditor {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const { fw, fh } = doc;
 
-    // Mirror axes
+    // Mirror lines, each with a handle to drag it
     if (this.mirrorX || this.mirrorY) {
+      const ax = ox + this.axisX * z, ay = oy + this.axisY * z;
       ctx.save();
       ctx.setLineDash([6, 4]);
       ctx.strokeStyle = theme.accent;
       ctx.lineWidth = Math.max(1, px);
       ctx.beginPath();
-      if (this.mirrorX) { ctx.moveTo(snap(ox + pw / 2), oy - 8); ctx.lineTo(snap(ox + pw / 2), oy + ph + 8); }
-      if (this.mirrorY) { ctx.moveTo(ox - 8, snap(oy + ph / 2)); ctx.lineTo(ox + pw + 8, snap(oy + ph / 2)); }
+      if (this.mirrorX) { ctx.moveTo(snap(ax), oy - MIRROR_HANDLE + 5); ctx.lineTo(snap(ax), oy + ph + 8); }
+      if (this.mirrorY) { ctx.moveTo(ox - MIRROR_HANDLE + 5, snap(ay)); ctx.lineTo(ox + pw + 8, snap(ay)); }
       ctx.stroke();
+      ctx.setLineDash([]);
+      for (const [hx, hy, on] of [[ax, oy - MIRROR_HANDLE, this.mirrorX], [ox - MIRROR_HANDLE, ay, this.mirrorY]]) {
+        if (!on) continue;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = theme.accent;
+        ctx.fill();
+        ctx.strokeStyle = MARK_LIGHT;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -2467,6 +2654,133 @@ export class SpriteEditor {
       this.iconButton('x', o ? 'Clear the origin (the center is used)' : 'No origin set: the center is used', () => this.setOrigin(null, true), { disabled: !o }));
     this.settings.note.textContent = o ? `origin ${o[0]}, ${o[1]}` : '';
     this.renderInfo();
+  }
+
+  // -------------------------------------------------------------------------
+  // Layers (the same layers in every frame; the top one is first in the list)
+
+  buildLayers() {
+    const { h } = this.ui;
+    this.layerList = h('div', { class: 'spr-layer-list', role: 'listbox', 'aria-label': 'Layers' });
+    this.layerOpacity = h('input', { type: 'range', class: 'spr-range', min: '0', max: '100', step: '1', 'aria-label': 'Layer opacity' });
+    this.layerOpacityNum = h('span', { class: 'spr-layer-pct' });
+    // Dragging the opacity changes the image at once and makes one undo step when you let go.
+    this.layerOpacity.addEventListener('input', () => {
+      if (!this.opacityDrag) {
+        this.commitFloating();
+        this.opacityDrag = { before: this.doc.snapshot(), current: this.current, layer: this.layer };
+      }
+      this.currentLayer.opacity = Number(this.layerOpacity.value) / 100;
+      this.layerOpacity.style.setProperty('--fill', `${this.layerOpacity.value}%`);
+      this.layerOpacityNum.textContent = `${this.layerOpacity.value}%`;
+      this.doc.changed();
+      this.refreshImage();
+      this.renderLayerRows();
+    });
+    this.layerOpacity.addEventListener('change', () => {
+      const d = this.opacityDrag;
+      this.opacityDrag = null;
+      if (d) this.pushDocUndo(d.before, d.current, d.layer);
+      this.element.focus({ preventScroll: true });
+    });
+    this.layerButtons = {
+      up: this.iconButton('arrowUp', 'Move the layer up', () => this.layerAction('up')),
+      down: this.iconButton('arrowDown', 'Move the layer down', () => this.layerAction('down')),
+      duplicate: this.iconButton('copy', 'Duplicate the layer', () => this.layerAction('duplicate')),
+      merge: this.iconButton('mergeDown', 'Merge down: put this layer onto the layer under it', () => this.layerAction('merge')),
+      delete: this.iconButton('trash', 'Delete the layer', () => this.layerAction('delete')),
+    };
+    this.layersSection = h('section', { class: 'spr-section spr-layers' },
+      h('div', { class: 'spr-section-head' }, 'Layers', h('span', { class: 'spr-spacer' }),
+        this.iconButton('plus', 'New layer over this one', () => this.layerAction('add'))),
+      this.layerList,
+      h('div', { class: 'spr-layer-tools' },
+        h('label', { class: 'spr-layer-opacity', title: 'How much of the layer shows' }, h('span', {}, 'Opacity'), this.layerOpacity, this.layerOpacityNum),
+        h('div', { class: 'spr-group' }, ...Object.values(this.layerButtons))));
+  }
+
+  /** The image changed in a way that needs it flattened again (an opacity), without an undo step. */
+  refreshImage() {
+    const { doc } = this;
+    const frames = doc.frames;
+    const built = this.builtFor;
+    if (built && built.frames.length === doc.count && built.frames.every((f, i) => f === frames[i])) {
+      built.version = doc.flatVersion;
+      frames.forEach((_, i) => this.updateFrameCanvas(i));
+      this.render();
+    } else {
+      this.rebuildFrames();
+    }
+  }
+
+  selectLayer(i) {
+    if (i === this.layer) return;
+    this.finishDrag();
+    this.commitFloating();
+    this.layer = clamp(i, 0, this.doc.layers.length - 1);
+    this.renderLayers();
+    this.render();
+  }
+
+  layerAction(what, index = this.layer) {
+    const { doc } = this;
+    const n = doc.layers.length;
+    if (what === 'up' && index >= n - 1) return;
+    if ((what === 'down' || what === 'merge') && index <= 0) return;
+    if (what === 'delete' && n <= 1) return;
+    this.change(() => {
+      if (what === 'add') { doc.addLayer(index + 1); this.layer = index + 1; }
+      else if (what === 'duplicate') { doc.duplicateLayer(index); this.layer = index + 1; }
+      else if (what === 'delete') { doc.deleteLayer(index); this.layer = Math.min(index, doc.layers.length - 1); }
+      else if (what === 'up') { doc.moveLayer(index, index + 1); this.layer = index + 1; }
+      else if (what === 'down') { doc.moveLayer(index, index - 1); this.layer = index - 1; }
+      else if (what === 'merge') { doc.mergeDown(index); this.layer = index - 1; }
+      else if (what === 'hide') { doc.layers[index].hidden = !doc.layers[index].hidden; doc.changed(); }
+    });
+  }
+
+  async renameLayer(i) {
+    const l = this.doc.layers[i];
+    const name = await this.ui.promptDialog({
+      title: 'Rename layer', label: 'Name', value: l.name, okLabel: 'Rename',
+      validate: (v) => (!v.trim() ? 'Please enter a name.' : ''),
+    });
+    this.element.focus({ preventScroll: true });
+    if (!name || name.trim() === l.name) return;
+    this.change(() => { this.doc.layers[i].name = name.trim(); });
+  }
+
+  renderLayers() {
+    if (!this.layerList) return;
+    this.renderLayerRows();
+    const l = this.currentLayer;
+    const n = this.doc.layers.length;
+    if (!this.opacityDrag) {
+      const pct = Math.round(l.opacity * 100);
+      this.layerOpacity.value = String(pct);
+      this.layerOpacity.style.setProperty('--fill', `${pct}%`);
+      this.layerOpacityNum.textContent = `${pct}%`;
+    }
+    this.layerButtons.up.disabled = this.layer >= n - 1;
+    this.layerButtons.down.disabled = this.layer <= 0;
+    this.layerButtons.merge.disabled = this.layer <= 0;
+    this.layerButtons.delete.disabled = n <= 1;
+  }
+
+  renderLayerRows() {
+    const { h } = this.ui;
+    const layers = this.doc.layers;
+    this.layerList.replaceChildren(...layers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => {
+      const eye = this.iconButton(l.hidden ? 'eyeOff' : 'eye', l.hidden ? 'Show the layer' : 'Hide the layer', (e) => { e.stopPropagation(); this.layerAction('hide', i); },
+        { class: 'spr-layer-eye', 'aria-pressed': String(!l.hidden) });
+      const row = h('div', {
+        class: `spr-layer ${i === this.layer ? 'selected' : ''} ${l.hidden ? 'hidden-layer' : ''}`, role: 'option',
+        'aria-selected': String(i === this.layer), title: 'Click to paint on this layer. Double-click to rename it.',
+      }, eye, h('span', { class: 'spr-layer-name' }, l.name), h('span', { class: 'spr-layer-meta' }, l.opacity < 1 ? `${Math.round(l.opacity * 100)}%` : ''));
+      row.addEventListener('click', () => this.selectLayer(i));
+      row.addEventListener('dblclick', () => this.renameLayer(i));
+      return row;
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -2830,16 +3144,202 @@ export class SpriteEditor {
     if (w === doc.fw && hh === doc.fh) return;
     this.selection = null;
     this.change(() => {
-      const next = SpriteDoc.fromSheet(sheet.data, sheet.width, sheet.height, w, hh);
-      doc.frames = next.frames;
-      doc.fw = w;
-      doc.fh = hh;
-      doc.columns = next.columns;
-      doc.rows = next.rows;
-      for (const a of doc.animations) a.frames = a.frames.filter((f) => f < doc.count);
-      if (doc.origin) doc.origin = [Math.min(doc.origin[0], w), Math.min(doc.origin[1], hh)];
+      doc.split(w, hh);
       this.current = 0;
     });
+    this.fit();
+  }
+
+  /**
+   * Import a sprite sheet: cut a PNG into animation frames (by frame size,
+   * or by columns and rows, with a margin and spacing), pick the cells for
+   * an animation on a preview, and add them to this image as frames.
+   */
+  async importSheetDialog() {
+    this.finishDrag();
+    this.commitFloating();
+    const { h } = this.ui;
+    const { host, doc } = this;
+    const pngs = (host.list?.() || []).filter((p) => /\.png$/i.test(p)).sort();
+    let sheet = null; // {data, width, height, label, image (a canvas)}
+    let mode = 'size';
+    let grid = null;
+    let chosen = new Set();
+    let gridKey = '';
+    const sourceSel = h('select', { class: 'spr-select', 'aria-label': 'Sheet image' },
+      h('option', { value: '' }, 'Choose an image…'), ...pngs.map((p) => h('option', { value: p }, p)),
+      h('option', { value: '__file' }, 'From your computer…'));
+    const fileInput = h('input', { type: 'file', accept: 'image/png', hidden: true, class: 'spr-sheet-file', 'aria-label': 'Sheet image file' });
+    const fwIn = this.numInput(32, 'Frame width'), fhIn = this.numInput(32, 'Frame height');
+    const colsIn = this.numInput(4, 'Columns'), rowsIn = this.numInput(1, 'Rows');
+    const marginIn = this.numInput(0, 'Margin'), spacingIn = this.numInput(0, 'Spacing');
+    const sizeRow = h('div', { class: 'spr-form-grid' }, this.field('Frame width', fwIn), this.field('Frame height', fhIn));
+    const gridRow = h('div', { class: 'spr-form-grid' }, this.field('Columns', colsIn), this.field('Rows', rowsIn));
+    const by = this.segmented([['size', 'Frame size'], ['grid', 'Columns × rows']], (v) => { mode = v; update(); }, 'Cut by');
+    const preview = h('canvas', { class: 'spr-sheet-preview', width: '440', height: '220', 'aria-label': 'The sheet: click a cell to put it in the animation or take it out' });
+    const note = h('p', { class: 'spr-form-note' });
+    const names = new Set(doc.animations.map((a) => a.name));
+    const nameIn = h('input', { type: 'text', class: 'spr-input', value: ['walk', 'run', 'idle', 'jump', 'attack'].find((n) => !names.has(n)) || '', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Animation name' });
+    const fpsIn = this.numInput(DEFAULT_FPS, 'Frames per second');
+    const pickAll = h('button', { type: 'button', class: 'spr-btn', onclick: () => { chosen = new Set(grid?.cells.map((_, i) => i) || []); update(); } }, 'All');
+    const pickFilled = h('button', { type: 'button', class: 'spr-btn', onclick: () => { chosen = new Set(grid && sheet ? filledCells(sheet.data, sheet.width, sheet.height, grid) : []); update(); } }, 'Not empty');
+    const pickNone = h('button', { type: 'button', class: 'spr-btn', onclick: () => { chosen = new Set(); update(); } }, 'None');
+    const num = (el) => Number(el.value.trim());
+
+    const update = () => {
+      by.set(mode);
+      sizeRow.hidden = mode !== 'size';
+      gridRow.hidden = mode !== 'grid';
+      grid = sheet ? sheetGrid(sheet.width, sheet.height, { by: mode, frameWidth: num(fwIn), frameHeight: num(fhIn), columns: num(colsIn), rows: num(rowsIn), margin: num(marginIn), spacing: num(spacingIn) }) : null;
+      if (grid?.error) { note.textContent = grid.error; grid = null; }
+      const key = grid ? `${grid.fw}x${grid.fh}:${grid.columns}x${grid.rows}:${num(marginIn)}:${num(spacingIn)}` : '';
+      if (key !== gridKey) {
+        gridKey = key;
+        // A new grid: the cells with something in them, in order.
+        chosen = new Set(grid ? filledCells(sheet.data, sheet.width, sheet.height, grid) : []);
+      }
+      if (!sheet) note.textContent = 'Choose the image of the sheet.';
+      else if (grid) {
+        const into = doc.isBlank() ? 'This image becomes these frames.'
+          : grid.fw === doc.fw && grid.fh === doc.fh ? 'The frames go after the last frame of this image.'
+            : `This image has frames of ${doc.fw}×${doc.fh}. The import replaces its frames, layers and animations (undo brings them back).`;
+        note.textContent = `${grid.columns}×${grid.rows} cells of ${grid.fw}×${grid.fh}. ${chosen.size} chosen (click a cell to change). ${into}`;
+      }
+      drawPreview();
+    };
+
+    let place = null; // where the sheet is on the preview: {x0, y0, s}
+    let checker = null;
+    const drawPreview = () => {
+      const ctx = preview.getContext('2d');
+      const W = preview.width, H = preview.height;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = this.theme.bg;
+      ctx.fillRect(0, 0, W, H);
+      place = null;
+      if (!sheet) return;
+      let sc = Math.min((W - 8) / sheet.width, (H - 8) / sheet.height);
+      if (sc >= 1) sc = Math.floor(sc);
+      const dw = sheet.width * sc, dh = sheet.height * sc;
+      const x0 = Math.round((W - dw) / 2), y0 = Math.round((H - dh) / 2);
+      place = { x0, y0, s: sc };
+      ctx.fillStyle = checker ??= ctx.createPattern(this.patternCanvas(), 'repeat');
+      ctx.fillRect(x0, y0, dw, dh);
+      ctx.imageSmoothingEnabled = sc < 1;
+      ctx.drawImage(sheet.image, x0, y0, dw, dh);
+      if (!grid) return;
+      const order = [...chosen].sort((a, b) => a - b);
+      ctx.lineWidth = 1;
+      ctx.font = '600 10px sans-serif';
+      ctx.textBaseline = 'top';
+      grid.cells.forEach((c, i) => {
+        const x = x0 + c.x * sc, y = y0 + c.y * sc, w = grid.fw * sc, hh = grid.fh * sc;
+        const k = order.indexOf(i);
+        if (k >= 0) {
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.28)';
+          ctx.fillRect(x, y, w, hh);
+        }
+        ctx.strokeStyle = k >= 0 ? this.theme.accent : 'rgba(128, 128, 128, 0.8)';
+        ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w) - 1, Math.round(hh) - 1);
+        if (k >= 0 && w >= 14 && hh >= 12) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(x + 1, y + 1, 14, 12);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(String(k + 1), x + 3, y + 2);
+        }
+      });
+    };
+    preview.addEventListener('click', (e) => {
+      if (!place || !grid) return;
+      const r = preview.getBoundingClientRect();
+      const px = ((e.clientX - r.left) * (preview.width / r.width) - place.x0) / place.s;
+      const py = ((e.clientY - r.top) * (preview.height / r.height) - place.y0) / place.s;
+      const i = grid.cells.findIndex((c) => px >= c.x && py >= c.y && px < c.x + grid.fw && py < c.y + grid.fh);
+      if (i < 0) return;
+      if (chosen.has(i)) chosen.delete(i); else chosen.add(i);
+      update();
+    });
+
+    /** A guess at the frame size: a strip of squares, else the biggest common size that fits. */
+    const guess = () => {
+      const { width: w, height: hh } = sheet;
+      if (w % hh === 0 && w > hh) return [hh, hh];
+      if (hh % w === 0 && hh > w) return [w, w];
+      const size = [64, 48, 32, 24, 16, 8].find((n) => w % n === 0 && hh % n === 0 && n < Math.max(w, hh));
+      return size ? [size, size] : [w, hh];
+    };
+    const useSheet = (data, width, height, label) => {
+      const c = document.createElement('canvas');
+      c.width = width;
+      c.height = height;
+      c.getContext('2d').putImageData(new ImageData(data, width, height), 0, 0);
+      sheet = { data, width, height, label, image: c };
+      const [gw, gh] = guess();
+      fwIn.value = String(gw);
+      fhIn.value = String(gh);
+      colsIn.value = String(Math.max(1, Math.round(width / gw)));
+      rowsIn.value = String(Math.max(1, Math.round(height / gh)));
+      gridKey = '';
+      update();
+    };
+    const load = async (bytes, label) => {
+      try {
+        const img = await decodePNG(bytes);
+        useSheet(img.data, img.width, img.height, label);
+      } catch (e) {
+        sheet = null;
+        note.textContent = `${label} could not be read as a PNG image (${e.message}).`;
+        drawPreview();
+      }
+    };
+    sourceSel.addEventListener('change', () => {
+      if (sourceSel.value === '__file') fileInput.click();
+      else if (sourceSel.value) load(host.read(sourceSel.value), sourceSel.value);
+    });
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files?.[0];
+      if (f) await load(new Uint8Array(await f.arrayBuffer()), f.name);
+    });
+    for (const el of [fwIn, fhIn, colsIn, rowsIn, marginIn, spacingIn]) el.addEventListener('input', update);
+
+    const body = h('div', { class: 'spr-form-stack spr-sheet-form' },
+      this.field('Image', sourceSel), fileInput,
+      h('div', { class: 'spr-form-field' }, h('span', { class: 'spr-form-label' }, 'Cut by'), by.el),
+      sizeRow, gridRow,
+      h('div', { class: 'spr-form-grid' }, this.field('Margin (around the sheet)', marginIn), this.field('Spacing (between frames)', spacingIn)),
+      preview,
+      h('div', { class: 'spr-row' }, h('span', { class: 'spr-form-label' }, 'Choose'), pickAll, pickFilled, pickNone),
+      note,
+      h('div', { class: 'spr-form-grid' }, this.field('Animation (empty for none)', nameIn), this.field('Frames per second', fpsIn)));
+    update();
+    this.sheetDialogOpen = { load, useSheet }; // for tests and the harness
+    const ok = await this.formDialog({
+      title: 'Import sprite sheet', body, okLabel: 'Import', focus: sourceSel,
+      validate: () => {
+        if (!sheet) return 'Choose the image of the sheet.';
+        if (!grid) return note.textContent;
+        if (!chosen.size) return 'Choose at least one cell (click it on the image).';
+        const name = nameIn.value.trim();
+        const replace = doc.isBlank() || grid.fw !== doc.fw || grid.fh !== doc.fh;
+        if (name && !replace && names.has(name)) return `There is already an animation called "${name}".`;
+        return this.checkInt(fpsIn, 'Frames per second', 0, 240);
+      },
+    });
+    this.sheetDialogOpen = null;
+    if (!ok) return;
+    const order = [...chosen].sort((a, b) => a - b);
+    const frames = cutSheet(sheet.data, sheet.width, sheet.height, grid, order);
+    const name = nameIn.value.trim();
+    const fps = num(fpsIn);
+    const replace = doc.isBlank() || grid.fw !== doc.fw || grid.fh !== doc.fh;
+    this.selection = null;
+    this.change(() => {
+      const added = doc.importFrames(frames, grid.fw, grid.fh, { replace, layer: this.layer });
+      if (replace) this.layer = 0;
+      if (name) doc.animations.push({ name, frames: added, fps, loop: true, extra: {} });
+      this.current = added[0];
+    });
+    if (name) this.selectAnimation(name);
     this.fit();
   }
 

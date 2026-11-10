@@ -500,3 +500,24 @@
   .spr-viewport { grid-column: 2; grid-row: 1; }
   .spr-side { grid-column: 1 / -1; grid-row: 2; border-left: 0; border-top: 1px solid var(--border); }
 }
+
+/* Layers (top layer first) */
+.spr-layer-list { display: flex; flex-direction: column; gap: 2px; }
+.spr-layer {
+  display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 8px 0 2px;
+  border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
+}
+.spr-layer:hover { background: var(--hover); }
+.spr-layer.selected { border-color: var(--accent); background: var(--accent-soft); }
+.spr-layer.hidden-layer .spr-layer-name { color: var(--fg-subtle); }
+.spr-layer .spr-layer-eye[aria-pressed="true"] { background: transparent; color: var(--fg-muted); }
+.spr-layer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spr-layer-meta { font-size: 11px; color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
+.spr-layer-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; }
+.spr-layer-opacity { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-muted); }
+.spr-layer-pct { min-width: 32px; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+/* Import sprite sheet */
+.spr-sheet-form { gap: 10px; }
+.spr-sheet-preview { display: block; width: 100%; max-width: 100%; aspect-ratio: 440 / 220; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.spr-sheet-form .spr-row { display: flex; align-items: center; gap: 6px; }

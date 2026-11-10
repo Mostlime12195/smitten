@@ -1,11 +1,16 @@
-// The image being edited: frames as straight RGBA buffers plus the .sprite
-// fields (frame size, origin, animations; docs/formats.md, "Sprites"), and
-// reading and writing those files. A plain image is one frame and needs no
-// .sprite file. Older projects named the file .sprite.json; it is still read,
-// and saving writes .sprite.
+// The image being edited: layers of frames as straight RGBA buffers plus the
+// .sprite fields (frame size, origin, animations, layers; docs/formats.md,
+// "Sprites"), and reading and writing those files. A plain image is one frame
+// on one layer and needs no .sprite file. Older projects named the file
+// .sprite.json; it is still read, and saving writes .sprite.
+//
+// The game reads only the PNG: with more than one layer, the PNG is the
+// layers flattened, and the .sprite file keeps each layer as a PNG of its
+// own (a data: URL) for the editor.
 
 import { decodePNG, encodePNG } from './png.js';
 import { stamp, resample } from './draw.js';
+import { newLayer, isPlain, flatten, sameImage, freeLayerName } from './layers.js';
 
 export const FORMAT_VERSION = 1;
 export const DEFAULT_FPS = 8;
@@ -56,7 +61,11 @@ export class SpriteDoc {
   constructor(fw, fh, frames) {
     this.fw = fw;
     this.fh = fh;
-    this.frames = frames; // Uint8ClampedArray(fw * fh * 4) each
+    // Bottom layer first; each has one Uint8ClampedArray(fw * fh * 4) per frame.
+    this.layers = [newLayer('Layer 1', frames)];
+    this.flat = null; // the flattened frames, when there is more than the one plain layer
+    this.flatDirty = true;
+    this.flatVersion = 0; // goes up each time all flattened frames are made again
     this.origin = null; // [x, y] or null
     this.animations = []; // [{name, frames: [], fps, loop, extra: {}}]
     this.meta = {}; // the .sprite file as read (unknown fields are kept)
@@ -70,7 +79,94 @@ export class SpriteDoc {
     return new SpriteDoc(fw, fh, frames);
   }
 
-  get count() { return this.frames.length; }
+  get count() { return this.layers[0].cels.length; }
+
+  /**
+   * The frames as the game draws them. With one plain layer these are that
+   * layer's buffers; else the flattened copies (made again after changed()).
+   */
+  get frames() {
+    if (isPlain(this.layers)) return this.layers[0].cels;
+    if (this.flatDirty || !this.flat) this.flattenAll();
+    return this.flat;
+  }
+
+  /** True if the image has more than one plain layer (saving then keeps the layers). */
+  get layered() { return !isPlain(this.layers); }
+
+  /** Call after a change to the layers or the frames (not to pixels: see reflatten). */
+  changed() { this.flatDirty = true; }
+
+  flattenAll() {
+    const { fw, fh } = this;
+    const n = this.count, size = fw * fh * 4;
+    const old = this.flat;
+    const reuse = old && old.length === n && old.every((f) => f.length === size);
+    this.flat = Array.from({ length: n }, (_, i) => flatten(reuse ? old[i] : new Uint8ClampedArray(size), this.layers, i, fw, fh));
+    this.flatDirty = false;
+    this.flatVersion++;
+  }
+
+  /** Flatten one frame again over box (all of it if null), after its pixels changed. */
+  reflatten(frame, box = null) {
+    if (isPlain(this.layers)) return;
+    if (this.flatDirty || !this.flat) { this.flattenAll(); return; }
+    flatten(this.flat[frame], this.layers, frame, this.fw, this.fh, box);
+  }
+
+  /** The buffer of one layer in one frame. */
+  cel(layer, frame) { return this.layers[layer].cels[frame]; }
+
+  blankFrame() { return new Uint8ClampedArray(this.fw * this.fh * 4); }
+
+  // Layers. Indexes count from the bottom layer.
+
+  addLayer(index, name = freeLayerName(this.layers)) {
+    const layer = newLayer(name, this.layers[0].cels.map(() => this.blankFrame()));
+    this.layers.splice(index, 0, layer);
+    this.changed();
+    return layer;
+  }
+
+  duplicateLayer(index) {
+    const src = this.layers[index];
+    const copy = newLayer(freeLayerName(this.layers, src.name.replace(/ \d+$/, '')), src.cels.map((c) => c.slice()),
+      { opacity: src.opacity, hidden: src.hidden, extra: { ...src.extra } });
+    this.layers.splice(index + 1, 0, copy);
+    this.changed();
+  }
+
+  deleteLayer(index) {
+    if (this.layers.length <= 1) return;
+    this.layers.splice(index, 1);
+    this.changed();
+  }
+
+  moveLayer(from, to) {
+    if (from === to) return;
+    this.layers.splice(to, 0, ...this.layers.splice(from, 1));
+    this.changed();
+  }
+
+  /** Put a layer onto the layer below it (both as if shown), as one layer at full opacity. */
+  mergeDown(index) {
+    if (index < 1) return;
+    const below = this.layers[index - 1], above = this.layers[index];
+    const pair = [{ ...below, hidden: false }, { ...above, hidden: false }];
+    below.cels = below.cels.map((_, f) => flatten(this.blankFrame(), pair, f, this.fw, this.fh));
+    below.opacity = 1;
+    below.hidden = false;
+    this.layers.splice(index, 1);
+    this.changed();
+  }
+
+  /** All layers flattened into one plain layer. */
+  flattenLayers() {
+    if (!this.layered) return;
+    const cels = this.frames.map((f) => f.slice());
+    this.layers = [newLayer(this.layers[0].name, cels)];
+    this.changed();
+  }
 
   /** Cut an RGBA sheet into frames. Pads with transparency if the sheet isn't a multiple of the frame size. */
   static fromSheet(data, width, height, fw, fh) {
@@ -108,13 +204,13 @@ export class SpriteDoc {
     return { columns, rows: Math.ceil(n / columns) };
   }
 
-  /** The whole sheet as one RGBA image. */
-  toSheet(layout = this.layout()) {
+  /** The whole sheet as one RGBA image (the flattened frames, or the frames given). */
+  toSheet(layout = this.layout(), frames = this.frames) {
     const { columns, rows } = layout;
     const width = columns * this.fw;
     const height = rows * this.fh;
     const data = new Uint8ClampedArray(width * height * 4);
-    this.frames.forEach((f, i) => {
+    frames.forEach((f, i) => {
       const c = i % columns, r = Math.floor(i / columns);
       for (let y = 0; y < this.fh; y++) {
         data.set(f.subarray(y * this.fw * 4, (y + 1) * this.fw * 4), ((r * this.fh + y) * width + c * this.fw) * 4);
@@ -123,14 +219,18 @@ export class SpriteDoc {
     return { data, width, height };
   }
 
-  /** Whether the image needs a .sprite file (more than one frame, an origin or animations). */
+  /** Whether the image needs a .sprite file (more than one frame, an origin, animations or layers). */
   needsMeta() {
-    return this.count > 1 || !!this.origin || this.animations.length > 0;
+    return this.count > 1 || !!this.origin || this.animations.length > 0 || this.layered;
   }
 
-  /** The .sprite file's text, keeping fields this editor doesn't know. */
-  metaText(metaPath, pngPath) {
-    const known = ['format', 'version', 'image', 'frameWidth', 'frameHeight', 'origin', 'animations'];
+  /**
+   * The .sprite file's text, keeping fields this editor doesn't know.
+   * layerImages: one PNG data: URL per layer (encodeSprite makes them), or
+   * null for an image without layers.
+   */
+  metaText(metaPath, pngPath, layerImages = null) {
+    const known = ['format', 'version', 'image', 'frameWidth', 'frameHeight', 'origin', 'animations', 'layers'];
     const out = {
       format: 'smitten.sprite',
       version: FORMAT_VERSION,
@@ -142,8 +242,20 @@ export class SpriteDoc {
     if (this.animations.length) {
       out.animations = {};
       for (const a of this.animations) {
-        out.animations[a.name] = { frames: [...a.frames], fps: a.fps, loop: a.loop, ...a.extra };
+        // fps and loop that a file left out stay out while they keep their defaults.
+        const entry = { frames: [...a.frames] };
+        if (!a.omit?.fps || a.fps !== DEFAULT_FPS) entry.fps = a.fps;
+        if (!a.omit?.loop || a.loop !== true) entry.loop = a.loop;
+        out.animations[a.name] = { ...entry, ...a.extra };
       }
+    }
+    if (layerImages && this.layered) {
+      out.layers = this.layers.map((l, i) => {
+        const entry = { name: l.name };
+        if (l.opacity < 1) entry.opacity = Math.round(l.opacity * 1000) / 1000;
+        if (l.hidden) entry.hidden = true;
+        return { ...entry, ...l.extra, image: layerImages[i] };
+      });
     }
     for (const [k, v] of Object.entries(this.meta)) if (!known.includes(k)) out[k] = v;
     return `${stringify(out)}\n`;
@@ -154,7 +266,7 @@ export class SpriteDoc {
     return {
       fw: this.fw,
       fh: this.fh,
-      frames: this.frames.slice(),
+      layers: this.layers.map((l) => ({ ...l, cels: l.cels.slice(), extra: { ...l.extra } })),
       origin: this.origin ? [...this.origin] : null,
       animations: this.animations.map((a) => ({ ...a, frames: [...a.frames], extra: { ...a.extra } })),
       columns: this.columns,
@@ -165,7 +277,8 @@ export class SpriteDoc {
   restore(s) {
     this.fw = s.fw;
     this.fh = s.fh;
-    this.frames = s.frames.slice();
+    this.layers = s.layers.map((l) => ({ ...l, cels: l.cels.slice(), extra: { ...l.extra } }));
+    this.changed();
     this.origin = s.origin ? [...s.origin] : null;
     this.animations = s.animations.map((a) => ({ ...a, frames: [...a.frames], extra: { ...a.extra } }));
     this.columns = s.columns;
@@ -175,45 +288,142 @@ export class SpriteDoc {
   /** Change the frame size, keeping the pixels where they are, moved by (dx, dy). */
   resizeCanvas(w, h, dx, dy) {
     const { fw, fh } = this;
-    this.frames = this.frames.map((f) => {
-      const out = new Uint8ClampedArray(w * h * 4);
-      stamp(out, w, h, f, dx, dy, fw, fh);
-      return out;
-    });
+    for (const l of this.layers) {
+      l.cels = l.cels.map((f) => {
+        const out = new Uint8ClampedArray(w * h * 4);
+        stamp(out, w, h, f, dx, dy, fw, fh);
+        return out;
+      });
+    }
     this.fw = w;
     this.fh = h;
+    this.changed();
     if (this.origin) this.origin = [this.origin[0] + dx, this.origin[1] + dy];
   }
 
   /** Scale every frame to w×h, smoothly or by nearest pixel. */
   scale(w, h, smooth) {
     const { fw, fh } = this;
-    this.frames = this.frames.map((f) => resample(f, fw, fh, w, h, smooth));
+    for (const l of this.layers) l.cels = l.cels.map((f) => resample(f, fw, fh, w, h, smooth));
     this.fw = w;
     this.fh = h;
+    this.changed();
     if (this.origin) this.origin = [Math.round((this.origin[0] * w) / fw), Math.round((this.origin[1] * h) / fh)];
+  }
+
+  /**
+   * Cut every layer into frames of w×h again (the frames of each layer laid
+   * out as a sheet first). Animation frames past the end are dropped.
+   */
+  split(w, h) {
+    const layout = this.layout();
+    let next = null;
+    for (const l of this.layers) {
+      const sheet = this.toSheet(layout, l.cels);
+      next = SpriteDoc.fromSheet(sheet.data, sheet.width, sheet.height, w, h);
+      l.cels = next.frames;
+    }
+    this.fw = w;
+    this.fh = h;
+    this.columns = next.columns;
+    this.rows = next.rows;
+    for (const a of this.animations) a.frames = a.frames.filter((f) => f < this.count);
+    if (this.origin) this.origin = [Math.min(this.origin[0], w), Math.min(this.origin[1], h)];
+    this.changed();
   }
 
   // Frame operations keep animation frame numbers pointing at the same frames.
 
-  insertFrame(index, data) {
-    this.frames.splice(index, 0, data);
+  /** Insert a frame at index: cels has one buffer per layer (blank ones if not given). */
+  insertFrame(index, cels = null) {
+    this.layers.forEach((l, i) => l.cels.splice(index, 0, cels?.[i] || this.blankFrame()));
     for (const a of this.animations) a.frames = a.frames.map((f) => (f >= index ? f + 1 : f));
+    this.changed();
+  }
+
+  /** The buffers of one frame, one per layer, copied. */
+  copyFrame(index) {
+    return this.layers.map((l) => l.cels[index].slice());
   }
 
   deleteFrame(index) {
-    this.frames.splice(index, 1);
+    for (const l of this.layers) l.cels.splice(index, 1);
     for (const a of this.animations) a.frames = a.frames.filter((f) => f !== index).map((f) => (f > index ? f - 1 : f));
+    this.changed();
   }
 
   moveFrame(from, to) {
     if (from === to) return;
-    const order = this.frames.map((_, i) => i);
+    const order = this.layers[0].cels.map((_, i) => i);
     order.splice(to, 0, ...order.splice(from, 1));
     const newIndex = new Map(order.map((old, i) => [old, i]));
-    this.frames = order.map((old) => this.frames[old]);
+    for (const l of this.layers) l.cels = order.map((old) => l.cels[old]);
     for (const a of this.animations) a.frames = a.frames.map((f) => newIndex.get(f) ?? f);
+    this.changed();
   }
+
+  /**
+   * Frames from a sprite sheet (sheet.js), for one layer. With replace, they
+   * become all of the image: its frame size, one layer, no animations. Else
+   * they go after the last frame (on the given layer; the other layers get
+   * empty frames there). Returns the numbers of the new frames.
+   */
+  importFrames(frames, fw, fh, { replace = false, layer = 0 } = {}) {
+    if (replace) {
+      this.fw = fw;
+      this.fh = fh;
+      this.layers = [newLayer(this.layers[0]?.name || 'Layer 1', frames)];
+      this.animations = [];
+      this.columns = 0;
+      this.rows = 0;
+      if (this.origin) this.origin = [Math.min(this.origin[0], fw), Math.min(this.origin[1], fh)];
+      this.changed();
+      return frames.map((_, i) => i);
+    }
+    if (fw !== this.fw || fh !== this.fh) throw new Error(`the frames are ${fw}×${fh}, and this image has frames of ${this.fw}×${this.fh}`);
+    const start = this.count;
+    frames.forEach((f, k) => {
+      this.layers.forEach((l, i) => l.cels.push(i === layer ? f : this.blankFrame()));
+      return k;
+    });
+    this.changed();
+    return frames.map((_, k) => start + k);
+  }
+
+  /** True if the image is one frame on one plain layer, with nothing drawn. */
+  isBlank() {
+    if (this.count !== 1 || this.layered) return false;
+    const f = this.layers[0].cels[0];
+    for (let i = 3; i < f.length; i += 4) if (f[i]) return false;
+    return true;
+  }
+}
+
+/** True if two snapshots (SpriteDoc.snapshot) are the same image. */
+export function sameSnapshot(a, b) {
+  if (a.fw !== b.fw || a.fh !== b.fh || a.columns !== b.columns || a.layers.length !== b.layers.length) return false;
+  for (let i = 0; i < a.layers.length; i++) {
+    const p = a.layers[i], q = b.layers[i];
+    if (p.name !== q.name || p.opacity !== q.opacity || p.hidden !== q.hidden || p.cels.length !== q.cels.length) return false;
+    if (!p.cels.every((c, k) => c === q.cels[k])) return false;
+  }
+  return JSON.stringify([a.origin, a.animations]) === JSON.stringify([b.origin, b.animations]);
+}
+
+// Layer images are PNGs inside the .sprite file, as data: URLs.
+const DATA_URL = 'data:image/png;base64,';
+
+function toBase64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+function fromBase64(text) {
+  const s = atob(text);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
 }
 
 /** JSON with 2-space indents, but arrays of numbers on one line. */
@@ -327,18 +537,77 @@ export async function loadSprite(host, pngPath, metaPath) {
           frames: Array.isArray(frames) ? frames.filter((f) => Number.isInteger(f) && f >= 0) : doc.frames.map((_, i) => i),
           fps: typeof fps === 'number' && fps >= 0 ? fps : DEFAULT_FPS,
           loop: loop === undefined ? true : !!loop,
+          omit: { fps: fps === undefined, loop: loop === undefined },
           extra,
         });
       }
+    }
+    if (Array.isArray(meta.layers) && meta.layers.length && image) {
+      await loadLayers(doc, meta.layers, image, metaPath, pngPath, warnings);
     }
   }
   return { doc, warnings };
 }
 
-/** Encode the image's files: {png: Uint8Array, json: string | null} (json is the .sprite file, if needed). */
+/**
+ * The layers of a .sprite file ("layers": [{name, opacity, hidden, image}],
+ * bottom first; each image is a data: URL of a PNG the size of the main
+ * image). If the main image is not what the layers make (an older editor or
+ * another program changed it), the main image becomes a new top layer and
+ * the older layers are hidden, so nothing is lost and the image looks as
+ * the game shows it.
+ */
+async function loadLayers(doc, entries, image, metaPath, pngPath, warnings) {
+  const { fw, fh } = doc;
+  const layers = [];
+  for (const [i, entry] of entries.entries()) {
+    const name = typeof entry?.name === 'string' && entry.name ? entry.name : `Layer ${i + 1}`;
+    const src = typeof entry?.image === 'string' && entry.image.startsWith(DATA_URL) ? entry.image.slice(DATA_URL.length) : null;
+    let img = null;
+    try {
+      if (src) img = await decodePNG(fromBase64(src));
+    } catch { img = null; }
+    if (!img || img.width !== image.width || img.height !== image.height) {
+      warnings.push(`${metaPath}: the layer "${name}" could not be read (it must be a PNG of ${image.width}×${image.height}). The editor shows the image as one layer.`);
+      return;
+    }
+    const { name: _n, opacity, hidden, image: _i, ...extra } = entry;
+    layers.push(newLayer(name, SpriteDoc.fromSheet(img.data, img.width, img.height, fw, fh).frames, {
+      opacity: typeof opacity === 'number' ? Math.min(1, Math.max(0, opacity)) : 1,
+      hidden: hidden === true,
+      extra,
+    }));
+  }
+  const imageFrames = doc.layers[0].cels;
+  doc.layers = layers;
+  doc.changed();
+  const flat = doc.frames;
+  if (flat.every((f, i) => sameImage(f, imageFrames[i]))) return;
+  for (const l of doc.layers) l.hidden = true;
+  doc.layers.push(newLayer(freeLayerName(doc.layers, 'Changed outside'), imageFrames));
+  doc.changed();
+  warnings.push(`${pngPath} is not the same as its layers: a different program changed it. Its pixels are now the top layer, and the other layers are hidden.`);
+}
+
+/**
+ * Encode the image's files: {png: Uint8Array, json: string | null} (json is
+ * the .sprite file, if needed). It reads all pixels before its first await,
+ * so the image can change again as soon as it returns its promise.
+ */
 export async function encodeSprite(doc, pngPath, metaPath, metaExists) {
-  const sheet = doc.toSheet();
+  const layout = doc.layout();
+  const sheet = doc.toSheet(layout);
+  const layerSheets = doc.layered ? doc.layers.map((l) => doc.toSheet(layout, l.cels)) : null;
+  // The .sprite text as the image is now; the layer images go in after they are encoded.
+  const mark = (i) => `@@layer-image-${i}@@`;
+  const needs = doc.needsMeta() || metaExists;
+  let json = needs ? doc.metaText(metaPath, pngPath, layerSheets ? layerSheets.map((_, i) => mark(i)) : null) : null;
   const png = await encodePNG(sheet.data, sheet.width, sheet.height);
-  const json = doc.needsMeta() || metaExists ? doc.metaText(metaPath, pngPath) : null;
+  if (layerSheets && json !== null) {
+    for (const [i, ls] of layerSheets.entries()) {
+      const url = DATA_URL + toBase64(await encodePNG(ls.data, ls.width, ls.height));
+      json = json.replace(`"${mark(i)}"`, () => JSON.stringify(url));
+    }
+  }
   return { png, json };
 }
