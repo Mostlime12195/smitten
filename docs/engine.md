@@ -174,6 +174,20 @@ Finding a way from one place to another. See [Pathfinding](pathfinding.md).
 | `smitten.paths.pointAt(path, distance)` | The point a distance along a path from its start: x, y, and true once it's the end. |
 | `smitten.paths.debugDraw(what?, options?)` | Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width. |
 
+### smitten.text
+
+Rich text, measuring and effects. See [Text](text.md).
+
+| Function | |
+| --- | --- |
+| `smitten.text.effect(name, fn)` | Adds an effect for rich text: after effect("bounce", fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece. |
+| `smitten.text.effects()` | The names of every effect, sorted. |
+| `smitten.text.measure(text, options?)` | How big a text is when drawn: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing. |
+| `smitten.text.wrap(text, options?)` | The lines a text is broken into at a width: wrap("a long sentence", { width = 120 }) gives a list of strings. |
+| `smitten.text.strip(text)` | The text without its tags: strip("[b]Hi[/b]") is "Hi". |
+| `smitten.text.escape(text)` | Makes text safe to put inside rich text (a player's name): square brackets are shown, not read as tags. |
+| `smitten.text.color(value)` | A color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil. |
+
 ### smitten.synth
 
 See [Sound and music](sound.md).

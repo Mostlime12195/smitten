@@ -16,7 +16,7 @@ through a whole small game in about fifteen minutes.
   changing scenes and pausing.
 - [Input](input.md), [Sound and music](sound.md), [Camera](camera.md),
   [Backgrounds](backgrounds.md), [Tiles](tiles.md), [Lights](lights.md),
-  [UI](ui.md),
+  [Text](text.md), [UI](ui.md),
   [Physics](physics.md), [Pathfinding](pathfinding.md),
   [Saving](saving.md) and [Drawing](drawing.md) each cover one part of a
   game.

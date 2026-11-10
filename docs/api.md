@@ -132,7 +132,7 @@ See [Drawing](drawing.md).
 | `poly(points, fill)` | A polygon: poly({x1, y1, x2, y2, x3, y3}). |
 | `line(x1, y1, x2, y2, ...)` | A line through points. |
 | `dot(x, y)` | One pixel. |
-| `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. |
+| `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height. |
 | `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }). |
 
 ## Script functions
@@ -152,6 +152,9 @@ Called by the engine when a script defines them.
 | `function pressed()` | Button, Panel, Picture, TouchStick, TouchButton | Button: The button was clicked, tapped, or pressed with accept while focused. Panel: The panel was clicked or tapped (not on a button inside it). Picture: The picture was clicked or tapped. TouchStick: A finger landed on the stick. TouchButton: A finger pressed the button (or slid onto it). |
 | `function released()` | TouchStick, TouchButton | TouchStick: The finger let go of the stick. TouchButton: The finger let go, or slid off. |
 | `function tick()` | Timer | The countdown reached zero. |
-| `function finished(animation)` | Sprite, Particles, Sound | Sprite: A non-looping animation reached its last frame. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Sound: The sound reached its end (not when looping). |
+| `function finished(animation)` | Sprite, Text, Particles, Label, Sound | Sprite: A non-looping animation reached its last frame. Text: reveal() has shown the whole text. Particles: The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). Label: reveal() has shown the whole text. Sound: The sound reached its end (not when looping). |
 | `function hovered()` | UI | The pointer came over it (not Labels). |
 | `function unhovered()` | UI | The pointer left it. |
+| `function revealed(index, char)` | Text, Label | Text: reveal() showed one more character: play a blip, or wait at a full stop. Label: reveal() showed one more character: play a blip, or wait at a full stop. |
+| `function eachCharacter(c)` | Text, Label | Text: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. Label: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. |
+| `function linkPressed(name)` | Label | A [link=name] in the text was clicked or tapped. |

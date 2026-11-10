@@ -31,7 +31,7 @@ end
 | `poly(points, fill)` | A polygon: poly({x1, y1, x2, y2, x3, y3}). |
 | `line(x1, y1, x2, y2, ...)` | A line through points. |
 | `dot(x, y)` | One pixel. |
-| `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. |
+| `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height. |
 | `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }). |
 <!-- end -->
 
@@ -48,6 +48,15 @@ The piece's `tint` also colors everything it draws.
 24. For more, pass a table: `size`, `font` (a font file, or `"pixel"` for
 the built-in pixel font), `align` (`"left"`, `"center"` or `"right"`) and
 `width` (longer lines wrap). Text stays sharp when the game is scaled up.
+
+`write()` returns the width and height of what it wrote, and can do what
+the [Text](text.md) page describes: `rich = true` reads tags like
+`[b]bold[/b]` and `[color=red]`, `visible` shows only the first so many
+letters, and `outline` and `shadow` make text readable on any background.
+
+```lua
+write("[b]Wave[/b] [color=gold]3[/color]", 160, 8, { rich = true, size = 20, align = "center", outline = true })
+```
 
 ## Sprites
 

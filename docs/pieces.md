@@ -168,8 +168,40 @@ Extends [Group](#group).
 | `font` | resource | "" | A .ttf/.otf font file, "pixel" for the built-in pixel font, or empty for the default font. |
 | `size` | int (px) | 16 | Font size. |
 | `color` | color | {1, 1, 1, 1} | Text color. |
-| `align` | enum | "center" | Lines up the text around the piece's position. |
+| `align` | enum | "center" | Lines up the text around the piece's position. justify stretches wrapped lines to the same width. |
 | `wrap` | number (px) | 0 | Wrap lines longer than this; 0 never wraps. |
+| `wrapBy` | enum | "word" | Where a line that's too long is broken: between words, or after any character (for writing without spaces, like Japanese). |
+| `rich` | bool | false | Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `outline` | bool | false | A dark outline around the text. |
+| `fontBold` | resource | "" | The font file for [b]bold[/b] words. Empty: the font is made thicker instead. |
+| `fontItalic` | resource | "" | The font file for [i]italic[/i] words. Empty: the font is slanted instead. |
+| `lineHeight` | number | 1 | How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them. |
+| `letterSpacing` | number (px) | 0 | Extra room between letters (negative squeezes them together). |
+| `outlineWidth` | number (px) | 0 | How thick the outline is. 0 keeps it one screen pixel thin. |
+| `outlineColor` | color | {0, 0, 0, 0.8} | The outline's color. |
+| `shadow` | bool | false | A shadow behind the text. |
+| `shadowColor` | color | {0, 0, 0, 0.5} | The shadow's color. |
+| `shadowX` | number (px) | 2 | How far right the shadow falls (negative: left). |
+| `shadowY` | number (px) | 2 | How far down the shadow falls (negative: up). |
+| `visibleCharacters` | int | -1 | How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect. |
+| `visibleRatio` | number | 1 | How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly. |
+
+| Method | |
+| --- | --- |
+| `measure()` | How big the text is as it's laid out now: width, height. |
+| `lineCount()` | How many lines the text takes. |
+| `characterCount()` | How many characters the text has (tags and line breaks don't count). |
+| `characterRect(index)` | Where a character is, measured from the piece's position: x, y, width, height. For putting a cursor or a sparkle on it. |
+| `characterAt(x, y)` | The number of the character at a point (measured from the piece's position), or nil. |
+| `linkAt(x, y)` | The name of the [link=name] at a point (measured from the piece's position), or nil. |
+| `reveal(charactersPerSecond?, from?)` | Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace. |
+| `skip()` | Shows all of the text now, and ends a reveal(). |
+
+| Event (a function in its script) | |
+| --- | --- |
+| `function revealed(index, char)` | reveal() showed one more character: play a blip, or wait at a full stop. |
+| `function finished()` | reveal() has shown the whole text. |
+| `function eachCharacter(c)` | Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. |
 
 ### Tiles
 
@@ -548,9 +580,42 @@ Extends [UI](#ui).
 | `font` | resource | "" | A .ttf/.otf font, "pixel", or empty for the default font. |
 | `size` | int (px) | 20 | Font size. |
 | `color` | color | {1, 1, 1, 1} | Text color. |
-| `align` | enum | "left" | Lines up the text inside its rectangle. |
+| `align` | enum | "left" | Lines up the text inside its rectangle. justify stretches wrapped lines to the same width. |
 | `valign` | enum | "top" | Lines up the text top to bottom. |
+| `wrapBy` | enum | "word" | Where a line too long for the rectangle is broken: between words, after any character (for writing without spaces, like Japanese), or not at all. |
+| `fit` | enum | "none" | shrink makes the text smaller until it fits inside the rectangle. |
+| `rich` | bool | false | Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `outline` | bool | false | A dark outline around the text. |
+| `fontBold` | resource | "" | The font file for [b]bold[/b] words. Empty: the font is made thicker instead. |
+| `fontItalic` | resource | "" | The font file for [i]italic[/i] words. Empty: the font is slanted instead. |
+| `lineHeight` | number | 1 | How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them. |
+| `letterSpacing` | number (px) | 0 | Extra room between letters (negative squeezes them together). |
+| `outlineWidth` | number (px) | 0 | How thick the outline is. 0 keeps it one screen pixel thin. |
+| `outlineColor` | color | {0, 0, 0, 0.8} | The outline's color. |
+| `shadow` | bool | false | A shadow behind the text. |
+| `shadowColor` | color | {0, 0, 0, 0.5} | The shadow's color. |
+| `shadowX` | number (px) | 2 | How far right the shadow falls (negative: left). |
+| `shadowY` | number (px) | 2 | How far down the shadow falls (negative: up). |
+| `visibleCharacters` | int | -1 | How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect. |
+| `visibleRatio` | number | 1 | How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly. |
+
+| Method | |
+| --- | --- |
+| `measure()` | How big the text is as it's laid out now: width, height. |
+| `lineCount()` | How many lines the text takes. |
+| `characterCount()` | How many characters the text has (tags and line breaks don't count). |
+| `characterRect(index)` | Where a character is, measured from the label's top-left corner: x, y, width, height. For putting a cursor or a sparkle on it. |
+| `characterAt(x, y)` | The number of the character at a point (measured from the label's top-left corner), or nil. |
+| `linkAt(x, y)` | The name of the [link=name] at a point (measured from the label's top-left corner), or nil. |
+| `reveal(charactersPerSecond?, from?)` | Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace. |
+| `skip()` | Shows all of the text now, and ends a reveal(). |
+
+| Event (a function in its script) | |
+| --- | --- |
+| `function revealed(index, char)` | reveal() showed one more character: play a blip, or wait at a full stop. |
+| `function finished()` | reveal() has shown the whole text. |
+| `function eachCharacter(c)` | Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. |
+| `function linkPressed(name)` | A [link=name] in the text was clicked or tapped. |
 
 ### Button
 
@@ -565,6 +630,8 @@ Extends [UI](#ui).
 | `size` | int (px) | 18 | Font size. |
 | `color` | color | {0.25, 0.47, 0.95, 1} | Background color. |
 | `textColor` | color | {1, 1, 1, 1} | Text color. |
+| `rich` | bool | false | Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `fit` | enum | "none" | shrink makes the words smaller until they fit inside the button. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | Can't be pressed; drawn faded. |
 | `autofocus` | bool | false | Has keyboard focus when the scene starts. |

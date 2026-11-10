@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Text.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text" aria-current="page">Text</a><ul class="nav-sub"><li><a href="#plain-text">Plain text</a></li><li><a href="#rich-text">Rich text</a></li><li><a href="#your-own-effects">Your own effects</a></li><li><a href="#revealing-text-a-typewriter">Revealing text (a typewriter)</a></li><li><a href="#measuring">Measuring</a></li><li><a href="#links">Links</a></li><li><a href="#write">write()</a></li><li><a href="#a-dialogue-box-from-these-parts">A dialogue box from these parts</a></li><li><a href="#how-fast-it-is">How fast it is</a></li><li><a href="#reference">Reference</a></li></ul></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Text</h1>
+<p>Three things draw words: the <strong>Text</strong> piece (in the game world: a sign, a damage number), the <strong>Label</strong> (on the screen: a score, a title) and <code>write()</code> in a script's <code>draw()</code>. Buttons have words too. All of them use the same text engine, <code>smitten.text</code>, so what this page says about one is true of the others.</p>
+<p>Out of the box they draw plain text in one font, size and color. This page is about everything past that: words in different colors and sizes inside one text, letters that wave or shake, text that types itself out, and finding out how big a text is or where one of its letters sits.</p>
+<p>There's no ready-made dialogue box, name tag or choice menu. The pieces here are what you build your own from; <a href="#a-dialogue-box-from-these-parts">the last example</a> shows one way.</p>
+<h2 id="plain-text"><a class="anchor" href="#plain-text" aria-hidden="true">#</a>Plain text</h2>
+<div class="table"><table>
+<thead><tr><th>Setting</th><th></th></tr></thead>
+<tbody><tr><td><code>text</code></td><td>What it says. Press Enter in the Inspector for a new line</td></tr>
+<tr><td><code>font</code></td><td>A <code>.ttf</code> or <code>.otf</code> file from your project, <code>pixel</code> for the built-in pixel font, or empty for the default font</td></tr>
+<tr><td><code>size</code>, <code>color</code></td><td>How big, and what color</td></tr>
+<tr><td><code>align</code></td><td><code>left</code>, <code>center</code>, <code>right</code>, or <code>justify</code> (wrapped lines stretched to the same width)</td></tr>
+<tr><td><code>wrap</code> (Text)</td><td>Lines longer than this many pixels wrap; 0 never wraps. A Label wraps at its own width</td></tr>
+<tr><td><code>wrapBy</code></td><td>Break lines between words (<code>word</code>), after any character (<code>character</code>, for writing without spaces such as Japanese) or, on a Label, not at all (<code>none</code>)</td></tr>
+<tr><td><code>lineHeight</code></td><td>1 is the font's own line spacing; 1.5 leaves half a line between lines</td></tr>
+<tr><td><code>letterSpacing</code></td><td>Extra pixels between letters</td></tr>
+<tr><td><code>outline</code>, <code>outlineWidth</code>, <code>outlineColor</code></td><td>A line around every letter, so text reads on any background</td></tr>
+<tr><td><code>shadow</code>, <code>shadowX</code>, <code>shadowY</code>, <code>shadowColor</code></td><td>A copy of the text behind it, moved a little</td></tr>
+<tr><td><code>valign</code> (Label)</td><td><code>top</code>, <code>middle</code> or <code>bottom</code> of the Label's rectangle</td></tr>
+<tr><td><code>fit</code> (Label, Button)</td><td><code>shrink</code> makes the text smaller until it fits the rectangle</td></tr></tbody>
+</table></div>
+<p>Text is drawn at the size it has on the screen, so it stays sharp when the game is scaled up to fill a big window.</p>
+<h2 id="rich-text"><a class="anchor" href="#rich-text" aria-hidden="true">#</a>Rich text</h2>
+<p>Turn on <strong>rich</strong> and the text can carry <strong>tags</strong>: words in square brackets that change how the text after them looks, until a closing tag with a slash.</p>
+<pre><code>You found the [color=gold][b]Sun Key[/b][/color]!</code></pre>
+<p>This works in the Inspector with no code: type the tags into a Text's or Label's <code>text</code>. <code>[/]</code> closes whichever tag was opened last, and a tag that's never closed runs to the end of the text.</p>
+<div class="table"><table>
+<thead><tr><th>Tag</th><th>What it does</th></tr></thead>
+<tbody><tr><td><code>[b]</code>, <code>[i]</code></td><td>Bold, italic</td></tr>
+<tr><td><code>[u]</code>, <code>[s]</code></td><td>Underline, strike-through</td></tr>
+<tr><td><code>[color=red]</code>, <code>[color=#ff8800]</code></td><td>A color: a name or a hex code (<code>#f80</code>, <code>#ff8800</code>, <code>#ff8800cc</code> with see-through)</td></tr>
+<tr><td><code>[size=24]</code>, <code>[size=+4]</code></td><td>A size in pixels, or bigger (<code>+</code>) or smaller (<code>-</code>) than the text around it</td></tr>
+<tr><td><code>[font=fonts/title.ttf]</code></td><td>Another font file (or <code>[font=pixel]</code>)</td></tr>
+<tr><td><code>[outline]</code>, <code>[outline=#000]</code>, <code>[outline=2,#000]</code></td><td>An outline: 1 pixel and black unless you give a width and a color</td></tr>
+<tr><td><code>[shadow]</code>, <code>[shadow=#000 x=2 y=2]</code></td><td>A shadow, with its color and how far it falls</td></tr>
+<tr><td><code>[center]</code>, <code>[right]</code>, <code>[left]</code></td><td>Lines this line up on its own, whatever <code>align</code> says. Put it at the start of a line</td></tr>
+<tr><td><code>[img=art/coin.png]</code></td><td>A picture in the line, as tall as the letters. <code>[img=art/hero.sprite frame=2]</code> shows one frame; <code>columns=</code> and <code>rows=</code> cut a plain picture into frames; <code>height=</code> or <code>width=</code> set its size</td></tr>
+<tr><td><code>[link=shop]</code></td><td>Marks a part of the text that can be clicked (see <a href="#links">Links</a>)</td></tr>
+<tr><td><code>[wave]</code>, <code>[shake]</code>, <code>[rainbow]</code>, <code>[pulse]</code>, <code>[fade]</code></td><td>Effects that move or color each letter (below)</td></tr>
+<tr><td><code>[pause=0.5]</code>, <code>[speed=10]</code></td><td>For <a href="#revealing-text-a-typewriter">revealing text</a>: wait here, or change the pace</td></tr></tbody>
+</table></div>
+<p>The color names are <code>white</code>, <code>black</code>, <code>gray</code>, <code>silver</code>, <code>red</code>, <code>orange</code>, <code>yellow</code>, <code>gold</code>, <code>green</code>, <code>lime</code>, <code>teal</code>, <code>cyan</code>, <code>blue</code>, <code>navy</code>, <code>purple</code>, <code>pink</code>, <code>brown</code> and <code>clear</code>.</p>
+<p>Tags can sit inside each other, and tags aren't characters: they're never drawn, counted or measured.</p>
+<p><strong>A real square bracket</strong> is typed twice: <code>[[</code>. A tag Smitten doesn't know (<code>[colour=red]</code>, a typing mistake) is shown as it's written, and the Output panel says so once, so mistakes are easy to see. Before putting text you didn't write into rich text (a player's name), pass it through <code>smitten.text.escape(name)</code>.</p>
+<p><strong>Bold and italic.</strong> If you have the bold and italic versions of your font, set them as the piece's <code>fontBold</code> and <code>fontItalic</code> and <code>[b]</code> and <code>[i]</code> use them. Without them the font is faked: bold is drawn twice a pixel apart, italic is slanted. That's also how the pixel font does it.</p>
+<h3 id="effects"><a class="anchor" href="#effects" aria-hidden="true">#</a>Effects</h3>
+<p>An effect changes each letter separately, every frame. Five are built in, and each takes settings after its name:</p>
+<div class="table"><table>
+<thead><tr><th>Tag</th><th>Settings (and what they are when left out)</th></tr></thead>
+<tbody><tr><td><code>[wave]</code></td><td><code>amp=3</code> pixels up and down, <code>freq=1.5</code> waves a second, <code>spread=0.5</code> how far each letter is behind the one before</td></tr>
+<tr><td><code>[shake]</code></td><td><code>amp=1.5</code> pixels, <code>speed=20</code> jumps a second</td></tr>
+<tr><td><code>[rainbow]</code></td><td><code>speed=0.5</code> times round the colors a second, <code>spread=0.06</code> between letters, <code>sat=0.75</code> how strong the colors are</td></tr>
+<tr><td><code>[pulse]</code></td><td><code>amp=0.15</code> how much bigger and smaller, <code>freq=1</code> beats a second</td></tr>
+<tr><td><code>[fade]</code></td><td><code>time=0.3</code> seconds each letter takes to fade in when it's revealed</td></tr></tbody>
+</table></div>
+<pre><code>[wave amp=5 freq=2]Wheee![/wave]   [shake]it's c-c-cold[/shake]</code></pre>
+<h2 id="your-own-effects"><a class="anchor" href="#your-own-effects" aria-hidden="true">#</a>Your own effects</h2>
+<p><code>smitten.text.effect(name, fn)</code> adds a tag of your own. Smitten calls the function for each letter inside the tag, every frame, with a table <code>c</code> that describes the letter and that the function changes:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- [bounce height=6]boing[/bounce]</span>
+smitten.text.<span class="tk-f">effect</span>(<span class="tk-s">&quot;bounce&quot;</span>, <span class="tk-k">function</span>(c)
+  <span class="tk-k">local</span> height = c.args.height <span class="tk-k">or</span> <span class="tk-n">4</span>
+  c.y = c.y - math.<span class="tk-f">abs</span>(math.<span class="tk-f">sin</span>(c.time * <span class="tk-n">6</span> + c.index * <span class="tk-n">0.4</span>)) * height
+<span class="tk-k">end</span>)</code></pre>
+<p>Add effects once, before the text that uses them is shown: the main scene's script is a good place.</p>
+<div class="table"><table>
+<thead><tr><th>Change these</th><th></th></tr></thead>
+<tbody><tr><td><code>c.x</code>, <code>c.y</code></td><td>Moves the letter this many pixels (both start at 0)</td></tr>
+<tr><td><code>c.rotation</code></td><td>Turns it, in radians, around its middle</td></tr>
+<tr><td><code>c.scale</code></td><td>Makes it bigger or smaller (1 is normal)</td></tr>
+<tr><td><code>c.color</code></td><td>Its color, <code>{r, g, b, a}</code>: change the numbers or set a new table</td></tr>
+<tr><td><code>c.alpha</code></td><td>0 is invisible, 1 is solid</td></tr>
+<tr><td><code>c.visible</code></td><td><code>false</code> hides it</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Read these</th><th></th></tr></thead>
+<tbody><tr><td><code>c.index</code>, <code>c.count</code></td><td>Which letter this is (1 is the first of the whole text), and how many there are</td></tr>
+<tr><td><code>c.char</code></td><td>The letter itself</td></tr>
+<tr><td><code>c.line</code></td><td>Which line it's on</td></tr>
+<tr><td><code>c.time</code></td><td>Seconds, always counting up: put it in <code>math.sin</code> for movement</td></tr>
+<tr><td><code>c.since</code></td><td>Seconds since this letter was revealed (see below)</td></tr>
+<tr><td><code>c.args</code></td><td>The settings typed in the tag: <code>[bounce height=6]</code> gives <code>c.args.height</code></td></tr>
+<tr><td><code>c.piece</code></td><td>The Text or Label being drawn</td></tr></tbody>
+</table></div>
+<p><code>c</code> is <strong>one table used for every letter</strong>, to keep things fast. Read it and change it inside the function, but don't store it for later.</p>
+<p>For a one-off effect on a single piece, skip the tag: give the piece's script an <code>eachCharacter(c)</code> function. It runs for every letter of that piece, with the same <code>c</code>:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Label: every letter drops in from above when it's revealed</span>
+<span class="tk-k">function</span> <span class="tk-f">eachCharacter</span>(c)
+  <span class="tk-k">local</span> t = math.<span class="tk-f">min</span>(<span class="tk-n">1</span>, c.since / <span class="tk-n">0.2</span>)
+  c.y = c.y - (<span class="tk-n">1</span> - t) * <span class="tk-n">12</span>
+  c.alpha = t
+<span class="tk-k">end</span></code></pre>
+<h2 id="revealing-text-a-typewriter"><a class="anchor" href="#revealing-text-a-typewriter" aria-hidden="true">#</a>Revealing text (a typewriter)</h2>
+<p>Two settings decide how much of a text shows:</p>
+<ul><li><code>visibleCharacters</code>: how many letters, counted from the start. 0 shows nothing and -1 shows everything.</li><li><code>visibleRatio</code>: the same as a part of the whole, 0 to 1. It's a plain number, so it can be tweened: <code>tween(Label, 2, { visibleRatio = 1 })</code>.</li></ul>
+<p>Tags and line breaks don't count as letters, and hidden letters still take up their room, so nothing jumps about as the text appears.</p>
+<p><code>reveal(charactersPerSecond)</code> counts <code>visibleCharacters</code> up for you, 30 a second unless you give another number. While it runs, the piece gets <code>revealed(index, char)</code> for each letter and <code>finished()</code> at the end. <code>skip()</code> shows the rest at once. It stops while the game is paused.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Label: types its text out, with a blip for each letter and a</span>
+<span class="tk-c">-- short stop after punctuation.</span>
+<span class="tk-k">local</span> typing
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  typing = <span class="tk-f">reveal</span>(<span class="tk-n">40</span>)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">revealed</span>(index, char)
+  <span class="tk-k">if</span> char ~= <span class="tk-s">&quot; &quot;</span> <span class="tk-k">then</span> <span class="tk-f">sfx</span>(<span class="tk-s">&quot;blip&quot;</span>) <span class="tk-k">end</span>
+  <span class="tk-k">if</span> char == <span class="tk-s">&quot;.&quot;</span> <span class="tk-k">or</span> char == <span class="tk-s">&quot;!&quot;</span> <span class="tk-k">or</span> char == <span class="tk-s">&quot;?&quot;</span> <span class="tk-k">then</span> typing:<span class="tk-f">wait</span>(<span class="tk-n">0.35</span>) <span class="tk-k">end</span>
+  <span class="tk-k">if</span> char == <span class="tk-s">&quot;,&quot;</span> <span class="tk-k">then</span> typing:<span class="tk-f">wait</span>(<span class="tk-n">0.15</span>) <span class="tk-k">end</span>
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">finished</span>()
+  <span class="tk-f">print</span>(<span class="tk-s">&quot;all shown&quot;</span>)
+<span class="tk-k">end</span></code></pre>
+<p><code>reveal()</code> returns a handle:</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>typing:wait(seconds)</code></td><td>Holds the next letter back</td></tr>
+<tr><td><code>typing:cancel()</code></td><td>Stops where it is</td></tr>
+<tr><td><code>typing:after(fn)</code></td><td>Calls <code>fn</code> when everything shows</td></tr>
+<tr><td><code>typing.speed = 80</code></td><td>Changes the pace</td></tr></tbody>
+</table></div>
+<p>Rich text can set the pace from inside the text: <code>[pause=0.5]</code> waits half a second at that spot, and <code>[speed=10]slowly...[/speed]</code> reveals its part at 10 letters a second.</p>
+<pre><code>Well...[pause=0.6] [speed=8]I suppose so.[/speed]</code></pre>
+<p><code>[fade]</code> and <code>c.since</code> go well with this: <code>[fade]</code> around the whole text makes each letter fade in as it's revealed.</p>
+<h2 id="measuring"><a class="anchor" href="#measuring" aria-hidden="true">#</a>Measuring</h2>
+<p>A Text or Label can tell you about its text as it's laid out right now:</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>measure()</code></td><td>Width and height of the whole text</td></tr>
+<tr><td><code>lineCount()</code>, <code>characterCount()</code></td><td>How many lines, and how many letters</td></tr>
+<tr><td><code>characterRect(index)</code></td><td>Where one letter is: x, y, width, height</td></tr>
+<tr><td><code>characterAt(x, y)</code></td><td>The number of the letter at a point, or nil</td></tr>
+<tr><td><code>linkAt(x, y)</code></td><td>The name of the <code>[link]</code> at a point, or nil</td></tr></tbody>
+</table></div>
+<p>Points and rectangles are measured from the piece's own position (a Text) or from the Label's top-left corner.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- A Panel behind a Label, sized to its text</span>
+<span class="tk-k">local</span> w, h = Label:<span class="tk-f">measure</span>()
+Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="tk-n">16</span>
+
+<span class="tk-c">-- Where the last letter is, to put a cursor after it</span>
+<span class="tk-k">local</span> x, y, w, h = Label:<span class="tk-f">characterRect</span>(Label:<span class="tk-f">characterCount</span>())</code></pre>
+<p>Without a piece, <code>smitten.text</code> measures any text:</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> w, h, lines = smitten.text.<span class="tk-f">measure</span>(<span class="tk-s">&quot;Some [b]words[/b]&quot;</span>, { rich = <span class="tk-k">true</span>, size = <span class="tk-n">20</span>, width = <span class="tk-n">200</span> })
+<span class="tk-k">local</span> lines = smitten.text.<span class="tk-f">wrap</span>(<span class="tk-s">&quot;A long sentence to cut up&quot;</span>, { width = <span class="tk-n">120</span>, size = <span class="tk-n">16</span> })</code></pre>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.text.effect(name, fn)</code></td><td>Adds an effect for rich text: after effect(&quot;bounce&quot;, fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece.</td></tr>
+<tr><td><code>smitten.text.effects()</code></td><td>The names of every effect, sorted.</td></tr>
+<tr><td><code>smitten.text.measure(text, options?)</code></td><td>How big a text is when drawn: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.</td></tr>
+<tr><td><code>smitten.text.wrap(text, options?)</code></td><td>The lines a text is broken into at a width: wrap(&quot;a long sentence&quot;, { width = 120 }) gives a list of strings.</td></tr>
+<tr><td><code>smitten.text.strip(text)</code></td><td>The text without its tags: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
+<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text (a player's name): square brackets are shown, not read as tags.</td></tr>
+<tr><td><code>smitten.text.color(value)</code></td><td>A color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
+</table></div>
+<h2 id="links"><a class="anchor" href="#links" aria-hidden="true">#</a>Links</h2>
+<p><code>[link=name]</code> marks a part of rich text. On a <strong>Label</strong>, clicking or tapping it calls <code>linkPressed(name)</code> in the Label's script:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- text: Visit the [link=shop][u]shop[/u][/link] or [link=inn][u]rest[/u][/link].</span>
+<span class="tk-k">function</span> <span class="tk-f">linkPressed</span>(name)
+  <span class="tk-k">if</span> name == <span class="tk-s">&quot;shop&quot;</span> <span class="tk-k">then</span> <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/shop.scene&quot;</span>) <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>The tag only marks the spot. How a link looks is up to you: underline it, color it. On a <strong>Text</strong> in the world, ask where the pointer is yourself:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>()
+  <span class="tk-k">if</span> smitten.mouse.<span class="tk-f">pressed</span>(<span class="tk-n">1</span>) <span class="tk-k">then</span>
+    <span class="tk-k">local</span> name = <span class="tk-f">linkAt</span>(<span class="tk-f">fromWorld</span>(<span class="tk-f">mouse</span>()))
+    <span class="tk-k">if</span> name <span class="tk-k">then</span> <span class="tk-f">print</span>(<span class="tk-s">&quot;clicked&quot;</span>, name) <span class="tk-k">end</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<h2 id="write"><a class="anchor" href="#write" aria-hidden="true">#</a>write()</h2>
+<p><code>write(text, x, y, options)</code> takes the same ideas as options: <code>rich = true</code> to read tags, <code>visible</code> (how many letters show), <code>wrap</code>, <code>lineHeight</code>, <code>letterSpacing</code>, <code>outline</code> (true or a width) with <code>outlineColor</code>, and <code>shadow</code> with <code>shadowX</code>, <code>shadowY</code>, <code>shadowColor</code>, next to <code>size</code>, <code>font</code>, <code>align</code> and <code>width</code>. It returns the width and height of what it wrote.</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">draw</span>()
+  <span class="tk-k">local</span> w, h = <span class="tk-f">write</span>(<span class="tk-s">&quot;[b]HP[/b] [color=red]12[/color]/20&quot;</span>, <span class="tk-n">8</span>, <span class="tk-n">8</span>, { rich = <span class="tk-k">true</span>, size = <span class="tk-n">20</span>, outline = <span class="tk-n">2</span> })
+  <span class="tk-f">rect</span>(<span class="tk-n">8</span>, <span class="tk-n">12</span> + h, w, <span class="tk-n">3</span>)
+<span class="tk-k">end</span></code></pre>
+<h2 id="a-dialogue-box-from-these-parts"><a class="anchor" href="#a-dialogue-box-from-these-parts" aria-hidden="true">#</a>A dialogue box from these parts</h2>
+<p>A Panel, with a Label inside it (anchor <code>fill</code>, <code>rich</code> on) and this script on the Label. The game calls <code>say()</code> with the lines to show; pressing a key shows the rest of a line, then the next line.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On the Label inside the Panel</span>
+<span class="tk-k">local</span> lines, at = {}, <span class="tk-n">0</span>
+
+<span class="tk-k">local</span> <span class="tk-k">function</span> <span class="tk-f">show</span>()
+  text = lines[at]
+  <span class="tk-f">reveal</span>(<span class="tk-n">45</span>)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">say</span>(list)          <span class="tk-c">-- Dialog:say({ &quot;Hello!&quot;, &quot;Nice [wave]weather[/wave].&quot; })</span>
+  lines, at = list, <span class="tk-n">1</span>
+  parent.visible = <span class="tk-k">true</span>
+  <span class="tk-f">show</span>()
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">revealed</span>(index, char)
+  <span class="tk-k">if</span> char ~= <span class="tk-s">&quot; &quot;</span> <span class="tk-k">then</span> <span class="tk-f">sfx</span>(<span class="tk-s">&quot;blip&quot;</span>) <span class="tk-k">end</span>
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">update</span>()
+  <span class="tk-k">if</span> <span class="tk-k">not</span> parent.visible <span class="tk-k">or</span> <span class="tk-k">not</span> smitten.input.<span class="tk-f">pressed</span>(<span class="tk-s">&quot;accept&quot;</span>) <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
+  <span class="tk-k">if</span> visibleCharacters &gt;= <span class="tk-n">0</span> <span class="tk-k">then</span>
+    <span class="tk-f">skip</span>()                  <span class="tk-c">-- still typing: show the whole line</span>
+  <span class="tk-k">elseif</span> at &lt; #lines <span class="tk-k">then</span>
+    at += <span class="tk-n">1</span>
+    <span class="tk-f">show</span>()
+  <span class="tk-k">else</span>
+    parent.visible = <span class="tk-k">false</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>Names, portraits and choices are more pieces: another Label, a Picture, a few Buttons.</p>
+<h2 id="how-fast-it-is"><a class="anchor" href="#how-fast-it-is" aria-hidden="true">#</a>How fast it is</h2>
+<ul><li>A text is read and laid out once, when it or one of its settings changes, and then drawn from a ready-made batch. Text that stays the same costs almost nothing per frame, however many tags it has.</li><li>Only letters inside an effect (or all of them, on a piece with <code>eachCharacter</code>) are worked out every frame. Put effect tags around the words that need them rather than the whole page.</li><li>A text that changes every frame (a timer) is laid out again every frame. That's fine for a line or two; keep long paragraphs still.</li><li>Plain text with none of this page's settings is drawn exactly as it always was.</li></ul>
+<h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
+<p>A Label has the same settings, methods and events, plus <code>valign</code>, <code>fit</code> and <code>linkPressed(name)</code>: see <a href="ui#label">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Text&quot;</td><td>What it says.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font file, &quot;pixel&quot; for the built-in pixel font, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>16</td><td>Font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color.</td></tr>
+<tr><td><code>align</code></td><td>enum</td><td>&quot;center&quot;</td><td>Lines up the text around the piece's position. justify stretches wrapped lines to the same width.</td></tr>
+<tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>Wrap lines longer than this; 0 never wraps.</td></tr>
+<tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where a line that's too long is broken: between words, or after any character (for writing without spaces, like Japanese).</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>outline</code></td><td>bool</td><td>false</td><td>A dark outline around the text.</td></tr>
+<tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. Empty: the font is made thicker instead.</td></tr>
+<tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. Empty: the font is slanted instead.</td></tr>
+<tr><td><code>lineHeight</code></td><td>number</td><td>1</td><td>How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them.</td></tr>
+<tr><td><code>letterSpacing</code></td><td>number (px)</td><td>0</td><td>Extra room between letters (negative squeezes them together).</td></tr>
+<tr><td><code>outlineWidth</code></td><td>number (px)</td><td>0</td><td>How thick the outline is. 0 keeps it one screen pixel thin.</td></tr>
+<tr><td><code>outlineColor</code></td><td>color</td><td>{0, 0, 0, 0.8}</td><td>The outline's color.</td></tr>
+<tr><td><code>shadow</code></td><td>bool</td><td>false</td><td>A shadow behind the text.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 0.5}</td><td>The shadow's color.</td></tr>
+<tr><td><code>shadowX</code></td><td>number (px)</td><td>2</td><td>How far right the shadow falls (negative: left).</td></tr>
+<tr><td><code>shadowY</code></td><td>number (px)</td><td>2</td><td>How far down the shadow falls (negative: up).</td></tr>
+<tr><td><code>visibleCharacters</code></td><td>int</td><td>-1</td><td>How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect.</td></tr>
+<tr><td><code>visibleRatio</code></td><td>number</td><td>1</td><td>How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>measure()</code></td><td>How big the text is as it's laid out now: width, height.</td></tr>
+<tr><td><code>lineCount()</code></td><td>How many lines the text takes.</td></tr>
+<tr><td><code>characterCount()</code></td><td>How many characters the text has (tags and line breaks don't count).</td></tr>
+<tr><td><code>characterRect(index)</code></td><td>Where a character is, measured from the piece's position: x, y, width, height. For putting a cursor or a sparkle on it.</td></tr>
+<tr><td><code>characterAt(x, y)</code></td><td>The number of the character at a point (measured from the piece's position), or nil.</td></tr>
+<tr><td><code>linkAt(x, y)</code></td><td>The name of the [link=name] at a point (measured from the piece's position), or nil.</td></tr>
+<tr><td><code>reveal(charactersPerSecond?, from?)</code></td><td>Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace.</td></tr>
+<tr><td><code>skip()</code></td><td>Shows all of the text now, and ends a reveal().</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function revealed(index, char)</code></td><td>reveal() showed one more character: play a blip, or wait at a full stop.</td></tr>
+<tr><td><code>function finished()</code></td><td>reveal() has shown the whole text.</td></tr>
+<tr><td><code>function eachCharacter(c)</code></td><td>Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it.</td></tr></tbody>
+</table></div>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="lights"><span>Previous</span>Lights</a><a class="next" href="ui"><span>Next</span>UI</a></nav>
+  </main>
+</div>
+</body>
+</html>

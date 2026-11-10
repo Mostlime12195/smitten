@@ -41,7 +41,7 @@ WebAssembly, with a Lua-to-WebAssembly JIT.
   (`smitten.graphics`, `smitten.audio`, `smitten.keyboard`, ...) and
   Smitten's own modules next to them (`smitten.scene`, `smitten.input`,
   `smitten.tween`, `smitten.assets`, `smitten.storage`, `smitten.display`,
-  `smitten.physics`, `smitten.paths`, `smitten.synth`). The engine's own code calls the same
+  `smitten.physics`, `smitten.paths`, `smitten.text`, `smitten.synth`). The engine's own code calls the same
   table `love` internally; game code doesn't see that name.
 - Helpers join the module they belong to: `smitten.math.chance/pick/clamp/
   lerp/approach`, `smitten.timer.after/every`, `smitten.mouse.pressed`,
