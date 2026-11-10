@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>File formats</h1>
-<p>All project files are JSON, except scripts and pictures. Paths are relative to the project folder, unless this page gives a different rule. <a href="settings">Project settings</a> tells about <code>smitten.json</code>.</p>
+<p>All project files are JSON, except scripts and images. Paths are relative to the project folder, unless this page gives a different rule. <a href="settings">Project settings</a> tells about <code>smitten.json</code>.</p>
 <h2 id="scenes"><a class="anchor" href="#scenes" aria-hidden="true">#</a>Scenes</h2>
 <p>A scene is a tree of pieces in a <code>.scene</code> file (JSON):</p>
 <pre><code class="lang-json">{
@@ -84,7 +84,7 @@
   }
 }</code></pre>
 <ul><li><code>terrains</code> is a list. Each terrain has:</li><li><code>name</code>.</li><li><code>match</code>: <code>&quot;all&quot;</code> (sides and corners, the default), <code>&quot;sides&quot;</code> or <code>&quot;corners&quot;</code>.</li><li><code>color</code>: the color of the terrain in the editor.</li><li><code>tiles</code>: for each tile of the terrain, a number that tells where the terrain continues past that tile. The number is a sum of these values: up 1, up-right 2, right 4, down-right 8, down 16, down-left 32, left 64, up-left 128. Tiles with the same number are variants.
-<p>If a tile is in two terrains, it is part of the first terrain only.</p></li><li><code>animations</code> gives a tile the tiles that it shows in turn (<code>frames</code>). It shows them at <code>fps</code> animation frames a second (8 if there is no <code>fps</code>), or for <code>durations</code> seconds each. With <code>randomStart</code>, each cell starts at a different point of the loop.</li></ul>
+<p>If a tile is in two terrains, it is part of the first terrain only.</p></li><li><code>animations</code> gives a tile the tiles that it shows in turn (<code>frames</code>). It shows them at <code>fps</code> animation frames per second (8 if there is no <code>fps</code>), or for <code>durations</code> seconds each. With <code>randomStart</code>, each cell starts at a different point of the loop.</li></ul>
 <h2 id="sound-effects"><a class="anchor" href="#sound-effects" aria-hidden="true">#</a>Sound effects</h2>
 <p>For example, <code>sfx/jump.sfx</code>. The synth parameters are in physical units. The synthesizer makes sound at 44100 Hz, mono.</p>
 <pre><code class="lang-json">{

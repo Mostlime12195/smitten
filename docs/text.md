@@ -68,7 +68,7 @@ text.
 | `[outline]`, `[outline=#000]`, `[outline=2,#000]` | An outline. It is 1 pixel and black if you do not give a width and a color |
 | `[shadow]`, `[shadow=#000 x=2 y=2]` | A shadow, with its color and its distance from the text |
 | `[center]`, `[right]`, `[left]` | Aligns this line, and ignores `align`. Put it at the start of a line |
-| `[img=art/coin.png]` | A picture in the line, as tall as the letters. `[img=art/hero.sprite frame=2]` shows one frame. `columns=` and `rows=` cut a plain picture into frames. `height=` or `width=` set its size |
+| `[img=art/coin.png]` | An image in the line, as tall as the letters. `[img=art/hero.sprite frame=2]` shows one frame. `columns=` and `rows=` cut a plain image into frames. `height=` or `width=` set its size |
 | `[link=shop]` | Marks a part of the text that the player can click (see [Links](#links)) |
 | `[wave]`, `[shake]`, `[rainbow]`, `[pulse]`, `[fade]` | Effects that move or color each letter (see below) |
 | `[pause=0.5]`, `[speed=10]` | For [revealing text](#revealing-text-a-typewriter): wait at this position, or change the speed |
@@ -261,8 +261,8 @@ local lines = smitten.text.wrap("A long sentence to cut up", { width = 120, size
 | `smitten.text.effects()` | Returns the names of all effects, sorted. |
 | `smitten.text.measure(text, options?)` | Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing. |
 | `smitten.text.wrap(text, options?)` | Returns the lines of a text when it wraps at a width: wrap("a long sentence", { width = 120 }) returns a list of strings. |
-| `smitten.text.strip(text)` | Returns the text without its markup: strip("[b]Hi[/b]") is "Hi". |
-| `smitten.text.escape(text)` | Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup. |
+| `smitten.text.strip(text)` | Returns the text without its text tags: strip("[b]Hi[/b]") is "Hi". |
+| `smitten.text.escape(text)` | Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as text tags. |
 | `smitten.text.color(value)` | Returns a color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil. |
 <!-- end -->
 
@@ -384,7 +384,7 @@ A Label has the same properties, methods and events. It also has `valign`,
 | `align` | enum | "center" | Aligns the text around the position of the piece. justify stretches wrapped lines to the same width. |
 | `wrap` | number (px) | 0 | The text wraps lines that are longer than this. 0 means that lines never wrap. |
 | `wrapBy` | enum | "word" | Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese). |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `outline` | bool | false | When this is on, the text has a dark outline. |
 | `fontBold` | resource | "" | The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker. |
 | `fontItalic` | resource | "" | The font file for [i]italic[/i] words. If it is empty, the engine slants the font. |
@@ -403,7 +403,7 @@ A Label has the same properties, methods and events. It also has `valign`,
 | --- | --- |
 | `measure()` | Returns the size of the text in its current layout: width, height. |
 | `lineCount()` | Returns the number of lines in the text. |
-| `characterCount()` | Returns the number of characters in the text. Markup and line breaks do not count. |
+| `characterCount()` | Returns the number of characters in the text. Text tags and line breaks do not count. |
 | `characterRect(index)` | Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character. |
 | `characterAt(x, y)` | Returns the number of the character at a point (measured from the position of the piece), or nil. |
 | `linkAt(x, y)` | Returns the name of the [link=name] at a point (measured from the position of the piece), or nil. |

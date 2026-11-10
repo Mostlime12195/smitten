@@ -132,17 +132,17 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <ul><li>The player presses Escape.</li><li>The player presses Tab. The focus goes to the next piece.</li><li>The player clicks a different position.</li><li>A script calls <code>blur()</code>.</li></ul>
 <p>The TextInput uses <a href="input#typing"><code>typed()</code></a>. To make your own text input without a piece, use <code>typed()</code>.</p>
 <h2 id="skins"><a class="anchor" href="#skins" aria-hidden="true">#</a>Skins</h2>
-<p>Smitten draws Panels, Buttons, TextInputs and Sliders as plain shapes in a color. To draw a picture instead, give the piece a <strong>skin</strong>. When Smitten stretches a skin, the corners keep their shape. <code>skinEdges</code> sets how many pixels at each edge keep their size. Only the middle stretches. For example, take a 24 × 24 picture of a wooden frame, and set <code>skinEdges</code> to</p>
-<ol><li>This makes a panel of any size with sharp corners.</li></ol>
+<p>Smitten draws Panels, Buttons, TextInputs and Sliders as plain shapes in a color. To draw an image instead, give the piece a <strong>skin</strong>. When Smitten stretches a skin, the corners keep their shape. <code>skinEdges</code> sets how many pixels at each edge keep their size. Only the middle stretches. For example, take a 24 × 24 image of a wooden frame, and set <code>skinEdges</code> to</p>
+<ol start="8"><li>This makes a panel of any size with sharp corners.</li></ol>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>skin</code></td><td>The picture</td></tr>
+<tbody><tr><td><code>skin</code></td><td>The image</td></tr>
 <tr><td><code>skinEdges</code></td><td><code>8</code> for all four edges, or <code>8, 4, 8, 12</code>: left, top, right, bottom</td></tr>
 <tr><td><code>skinHover</code>, <code>skinDown</code> (Button)</td><td>Pictures for when the pointer is on the Button, and for when the Button is down. Without them, Smitten draws the skin a little lighter or darker</td></tr>
-<tr><td><code>knobImage</code> (Slider)</td><td>A picture for the knob. <code>skin</code> is the track. <code>color</code> tints the filled part</td></tr>
+<tr><td><code>knobImage</code> (Slider)</td><td>An image for the knob. <code>skin</code> is the track. <code>color</code> tints the filled part</td></tr>
 <tr><td><code>skin</code>, <code>skinChecked</code> (Checkbox)</td><td>Pictures for the box when it is not ticked and when it is ticked</td></tr></tbody>
 </table></div>
-<p>If the display setting of the project is pixel, Smitten does not smooth the skins. This is the same for all pictures.</p>
+<p>If the display setting of the project is pixel, Smitten does not smooth the skins. This is the same for all images.</p>
 <h2 id="menus-for-keyboards-and-gamepads"><a class="anchor" href="#menus-for-keyboards-and-gamepads" aria-hidden="true">#</a>Menus for keyboards and gamepads</h2>
 <p>If you turn on <strong>autofocus</strong> on a Button, the Button has the focus when the scene starts. This is also possible on a Slider, a Checkbox or a TextInput. Then:</p>
 <ul><li>The arrow keys, the d-pad and the stick move the focus to the nearest piece in that direction.</li><li>Tab and Shift+Tab move the focus through the pieces in their order.</li><li>The piece with the focus shows a ring.</li></ul>
@@ -235,7 +235,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Aligns the text vertically inside its rectangle.</td></tr>
 <tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the text smaller until it fits inside the rectangle.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
 <tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
 <tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
@@ -254,7 +254,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
 <tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
-<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Text tags and line breaks do not count.</td></tr>
 <tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
 <tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the top-left corner of the Label), or nil.</td></tr>
 <tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil.</td></tr>
@@ -276,7 +276,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>The font size.</td></tr>
 <tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The background color.</td></tr>
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the words smaller until they fit inside the button.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot press the button, and it looks faded.</td></tr>

@@ -8,11 +8,11 @@ Each scene has a physics world, which uses Box2D:
 - **Joints** connect bodies.
 - Solid **tiles** are walls and floors.
 
-The engine updates the physics world 60 times a second, immediately after
+The engine updates the physics world 60 times per second, immediately after
 it calls `physicsUpdate(dt)` on all pieces.
 
-Lengths are in pixels, and speeds are in pixels a second. Angles are in
-degrees, clockwise (`spin` is in degrees a second). Mass is in kilograms.
+Lengths are in pixels, and speeds are in pixels per second. Angles are in
+degrees, clockwise (`spin` is in degrees per second). Mass is in kilograms.
 As everywhere in Smitten, `y` points down, so `vy = -400` moves up.
 
 ## Bodies

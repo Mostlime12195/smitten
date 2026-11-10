@@ -66,7 +66,7 @@
 <tr><td><code>[outline]</code>, <code>[outline=#000]</code>, <code>[outline=2,#000]</code></td><td>An outline. It is 1 pixel and black if you do not give a width and a color</td></tr>
 <tr><td><code>[shadow]</code>, <code>[shadow=#000 x=2 y=2]</code></td><td>A shadow, with its color and its distance from the text</td></tr>
 <tr><td><code>[center]</code>, <code>[right]</code>, <code>[left]</code></td><td>Aligns this line, and ignores <code>align</code>. Put it at the start of a line</td></tr>
-<tr><td><code>[img=art/coin.png]</code></td><td>A picture in the line, as tall as the letters. <code>[img=art/hero.sprite frame=2]</code> shows one frame. <code>columns=</code> and <code>rows=</code> cut a plain picture into frames. <code>height=</code> or <code>width=</code> set its size</td></tr>
+<tr><td><code>[img=art/coin.png]</code></td><td>An image in the line, as tall as the letters. <code>[img=art/hero.sprite frame=2]</code> shows one frame. <code>columns=</code> and <code>rows=</code> cut a plain image into frames. <code>height=</code> or <code>width=</code> set its size</td></tr>
 <tr><td><code>[link=shop]</code></td><td>Marks a part of the text that the player can click (see <a href="#links">Links</a>)</td></tr>
 <tr><td><code>[wave]</code>, <code>[shake]</code>, <code>[rainbow]</code>, <code>[pulse]</code>, <code>[fade]</code></td><td>Effects that move or color each letter (see below)</td></tr>
 <tr><td><code>[pause=0.5]</code>, <code>[speed=10]</code></td><td>For <a href="#revealing-text-a-typewriter">revealing text</a>: wait at this position, or change the speed</td></tr></tbody>
@@ -180,8 +180,8 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
 <tr><td><code>smitten.text.effects()</code></td><td>Returns the names of all effects, sorted.</td></tr>
 <tr><td><code>smitten.text.measure(text, options?)</code></td><td>Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.</td></tr>
 <tr><td><code>smitten.text.wrap(text, options?)</code></td><td>Returns the lines of a text when it wraps at a width: wrap(&quot;a long sentence&quot;, { width = 120 }) returns a list of strings.</td></tr>
-<tr><td><code>smitten.text.strip(text)</code></td><td>Returns the text without its markup: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
-<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup.</td></tr>
+<tr><td><code>smitten.text.strip(text)</code></td><td>Returns the text without its text tags: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
+<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as text tags.</td></tr>
 <tr><td><code>smitten.text.color(value)</code></td><td>Returns a color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
 </table></div>
 <h2 id="links"><a class="anchor" href="#links" aria-hidden="true">#</a>Links</h2>
@@ -250,7 +250,7 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
 <tr><td><code>align</code></td><td>enum</td><td>&quot;center&quot;</td><td>Aligns the text around the position of the piece. justify stretches wrapped lines to the same width.</td></tr>
 <tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>The text wraps lines that are longer than this. 0 means that lines never wrap.</td></tr>
 <tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese).</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
 <tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
 <tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
@@ -269,7 +269,7 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
 <tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
-<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Text tags and line breaks do not count.</td></tr>
 <tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
 <tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the position of the piece), or nil.</td></tr>
 <tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the position of the piece), or nil.</td></tr>

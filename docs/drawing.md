@@ -32,7 +32,7 @@ end
 | `poly(points, fill)` | Draws a polygon: poly({x1, y1, x2, y2, x3, y3}). |
 | `line(x1, y1, x2, y2, ...)` | Draws a line through points. |
 | `dot(x, y)` | Draws one pixel. |
-| `write(text, x, y, options)` | Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height. |
+| `write(text, x, y, options)` | Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads text tags such as [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height. |
 | `sprite(image, x, y, options)` | Draws an image, or an animation frame of a sprite sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
 <!-- end -->
 
@@ -74,16 +74,16 @@ write("[b]Wave[/b] [color=gold]3[/color]", 160, 8, { rich = true, size = 20, ali
 
 ## Sprites
 
-`sprite(path, x, y)` draws a picture with its top-left corner at x, y. A
-table of options can choose a frame, or turn, scale or flip the picture:
+`sprite(path, x, y)` draws an image with its top-left corner at x, y. A
+table of options can choose a frame, or turn, scale or flip the image:
 
 | Option | |
 | --- | --- |
 | `frame` | A frame of a `.sprite` file, or of a sheet that `columns` and `rows` cut (the first frame is 0) |
-| `columns`, `rows` | Cut a plain picture into frames |
+| `columns`, `rows` | Cut a plain image into frames |
 | `rotation`, `scale`, `scaleX`, `scaleY` | Turn (in degrees) and size |
-| `flipX`, `flipY` | Mirror the picture |
-| `centered` | Put the center of the picture on x, y |
+| `flipX`, `flipY` | Mirror the image |
+| `centered` | Put the center of the image on x, y |
 
 ```lua
 sprite("art/tiles.png", 32, 0, { columns = 8, rows = 8, frame = 12 })

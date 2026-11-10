@@ -185,8 +185,8 @@ Rich text, text measurement and text effects. See [Text](text.md).
 | `smitten.text.effects()` | Returns the names of all effects, sorted. |
 | `smitten.text.measure(text, options?)` | Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing. |
 | `smitten.text.wrap(text, options?)` | Returns the lines of a text when it wraps at a width: wrap("a long sentence", { width = 120 }) returns a list of strings. |
-| `smitten.text.strip(text)` | Returns the text without its markup: strip("[b]Hi[/b]") is "Hi". |
-| `smitten.text.escape(text)` | Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup. |
+| `smitten.text.strip(text)` | Returns the text without its text tags: strip("[b]Hi[/b]") is "Hi". |
+| `smitten.text.escape(text)` | Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as text tags. |
 | `smitten.text.color(value)` | Returns a color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil. |
 
 ### smitten.synth

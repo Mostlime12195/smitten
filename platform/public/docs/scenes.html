@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Scenes and pieces</h1>
-<p>A <strong>scene</strong> is one screen of your game, for example a level, a menu or a game over screen. Smitten keeps each scene in a <code>.scene</code> file. A scene is a tree of <strong>pieces</strong>. For example, a level can have the player, the ground, some coins and a camera in it. The player has its picture and its own camera in it. One scene runs at a time. The game starts with the main scene of the project.</p>
+<p>A <strong>scene</strong> is one screen of your game, for example a level, a menu or a game over screen. Smitten keeps each scene in a <code>.scene</code> file. A scene is a tree of <strong>pieces</strong>. For example, a level can have the player, the ground, some coins and a camera in it. The player has its image and its own camera in it. One scene runs at a time. The game starts with the main scene of the project.</p>
 <p>You can put a scene inside a different scene (a placed scene). For example, the coin in the Platformer template is a small scene. The level has this scene in it many times. Each copy can change its properties. When you change the coin scene, all the copies change.</p>
 <h2 id="finding-pieces"><a class="anchor" href="#finding-pieces" aria-hidden="true">#</a>Finding pieces</h2>
 <div class="table"><table>
@@ -128,7 +128,7 @@ Enemies:<span class="tk-f">add</span>(enemy)
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function ready(...)</code></td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
 <tr><td><code>function update(dt)</code></td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times per second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
 <tr><td><code>function removed()</code></td><td>The engine calls it when the piece leaves the scene.</td></tr></tbody>
 </table></div>

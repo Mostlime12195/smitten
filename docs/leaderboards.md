@@ -163,8 +163,8 @@ When a call gives `nil`, the second value tells the cause:
 | `"unavailable"` | The game is not on its page on the games site, or it has no leaderboards there |
 | `"no-board"` | The game has no leaderboard with that key (look at the key on your account page) |
 | `"bad-value"` | The score is not a number |
-| `"out-of-range"` | The score is outside the range that the leaderboard permits |
-| `"bad-name"` | The name of the guest is too long, has other characters, or has a word that the games site does not permit |
+| `"out-of-range"` | The score is outside the range that the leaderboard accepts |
+| `"bad-name"` | The name of the guest is too long, has other characters, or has a word that the games site does not accept |
 | `"too-many"` | Too many scores from this player or network in the last hour |
 | `"busy"` | Too many calls at the same time. Wait for the answers before you ask again |
 | `"timeout"`, `"offline"` | The games site did not answer |
@@ -188,7 +188,7 @@ For more protection, do these things:
   promise prizes for scores.
 - Look at your leaderboards from time to time. On the page of the game,
   **Remove** the scores that cannot be real, or **Reset** the leaderboard.
-- Give the leaderboard a lowest and a highest permitted score (`min` and
+- Give the leaderboard a lowest and a highest score that it accepts (`min` and
   `max`, through the API of the games site. See the README of the site).
   This stops the most obvious false scores. For example, nobody gets
   999,999,999 in a game where the maximum is 5,000.

@@ -26,7 +26,7 @@ The editor opens your game. These are the parts of the editor:
 3. **Inspector**: the properties of the selected piece, for example its
    position, its color, or how fast it runs.
 4. **Files panel**: all the files in your project, for example scenes,
-   scripts, pictures and sounds.
+   scripts, images and sounds.
 5. **Output**: messages from your game while it runs, and errors.
 
 You can move the panels to different positions. To move a panel, drag its

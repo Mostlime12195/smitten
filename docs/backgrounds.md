@@ -12,8 +12,8 @@ game draws them, the Background moves them all by the same distance.
 | | |
 | --- | --- |
 | `scrollX`, `scrollY` | How much it moves with the scene when the camera moves. Use 1 for the same speed as all other pieces. Use 0.5 for half the speed, so it looks far away. Use 0 to keep it at one place on the screen. Use more than 1 for things in front |
-| `repeatWidth`, `repeatHeight` | The engine draws the pieces inside again at each interval of this many pixels, to the end of the view. With this, one picture gives a background with no end (0: once) |
-| `driftX`, `driftY` | Moves by itself, in pixels a second: for clouds, rain or a starfield |
+| `repeatWidth`, `repeatHeight` | The engine draws the pieces inside again at each interval of this many pixels, to the end of the view. With this, one image gives a background with no end (0: once) |
+| `driftX`, `driftY` | Moves by itself, in pixels per second: for clouds, rain or a starfield |
 | `offsetX`, `offsetY` | Moves it by this distance. Change these properties from a script to scroll the Background yourself |
 | `left`, `top`, `right`, `bottom` | Edges. While the view is past an edge, the Background does not scroll at its own speed in that direction. It moves with the scene |
 
@@ -32,17 +32,17 @@ platformer:
 
 1. Add a **Background** with the name Sky. Set `scrollX` and `scrollY`
    to 0.
-2. Put a Sprite with the sky picture inside Sky. Put it where it fills the
+2. Put a Sprite with the sky image inside Sky. Put it where it fills the
    screen of the game (the outline of the screen in the scene view).
 3. Add a **Background** with the name Hills. Set `scrollX` to 0.3.
 4. Set `scrollY` of Hills to 0.3. To keep the hills level with the ground,
    set it to 1.
 5. Put the Sprite with the hills inside Hills. Put its left edge at
    x = 0.
-6. Set `repeatWidth` of Hills to the width of the picture. The hills now
+6. Set `repeatWidth` of Hills to the width of the image. The hills now
    continue with no end.
 7. Add a **Background** with the name Forest. Set `scrollX` to 0.6.
-8. Set `repeatWidth` of Forest to the width of its picture.
+8. Set `repeatWidth` of Forest to the width of its image.
 9. Add the level (Tiles, the player, a Camera that follows the player)
    after the Backgrounds in the scene. The engine then draws the level in
    front of them.
@@ -61,14 +61,14 @@ Level
 ```
 
 You do not need code for this. For clouds, add one more Background with a
-picture of clouds, a `repeatWidth` and `driftX = -10`.
+image of clouds, a `repeatWidth` and `driftX = -10`.
 
 ## Where the engine draws Backgrounds
 
 The engine draws a Background at the position where you put it, while the
 camera shows the **first screen** of the scene. The first screen is the
 area from 0, 0 to the width and height of the game. A scene without a
-Camera also shows this area. For this reason, put the background pictures
+Camera also shows this area. For this reason, put the background images
 against the outline of this area in the scene view.
 
 When the camera moves a distance away from the first screen, the
@@ -80,7 +80,7 @@ When the camera zooms, the Backgrounds also zoom, around the center of the
 screen.
 
 When you use a repeat size, the pieces inside must fit between 0 and the
-repeat size (from the position of the Background). For example, a picture
+repeat size (from the position of the Background). For example, an image
 with a width of 480 pixels, its left edge at x = 0 and
 `repeatWidth = 480` repeats with no gaps. A smaller repeat size makes the
 copies overlap. A larger repeat size makes gaps between the copies, which

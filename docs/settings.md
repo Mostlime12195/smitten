@@ -94,11 +94,11 @@ into the main scene. The player does not have to press a Play button.
 
 To change the splash screen, go to **Project settings › Splash**:
 
-1. Choose a picture from your project (for example, a logo or a title
+1. Choose an image from your project (for example, a logo or a title
    screen).
 2. Choose a background color.
 3. Choose how long the splash screen shows.
-4. Choose if "Made with Smitten" shows below the picture.
+4. Choose if "Made with Smitten" shows below the image.
 
 ```json
 "splash": { "image": "art/logo.png", "background": "#1a1c2c", "duration": 2, "madeWith": false }
@@ -106,12 +106,12 @@ To change the splash screen, go to **Project settings › Splash**:
 
 | `splash` | |
 | --- | --- |
-| `image` | A picture from the project, in the middle. Empty for the heart of Smitten |
+| `image` | An image from the project, in the middle. Empty for the heart of Smitten |
 | `background` | `"#rrggbb"`, or `[r, g, b]` from 0 to 1 |
 | `duration` | The minimum time in seconds that the splash screen shows (0 to 10). It shows longer if the game continues to load |
 | `madeWith` | Show "Made with Smitten" (`true` if you do not turn it off) |
 
-In pixel-art games (`display.filter` is `pixel`), the splash picture is
+In pixel-art games (`display.filter` is `pixel`), the splash image is
 sharp, not blurred.
 
 ## Engine modules

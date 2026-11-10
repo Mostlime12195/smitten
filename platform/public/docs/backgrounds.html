@@ -34,8 +34,8 @@
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>scrollX</code>, <code>scrollY</code></td><td>How much it moves with the scene when the camera moves. Use 1 for the same speed as all other pieces. Use 0.5 for half the speed, so it looks far away. Use 0 to keep it at one place on the screen. Use more than 1 for things in front</td></tr>
-<tr><td><code>repeatWidth</code>, <code>repeatHeight</code></td><td>The engine draws the pieces inside again at each interval of this many pixels, to the end of the view. With this, one picture gives a background with no end (0: once)</td></tr>
-<tr><td><code>driftX</code>, <code>driftY</code></td><td>Moves by itself, in pixels a second: for clouds, rain or a starfield</td></tr>
+<tr><td><code>repeatWidth</code>, <code>repeatHeight</code></td><td>The engine draws the pieces inside again at each interval of this many pixels, to the end of the view. With this, one image gives a background with no end (0: once)</td></tr>
+<tr><td><code>driftX</code>, <code>driftY</code></td><td>Moves by itself, in pixels per second: for clouds, rain or a starfield</td></tr>
 <tr><td><code>offsetX</code>, <code>offsetY</code></td><td>Moves it by this distance. Change these properties from a script to scroll the Background yourself</td></tr>
 <tr><td><code>left</code>, <code>top</code>, <code>right</code>, <code>bottom</code></td><td>Edges. While the view is past an edge, the Background does not scroll at its own speed in that direction. It moves with the scene</td></tr></tbody>
 </table></div>
@@ -43,7 +43,7 @@
 <ul><li><code>layer</code> and the sequence in the scene set which pieces are in front.</li><li><code>tint</code> gives it a color.</li><li><code>visible</code> hides it.</li><li>A <a href="lights">Light or the Tint</a> lights the pieces inside, as it lights all pieces. For a sky that must stay bright at night, turn <code>lit</code> off.</li></ul>
 <h2 id="three-layers"><a class="anchor" href="#three-layers" aria-hidden="true">#</a>Three layers</h2>
 <p>This example puts a sky, hills and a forest behind the level of a platformer:</p>
-<ol><li>Add a <strong>Background</strong> with the name Sky. Set <code>scrollX</code> and <code>scrollY</code> to 0.</li><li>Put a Sprite with the sky picture inside Sky. Put it where it fills the screen of the game (the outline of the screen in the scene view).</li><li>Add a <strong>Background</strong> with the name Hills. Set <code>scrollX</code> to 0.3.</li><li>Set <code>scrollY</code> of Hills to 0.3. To keep the hills level with the ground, set it to 1.</li><li>Put the Sprite with the hills inside Hills. Put its left edge at x = 0.</li><li>Set <code>repeatWidth</code> of Hills to the width of the picture. The hills now continue with no end.</li><li>Add a <strong>Background</strong> with the name Forest. Set <code>scrollX</code> to 0.6.</li><li>Set <code>repeatWidth</code> of Forest to the width of its picture.</li><li>Add the level (Tiles, the player, a Camera that follows the player) after the Backgrounds in the scene. The engine then draws the level in front of them.</li></ol>
+<ol><li>Add a <strong>Background</strong> with the name Sky. Set <code>scrollX</code> and <code>scrollY</code> to 0.</li><li>Put a Sprite with the sky image inside Sky. Put it where it fills the screen of the game (the outline of the screen in the scene view).</li><li>Add a <strong>Background</strong> with the name Hills. Set <code>scrollX</code> to 0.3.</li><li>Set <code>scrollY</code> of Hills to 0.3. To keep the hills level with the ground, set it to 1.</li><li>Put the Sprite with the hills inside Hills. Put its left edge at x = 0.</li><li>Set <code>repeatWidth</code> of Hills to the width of the image. The hills now continue with no end.</li><li>Add a <strong>Background</strong> with the name Forest. Set <code>scrollX</code> to 0.6.</li><li>Set <code>repeatWidth</code> of Forest to the width of its image.</li><li>Add the level (Tiles, the player, a Camera that follows the player) after the Backgrounds in the scene. The engine then draws the level in front of them.</li></ol>
 <pre><code>Level
 ├─ Sky       Background   scroll 0
 │  └─ Sprite
@@ -54,12 +54,12 @@
 ├─ Ground    Tiles
 └─ Player    Body
    └─ Camera</code></pre>
-<p>You do not need code for this. For clouds, add one more Background with a picture of clouds, a <code>repeatWidth</code> and <code>driftX = -10</code>.</p>
+<p>You do not need code for this. For clouds, add one more Background with a image of clouds, a <code>repeatWidth</code> and <code>driftX = -10</code>.</p>
 <h2 id="where-the-engine-draws-backgrounds"><a class="anchor" href="#where-the-engine-draws-backgrounds" aria-hidden="true">#</a>Where the engine draws Backgrounds</h2>
-<p>The engine draws a Background at the position where you put it, while the camera shows the <strong>first screen</strong> of the scene. The first screen is the area from 0, 0 to the width and height of the game. A scene without a Camera also shows this area. For this reason, put the background pictures against the outline of this area in the scene view.</p>
+<p>The engine draws a Background at the position where you put it, while the camera shows the <strong>first screen</strong> of the scene. The first screen is the area from 0, 0 to the width and height of the game. A scene without a Camera also shows this area. For this reason, put the background images against the outline of this area in the scene view.</p>
 <p>When the camera moves a distance away from the first screen, the Background moves with the scene by <code>scroll</code> times that distance. The scene view shows Backgrounds at the positions where you put them. It also shows a note with their scroll values and an outline of the repeat size.</p>
 <p>When the camera zooms, the Backgrounds also zoom, around the center of the screen.</p>
-<p>When you use a repeat size, the pieces inside must fit between 0 and the repeat size (from the position of the Background). For example, a picture with a width of 480 pixels, its left edge at x = 0 and <code>repeatWidth = 480</code> repeats with no gaps. A smaller repeat size makes the copies overlap. A larger repeat size makes gaps between the copies, which is good for clouds or lamp posts that stand alone.</p>
+<p>When you use a repeat size, the pieces inside must fit between 0 and the repeat size (from the position of the Background). For example, an image with a width of 480 pixels, its left edge at x = 0 and <code>repeatWidth = 480</code> repeats with no gaps. A smaller repeat size makes the copies overlap. A larger repeat size makes gaps between the copies, which is good for clouds or lamp posts that stand alone.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- Scroll a starfield from the script, not with the camera</span>
 <span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
   Stars.offsetX -= shipSpeed * dt * <span class="tk-n">0.2</span>

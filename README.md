@@ -2,7 +2,7 @@
 
 Smitten is a 2D game engine in your browser. You make scenes from pieces.
 You give the pieces behavior with Lua scripts that are yours. You paint
-pictures, and you make sound effects and music. Then you share the game,
+images, and you make sound effects and music. Then you share the game,
 and anyone can play it and remix it. All of this is in one browser tab,
 and you do not install anything. The engine uses a fork of
 [LÖVE](https://love2d.org) 12, compiled to WebAssembly.
@@ -16,7 +16,7 @@ games). Smitten and Cupid are not affiliated with the LÖVE team.
 ## What you get
 
 - **Scenes made of pieces**:
-  - A `Sprite` draws a picture.
+  - A `Sprite` draws an image.
   - A `Body` is solid. It does not move, or your script moves it, or
     physics moves it. Its shape fits the pieces in it.
   - A `Zone` finds things that come into it.
@@ -376,9 +376,9 @@ The editor is `dist/index.html`. It keeps all files in the browser
 (IndexedDB). It does not upload anything, until you share or publish.
 
 - **Workspaces** across the top (Alt+1 to 5): **Scene**, **Script**,
-  **Paint** (pictures and sprite sheets), **Sound** (sound effects) and
+  **Paint** (images and sprite sheets), **Sound** (sound effects) and
   **Music** (songs). Each workspace has its own tabs, and it opens ready
-  to use. For example, Paint starts on a new picture, and Sound starts on
+  to use. For example, Paint starts on a new image, and Sound starts on
   a new sound effect. New work becomes a file the first time that you change it.
 - **Panels**: the Scene panel (the pieces), the Files panel, the Inspector
   and Output.

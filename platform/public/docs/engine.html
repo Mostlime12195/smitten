@@ -182,8 +182,8 @@
 <tr><td><code>smitten.text.effects()</code></td><td>Returns the names of all effects, sorted.</td></tr>
 <tr><td><code>smitten.text.measure(text, options?)</code></td><td>Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.</td></tr>
 <tr><td><code>smitten.text.wrap(text, options?)</code></td><td>Returns the lines of a text when it wraps at a width: wrap(&quot;a long sentence&quot;, { width = 120 }) returns a list of strings.</td></tr>
-<tr><td><code>smitten.text.strip(text)</code></td><td>Returns the text without its markup: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
-<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup.</td></tr>
+<tr><td><code>smitten.text.strip(text)</code></td><td>Returns the text without its text tags: strip(&quot;[b]Hi[/b]&quot;) is &quot;Hi&quot;.</td></tr>
+<tr><td><code>smitten.text.escape(text)</code></td><td>Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as text tags.</td></tr>
 <tr><td><code>smitten.text.color(value)</code></td><td>Returns a color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
 </table></div>
 <h3 id="smitten-synth"><a class="anchor" href="#smitten-synth" aria-hidden="true">#</a>smitten.synth</h3>

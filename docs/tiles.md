@@ -1,7 +1,7 @@
 # Tiles
 
 A **Tiles** piece is a grid of cells that you paint with tiles from a
-tileset. A tileset is a picture with a grid of squares, and each square
+tileset. A tileset is an image with a grid of squares, and each square
 is one tile. Each tile can have **tile properties**. For example:
 
 - `solid`: the tile blocks bodies.
@@ -15,7 +15,7 @@ for blocks that break, for doors, or for levels that a script makes.
 Cell numbers are columns and rows from the position of the Tiles piece.
 The top-left cell is (0, 0), and negative numbers are also correct. Each
 cell holds a tile number or -1. Tile numbers start at 0 and count across
-the tileset picture. The number -1 means that the cell is empty.
+the tileset image. The number -1 means that the cell is empty.
 
 ## Reading and changing cells
 
@@ -98,7 +98,7 @@ side of the Tiles panel, and do these steps:
 1. Click **New terrain**.
 2. Give the terrain a name.
 3. Mark the tiles of the terrain. When **Mark its tiles** is on, each tile
-   in the picture has nine parts:
+   in the image has nine parts:
    1. Click the **middle** of each tile of the terrain.
    2. Click the **sides and corners** where that tile joins more of the
       same terrain.
@@ -115,7 +115,7 @@ side of the Tiles panel, and do these steps:
 To paint with plain tiles again, set **Paint with** to **Picked tiles**,
 or pick a tile.
 
-If your picture has one of the usual layouts (below), choose the layout in
+If your image has one of the usual layouts (below), choose the layout in
 **Fill in from a layout**. This marks the full sheet in one step. Before
 you do this, pick the top-left tile of the sheet. You can also mark the
 tiles of a different layout by hand.
@@ -246,12 +246,12 @@ A tile can be an **animation**: it shows other tiles in turn. Use this for
 water, lava, torches or conveyor belts. To make an animated tile:
 
 1. In the Tiles panel, open **Animation**.
-2. Drag across the animation frames in the picture, from the first to the
+2. Drag across the animation frames in the image, from the first to the
    last.
 3. Click **Animate with these tiles**.
 
 You paint with the first tile. The tile properties of the first tile
-(`solid`, `damage`...) are the ones that count. The picture shows the
+(`solid`, `damage`...) are the ones that count. The image shows the
 animation.
 
 | | |

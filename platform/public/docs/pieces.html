@@ -62,7 +62,7 @@
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function ready(...)</code></td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
 <tr><td><code>function update(dt)</code></td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>The engine calls it 60 times per second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
 <tr><td><code>function removed()</code></td><td>The engine calls it when the piece leaves the scene.</td></tr></tbody>
 </table></div>
@@ -175,7 +175,7 @@
 <tr><td><code>align</code></td><td>enum</td><td>&quot;center&quot;</td><td>Aligns the text around the position of the piece. justify stretches wrapped lines to the same width.</td></tr>
 <tr><td><code>wrap</code></td><td>number (px)</td><td>0</td><td>The text wraps lines that are longer than this. 0 means that lines never wrap.</td></tr>
 <tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese).</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
 <tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
 <tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
@@ -194,7 +194,7 @@
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
 <tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
-<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Text tags and line breaks do not count.</td></tr>
 <tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
 <tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the position of the piece), or nil.</td></tr>
 <tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the position of the piece), or nil.</td></tr>
@@ -544,7 +544,7 @@
 <tr><td><code>valign</code></td><td>enum</td><td>&quot;top&quot;</td><td>Aligns the text vertically inside its rectangle.</td></tr>
 <tr><td><code>wrapBy</code></td><td>enum</td><td>&quot;word&quot;</td><td>Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the text smaller until it fits inside the rectangle.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>outline</code></td><td>bool</td><td>false</td><td>When this is on, the text has a dark outline.</td></tr>
 <tr><td><code>fontBold</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker.</td></tr>
 <tr><td><code>fontItalic</code></td><td>resource</td><td>&quot;&quot;</td><td>The font file for [i]italic[/i] words. If it is empty, the engine slants the font.</td></tr>
@@ -563,7 +563,7 @@
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>measure()</code></td><td>Returns the size of the text in its current layout: width, height.</td></tr>
 <tr><td><code>lineCount()</code></td><td>Returns the number of lines in the text.</td></tr>
-<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Markup and line breaks do not count.</td></tr>
+<tr><td><code>characterCount()</code></td><td>Returns the number of characters in the text. Text tags and line breaks do not count.</td></tr>
 <tr><td><code>characterRect(index)</code></td><td>Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character.</td></tr>
 <tr><td><code>characterAt(x, y)</code></td><td>Returns the number of the character at a point (measured from the top-left corner of the Label), or nil.</td></tr>
 <tr><td><code>linkAt(x, y)</code></td><td>Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil.</td></tr>
@@ -587,7 +587,7 @@
 <tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>The font size.</td></tr>
 <tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The background color.</td></tr>
 <tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The text color.</td></tr>
-<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
+<tr><td><code>rich</code></td><td>bool</td><td>false</td><td>When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket.</td></tr>
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the words smaller until they fit inside the button.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>When this is on, the player cannot press the button, and it looks faded.</td></tr>

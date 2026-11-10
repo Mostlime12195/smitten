@@ -142,7 +142,7 @@
 <tr><td><code>poly(points, fill)</code></td><td>Draws a polygon: poly({x1, y1, x2, y2, x3, y3}).</td></tr>
 <tr><td><code>line(x1, y1, x2, y2, ...)</code></td><td>Draws a line through points.</td></tr>
 <tr><td><code>dot(x, y)</code></td><td>Draws one pixel.</td></tr>
-<tr><td><code>write(text, x, y, options)</code></td><td>Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
+<tr><td><code>write(text, x, y, options)</code></td><td>Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads text tags such as [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.</td></tr>
 <tr><td><code>sprite(image, x, y, options)</code></td><td>Draws an image, or an animation frame of a sprite sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
 </table></div>
 <h2 id="script-functions"><a class="anchor" href="#script-functions" aria-hidden="true">#</a>Script functions</h2>
@@ -151,7 +151,7 @@
 <thead><tr><th>Function</th><th>Pieces</th><th></th></tr></thead>
 <tbody><tr><td><code>function ready(...)</code></td><td>Piece</td><td>The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go().</td></tr>
 <tr><td><code>function update(dt)</code></td><td>Piece</td><td>The engine calls it every frame. dt is the time since the last frame, in seconds.</td></tr>
-<tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>The engine calls it 60 times a second, before bodies move. Use it for movement.</td></tr>
+<tr><td><code>function physicsUpdate(dt)</code></td><td>Piece</td><td>The engine calls it 60 times per second, before bodies move. Use it for movement.</td></tr>
 <tr><td><code>function draw()</code></td><td>Piece</td><td>The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates.</td></tr>
 <tr><td><code>function removed()</code></td><td>Piece</td><td>The engine calls it when the piece leaves the scene.</td></tr>
 <tr><td><code>function hit(other, contact)</code></td><td>Body</td><td>The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse.</td></tr>

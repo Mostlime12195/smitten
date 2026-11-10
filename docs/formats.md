@@ -1,6 +1,6 @@
 # File formats
 
-All project files are JSON, except scripts and pictures. Paths are
+All project files are JSON, except scripts and images. Paths are
 relative to the project folder, unless this page gives a different rule.
 [Project settings](settings.md) tells about `smitten.json`.
 
@@ -115,7 +115,7 @@ There are two more sections, which are optional.
 
   If a tile is in two terrains, it is part of the first terrain only.
 - `animations` gives a tile the tiles that it shows in turn (`frames`).
-  It shows them at `fps` animation frames a second (8 if there is no
+  It shows them at `fps` animation frames per second (8 if there is no
   `fps`), or for `durations` seconds each. With `randomStart`, each cell
   starts at a different point of the loop.
 

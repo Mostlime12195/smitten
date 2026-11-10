@@ -29,10 +29,10 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Tiles</h1>
-<p>A <strong>Tiles</strong> piece is a grid of cells that you paint with tiles from a tileset. A tileset is a picture with a grid of squares, and each square is one tile. Each tile can have <strong>tile properties</strong>. For example:</p>
+<p>A <strong>Tiles</strong> piece is a grid of cells that you paint with tiles from a tileset. A tileset is an image with a grid of squares, and each square is one tile. Each tile can have <strong>tile properties</strong>. For example:</p>
 <ul><li><code>solid</code>: the tile blocks bodies.</li><li><code>oneWay</code>: the tile is solid only from above.</li><li>A tile property of your own, such as <code>damage</code>.</li></ul>
 <p>You paint the tiles in the scene view. Scripts can read and change the cells while the game runs: for blocks that break, for doors, or for levels that a script makes.</p>
-<p>Cell numbers are columns and rows from the position of the Tiles piece. The top-left cell is (0, 0), and negative numbers are also correct. Each cell holds a tile number or -1. Tile numbers start at 0 and count across the tileset picture. The number -1 means that the cell is empty.</p>
+<p>Cell numbers are columns and rows from the position of the Tiles piece. The top-left cell is (0, 0), and negative numbers are also correct. Each cell holds a tile number or -1. Tile numbers start at 0 and count across the tileset image. The number -1 means that the cell is empty.</p>
 <h2 id="reading-and-changing-cells"><a class="anchor" href="#reading-and-changing-cells" aria-hidden="true">#</a>Reading and changing cells</h2>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
@@ -75,11 +75,11 @@
 <h2 id="terrains"><a class="anchor" href="#terrains" aria-hidden="true">#</a>Terrains</h2>
 <p>A <strong>terrain</strong> is a set of tiles that show one material in all its shapes. The shapes are the tile that is alone, the edges, the corners and the middle. When you paint with a terrain, each cell gets the tile that fits the cells next to it. A platform gets its ends and a lake gets its shore, and you do not pick the tiles yourself. A tileset can have many terrains (grass, stone, water). A tile is part of one terrain only.</p>
 <p>To make a terrain, select a Tiles piece. Then open <strong>Terrains</strong> at the side of the Tiles panel, and do these steps:</p>
-<ol><li>Click <strong>New terrain</strong>.</li><li>Give the terrain a name.</li><li>Mark the tiles of the terrain. When <strong>Mark its tiles</strong> is on, each tile in the picture has nine parts:
+<ol><li>Click <strong>New terrain</strong>.</li><li>Give the terrain a name.</li><li>Mark the tiles of the terrain. When <strong>Mark its tiles</strong> is on, each tile in the image has nine parts:
 <ol><li>Click the <strong>middle</strong> of each tile of the terrain.</li><li>Click the <strong>sides and corners</strong> where that tile joins more of the same terrain.</li></ol>
 <p>For example, if the grass in a tile goes to the right side of the tile, mark the right side. For a tile in the middle of an area of grass, mark all the parts.</p></li><li>Click <strong>Paint with it</strong>.</li><li>Paint the terrain in the scene view. The brush, the rectangle, the bucket and the eraser fit the edges of the cells that they change. They also fit the edges of the cells around those cells. One stroke is one undo step, as with all painting.</li></ol>
 <p>To paint with plain tiles again, set <strong>Paint with</strong> to <strong>Picked tiles</strong>, or pick a tile.</p>
-<p>If your picture has one of the usual layouts (below), choose the layout in <strong>Fill in from a layout</strong>. This marks the full sheet in one step. Before you do this, pick the top-left tile of the sheet. You can also mark the tiles of a different layout by hand.</p>
+<p>If your image has one of the usual layouts (below), choose the layout in <strong>Fill in from a layout</strong>. This marks the full sheet in one step. Before you do this, pick the top-left tile of the sheet. You can also mark the tiles of a different layout by hand.</p>
 <p><strong>Neighbours that count</strong> sets which cells around a cell change its tile:</p>
 <div class="table"><table>
 <thead><tr><th></th><th>A cell looks at</th><th>Different tiles</th></tr></thead>
@@ -160,8 +160,8 @@
 <p><code>setTile</code> is exact: it puts the tile that you give in the cell, and it does not change the cells next to it. Cells hold only tile numbers. The terrain of a cell comes from its tile. Because of this, maps do not need new data, and you can add terrains to a tileset later.</p>
 <h2 id="animated-tiles"><a class="anchor" href="#animated-tiles" aria-hidden="true">#</a>Animated tiles</h2>
 <p>A tile can be an <strong>animation</strong>: it shows other tiles in turn. Use this for water, lava, torches or conveyor belts. To make an animated tile:</p>
-<ol><li>In the Tiles panel, open <strong>Animation</strong>.</li><li>Drag across the animation frames in the picture, from the first to the last.</li><li>Click <strong>Animate with these tiles</strong>.</li></ol>
-<p>You paint with the first tile. The tile properties of the first tile (<code>solid</code>, <code>damage</code>...) are the ones that count. The picture shows the animation.</p>
+<ol><li>In the Tiles panel, open <strong>Animation</strong>.</li><li>Drag across the animation frames in the image, from the first to the last.</li><li>Click <strong>Animate with these tiles</strong>.</li></ol>
+<p>You paint with the first tile. The tile properties of the first tile (<code>solid</code>, <code>damage</code>...) are the ones that count. The image shows the animation.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><strong>Frames</strong></td><td>The tiles that it shows, in sequence</td></tr>

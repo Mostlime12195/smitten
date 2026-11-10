@@ -360,8 +360,10 @@ function render(md) {
           items.push([l.slice(width)]);
         } else if (items.length && /^\s{2,}\S/.test(l)) {
           items[items.length - 1].push(l.slice(Math.min(width, /^\s*/.exec(l)[0].length)));
-        } else if (items.length && !l.trim() && i + 1 < lines.length && (/^\s{2,}\S/.test(lines[i + 1]))) {
+        } else if (items.length && !l.trim() && i + 1 < lines.length && /^\s{2,}\S/.test(lines[i + 1])) {
           items[items.length - 1].push('');
+        } else if (items.length && !l.trim() && i + 1 < lines.length && marker.test(lines[i + 1])) {
+          // A blank line between two items: the list goes on.
         } else break;
         i++;
       }
@@ -371,7 +373,8 @@ function render(md) {
         const inner = render(it.join('\n')).html.replace(/^<p>([\s\S]*?)<\/p>/, '$1');
         return `<li>${inner}</li>`;
       };
-      html.push(`<${tag}>${items.map(li).join('')}</${tag}>`);
+      const first = ordered ? parseInt(line, 10) : 1;
+      html.push(`<${tag}${first !== 1 ? ` start="${first}"` : ''}>${items.map(li).join('')}</${tag}>`);
     } else if (/^> /.test(line)) {
       const q = [];
       while (i < lines.length && /^> ?/.test(lines[i]) && lines[i].trim()) q.push(lines[i++].replace(/^> ?/, ''));

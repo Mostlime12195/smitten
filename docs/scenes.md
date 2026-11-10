@@ -3,7 +3,7 @@
 A **scene** is one screen of your game, for example a level, a menu or a
 game over screen. Smitten keeps each scene in a `.scene` file. A scene is
 a tree of **pieces**. For example, a level can have the player, the ground,
-some coins and a camera in it. The player has its picture and its own
+some coins and a camera in it. The player has its image and its own
 camera in it. One scene runs at a time. The game starts with the main
 scene of the project.
 
@@ -168,7 +168,7 @@ speed at all time scales.
 | --- | --- |
 | `function ready(...)` | The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go(). |
 | `function update(dt)` | The engine calls it every frame. dt is the time since the last frame, in seconds. |
-| `function physicsUpdate(dt)` | The engine calls it 60 times a second, before bodies move. Use it for movement. |
+| `function physicsUpdate(dt)` | The engine calls it 60 times per second, before bodies move. Use it for movement. |
 | `function draw()` | The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates. |
 | `function removed()` | The engine calls it when the piece leaves the scene. |
 <!-- end -->

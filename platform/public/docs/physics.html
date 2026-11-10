@@ -31,8 +31,8 @@
 <h1>Physics</h1>
 <p>Each scene has a physics world, which uses Box2D:</p>
 <ul><li><strong>Bodies</strong> are solid things that hit each other.</li><li><strong>Zones</strong> see when things go in and out.</li><li><strong>Hitboxes</strong> give Bodies and Zones more shapes.</li><li><strong>Joints</strong> connect bodies.</li><li>Solid <strong>tiles</strong> are walls and floors.</li></ul>
-<p>The engine updates the physics world 60 times a second, immediately after it calls <code>physicsUpdate(dt)</code> on all pieces.</p>
-<p>Lengths are in pixels, and speeds are in pixels a second. Angles are in degrees, clockwise (<code>spin</code> is in degrees a second). Mass is in kilograms. As everywhere in Smitten, <code>y</code> points down, so <code>vy = -400</code> moves up.</p>
+<p>The engine updates the physics world 60 times per second, immediately after it calls <code>physicsUpdate(dt)</code> on all pieces.</p>
+<p>Lengths are in pixels, and speeds are in pixels per second. Angles are in degrees, clockwise (<code>spin</code> is in degrees per second). Mass is in kilograms. As everywhere in Smitten, <code>y</code> points down, so <code>vy = -400</code> moves up.</p>
 <h2 id="bodies"><a class="anchor" href="#bodies" aria-hidden="true">#</a>Bodies</h2>
 <p>The <strong>motion</strong> of a Body sets what moves it:</p>
 <div class="table"><table>

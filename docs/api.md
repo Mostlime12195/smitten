@@ -133,7 +133,7 @@ See [Drawing](drawing.md).
 | `poly(points, fill)` | Draws a polygon: poly({x1, y1, x2, y2, x3, y3}). |
 | `line(x1, y1, x2, y2, ...)` | Draws a line through points. |
 | `dot(x, y)` | Draws one pixel. |
-| `write(text, x, y, options)` | Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height. |
+| `write(text, x, y, options)` | Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads text tags such as [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height. |
 | `sprite(image, x, y, options)` | Draws an image, or an animation frame of a sprite sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
 
 ## Script functions
@@ -144,7 +144,7 @@ The engine calls these functions when a script has them.
 | --- | --- | --- |
 | `function ready(...)` | Piece | The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go(). |
 | `function update(dt)` | Piece | The engine calls it every frame. dt is the time since the last frame, in seconds. |
-| `function physicsUpdate(dt)` | Piece | The engine calls it 60 times a second, before bodies move. Use it for movement. |
+| `function physicsUpdate(dt)` | Piece | The engine calls it 60 times per second, before bodies move. Use it for movement. |
 | `function draw()` | Piece | The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates. |
 | `function removed()` | Piece | The engine calls it when the piece leaves the scene. |
 | `function hit(other, contact)` | Body | The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse. |

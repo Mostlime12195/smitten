@@ -84,16 +84,16 @@
 <h2 id="the-splash-screen"><a class="anchor" href="#the-splash-screen" aria-hidden="true">#</a>The splash screen</h2>
 <p>While a game loads in a browser, Smitten shows a splash screen: a heart and &quot;Made with Smitten&quot; on a dark background. When the game has loaded, and the splash screen has shown for one second, the splash screen fades into the main scene. The player does not have to press a Play button.</p>
 <p>To change the splash screen, go to <strong>Project settings › Splash</strong>:</p>
-<ol><li>Choose a picture from your project (for example, a logo or a title screen).</li><li>Choose a background color.</li><li>Choose how long the splash screen shows.</li><li>Choose if &quot;Made with Smitten&quot; shows below the picture.</li></ol>
+<ol><li>Choose an image from your project (for example, a logo or a title screen).</li><li>Choose a background color.</li><li>Choose how long the splash screen shows.</li><li>Choose if &quot;Made with Smitten&quot; shows below the image.</li></ol>
 <pre><code class="lang-json">&quot;splash&quot;: { &quot;image&quot;: &quot;art/logo.png&quot;, &quot;background&quot;: &quot;#1a1c2c&quot;, &quot;duration&quot;: 2, &quot;madeWith&quot;: false }</code></pre>
 <div class="table"><table>
 <thead><tr><th><code>splash</code></th><th></th></tr></thead>
-<tbody><tr><td><code>image</code></td><td>A picture from the project, in the middle. Empty for the heart of Smitten</td></tr>
+<tbody><tr><td><code>image</code></td><td>An image from the project, in the middle. Empty for the heart of Smitten</td></tr>
 <tr><td><code>background</code></td><td><code>&quot;#rrggbb&quot;</code>, or <code>[r, g, b]</code> from 0 to 1</td></tr>
 <tr><td><code>duration</code></td><td>The minimum time in seconds that the splash screen shows (0 to 10). It shows longer if the game continues to load</td></tr>
 <tr><td><code>madeWith</code></td><td>Show &quot;Made with Smitten&quot; (<code>true</code> if you do not turn it off)</td></tr></tbody>
 </table></div>
-<p>In pixel-art games (<code>display.filter</code> is <code>pixel</code>), the splash picture is sharp, not blurred.</p>
+<p>In pixel-art games (<code>display.filter</code> is <code>pixel</code>), the splash image is sharp, not blurred.</p>
 <h2 id="engine-modules"><a class="anchor" href="#engine-modules" aria-hidden="true">#</a>Engine modules</h2>
 <p>Some parts of the engine are separate downloads. A game includes them only when it uses them. Because of this, small games load fast:</p>
 <div class="table"><table>

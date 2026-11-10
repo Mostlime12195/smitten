@@ -133,8 +133,8 @@ export const SMITTEN_MODULES = {
     effects: ['', 'Returns the names of all effects, sorted.'],
     measure: ['text, options?', 'Returns the size of a text when the engine draws it: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.'],
     wrap: ['text, options?', 'Returns the lines of a text when it wraps at a width: wrap("a long sentence", { width = 120 }) returns a list of strings.'],
-    strip: ['text', 'Returns the text without its markup: strip("[b]Hi[/b]") is "Hi".'],
-    escape: ['text', 'Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as markup.'],
+    strip: ['text', 'Returns the text without its text tags: strip("[b]Hi[/b]") is "Hi".'],
+    escape: ['text', 'Makes text safe to put inside rich text, for example the name of a player. The engine shows square brackets in it and does not read them as text tags.'],
     color: ['value', 'Returns a color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil.'],
   },
   synth: {

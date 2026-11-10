@@ -96,7 +96,7 @@ grid.cost = <span class="tk-k">function</span>(fromColumn, fromRow, toColumn, to
 <p><code>grid.estimate = function(column, row, goalColumn, goalRow)</code> replaces the estimate of the remaining cost. The estimate must never be too high. If it is too high, the paths do not always have the lowest cost.</p>
 <p>To use the built-in functions again, set <code>grid.cost</code> and <code>grid.estimate</code> to <code>nil</code>.</p>
 <h2 id="graphs"><a class="anchor" href="#graphs" aria-hidden="true">#</a>Graphs</h2>
-<p>A graph is a set of points that you put and connect yourself. The path follows the connections, so walkers go only where you permit: along a road, from door to door, between platforms.</p>
+<p>A graph is a set of points that you put and connect yourself. The path follows the connections, so walkers go only where you let them go: along a road, from door to door, between platforms.</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> graph = smitten.paths.<span class="tk-f">newGraph</span>()
 graph:<span class="tk-f">addPoint</span>(<span class="tk-s">&quot;gate&quot;</span>, <span class="tk-n">80</span>, <span class="tk-n">60</span>)
 graph:<span class="tk-f">addPoint</span>(<span class="tk-s">&quot;well&quot;</span>, <span class="tk-n">240</span>, <span class="tk-n">60</span>)

@@ -219,22 +219,22 @@ input without a piece, use `typed()`.
 ## Skins
 
 Smitten draws Panels, Buttons, TextInputs and Sliders as plain shapes in a
-color. To draw a picture instead, give the piece a **skin**. When Smitten
+color. To draw an image instead, give the piece a **skin**. When Smitten
 stretches a skin, the corners keep their shape. `skinEdges` sets how many
 pixels at each edge keep their size. Only the middle stretches. For
-example, take a 24 × 24 picture of a wooden frame, and set `skinEdges` to
+example, take a 24 × 24 image of a wooden frame, and set `skinEdges` to
 8. This makes a panel of any size with sharp corners.
 
 | | |
 | --- | --- |
-| `skin` | The picture |
+| `skin` | The image |
 | `skinEdges` | `8` for all four edges, or `8, 4, 8, 12`: left, top, right, bottom |
 | `skinHover`, `skinDown` (Button) | Pictures for when the pointer is on the Button, and for when the Button is down. Without them, Smitten draws the skin a little lighter or darker |
-| `knobImage` (Slider) | A picture for the knob. `skin` is the track. `color` tints the filled part |
+| `knobImage` (Slider) | An image for the knob. `skin` is the track. `color` tints the filled part |
 | `skin`, `skinChecked` (Checkbox) | Pictures for the box when it is not ticked and when it is ticked |
 
 If the display setting of the project is pixel, Smitten does not smooth
-the skins. This is the same for all pictures.
+the skins. This is the same for all images.
 
 ## Menus for keyboards and gamepads
 
@@ -376,7 +376,7 @@ The text of a Label can do all the things on the [Text](text.md) page:
 | `valign` | enum | "top" | Aligns the text vertically inside its rectangle. |
 | `wrapBy` | enum | "word" | Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never. |
 | `fit` | enum | "none" | shrink makes the text smaller until it fits inside the rectangle. |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `outline` | bool | false | When this is on, the text has a dark outline. |
 | `fontBold` | resource | "" | The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker. |
 | `fontItalic` | resource | "" | The font file for [i]italic[/i] words. If it is empty, the engine slants the font. |
@@ -395,7 +395,7 @@ The text of a Label can do all the things on the [Text](text.md) page:
 | --- | --- |
 | `measure()` | Returns the size of the text in its current layout: width, height. |
 | `lineCount()` | Returns the number of lines in the text. |
-| `characterCount()` | Returns the number of characters in the text. Markup and line breaks do not count. |
+| `characterCount()` | Returns the number of characters in the text. Text tags and line breaks do not count. |
 | `characterRect(index)` | Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character. |
 | `characterAt(x, y)` | Returns the number of the character at a point (measured from the top-left corner of the Label), or nil. |
 | `linkAt(x, y)` | Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil. |
@@ -420,7 +420,7 @@ The text of a Label can do all the things on the [Text](text.md) page:
 | `size` | int (px) | 18 | The font size. |
 | `color` | color | {0.25, 0.47, 0.95, 1} | The background color. |
 | `textColor` | color | {1, 1, 1, 1} | The text color. |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `fit` | enum | "none" | shrink makes the words smaller until they fit inside the button. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | When this is on, the player cannot press the button, and it looks faded. |

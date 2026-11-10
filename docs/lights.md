@@ -62,10 +62,10 @@ The `kind` of a Light is **point** or **sun**.
 - A **point** light shines out from the position of the piece. It goes to
   a distance of `radius` and becomes less bright near the edge.
   - To change the shape of the light, give it an `image`. The light is then
-    the picture: white where it shines. The engine stretches the picture so
+    the image: white where it shines. The engine stretches the image so
     that it goes `radius` to each side of the piece.
-  - A picture with the shape of a cone makes a flashlight. Turn the Light
-    to aim it. A picture with the shape of a window makes light through a
+  - An image with the shape of a cone makes a flashlight. Turn the Light
+    to aim it. An image with the shape of a window makes light through a
     window.
   - When you scale the Light, the light stretches.
 - A **sun** lights all of the view with the same brightness. It has only a
@@ -196,7 +196,7 @@ Open it in the editor:
 If a scene has no Light and no Tint, the engine draws it as before. These
 features cost no time until you use them.
 
-- The engine draws each Light as one picture over the area that it
+- The engine draws each Light as one image over the area that it
   lights. A school laptop can draw many small lights (tens of them). The
   cost comes from the area, so a few very large lights cost more than many
   small ones. Lights that are off, hidden, or outside the view cost no

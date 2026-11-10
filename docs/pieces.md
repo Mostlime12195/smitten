@@ -42,7 +42,7 @@ A base for other piece types. You do not add it to a scene yourself.
 | --- | --- |
 | `function ready(...)` | The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go(). |
 | `function update(dt)` | The engine calls it every frame. dt is the time since the last frame, in seconds. |
-| `function physicsUpdate(dt)` | The engine calls it 60 times a second, before bodies move. Use it for movement. |
+| `function physicsUpdate(dt)` | The engine calls it 60 times per second, before bodies move. Use it for movement. |
 | `function draw()` | The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates. |
 | `function removed()` | The engine calls it when the piece leaves the scene. |
 
@@ -172,7 +172,7 @@ Extends [Group](#group).
 | `align` | enum | "center" | Aligns the text around the position of the piece. justify stretches wrapped lines to the same width. |
 | `wrap` | number (px) | 0 | The text wraps lines that are longer than this. 0 means that lines never wrap. |
 | `wrapBy` | enum | "word" | Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese). |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `outline` | bool | false | When this is on, the text has a dark outline. |
 | `fontBold` | resource | "" | The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker. |
 | `fontItalic` | resource | "" | The font file for [i]italic[/i] words. If it is empty, the engine slants the font. |
@@ -191,7 +191,7 @@ Extends [Group](#group).
 | --- | --- |
 | `measure()` | Returns the size of the text in its current layout: width, height. |
 | `lineCount()` | Returns the number of lines in the text. |
-| `characterCount()` | Returns the number of characters in the text. Markup and line breaks do not count. |
+| `characterCount()` | Returns the number of characters in the text. Text tags and line breaks do not count. |
 | `characterRect(index)` | Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character. |
 | `characterAt(x, y)` | Returns the number of the character at a point (measured from the position of the piece), or nil. |
 | `linkAt(x, y)` | Returns the name of the [link=name] at a point (measured from the position of the piece), or nil. |
@@ -586,7 +586,7 @@ Extends [UI](#ui).
 | `valign` | enum | "top" | Aligns the text vertically inside its rectangle. |
 | `wrapBy` | enum | "word" | Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never. |
 | `fit` | enum | "none" | shrink makes the text smaller until it fits inside the rectangle. |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `outline` | bool | false | When this is on, the text has a dark outline. |
 | `fontBold` | resource | "" | The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker. |
 | `fontItalic` | resource | "" | The font file for [i]italic[/i] words. If it is empty, the engine slants the font. |
@@ -605,7 +605,7 @@ Extends [UI](#ui).
 | --- | --- |
 | `measure()` | Returns the size of the text in its current layout: width, height. |
 | `lineCount()` | Returns the number of lines in the text. |
-| `characterCount()` | Returns the number of characters in the text. Markup and line breaks do not count. |
+| `characterCount()` | Returns the number of characters in the text. Text tags and line breaks do not count. |
 | `characterRect(index)` | Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character. |
 | `characterAt(x, y)` | Returns the number of the character at a point (measured from the top-left corner of the Label), or nil. |
 | `linkAt(x, y)` | Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil. |
@@ -632,7 +632,7 @@ Extends [UI](#ui).
 | `size` | int (px) | 18 | The font size. |
 | `color` | color | {0.25, 0.47, 0.95, 1} | The background color. |
 | `textColor` | color | {1, 1, 1, 1} | The text color. |
-| `rich` | bool | false | When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
+| `rich` | bool | false | When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket. |
 | `fit` | enum | "none" | shrink makes the words smaller until they fit inside the button. |
 | `cornerRadius` | number (px) | 6 | Rounds the corners. |
 | `disabled` | bool | false | When this is on, the player cannot press the button, and it looks faded. |

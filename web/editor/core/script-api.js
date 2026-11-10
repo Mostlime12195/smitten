@@ -124,7 +124,7 @@ export const SCRIPT_API_GROUPS = [
       ['poly', 'poly(points, fill)', 'Draws a polygon: poly({x1, y1, x2, y2, x3, y3}).'],
       ['line', 'line(x1, y1, x2, y2, ...)', 'Draws a line through points.'],
       ['dot', 'dot(x, y)', 'Draws one pixel.'],
-      ['write', 'write(text, x, y, options)', 'Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.'],
+      ['write', 'write(text, x, y, options)', 'Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads text tags such as [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height.'],
       ['sprite', 'sprite(image, x, y, options)', 'Draws an image, or an animation frame of a sprite sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees.'],
     ],
   },

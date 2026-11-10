@@ -102,8 +102,8 @@ score = <span class="tk-n">0</span>
 <tbody><tr><td><code>&quot;unavailable&quot;</code></td><td>The game is not on its page on the games site, or it has no leaderboards there</td></tr>
 <tr><td><code>&quot;no-board&quot;</code></td><td>The game has no leaderboard with that key (look at the key on your account page)</td></tr>
 <tr><td><code>&quot;bad-value&quot;</code></td><td>The score is not a number</td></tr>
-<tr><td><code>&quot;out-of-range&quot;</code></td><td>The score is outside the range that the leaderboard permits</td></tr>
-<tr><td><code>&quot;bad-name&quot;</code></td><td>The name of the guest is too long, has other characters, or has a word that the games site does not permit</td></tr>
+<tr><td><code>&quot;out-of-range&quot;</code></td><td>The score is outside the range that the leaderboard accepts</td></tr>
+<tr><td><code>&quot;bad-name&quot;</code></td><td>The name of the guest is too long, has other characters, or has a word that the games site does not accept</td></tr>
 <tr><td><code>&quot;too-many&quot;</code></td><td>Too many scores from this player or network in the last hour</td></tr>
 <tr><td><code>&quot;busy&quot;</code></td><td>Too many calls at the same time. Wait for the answers before you ask again</td></tr>
 <tr><td><code>&quot;timeout&quot;</code>, <code>&quot;offline&quot;</code></td><td>The games site did not answer</td></tr>
@@ -113,7 +113,7 @@ score = <span class="tk-n">0</span>
 <p>A score is only a number that the game sends. The game runs on the computer of the player. For this reason, nothing can prove that a score is real. The games site keeps the scores in limits:</p>
 <ul><li>Scores must be numbers.</li><li>Each player and each network can send only a limited number of scores in one hour.</li><li>The word filter checks the names.</li><li>A leaderboard keeps its best 1000 scores.</li></ul>
 <p>For more protection, do these things:</p>
-<ul><li>Use scores that give a cheater little reason to make false ones. Do not promise prizes for scores.</li><li>Look at your leaderboards from time to time. On the page of the game, <strong>Remove</strong> the scores that cannot be real, or <strong>Reset</strong> the leaderboard.</li><li>Give the leaderboard a lowest and a highest permitted score (<code>min</code> and <code>max</code>, through the API of the games site. See the README of the site). This stops the most obvious false scores. For example, nobody gets 999,999,999 in a game where the maximum is 5,000.</li></ul>
+<ul><li>Use scores that give a cheater little reason to make false ones. Do not promise prizes for scores.</li><li>Look at your leaderboards from time to time. On the page of the game, <strong>Remove</strong> the scores that cannot be real, or <strong>Reset</strong> the leaderboard.</li><li>Give the leaderboard a lowest and a highest score that it accepts (<code>min</code> and <code>max</code>, through the API of the games site. See the README of the site). This stops the most obvious false scores. For example, nobody gets 999,999,999 in a game where the maximum is 5,000.</li></ul>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sharing"><span>Previous</span>Sharing and publishing</a><a class="next" href="older-projects"><span>Next</span>Older projects</a></nav>
   </main>

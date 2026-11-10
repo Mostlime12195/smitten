@@ -37,7 +37,7 @@
       "events": {
         "ready": { "args": "...", "doc": "The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go()." },
         "update": { "args": "dt", "doc": "The engine calls it every frame. dt is the time since the last frame, in seconds." },
-        "physicsUpdate": { "args": "dt", "doc": "The engine calls it 60 times a second, before bodies move. Use it for movement." },
+        "physicsUpdate": { "args": "dt", "doc": "The engine calls it 60 times per second, before bodies move. Use it for movement." },
         "draw": { "args": "", "doc": "The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates." },
         "removed": { "args": "", "doc": "The engine calls it when the piece leaves the scene." }
       }
@@ -140,7 +140,7 @@
         "align": { "type": "enum", "options": ["left", "center", "right", "justify"], "default": "center", "group": "Text", "description": "Aligns the text around the position of the piece. justify stretches wrapped lines to the same width." },
         "wrap": { "type": "number", "default": 0, "min": 0, "group": "Text", "unit": "px", "description": "The text wraps lines that are longer than this. 0 means that lines never wrap." },
         "wrapBy": { "type": "enum", "options": ["word", "character"], "default": "word", "group": "Text", "description": "Where the text breaks lines that are too long: between words, or after any character (for languages without spaces, like Japanese)." },
-        "rich": { "type": "bool", "default": false, "group": "Text", "description": "When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "rich": { "type": "bool", "default": false, "group": "Text", "description": "When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
         "outline": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "When this is on, the text has a dark outline." },
         "fontBold": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker." },
         "fontItalic": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [i]italic[/i] words. If it is empty, the engine slants the font." },
@@ -158,7 +158,7 @@
       "methods": {
         "measure": { "args": "", "doc": "Returns the size of the text in its current layout: width, height." },
         "lineCount": { "args": "", "doc": "Returns the number of lines in the text." },
-        "characterCount": { "args": "", "doc": "Returns the number of characters in the text. Markup and line breaks do not count." },
+        "characterCount": { "args": "", "doc": "Returns the number of characters in the text. Text tags and line breaks do not count." },
         "characterRect": { "args": "index", "doc": "Returns the position and size of a character, measured from the position of the piece: x, y, width, height. Use it to put a cursor or a sparkle on the character." },
         "characterAt": { "args": "x, y", "doc": "Returns the number of the character at a point (measured from the position of the piece), or nil." },
         "linkAt": { "args": "x, y", "doc": "Returns the name of the [link=name] at a point (measured from the position of the piece), or nil." },
@@ -494,7 +494,7 @@
         "valign": { "type": "enum", "options": ["top", "middle", "bottom"], "default": "top", "group": "Text", "description": "Aligns the text vertically inside its rectangle." },
         "wrapBy": { "type": "enum", "options": ["word", "character", "none"], "default": "word", "group": "Text", "description": "Where the text breaks lines that are too long for the rectangle: between words, after any character (for languages without spaces, like Japanese), or never." },
         "fit": { "type": "enum", "options": ["none", "shrink"], "default": "none", "group": "Text", "description": "shrink makes the text smaller until it fits inside the rectangle." },
-        "rich": { "type": "bool", "default": false, "group": "Text", "description": "When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "rich": { "type": "bool", "default": false, "group": "Text", "description": "When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
         "outline": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "When this is on, the text has a dark outline." },
         "fontBold": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [b]bold[/b] words. If it is empty, the engine makes the font thicker." },
         "fontItalic": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [i]italic[/i] words. If it is empty, the engine slants the font." },
@@ -512,7 +512,7 @@
       "methods": {
         "measure": { "args": "", "doc": "Returns the size of the text in its current layout: width, height." },
         "lineCount": { "args": "", "doc": "Returns the number of lines in the text." },
-        "characterCount": { "args": "", "doc": "Returns the number of characters in the text. Markup and line breaks do not count." },
+        "characterCount": { "args": "", "doc": "Returns the number of characters in the text. Text tags and line breaks do not count." },
         "characterRect": { "args": "index", "doc": "Returns the position and size of a character, measured from the top-left corner of the Label: x, y, width, height. Use it to put a cursor or a sparkle on the character." },
         "characterAt": { "args": "x, y", "doc": "Returns the number of the character at a point (measured from the top-left corner of the Label), or nil." },
         "linkAt": { "args": "x, y", "doc": "Returns the name of the [link=name] at a point (measured from the top-left corner of the Label), or nil." },
@@ -535,7 +535,7 @@
         "size": { "type": "int", "default": 18, "min": 1, "group": "Button", "unit": "px", "description": "The font size." },
         "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Button", "description": "The background color." },
         "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Button", "description": "The text color." },
-        "rich": { "type": "bool", "default": false, "group": "Button", "description": "When this is on, the text reads markup: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "rich": { "type": "bool", "default": false, "group": "Button", "description": "When this is on, the text reads text tags: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
         "fit": { "type": "enum", "options": ["none", "shrink"], "default": "none", "group": "Button", "description": "shrink makes the words smaller until they fit inside the button." },
         "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
         "disabled": { "type": "bool", "default": false, "group": "Button", "description": "When this is on, the player cannot press the button, and it looks faded." },

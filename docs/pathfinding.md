@@ -138,7 +138,7 @@ to `nil`.
 ## Graphs
 
 A graph is a set of points that you put and connect yourself. The path
-follows the connections, so walkers go only where you permit: along a
+follows the connections, so walkers go only where you let them go: along a
 road, from door to door, between platforms.
 
 ```lua
