@@ -1,0 +1,45 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Door",
+    "type": "Group",
+    "script": "scripts/door.lua",
+    "children": [
+      { "name": "Panel", "type": "Shape", "properties": { "width": 20, "height": 64, "color": [1, 0, 0, 1] } },
+      { "name": "Label", "type": "Text", "properties": { "text": "closed" } },
+      {
+        "name": "Anim",
+        "type": "Animator",
+        "properties": {
+          "animations": {
+            "open": {
+              "length": 0.5,
+              "tracks": [
+                { "piece": "Panel", "property": "y", "keys": [{ "time": 0, "value": 0 }, { "time": 0.5, "value": -64, "easing": "outQuad" }] },
+                { "piece": "Panel", "property": "x", "keys": [{ "time": 0, "value": 0 }, { "time": 0.5, "value": 10 }] },
+                { "piece": "Panel", "property": "color", "keys": [{ "time": 0, "value": [1, 0, 0, 1] }, { "time": 0.5, "value": [0, 0, 1, 1] }] },
+                { "piece": "Panel", "property": "rotation", "keys": [{ "time": 0, "value": 0 }, { "time": 0.5, "value": 90 }] },
+                { "piece": "Label", "property": "text", "keys": [{ "time": 0, "value": "closed" }, { "time": 0.25, "value": "opening" }, { "time": 0.5, "value": "open" }] },
+                { "piece": "Panel", "property": "visible", "keys": [{ "time": 0, "value": true }, { "time": 0.4, "value": false }] },
+                { "piece": ".", "calls": [
+                  { "time": 0, "method": "creaked", "args": ["start"] },
+                  { "time": 0.25, "method": "creaked", "args": ["middle"] },
+                  { "time": 0.5, "method": "creaked", "args": ["end"] }
+                ] }
+              ]
+            },
+            "swing": {
+              "length": 1,
+              "loop": true,
+              "tracks": [
+                { "piece": ".", "property": "rotation", "keys": [{ "time": 0, "value": 0 }, { "time": 0.5, "value": 30, "easing": "inOutSine" }, { "time": 1, "value": 0, "easing": "inOutSine" }] },
+                { "piece": ".", "calls": [{ "time": 0.5, "method": "creaked", "args": ["swing"] }] }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

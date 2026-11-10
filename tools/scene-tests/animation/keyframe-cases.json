@@ -1,0 +1,37 @@
+{
+"tracks": [
+{"name":"one key","keys":[{"time":0.5,"value":7}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[7,7,7,7,7,7,7,7,7,7,7]},
+{"name":"linear numbers","keys":[{"time":0,"value":0},{"time":1,"value":10},{"time":2,"value":-10}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,1,2.5,5,7.5,9,10,0,-10,-10]},
+{"name":"keys out of order","keys":[{"time":2,"value":4},{"time":0,"value":0},{"time":1,"value":2}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,0.2,0.5,1,1.5,1.8,2,3,4,4]},
+{"name":"two keys at one time","keys":[{"time":0,"value":0},{"time":1,"value":5},{"time":1,"value":9},{"time":2,"value":1}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,0.5,1.25,2.5,3.75,4.5,9,5,1,1]},
+{"name":"step easing","keys":[{"time":0,"value":1},{"time":1,"value":3,"easing":"step"},{"time":2,"value":5}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[1,1,1,1,1,1,1,3,4,5,5]},
+{"name":"booleans step","keys":[{"time":0,"value":false},{"time":0.5,"value":true},{"time":1.5,"value":false}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[false,false,false,false,true,true,true,true,false,false,false]},
+{"name":"strings step","keys":[{"time":0,"value":"idle"},{"time":1,"value":"walk","easing":"outQuad"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":["idle","idle","idle","idle","idle","idle","idle","walk","walk","walk","walk"]},
+{"name":"colors","keys":[{"time":0,"value":[1,0,0,1]},{"time":1,"value":[0,0,1,0.5]},{"time":2,"value":[0,1,0,1],"easing":"inQuad"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[[1,0,0,1],[1,0,0,1],[0.9,0,0.1,0.95],[0.75,0,0.25,0.875],[0.5,0,0.5,0.75],[0.25,0,0.75,0.625],[0.1,0,0.9,0.55],[0,0,1,0.5],[0,0.25,0.75,0.625],[0,1,0,1],[0,1,0,1]]},
+{"name":"lists of other lengths step","keys":[{"time":0,"value":[0,0]},{"time":1,"value":[10,10,10]}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[10,10,10],[10,10,10],[10,10,10],[10,10,10]]},
+{"name":"a number then a word steps","keys":[{"time":0,"value":3},{"time":1,"value":"x"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[3,3,3,3,3,3,3,"x","x","x","x"]},
+{"name":"unknown easing is linear","keys":[{"time":0,"value":0},{"time":1,"value":10,"easing":"wobbly"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,1,2.5,5,7.5,9,10,10,10,10]},
+{"name":"easing inBack","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inBack"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,-1.431422,-6.41365625,-8.76975,18.25903125,59.117202,100,100,100,100]},
+{"name":"easing inCubic","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inCubic"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,0.1,1.5625,12.5,42.1875,72.9,100,100,100,100]},
+{"name":"easing inExpo","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inExpo"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,0.1953125,0.552427172802,3.125,17.677669529664,50,100,100,100,100]},
+{"name":"easing inOutBack","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inOutBack"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,-3.7518552,-9.968184375,50,109.968184375,103.7518552,100,100,100,100]},
+{"name":"easing inOutCubic","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inOutCubic"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,0.4,6.25,50,93.75,99.6,100,100,100,100]},
+{"name":"easing inOutQuad","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inOutQuad"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,2,12.5,50,87.5,98,100,100,100,100]},
+{"name":"easing inOutSine","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inOutSine"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,2.447174185242,14.644660940673,50,85.355339059327,97.552825814758,100,100,100,100]},
+{"name":"easing inQuad","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inQuad"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,1,6.25,25,56.25,81,100,100,100,100]},
+{"name":"easing inSine","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"inSine"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,1.231165940486,7.612046748871,29.289321881345,61.731656763491,84.356553495977,100,100,100,100]},
+{"name":"easing linear","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"linear"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,10,25,50,75,90,100,100,100,100]},
+{"name":"easing outBack","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outBack"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,40.882798,81.74096875,108.76975,106.41365625,101.431422,100,100,100,100]},
+{"name":"easing outBounce","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outBounce"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,7.5625,47.265625,76.5625,97.265625,98.8125,100,100,100,100]},
+{"name":"easing outCubic","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outCubic"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,27.1,57.8125,87.5,98.4375,99.9,100,100,100,100]},
+{"name":"easing outElastic","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outElastic"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,125,91.161165235168,101.5625,100.552427172802,99.8046875,100,100,100,100]},
+{"name":"easing outExpo","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outExpo"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,50,82.322330470336,96.875,99.447572827198,99.8046875,100,100,100,100]},
+{"name":"easing outQuad","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outQuad"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,19,43.75,75,93.75,99,100,100,100,100]},
+{"name":"easing outSine","keys":[{"time":0,"value":0},{"time":1,"value":100,"easing":"outSine"}],"times":[-1,0,0.1,0.25,0.5,0.75,0.9,1,1.5,2,3],"expect":[0,0,15.643446504023,38.268343236509,70.710678118655,92.387953251129,98.768834059514,100,100,100,100]}
+],
+"calls": [
+{"name":"calls","calls":[{"time":0,"id":"a"},{"time":0.25,"id":"b"},{"time":0.5,"id":"c"},{"time":0.5,"id":"d"},{"time":1,"id":"e"}],"ranges":[[0,0.1,true],[0,0.1,false],[0.1,0.5,false],[0.25,0.5,false],[0.25,0.5,true],[0.5,1,false],[0,1,true],[1,1,false],[1,1,true],[1,0,false],[1,0,true],[0.5,0.25,false],[0.5,0.25,true],[0.3,0,false],[2,3,false],[-1,-0.5,false]],"expect":[["a"],[],["b","c","d"],["c","d"],["b","c","d"],["e"],["a","b","c","d","e"],[],["e"],["d","c","b","a"],["e","d","c","b","a"],["b"],["d","c","b"],["b","a"],[],[]]},
+{"name":"no calls","calls":[],"ranges":[[0,1,true],[1,0,true]],"expect":[[],[]]},
+{"name":"calls out of order","calls":[{"time":0.75,"id":"late"},{"time":0.25,"id":"early"},{"time":0.25,"id":"early2"}],"ranges":[[0,1,false],[1,0,false]],"expect":[["early","early2","late"],["late","early2","early"]]}
+]
+}

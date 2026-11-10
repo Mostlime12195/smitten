@@ -82,7 +82,7 @@ end
 -- joints2d.lua loads with the first Joint.
 
 for _, f in ipairs({ "love.scene.basic", "love.scene.nodes2d", "love.scene.tilemap", "love.scene.physics2d",
-	"love.scene.ui", "love.scene.widgets", "love.scene.textinput", "love.scene.touch", "love.scene.audio", "love.scene.lights", "love.scene.walkable" }) do
+	"love.scene.ui", "love.scene.widgets", "love.scene.textinput", "love.scene.touch", "love.scene.audio", "love.scene.lights", "love.scene.walkable", "love.scene.animator" }) do
 	require(f)
 end
 

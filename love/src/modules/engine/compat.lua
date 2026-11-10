@@ -23,6 +23,9 @@
 --     works in radians, and multiplies by compat.rad where it reads such a
 --     field and by compat.deg where it writes one or hands an angle to a
 --     script. Old rules: both are 1, so nothing changes, bit for bit.
+--     An Animator's keys keep angles in degrees (animations only exist in
+--     version 3 files) and turn them into the game's unit with
+--     compat.fromDegrees.
 --   * Event names. Pieces send compat.event("clicked"): "clicked", or the
 --     old name.
 --   * Undeclared names. script.lua checks assignments when compat.strict.
@@ -61,6 +64,10 @@ local old = compat.old
 ---Multiply a script's angle by rad for radians, radians by deg for a script.
 compat.rad = old and 1 or pi / 180
 compat.deg = old and 1 or 180 / pi
+
+---Multiply an angle in degrees (an Animator's key for rotation, as scene
+---files of version 3 keep angles) by this for the unit scripts use.
+compat.fromDegrees = old and pi / 180 or 1
 
 ---Added to a Body's slope (in radians): a ramp of exactly 45 degrees counts
 ---as ground with slope = 45, whatever rounding does. The old default,

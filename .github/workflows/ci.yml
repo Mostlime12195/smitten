@@ -39,6 +39,9 @@ jobs:
       - name: UI layout tests
         run: node web/editor/workspaces/scene/uilayout.test.mjs
 
+      - name: Keyframe tests
+        run: node web/editor/workspaces/scene/keyframes.test.mjs
+
       - name: Sharing site tests
         run: node tools/platform-tests/test.mjs
 
@@ -62,6 +65,10 @@ jobs:
       # And seeds, generators and noise around love.math's (stand-ins here).
       - name: Random tests
         run: lua5.1 tools/random-tests/test.lua
+
+      # And animations: keyframes and the Animator piece.
+      - name: Animation tests
+        run: lua5.1 tools/animation-tests/test.lua
 
   build:
     runs-on: ubuntu-latest

@@ -118,6 +118,17 @@ local function angles()
   frame(12)
   check("tween of rotation", near(turning.rotation, QUARTER), turning.rotation)
 
+  -- An Animator's keys keep degrees, as scene files of version 3 do; the
+  -- piece gets them in this project's unit.
+  local hinge = add("Group", {})
+  local animator = add("Animator", { animations = { turn = { length = 1, tracks = {
+    { piece = ".", property = "rotation", keys = { { time = 0, value = 0 }, { time = 1, value = 90 } } },
+  } } } }, nil, hinge)
+  animator:play("turn")
+  animator:seek(1)
+  check(if NEW then "an Animator's key of 90 is 90 degrees" else "old: an Animator's key of 90 degrees is a quarter turn in radians",
+    near(hinge.rotation, QUARTER), hinge.rotation)
+
   -- sprite() in draw(): a bar 8 wide and 2 high, turned a quarter, points down.
   local canvas = g.newCanvas(64, 64, { dpiscale = 1 })
   local function drawn(...)

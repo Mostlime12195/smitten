@@ -1,0 +1,14 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Plain",
+    "type": "Group",
+    "script": "scenes/plain.lua",
+    "children": [
+      { "name": "Box", "type": "Shape", "properties": { "x": 40, "y": 50, "rotation": 30, "color": [0, 1, 0, 1] } },
+      { "name": "Words", "type": "Text", "properties": { "x": 200, "y": 60, "text": "still" } },
+      { "name": "Clock", "type": "Timer", "properties": { "seconds": 0.1, "running": true } }
+    ]
+  }
+}

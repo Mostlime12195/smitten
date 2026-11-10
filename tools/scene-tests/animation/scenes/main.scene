@@ -1,0 +1,31 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Main",
+    "type": "Group",
+    "script": "scenes/main.lua",
+    "children": [
+      { "name": "Driver", "type": "Group", "script": "scripts/driver.lua", "properties": { "pausable": false } },
+      { "name": "DoorA", "scene": "scenes/door.scene", "properties": { "x": 100, "y": 200 } },
+      { "name": "DoorB", "scene": "scenes/door.scene", "properties": { "x": 300, "y": 200 } },
+      {
+        "name": "Spinner",
+        "type": "Shape",
+        "properties": { "x": 500, "y": 100 },
+        "children": [
+          {
+            "name": "Spin",
+            "type": "Animator",
+            "properties": {
+              "autoplay": "turn",
+              "animations": {
+                "turn": { "length": 2, "loop": true, "tracks": [{ "piece": ".", "property": "rotation", "keys": [{ "time": 0, "value": 0 }, { "time": 2, "value": 360 }] }] }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

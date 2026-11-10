@@ -84,6 +84,32 @@
       "events": { "tick": { "args": "", "doc": "The engine calls it when the countdown reaches zero." } }
     },
 
+    "Animator": {
+      "extends": "Piece", "group": "basic", "icon": "animator",
+      "description": "Changes properties of pieces over time with keyframes, and calls methods at the times you choose. Put it inside the piece that it animates.",
+      "properties": {
+        "animations": { "type": "animations", "default": null, "hidden": true, "description": "The animations: tracks of keyframes for the Animator's parent and the pieces inside the parent." },
+        "autoplay": { "type": "animation", "default": "", "group": "Animator", "description": "The animation to play when the scene starts. Empty: no animation plays until a script calls play()." },
+        "speed": { "type": "number", "default": 1, "step": 0.1, "group": "Animator", "description": "How fast animations play: 2 is two times as fast, and -1 plays them backwards." },
+        "physicsStep": { "type": "bool", "default": false, "group": "Animator", "description": "Move on with each physics step (60 times per second), not with each frame. Use it to animate Bodies." }
+      },
+      "methods": {
+        "play": { "args": "name?, restart?", "doc": "Plays an animation, or continues the current animation. With restart, the animation starts again from its start." },
+        "pause": { "args": "", "doc": "Stops the animation where it is. play() continues it." },
+        "stop": { "args": "", "doc": "Stops the animation and puts the pieces back to the values at its start." },
+        "seek": { "args": "seconds", "doc": "Moves the current animation to a time and gives the pieces the values of that time." },
+        "animate": { "args": "name?, restart?", "doc": "Plays an animation and waits until it ends (in ready(), events and tasks). Returns true if the animation got to its end, false if it stopped before." },
+        "hasAnimation": { "args": "name", "doc": "Returns true if the Animator has an animation with this name." },
+        "getLength": { "args": "name?", "doc": "Returns the length of an animation in seconds (of the current animation if you give no name)." }
+      },
+      "fields": {
+        "playing": "True while an animation plays.",
+        "current": "The name of the animation that plays or is paused, or \"\" when there is no animation.",
+        "position": "Where the current animation is, in seconds from its start."
+      },
+      "events": { "finished": { "args": "name", "doc": "The engine calls it when an animation that does not loop gets to its end." } }
+    },
+
     "Sprite": {
       "extends": "Group", "group": "visual", "icon": "sprite",
       "description": "Draws an image, or an animation from a .sprite file or a sprite sheet.",
