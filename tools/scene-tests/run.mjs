@@ -26,9 +26,15 @@
 //   clips             Record in the player's toolbar, then F9 (a video) and
 //                     Shift+F9 (a GIF): the downloaded files are checked
 //                     (SHOTS=dir also keeps screenshots and the files)
+//   example-lights,   the example projects of the home screen
+//   example-...       (web/editor/core/examples.js), made as the editor makes
+//                     them, with the checks in examples/<id>.lua. No error
+//                     and no warning may come (SHOTS=dir keeps a screenshot)
+//   ready-made        the ready-made scripts health, spawner, moving-platform
+//                     and countdown, in a scene that this file makes
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -36,6 +42,11 @@ import { launch, sleep } from '../stress/run.mjs';
 import { readWebm, webmDuration } from '../../web/player/webm.js';
 import { gifRegion, segmentMs } from '../../web/player/clips.js';
 import { decodeGif } from '../clip-tests/gif-decode.mjs';
+import { EXAMPLES } from '../../web/editor/core/examples.js';
+import { libraryScript } from '../../web/editor/core/templates.js';
+import { includedModules } from '../../web/editor/core/modules.js';
+import { setSchema } from '../../web/editor/core/schema.js';
+import { buildGameZip } from '../../web/editor/exporter.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = Number(process.env.PORT) || 8772;
@@ -91,6 +102,72 @@ const CASES = {
     flags: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4'],
   },
 };
+
+// The example projects, and a project with the ready-made scripts that are
+// building blocks. run.mjs makes their zips into dist/examples-test/ (the
+// test server serves dist/), and deletes them at the end.
+const checks = join(root, 'tools', 'scene-tests', 'examples');
+// includedModules() reads the piece types from the schema.
+setSchema(JSON.parse(readFileSync(join(root, 'love', 'src', 'modules', 'scene', 'pieces.json'), 'utf8')));
+for (const ex of EXAMPLES) {
+  CASES[`example-${ex.id}`] = { project: () => withChecks(ex.build(`${ex.name} example`), ex.id), until: /^DONE /, check: exampleCheck };
+}
+CASES['ready-made'] = { project: () => withChecks(readyMade(), 'ready-made'), until: /^DONE /, check: exampleCheck };
+
+// The checks go on a Group at the start of the main scene, so that they
+// update before all the other pieces (a press() then counts in that frame).
+function withChecks(files, id) {
+  const settings = JSON.parse(files['smitten.json']);
+  const main = JSON.parse(files[settings.main]);
+  main.root.children = [{ name: 'Checks', type: 'Group', script: 'checks/check.lua' }, ...(main.root.children || [])];
+  return {
+    ...files,
+    [settings.main]: JSON.stringify(main, null, 2),
+    'checks/check.lua': readFileSync(join(checks, '_check.lua'), 'utf8') + readFileSync(join(checks, `${id}.lua`), 'utf8'),
+  };
+}
+
+function readyMade() {
+  const scene = (root) => JSON.stringify({ format: 'smitten.scene', version: 3, root });
+  const box = { name: 'Look', type: 'Shape', properties: { width: 20, height: 20 } };
+  return {
+    'smitten.json': JSON.stringify({ format: 'smitten.project', version: 3, name: 'Ready-made scripts', main: 'scenes/main.scene', display: { width: 640, height: 360 } }),
+    'scenes/thing.scene': scene({ name: 'Thing', type: 'Group', tags: ['thing'], children: [box] }),
+    'scenes/main.scene': scene({
+      name: 'Main', type: 'Group', children: [
+        { name: 'Hero', type: 'Body', script: 'scripts/health.lua', properties: { x: 100, y: 100, invincibleTime: 0.5 }, children: [box] },
+        { name: 'Spawner', type: 'Group', script: 'scripts/spawner.lua', properties: { x: 300, y: 100, sceneFile: 'scenes/thing.scene', interval: 0.2, maxAlive: 3 } },
+        { name: 'Lift', type: 'Body', script: 'scripts/moving-platform.lua', properties: { x: 500, y: 300, motion: 'still', route: '100, 0', speed: 400, stopTime: 0.1 }, children: [box] },
+        { name: 'Clock', type: 'Label', script: 'scripts/countdown.lua', properties: { duration: 1, showTenths: true } },
+      ],
+    }),
+    ...Object.fromEntries(['health', 'spawner', 'moving-platform', 'countdown'].map((id) => [`scripts/${id}.lua`, libraryScript(id)])),
+  };
+}
+
+// The checks pass, and nothing printed an error or a warning.
+function exampleCheck(lines) {
+  const bad = lines.find((l) => /^(Error|Warning): |^exception: /.test(l));
+  return bad ? `it printed: ${bad}` : selfChecking(lines);
+}
+
+// As the editor gives it to the player: a zip of the files, with the modules that it needs.
+async function exampleZip(name, files) {
+  const project = {
+    paths: () => Object.keys(files),
+    readText: (path) => (typeof files[path] === 'string' ? files[path] : ''),
+    readJSON: (path) => JSON.parse(files[path]),
+    settings: () => JSON.parse(files['smitten.json']),
+  };
+  // Node cannot import fflate from its CDN: the editor's own zip writer
+  // takes its place, and says so.
+  const warn = console.warn;
+  console.warn = () => {};
+  const zip = await buildGameZip(files).finally(() => { console.warn = warn; });
+  mkdirSync(join(root, 'dist', 'examples-test'), { recursive: true });
+  writeFileSync(join(root, 'dist', 'examples-test', `${name}.zip`), zip);
+  return { game: `examples-test/${name}.zip`, modules: includedModules(project).join(',') };
+}
 
 // The editor renders the sounds test's song (with its WAV file read by the
 // editor's own decoder) to the same samples as the engine did.
@@ -386,7 +463,8 @@ function plainError(lines) {
 }
 
 async function runCase(name) {
-  const c = CASES[name];
+  let c = CASES[name];
+  if (c.project) c = { ...c, ...(await exampleZip(name, c.project())) };
   const page = await launch({ flags: c.flags || [] });
   const lines = [];
   page.on((m) => {
@@ -411,6 +489,10 @@ async function runCase(name) {
   }
   let problem = c.check(lines);
   if (!problem && c.after) problem = await c.after(page, lines).catch((e) => `the runner's own step stopped: ${e.message || e}`);
+  if (c.project && process.env.SHOTS) {
+    const { data } = await page.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(process.env.SHOTS, `${name}.png`), Buffer.from(data, 'base64'));
+  }
   page.close();
   return { problem, lines };
 }
@@ -440,6 +522,7 @@ async function main() {
     }
   } finally {
     server.kill();
+    rmSync(join(root, 'dist', 'examples-test'), { recursive: true, force: true });
   }
   if (failed) process.exit(1);
 }
