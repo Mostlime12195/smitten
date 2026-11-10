@@ -378,6 +378,17 @@ export function createApp(config) {
       response = withSecurityHeaders(errorResponse(e), 'file', config);
     }
 
+    // A small request answered before its body was read (refused, or not
+    // needed): read the rest first. Answering and closing while the client
+    // is still sending resets the connection, and the client may never see
+    // the answer. A big upload isn't worth waiting for; it gets "close".
+    if (hasBody && !req.complete && !ctx.bodyTooBig && !ctx.request.bodyUsed && ctx.request.body
+      && Number(req.headers['content-length']) <= 1024 * 1024) {
+      try {
+        for await (const chunk of ctx.request.body) void chunk;
+      } catch { /* the client went away */ }
+    }
+
     const out = {};
     response.headers.forEach((value, key) => { if (key !== 'set-cookie') out[key] = value; });
     const cookies = response.headers.getSetCookie();
