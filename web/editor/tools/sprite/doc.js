@@ -399,6 +399,23 @@ export class SpriteDoc {
   }
 }
 
+/**
+ * A .sprite file's text without its layers (the game draws only the PNG):
+ * for a game that nobody edits, such as a web export. Text without layers,
+ * or that is not JSON, is returned as it is.
+ */
+export function withoutLayers(text) {
+  if (typeof text !== 'string' || !text.includes('"layers"')) return text;
+  try {
+    const data = JSON.parse(text);
+    if (!data || typeof data !== 'object' || !('layers' in data)) return text;
+    delete data.layers;
+    return `${stringify(data)}\n`;
+  } catch {
+    return text;
+  }
+}
+
 /** True if two snapshots (SpriteDoc.snapshot) are the same image. */
 export function sameSnapshot(a, b) {
   if (a.fw !== b.fw || a.fh !== b.fh || a.columns !== b.columns || a.layers.length !== b.layers.length) return false;

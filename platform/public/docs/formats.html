@@ -76,7 +76,7 @@
   ]
 }</code></pre>
 <ul><li>The bottom layer is first.</li><li><code>image</code> of a layer is a PNG in a <code>data:</code> URL. It has the same size and the same grid of frames as the <code>image</code> of the sprite.</li><li><code>opacity</code> (0 to 1) and <code>hidden</code> are optional. The defaults are 1 and <code>false</code>.</li></ul>
-<p>The engine does not read <code>layers</code>. It draws the <code>image</code> of the sprite, which the editor saves as the layers flattened (the layers that show, at their opacity). Because of this, a sprite with layers works in all versions of Smitten. The editor writes <code>layers</code> only when a sprite has more than one layer, one hidden layer, or one layer that is not fully opaque.</p>
+<p>The engine does not read <code>layers</code>. It draws the <code>image</code> of the sprite, which the editor saves as the layers flattened (the layers that show, at their opacity). Because of this, a sprite with layers works in all versions of Smitten. The editor writes <code>layers</code> only when a sprite has more than one layer, one hidden layer, or one layer that is not fully opaque. <strong>Export for the web</strong> leaves <code>layers</code> out of the game, because nobody edits it there. Project zips, share links and publishing keep <code>layers</code>, so that a remix can change the layers.</p>
 <h2 id="tilesets"><a class="anchor" href="#tilesets" aria-hidden="true">#</a>Tilesets</h2>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.tileset&quot;,

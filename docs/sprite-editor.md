@@ -55,7 +55,8 @@ The game shows the layers flattened: the editor saves the PNG as you see
 it. The `.sprite` file also keeps each layer, so that you can change the
 layers later. Because of this, a sprite with layers works in all games, also
 in games made with older versions of Smitten. [File formats](formats.md#layers)
-tells about the file.
+tells about the file. **Export for the web** leaves the layers out, so that the
+game is smaller.
 
 If a different program changes the PNG of a sprite with layers, the editor
 puts the new PNG on a new top layer. It hides the other layers, so that the

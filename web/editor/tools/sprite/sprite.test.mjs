@@ -340,6 +340,26 @@ const oldFiles = () => new Map([
   check('plain image with two layers: the .sprite has the layers', JSON.parse(json).layers.length === 2);
 }
 
+// A web export (exporter.js) leaves the layers out; the rest stays.
+{
+  const { gameFiles } = await import('../../exporter.js');
+  const files = oldFiles();
+  const h = host(files);
+  const { doc } = await loadSprite(h, 'sprites/hero.png', 'sprites/hero.sprite');
+  doc.addLayer(1);
+  const { json } = await encodeSprite(doc, 'sprites/hero.png', 'sprites/hero.sprite', true);
+  files.set('sprites/hero.sprite', json);
+  const before = Object.fromEntries(files);
+  before['art/bytes.sprite'] = new TextEncoder().encode(json);
+  const out = gameFiles(before);
+  const stripped = JSON.parse(out['sprites/hero.sprite']);
+  check('web export: the layers are left out', !('layers' in stripped) && 'layers' in JSON.parse(json));
+  check('web export: the rest of the .sprite file stays', eq(stripped.animations, JSON.parse(json).animations) && stripped.author === 'someone' && stripped.frameWidth === 32);
+  check('web export: a .sprite file stored as bytes is stripped too', !('layers' in JSON.parse(out['art/bytes.sprite'])));
+  check('web export: other files are the same objects', out['sprites/hero.png'] === before['sprites/hero.png'] && out['sprites/old.sprite.json'] === before['sprites/old.sprite.json'] && out['art/sheet.sprite'] === before['art/sheet.sprite']);
+  check('web export: the PNG keeps the layers flattened', out['sprites/hero.png'] === files.get('sprites/hero.png'));
+}
+
 // Sprites of real projects (arguments): each must round-trip unchanged.
 function spriteFiles(path, out = []) {
   if (statSync(path).isDirectory()) for (const f of readdirSync(path)) spriteFiles(join(path, f), out);

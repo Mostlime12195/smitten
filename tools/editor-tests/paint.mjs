@@ -630,6 +630,8 @@ try {
   await setField('Spacing', 1);
   const noteText = await page.eval(`[...document.querySelectorAll('dialog[open] .spr-form-note')].map((n) => n.textContent).join(' ')`);
   check('sheet: cut into 4 cells of 16×16, the empty one left out', /4×1 cells of 16×16\. 3 chosen/.test(noteText), noteText);
+  const shown = await page.eval(`(() => { const s = document.querySelector('dialog[open] select[aria-label="Sheet image"]'); return s.options[s.selectedIndex].textContent; })()`);
+  check('sheet: the list shows the file from the computer', shown === 'walk-sheet.png (from your computer)', shown);
   await shot('sheet-dialog');
   await click(`document.querySelector('dialog[open] button[type=submit]')`);
   await until(`!document.querySelector('dialog[open]')`, 'the dialog to close');

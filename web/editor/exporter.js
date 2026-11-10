@@ -5,6 +5,7 @@
 // with the browser's DecompressionStream.
 
 import { classifyBytes } from './file-types.js';
+import { withoutLayers } from './tools/sprite/doc.js';
 
 const FFLATE_URL = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
 let fflatePromise = null;
@@ -198,6 +199,22 @@ async function fetchBytes(name) {
  * player, pointed at game.zip), the engine, only the engine modules the
  * game uses (DESIGN.md, section 3), and the game itself.
  */
+/**
+ * The project's files for a game that nobody edits: .sprite files lose
+ * their layers (the editor keeps them for later changes; the game draws
+ * only the PNG). Project zips, share links and publishing keep them.
+ */
+export function gameFiles(files) {
+  const out = {};
+  for (const [path, data] of Object.entries(files)) {
+    if (!/\.sprite$/i.test(path)) { out[path] = data; continue; }
+    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+    const stripped = withoutLayers(text);
+    out[path] = stripped === text ? data : stripped;
+  }
+  return out;
+}
+
 export async function buildWebExport(files, title, modules = []) {
   const assets = {};
   await Promise.all(WEB_ASSETS.map(async (name) => { assets[name] = await fetchBytes(name); }));
@@ -217,7 +234,7 @@ export async function buildWebExport(files, title, modules = []) {
     'webm.js': assets['webm.js'],
     'smitten.mjs': assets['smitten.mjs'],
     'smitten.wasm': assets['smitten.wasm'],
-    'game.zip': await buildGameZip(files),
+    'game.zip': await buildGameZip(gameFiles(files)),
   };
   for (const m of modules) out[`modules/${m}.wasm`] = await fetchBytes(`modules/${m}.wasm`);
   return zipFiles(out);

@@ -96,7 +96,10 @@ The engine does not read `layers`. It draws the `image` of the sprite, which
 the editor saves as the layers flattened (the layers that show, at their
 opacity). Because of this, a sprite with layers works in all versions of
 Smitten. The editor writes `layers` only when a sprite has more than one
-layer, one hidden layer, or one layer that is not fully opaque.
+layer, one hidden layer, or one layer that is not fully opaque. **Export for
+the web** leaves `layers` out of the game, because nobody edits it there.
+Project zips, share links and publishing keep `layers`, so that a remix
+can change the layers.
 
 ## Tilesets
 

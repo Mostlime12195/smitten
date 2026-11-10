@@ -3292,14 +3292,26 @@ export class SpriteEditor {
         drawPreview();
       }
     };
+    let lastSource = '';
     sourceSel.addEventListener('change', () => {
-      if (sourceSel.value === '__file') fileInput.click();
-      else if (sourceSel.value) load(host.read(sourceSel.value), sourceSel.value);
+      if (sourceSel.value === '__file') { fileInput.click(); return; }
+      lastSource = sourceSel.value;
+      if (sourceSel.value) load(host.read(sourceSel.value), sourceSel.value);
     });
+    // A file from the computer shows in the list by its name.
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files?.[0];
-      if (f) await load(new Uint8Array(await f.arrayBuffer()), f.name);
+      if (!f) { sourceSel.value = lastSource; return; }
+      let picked = sourceSel.querySelector('option[value="__picked"]');
+      if (!picked) {
+        picked = h('option', { value: '__picked' });
+        sourceSel.querySelector('option[value="__file"]').before(picked);
+      }
+      picked.textContent = `${f.name} (from your computer)`;
+      sourceSel.value = lastSource = '__picked';
+      await load(new Uint8Array(await f.arrayBuffer()), f.name);
     });
+    fileInput.addEventListener('cancel', () => { sourceSel.value = lastSource; });
     for (const el of [fwIn, fhIn, colsIn, rowsIn, marginIn, spacingIn]) el.addEventListener('input', update);
 
     const body = h('div', { class: 'spr-form-stack spr-sheet-form' },
