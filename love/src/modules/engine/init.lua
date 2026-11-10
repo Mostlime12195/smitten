@@ -16,7 +16,7 @@ local engine = {}
 -- Modules loaded on first use, as love.<name>.
 local LAZY = {
 	scene = true, input = true, tween = true, json = true, assets = true, storage = true, display = true,
-	synth = true, physics = true, video = true, paths = true,
+	synth = true, physics = true, video = true, paths = true, boards = true,
 }
 
 engine.project = nil   -- smitten.json, decoded (nil if the game has none: boot.lua says why)

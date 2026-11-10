@@ -19,5 +19,7 @@ through a whole small game in about fifteen minutes.
   [Physics](physics.md), [Pathfinding](pathfinding.md),
   [Saving](saving.md) and [Drawing](drawing.md) each cover one part of a
   game.
+- [Sharing and publishing](sharing.md) covers putting a game on the site,
+  and [Leaderboards](leaderboards.md) adding shared high scores to it there.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference:
   every function a script can call, and every piece's settings.

@@ -278,13 +278,17 @@ Tests:
   long searches take.
 - `node tools/scene-tests/run.mjs` runs the scene tests in a headless
   Chrome and fails if one goes wrong (`errors` and `lights` check themselves: what
-  the engine says when a script is wrong, and what lights and shadows draw); `python3 tools/serve_test.py` tests
+  the engine says when a script is wrong, and what lights and shadows draw;
+  `boards` and `boards-site` check `smitten.boards` without the games site
+  and inside a page standing in for it); `python3 tools/serve_test.py` tests
   `serve.py`. CI (`.github/workflows/ci.yml`) runs all of these on every
   push and keeps the built `dist/` as an artifact.
 - `python3 tools/stress/gen.py` and `node tools/stress/run.mjs` run stress
   projects and the scene tests in a headless Chrome (`physics-check`
   prints a digest to compare engine versions).
 - `PLATFORM_PORT=8790 node tools/platform-tests/test.mjs`: the sharing site.
+  `tools/platform-tests/boards-e2e.mjs` plays a game with a leaderboard on
+  a local copy of the site, by hand (it needs a build).
 - `tools/smitten-audio` (whose `check.mjs` confirms the engine and
   `synth.mjs` render identical samples), `tools/video` (playback, pausing
   and seeking), `tools/luacompat` (the Lua extensions) and

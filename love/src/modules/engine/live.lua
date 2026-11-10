@@ -7,6 +7,9 @@
 -- JSON: {op = "tree"}, {op = "get", ids = {...}}, {op = "set", id, key,
 -- value}, {op = "destroy", id}. Answers go out as printed lines starting
 -- with "\1live ", which the editor takes out of the output.
+--
+-- The games site's page talks to smitten.boards through the same queue:
+-- its messages have op = "site" (love.boards).
 
 local json = require("love.json")
 local schema = require("love.scene.schema")
@@ -107,10 +110,18 @@ function live.poll()
 	for i = 1, #messages do
 		local ok, msg = pcall(json.decode, messages[i])
 		if ok and type(msg) == "table" then
-			local ran, err = pcall(handle, msg)
-			if not ran then send({ op = "error", message = tostring(err) }) end
+			if msg.op == "site" then
+				-- Not under pcall: this can run the game's own code (a
+				-- callback, the rest of a task), whose errors are the game's.
+				require("love.boards")._receive(msg)
+			else
+				local ran, err = pcall(handle, msg)
+				if not ran then send({ op = "error", message = tostring(err) }) end
+			end
 		end
 	end
+	local boards = package.loaded["love.boards"]
+	if boards then boards._update() end
 end
 
 return live

@@ -12,6 +12,9 @@ never changes. A game's page shows who made it, how long it took (if they
 connected Hackatime), and buttons to **Play**, **Remix** (open your own
 copy in the editor) and **Report** it.
 
+A published game can also have [leaderboards](leaderboards.md): shared
+high scores, shown under the game on its page.
+
 ## Exporting
 
 **Project › Export** (Ctrl+E) makes files you can take anywhere:

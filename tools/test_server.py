@@ -7,6 +7,8 @@ Serves dist/ like serve.py, plus:
     /tools/<path>.zip        the project in tools/<path>/ zipped on the fly, e.g.
                              player.html?game=tools/scene-tests/smoke.zip
                              player.html?game=tools/video.zip&modules=video
+    /tools/<path>.html       a test's own page (tools/scene-tests/boards-site.html
+                             stands in for the games site around the player)
     /games/<name>.zip        games/<name>/ zipped the same way, without its tools/
                              (the art and map generators), e.g.
                              player.html?game=games/my-game.zip
@@ -74,12 +76,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(data)
         return True
 
+    def serve_page(self, head):
+        """A test's own page, /tools/<path>.html (a stand-in for a page around the player)."""
+        path = self.path.split("?", 1)[0]
+        if not (path.startswith("/tools/") and path.endswith(".html")):
+            return False
+        src = (TOOLS / path[len("/tools/"):]).resolve()
+        if TOOLS not in src.parents or not src.is_file():
+            self.send_error(404, "no such test page")
+            return True
+        data = src.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        if not head:
+            self.wfile.write(data)
+        return True
+
     def do_GET(self):
-        if not self.serve_zip(head=False):
+        if not self.serve_zip(head=False) and not self.serve_page(head=False):
             super().do_GET()
 
     def do_HEAD(self):
-        if not self.serve_zip(head=True):
+        if not self.serve_zip(head=True) and not self.serve_page(head=True):
             super().do_HEAD()
 
 

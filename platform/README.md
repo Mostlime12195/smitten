@@ -28,6 +28,9 @@ teenagers, and anywhere else Node 24 runs.
 - **Account settings** (`/account`): display name, password, email, recovery
   codes, Hack Club (connect and disconnect), Hackatime, where you're signed in (browsers and editors, each can
   be signed out), your games, deleting the account.
+- **Leaderboards** (optional): a game's owner can give it boards of best
+  scores or fastest times; the game sends scores with `smitten.boards`
+  and they show under the game. See [Leaderboards](#leaderboards).
 - **Moderation**: reports hide a game after three people report it;
   moderators hide, restore and delete games, and ban accounts.
 
@@ -73,7 +76,7 @@ folder, an admin token and stand-ins for Hack Club Auth, Hackatime and a
 mail server (SMTP on the first free port from 8791, `SMTP_TEST_PORT`, with
 STARTTLS when `openssl` can make a certificate; and, for a few checks, a
 server on the next port without Hackatime or email and one with
-`EMAIL_TRANSPORT=log`), and runs 153 checks: pages and headers, CORS,
+`EMAIL_TRANSPORT=log`), and runs 194 checks: pages and headers, CORS,
 signing up, in and out, passwords
 and their rate limits, CSRF, recovery codes and reset links, account
 settings, the editor's sign-in and its tokens, publishing, ownership,
@@ -85,8 +88,18 @@ limits and address bans, account notes, retries, logs without addresses;
 the SMTP client's STARTTLS, implicit TLS, AUTH PLAIN and LOGIN,
 dot-stuffing, quoted-printable and timeouts; Resend's API; the log
 transport; and email off), connecting Hackatime (keys, game hours and
-their cache, revoked tokens, disconnecting, encryption at rest), deleting
-games and accounts, and rate limits. `PLATFORM_URL` tests a running server instead (it needs
+their cache, revoked tokens, disconnecting, encryption at rest),
+leaderboards (making and managing boards, who may, guests and accounts,
+best and every score, low boards and ties, bounds, bad values and names,
+big bodies, rate limits, hidden games, bans, the stored-score cap,
+deleting boards, games and accounts, and a database from before
+leaderboards), deleting games and accounts, and rate limits.
+
+`node --experimental-websocket tools/platform-tests/boards-e2e.mjs <dist>`
+is a check by hand, not part of the tests: it copies a built player in,
+starts the site on a spare port, publishes a small game that sends a score
+and reads the board back, and plays it on its page in headless Chromium
+(the file says what it needs). `PLATFORM_URL` tests a running server instead (it needs
 `TRUST_PROXY=1` and `PUBLIC_URL` set to that address; tests that need the
 database or the stand-ins are skipped).
 
@@ -104,6 +117,7 @@ platform/
   src/hackclub.js          Sign in with Hack Club (OpenID Connect), disconnecting it
   src/hackatime.js         Connect Hackatime (OAuth): the editor's API key, game hours
   src/games.js             publishing, playing, listing, reporting
+  src/boards.js            leaderboards: boards, scores, their limits
   src/admin.js             moderation
   src/storage.js           game files on disk
   src/validate.js          titles, descriptions, usernames, passwords, the word filter, PNGs, modules
@@ -122,7 +136,7 @@ platform/
 - **Storage.** `<DATA_DIR>/smitten.db` (SQLite in WAL mode) has `users`,
   `sessions`, `editor_codes`, `recovery_codes`, `password_resets`, `games`,
   `reports`, `plays`, `rate_limits`, `admin_log`, `address_bans`,
-  `user_addresses`, `email_tokens` and `mail_queue`.
+  `user_addresses`, `email_tokens`, `mail_queue`, `boards` and `scores`.
   `<DATA_DIR>/games/<id>/game.love` and `thumbnail.png` are the files,
   written to a temporary file and renamed so a download never sees half of
   one. Migrations (`migrations/NNNN_*.sql`) run on start; `PRAGMA
@@ -137,6 +151,85 @@ platform/
   in, otherwise per address.
 - **Updates** replace the game, its metadata and its thumbnail and bump
   `version`; the id, plays and `remixOf` stay. A hidden game stays hidden.
+
+## Leaderboards
+
+Optional, per game, and for fun: **scores come from the game running in
+the player's browser, so anyone who wants to can send a made-up one.** The
+server can't tell a real score from a fake one; it keeps scores within
+bounds and gives the owner the tools to clean up. Don't hang prizes on
+them. The user docs say the same (`docs/leaderboards.md`).
+
+- **Boards.** A game has zero to `BOARDS_PER_GAME` (10) boards, made by
+  its owner on the account page (*Your games › Leaderboards*) or through
+  the API. A board has a `key` (1 to 24 of `a-z 0-9 - _`, unique in the
+  game; scripts use it), a `title` (40 characters, word filter), `order`
+  (`high`: bigger is better, the default; `low` for times), `keep`
+  (`best`: one row per player, their best, the default; `all`: every
+  score), `format` (`number`, or `time`: seconds shown as `1:23.45`), a
+  `unit` shown after numbers (12 characters), and optional `min` and `max`
+  bounds on scores. Tables: `boards` (one row each) and `scores`
+  (`board_id`, `player`, `user_id`, `name`, `value`, `created_at`).
+- **Who the player is.** With the site's session cookie, the account:
+  `player` is `u:<id>`, and the name shown is the account's display name
+  as it is now. Otherwise a guest: the name the game passes (1 to 12
+  letters, numbers, spaces, `-` and `_`, through the word filter; "Guest"
+  when none), and `player` is `g:` plus an HMAC of the address and the
+  lower-cased name with the server's secret. Addresses are never stored.
+  Rows say `guest: true` so pages can tell the two apart (a guest can call
+  themselves anything the filter allows, including someone else's name).
+- **Sending a score** (`POST …/scores`): only from the site's own pages
+  (`Origin`), JSON of at most 1 KB, to a public game. The value must be a
+  JSON number (not text, `null`, or beyond ±10^12), inside the board's
+  `min`..`max`, and is rounded to two decimals. Per hour: `SCORE_LIMIT_PER_HOUR`
+  (120) per account and `SCORE_ADDRESS_LIMIT_PER_HOUR` (300) per address,
+  then 429. A banned network can't send scores; a banned account is signed
+  out, and its scores are left out of lists and ranks until it's unbanned.
+- **What's kept.** A board keeps its best `BOARD_MAX_SCORES` (1000)
+  scores; a score that doesn't make it answers `kept: false`. Equal scores
+  share a rank, the earlier one listed first.
+- **Cleaning up.** The owner (session or editor token) and moderators (the
+  admin token, logged) can change a board, **reset** it (remove every
+  score), delete it, and remove one score. The game's page shows its owner
+  a Remove button on every row. A board's `order` can only change while it
+  is empty. A hidden game's boards are hidden with it and take no scores.
+  Deleting a game deletes its boards and scores; deleting an account also
+  deletes its scores on other people's boards.
+- **On the game's page**, boards show under the game: a tab per board, the
+  top ten, and the viewer's own place when it's further down.
+
+### How a game reaches its boards
+
+Games have no network access, and that stays. `smitten.boards` (the
+engine's `love/src/modules/boards`) reaches the site through two small
+hops, neither of which the game controls:
+
+1. The game's call leaves the engine as a printed line (`\x01site {json}`).
+   The player (`web/player/player.js`) passes it to the page that frames
+   it with `postMessage`, and passes answers back into the engine through
+   the queue live tweaking already uses. The player makes no request
+   itself and has no URL to make one to. It only does this when `play.js`
+   added `?site=1`, and only talks and listens to a parent page on its own
+   origin, so in the editor, in an exported game or opened by itself
+   there is no bridge and `smitten.boards.available()` is false.
+2. The game's page (`public/play.js`) takes `{call: "submit" | "top" |
+   "around" | "list", key, value, name, count}` and makes the matching
+   request to **this game's** leaderboard endpoints: the game id is the
+   page's own, the key must match the key pattern, the count is clamped,
+   and at most four requests run at once. The answer is cut down to plain
+   rows (`rank`, `name`, `value`, `me`, `guest`) or one word for a failure.
+
+So a game's Lua can cause exactly these requests: read its own game's
+boards, and send a score to them, with values the server checks as it
+would anyone's. It never sees cookies, tokens, headers or other
+responses, and can't name a URL, a method or another game. The player
+still shares the site's origin (see [Limits](#limits-of-this-version));
+the bridge doesn't widen that: a game that escaped the engine could
+already use the session cookie, and one that hasn't can only do the above.
+If the player moves to its own origin, the bridge keeps working: it is
+already a `postMessage` hop, and the two origin checks (`SITE_ORIGIN` in
+`player.js`, `location.origin` in `play.js`'s `fromGame`) become the
+other side's origin, passed in the iframe's URL.
 
 ## Accounts
 
@@ -382,7 +475,9 @@ All responses are JSON, except the game file, the thumbnail and the
 "field": "title"}` with a 4xx status, and `code` where the editor needs to
 tell cases apart (`sign-in`, `signed-out`, `banned`, `use-hackclub`,
 `bad-code`, `not-connected`, `hackatime-off`, `email-off`, `bad-link`,
-`email-taken`, `nothing-pending`, `needs-password`, `address-banned`). "Session" means the cookie from a page on this site; "editor"
+`email-taken`, `nothing-pending`, `needs-password`, `address-banned`,
+and for leaderboards `no-board`, `bad-value`, `out-of-range`, `bad-name`,
+`hidden`, `too-many-boards`, `not-empty`). "Session" means the cookie from a page on this site; "editor"
 means `Authorization: Bearer <editor token>`.
 
 | Endpoint | Who | What it does |
@@ -397,6 +492,14 @@ means `Authorization: Bearer <editor token>`.
 | `GET /api/games/<id>/thumbnail.png` | anyone | The thumbnail |
 | `POST /api/games/<id>/play` | anyone | Count a play |
 | `POST /api/games/<id>/report` | anyone | Report: `{reason, note}` |
+| `GET /api/games/<id>/boards` | anyone | The game's leaderboards: `{boards: [{key, title, order, keep, format, unit, min, max, scores}], limit}` (also `boards` in `GET /api/games/<id>`) |
+| `POST /api/games/<id>/boards` | owner (session or editor) or admin | Make a board: `{key, title, order, keep, format, unit, min, max}` (only `key` and `title` are needed). 409 past `BOARDS_PER_GAME` |
+| `GET /api/games/<id>/boards/<key>?limit=10&around=1&name=` | anyone | The top scores (`limit` up to 100): `{board, scores: [{id, rank, name, value, at, me, guest, username}], you: {rank, value}}`. `around=1` centres on the asker's own score; `name` is a guest's name, to mark their rows |
+| `PATCH /api/games/<id>/boards/<key>` | owner or admin | Change `title`, `order` (empty boards only), `keep`, `format`, `unit`, `min`, `max` |
+| `POST /api/games/<id>/boards/<key>/reset` | owner or admin | Remove every score |
+| `DELETE /api/games/<id>/boards/<key>` | owner or admin | Delete the board and its scores |
+| `POST /api/games/<id>/boards/<key>/scores` | the site's pages | Send a score: `{value, name}` (`name` for guests). `201 {value, rank, improved, kept}` |
+| `DELETE /api/games/<id>/boards/<key>/scores/<score id>` | owner or admin | Remove one score |
 | `GET /api/users/<username>` | anyone | A profile: `{username, displayName, createdAt, games}` |
 | `POST /api/auth/signup` | the site's pages | `{username, displayName, password, email}` (or `{via: "hackclub", username, email}` after Hack Club; `email` optional, ignored when email is off). Sets the session; `201 {user, recoveryCodes, pendingEmail}` |
 | `POST /api/auth/signin` | the site's pages | `{username, password}`. Sets the session |
@@ -474,7 +577,9 @@ The audience is teenagers:
   thumbnails 1 MB and 4096×4096; titles 60 characters, descriptions 1000,
   report notes 500, display names 40. Request bodies past the limit are
   cut off as they arrive. Publishing: 10 an hour per account. Reports: 20
-  an hour per address and per account.
+  an hour per address and per account. Leaderboards: 10 boards a game,
+  1000 scores a board, 120 scores an hour per account and 300 per
+  address, score requests of 1 KB.
 - **Zip checks.** A plain zip (no encryption, ZIP64 or unusual
   compression) with `smitten.json` at its root, no absolute
   or `..` paths. Thumbnails must be real PNGs.
@@ -698,6 +803,10 @@ origin, and in the editor, **Settings › Publishing** is the site's URL.
 - **The player shares the site's origin**, as before: the iframe sandbox
   needs `allow-same-origin` for save files. A separate origin for the
   player and game files is the robust setup.
+- **Leaderboard scores can be faked** (see [Leaderboards](#leaderboards)):
+  the limits keep fakes plausible and rare, not impossible. Guests are an
+  address and a name, so a school behind one address shares its guest
+  names, and its hourly limit.
 - **One server process**, which is plenty on Nest. Search is `LIKE`,
   pagination is by offset, updates overwrite the previous version.
 

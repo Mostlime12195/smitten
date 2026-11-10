@@ -11,6 +11,8 @@
 //   paths
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
+//   boards,           smitten.boards without the games site, and inside
+//   boards-site       boards-site.html, which stands in for it (PASS, FAIL, DONE)
 //   errorscreen       errors on purpose: the error must come out in plain
 //                     form, without the engine's own frames
 
@@ -31,12 +33,21 @@ const CASES = {
   rigid: { game: 'tools/scene-tests/rigid.zip', seconds: 5, check: noErrors },
   physics: { game: 'tools/scene-tests/physics.zip', seconds: 5, check: noErrors },
   paths: { game: 'tools/scene-tests/paths.zip', until: /^DONE /, check: selfChecking },
+  // smitten.boards without the games site (the editor, an exported game),
+  // and inside a page that stands in for a game's page there.
+  boards: { game: 'tools/scene-tests/boards.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },
+  'boards-site': { url: '/tools/scene-tests/boards-site.html', until: /^DONE /, check: (lines) => mode(lines, 'site') || selfChecking(lines) },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 
 function noErrors(lines) {
   const bad = lines.find((l) => /^Error: |^exception: /.test(l));
   return bad ? `it stopped with: ${bad}` : null;
+}
+
+function mode(lines, want) {
+  const line = lines.find((l) => /^MODE /.test(l));
+  return line === `MODE ${want}` ? null : noErrors(lines) || `expected "MODE ${want}", got ${line ? `"${line}"` : 'nothing'}`;
 }
 
 function selfChecking(lines) {
@@ -67,7 +78,7 @@ async function runCase(name) {
     }
   });
   const modules = c.modules ?? 'physics2d';
-  await page.goto(`${BASE}/player.html?game=${c.game}&autoplay=1${modules ? `&modules=${modules}` : ''}`);
+  await page.goto(c.url ? `${BASE}${c.url}` : `${BASE}/player.html?game=${c.game}&autoplay=1${modules ? `&modules=${modules}` : ''}`);
   const t0 = Date.now();
   if (c.until) {
     while (!lines.some((l) => c.until.test(l)) && Date.now() - t0 < 40000) await sleep(100);

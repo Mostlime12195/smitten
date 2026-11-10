@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Stand-in for a game's page on the games site</title>
+<!--
+  The "boards-site" scene test (run.mjs): the leaderboards test game in the
+  player, framed as the games site's play page frames it (?site=1), with
+  this page answering smitten.boards' calls the way platform/public/play.js
+  does, from a made-up board instead of the site's API.
+-->
+<iframe id="player" src="/player.html?game=tools/scene-tests/boards.zip&autoplay=1&site=1" width="640" height="360"></iframe>
+<script>
+const frame = document.getElementById('player');
+// Best first; a guest is a name.
+const scores = [{ name: 'Ada', value: 300 }, { name: 'Bo', value: 200.5, guest: true }, { name: 'Fay', value: 10, guest: true }];
+let me = null;
+
+function rows() {
+  scores.sort((a, b) => b.value - a.value);
+  return scores.map((s, i) => {
+    const row = { rank: i + 1, name: s.name, value: s.value };
+    if (s.guest) row.guest = true;
+    if (s.name === me) row.me = true;
+    return row;
+  });
+}
+
+function answer(msg) {
+  if (msg.call === 'list') return { result: [{ key: 'best', title: 'High scores', order: 'high', format: 'number', unit: '', scores: scores.length }] };
+  if (msg.key !== 'best') return { reason: 'no-board' };
+  if (msg.call === 'submit') {
+    if (typeof msg.value !== 'number' || !Number.isFinite(msg.value)) return { reason: 'bad-value' };
+    if (msg.value > 100000) return { reason: 'out-of-range' };
+    me = msg.name || 'Guest';
+    let mine = scores.find((s) => s.name === me);
+    const improved = !mine || msg.value > mine.value;
+    if (!mine) scores.push(mine = { name: me, value: msg.value, guest: true });
+    else if (improved) mine.value = msg.value;
+    return { result: { value: mine.value, improved, rank: rows().find((r) => r.name === me).rank } };
+  }
+  const all = rows();
+  if (msg.call === 'top') return { result: all.slice(0, msg.count) };
+  if (msg.call === 'around') {
+    const at = Math.max(0, all.findIndex((r) => r.me) - Math.floor((msg.count - 1) / 2));
+    return { result: all.slice(at, at + msg.count) };
+  }
+  return { reason: 'error' };
+}
+
+addEventListener('message', (e) => {
+  const data = e.data;
+  if (e.source !== frame.contentWindow || e.origin !== location.origin || data?.source !== 'love-player' || data.type !== 'site') return;
+  const msg = data.message;
+  const reply = (message) => frame.contentWindow.postMessage({ type: 'site', message }, location.origin);
+  if (msg.type === 'hello') reply({ type: 'hello', boards: true });
+  // The board "slow" never answers: the game's call times out.
+  else if (msg.type === 'request' && msg.key !== 'slow') {
+    const { result, reason } = answer(msg);
+    setTimeout(() => reply(result ? { type: 'reply', id: msg.id, ok: true, result } : { type: 'reply', id: msg.id, ok: false, reason }), 30);
+  }
+});
+</script>
+</html>

@@ -246,6 +246,12 @@ running Smitten's player, remix into the editor, reporting that hides a
 game after several reports, moderation with bans, size and content checks,
 rate limits. `platform/README.md` has the details and the next steps.
 
+Online leaderboards are the site's, not the engine's: a published game's
+owner can add boards to it there, and its scripts reach them with
+`smitten.boards`, which only does anything on the game's page on the site
+(the page makes the requests; games still have no network access). Scores
+come from players' browsers, so they're for fun.
+
 ## 8. Language
 
 Lua 5.1 with LuaJIT's extensions plus Luau-style syntax in the parser,

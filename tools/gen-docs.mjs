@@ -42,7 +42,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'],
       ['camera', 'Camera'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['ui', 'UI'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['leaderboards', 'Leaderboards']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],
@@ -184,6 +184,7 @@ function enginePage() {
     assets: 'Loads and caches files. Paths are relative to the project folder.',
     storage: 'See [Saving](saving.md).',
     display: 'See [Project settings](settings.md).',
+    boards: 'Leaderboards on the games site. See [Leaderboards](leaderboards.md).',
     json: 'JSON text to Lua values and back.',
     physics: 'Queries on the running scene\'s physics. See [Physics](physics.md).',
     paths: 'Finding a way from one place to another. See [Pathfinding](pathfinding.md).',

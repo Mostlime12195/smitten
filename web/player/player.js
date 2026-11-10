@@ -107,6 +107,48 @@ function flushError() {
   }
 }
 
+// The games site's bridge (smitten.boards, love/src/modules/boards): on a
+// game's page there, play.js adds ?site=1 and answers the game's leaderboard
+// calls. The player only carries the messages: the game's go out as printed
+// lines starting with "\1site " and on to the page with postMessage; the
+// page's come back the same way and reach the game through the queue live
+// tweaking uses (loveweb_live_post). The player makes no request itself and
+// has no URL to make one to. Only a page on the player's own origin is
+// talked and listened to, so a player in the editor, in an exported game or
+// opened by itself has no bridge, with or without ?site=1. (If the player
+// moves to its own origin, SITE_ORIGIN becomes the site's, given by play.js.)
+const SITE_ORIGIN = location.origin;
+const siteBridge = params.get('site') === '1' && window.parent !== window;
+const siteInbox = [];
+let siteAnswered = null;
+const siteHello = new Promise((resolve) => { siteAnswered = resolve; });
+
+function toSite(message) {
+  if (siteBridge && message && typeof message === 'object') {
+    window.parent.postMessage({ source: 'love-player', type: 'site', message }, SITE_ORIGIN);
+  }
+}
+
+// Messages wait until the engine is there to take them.
+function flushSiteInbox() {
+  if (!Module) return;
+  for (const text of siteInbox.splice(0)) Module.ccall('loveweb_live_post', null, ['string'], [text]);
+}
+
+if (siteBridge) {
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent || e.origin !== SITE_ORIGIN || e.data?.type !== 'site') return;
+    const message = e.data.message;
+    if (!message || typeof message !== 'object') return;
+    const text = JSON.stringify({ ...message, op: 'site' });
+    if (text.length > 64 * 1024 || siteInbox.length >= 64) return;
+    siteInbox.push(text);
+    if (running) flushSiteInbox();
+    if (message.type === 'hello') siteAnswered();
+  });
+  toSite({ type: 'hello' });
+}
+
 // LÖVE's error handler prints "Error: ..." followed by a traceback. Group
 // those lines so the embedding page gets the whole error at once.
 function output(level, text) {
@@ -114,6 +156,11 @@ function output(level, text) {
   // player: it can give the player the game's shape.
   if (text.startsWith('\x01display ')) {
     onDisplay(text.slice(9));
+    return;
+  }
+  // smitten.boards' calls, for the games site's page (above).
+  if (text.startsWith('\x01site ')) {
+    try { toSite(JSON.parse(text.slice(6))); } catch { /* not a message */ }
     return;
   }
   post({ type: 'log', level, text });
@@ -437,7 +484,12 @@ async function start(game) {
     arg = GAME_DIR;
   }
 
+  // On the games site, the page has usually said hello long before the
+  // game arrived; the game then knows from its first frame.
+  if (siteBridge) await Promise.race([siteHello, new Promise((resolve) => setTimeout(resolve, 400))]);
+
   running = true;
+  flushSiteInbox();
   hideOverlay();
   $('#toolbar').hidden = false;
   canvas.focus();

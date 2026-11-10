@@ -83,6 +83,13 @@ export const SMITTEN_MODULES = {
     getWindowRect: ['', 'The game\'s area in the window: x, y, width, height.'],
     width: null, height: null, viewX: null, viewY: null, viewWidth: null, viewHeight: null, scale: null, stretch: null, filter: null, antialias: null, background: null,
   },
+  boards: {
+    available: ['', 'True while the game runs on its page on the games site and has leaderboards there. False in the editor and in exported games.'],
+    submit: ['key, value, options?, callback?', 'Sends a score to a leaderboard: smitten.boards.submit("best", score). options: { name = "Ada" } for someone not signed in. Answers { rank, value, improved }, or nil and why.'],
+    top: ['key, count?, callback?', 'The best scores, best first: a list of { rank, name, value, me, guest } (10 unless count says, 100 at most), or nil and why.'],
+    around: ['key, count?, callback?', 'The scores around the player\'s own (the top, if they have none).'],
+    list: ['callback?', 'The game\'s leaderboards: a list of { key, title, order, format, unit, scores }.'],
+  },
   json: {
     decode: ['text', 'JSON text to Lua values.'],
     encode: ['value, indent?', 'Lua values to JSON text.'],

@@ -48,7 +48,7 @@ local function pack(...) return { n = select("#", ...), ... } end
 -- Tasks: functions that can wait(). Finished coroutines go back to a pool,
 -- so an event that runs every frame doesn't make a new one each time.
 
-local DONE, WAIT = {}, {}
+local DONE, WAIT, SUSPEND = {}, {}, {}
 local idle = {}
 local owners = setmetatable({}, { __mode = "k" }) -- coroutine -> piece
 
@@ -80,6 +80,8 @@ local function step(co, ok, tag, ...)
 		require("love.tween").after(seconds, function() resumeWith(co) end, owner)
 		return
 	end
+	-- Suspended until whoever it waits for calls M.resumeTask.
+	if tag == SUSPEND then return end
 	if tag == DONE then owners[co] = nil end
 	return ...
 end
@@ -97,6 +99,30 @@ local function runTask(owner, fn, ...)
 	return resumeWith(co, fn, ...)
 end
 M.runTask = runTask
+
+---The running task, to resume later with M.resumeTask; nil outside one.
+function M.currentTask()
+	local co = corunning()
+	if co and owners[co] then return co end
+	return nil
+end
+
+---Pauses the running task until M.resumeTask(task, ...), and returns what
+---that passes (smitten.boards waits for the games site this way).
+function M.suspendTask()
+	return coyield(SUSPEND)
+end
+
+---Carries on a task paused by M.suspendTask, unless its piece is gone.
+function M.resumeTask(co, ...)
+	local owner = owners[co]
+	if not owner or costatus(co) ~= "suspended" then return end
+	if owner ~= true and owner._dead then
+		owners[co] = nil
+		return
+	end
+	return resumeWith(co, ...)
+end
 
 ---Pauses the running task for some seconds.
 local function wait(seconds)
