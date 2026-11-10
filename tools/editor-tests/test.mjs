@@ -52,7 +52,7 @@ for (const [name, def] of Object.entries(types)) {
 const sceneDir = join(root, 'love', 'src', 'modules', 'scene');
 const engineLua = readdirSync(sceneDir).filter((f) => f.endsWith('.lua'))
   .map((f) => readFileSync(join(sceneDir, f), 'utf8')).join('\n');
-const LIFECYCLE = new Set(['ready', 'update', 'physicsUpdate', 'draw', 'removed']);
+const LIFECYCLE = new Set(['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'eachCharacter']);
 for (const [name, def] of Object.entries(types)) {
   for (const m of Object.keys(def.methods || {})) {
     check(`${name}:${m}() is defined in the engine`, new RegExp(`function \\w+[:.]${m}\\(|\\b\\w+\\.${m}\\s*=\\s*\\w`).test(engineLua));
@@ -416,6 +416,41 @@ check('the first free number is used', uniqueName('Pong', ['Pong', 'Pong (3)']) 
 check('no names yet', uniqueName('Pong', []) === 'Pong');
 check('the same share link has the same id', shareId('abc-DEF_123') === shareId('abc-DEF_123'));
 check('different share links have different ids', new Set(['', 'a', 'b', 'ab', 'ba', 'abc-DEF_123', 'abc-DEF_124'].map(shareId)).size === 7);
+
+// --- Rich text in the scene view (core/richtext.js) ------------------------------------
+{
+  const { parseRich, stripRich, layoutRich, parseColor, RICH_TAGS, RICH_EFFECTS } = await import(editor('core/richtext.js'));
+  // The same tags as the engine (love/src/modules/text/init.lua).
+  const textLua = readFileSync(join(root, 'love', 'src', 'modules', 'text', 'init.lua'), 'utf8');
+  const engineTags = [...textLua.match(/local TAGS = \{([\s\S]*?)\n\}/)[1].matchAll(/(\w+) = true/g)].map((m) => m[1]).sort();
+  check('the scene view knows the engine\'s tags', JSON.stringify(engineTags) === JSON.stringify([...RICH_TAGS].sort()), engineTags.join(' '));
+  for (const fx of RICH_EFFECTS) check(`the engine has the effect ${fx}`, textLua.includes(`effects.${fx} = function`));
+  const engineColors = [...textLua.match(/local COLORS = \{([\s\S]*?)\n\}/)[1].matchAll(/(\w+) = \{/g)].map((m) => m[1]);
+  check('and its color names', engineColors.length > 10 && engineColors.every((c) => parseColor(c)), engineColors.filter((c) => !parseColor(c)).join(' '));
+  check('rich off keeps the text', parseRich('[b]x[/b]', false)[0].text === '[b]x[/b]');
+  const spans = parseRich('a [b]bold[/b] [color=#ff0000]r[/color][size=+4]s[/size]');
+  check('bold span', spans[1].text === 'bold' && spans[1].style.bold === true);
+  check('color span', spans[3].text === 'r' && spans[3].style.color[0] === 1 && spans[3].style.color[1] === 0);
+  check('relative size', spans[4].style.sizeAdd === 4);
+  check('strip', stripRich('[b]Hi[/b] [wave amp=2]you[/wave][pause=1]!') === 'Hi you!');
+  check('unknown tags are shown', stripRich('press [E] or [color=nope]x') === 'press [E] or [color=nope]x');
+  check('a custom effect that closes is a tag', stripRich('[bounce h=2]x[/bounce]') === 'x');
+  check('[[ is a bracket', stripRich('[[b]') === '[b]');
+  check('an unclosed tag runs to the end', parseRich('[i]all')[0].style.italic === true);
+  check('tags closed out of order', (() => { const s = parseRich('[b][i]x[/b]y'); return s[0].style.bold && s[1].style.italic && !s[1].style.bold; })());
+  const metrics = (st) => { const size = st.size ?? 10 + (st.sizeAdd || 0); return { size, height: size, spacing: size, base: size * 0.8 }; };
+  const width = (m, t) => t.length * m.size / 2;
+  let l = layoutRich(parseRich('aaa bbb [size=20]ccc[/size] ddd\n[right]e'), metrics, width, { limit: 50 });
+  check('rich lines wrap', l.count === 3 && l.lines[0].width === 35 && l.lines[1].frags[0].text === 'ccc');
+  check('the tallest text sets the line', l.lines[1].height === 20 && l.lines[2].y === 30 && l.height === 40);
+  check('[right] moves its line', l.lines[2].x === 45);
+  l = layoutRich(parseRich('ab\nabcd', false), metrics, width, { align: 'center' });
+  check('lines center on the widest', l.lines[0].x === 5 && l.lines[1].x === 0 && l.width === 20);
+  l = layoutRich(parseRich('aaaaaaaaaaaa', false), metrics, width, { limit: 20 });
+  check('a long word is cut', l.count === 3);
+  l = layoutRich(parseRich('aa bb cc', false), metrics, width, { limit: 20, by: 'none' });
+  check('wrapBy none', l.count === 1);
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -388,25 +388,68 @@ function api.poly(points, fill)
 	end
 end
 
+local sizeOnly = {}
+local writePen, writeDeco = { 1, 1, 1, 1 }, {}
+local BLACK, SOFT_BLACK = { 0, 0, 0, 1 }, { 0, 0, 0, 0.5 }
+
 ---Text at x, y: write("Hi", 10, 10), write("Hi", 10, 10, 24) (a size), or
 ---write("Hi", 160, 10, { size = 24, align = "center", font = "pixel", width = 200 }).
----align lines the text up around x; width wraps it.
+---align lines the text up around x; width wraps it. More options (they go
+---through smitten.text, docs/text.md): rich = true reads tags like
+---[b]bold[/b], visible = 5 shows only the first characters, wrap ("word",
+---"character", "none"), lineHeight, letterSpacing, fontBold, fontItalic,
+---outline (true or a width) with outlineColor, shadow with shadowX,
+---shadowY, shadowColor. Returns the text's width and height.
 function api.write(text, x, y, options)
 	text, x, y = tostring(text), x or 0, y or 0
-	local o = type(options) == "table" and options or { size = options }
+	local o = options
+	if type(o) ~= "table" then
+		o = sizeOnly
+		o.size = options
+	end
+	local g = love.graphics
+	local align = o.align or "left"
+	local width = o.width
+	if o.rich or o.visible ~= nil or o.wrap or o.lineHeight or o.letterSpacing or o.outline or o.shadow or align == "justify" then
+		local T = require("love.text")
+		local st, lay = T._cached(text, T._userOptions(o))
+		local d = writeDeco
+		d.outline = o.outline ~= nil and o.outline ~= false
+		d.outlineWidth = type(o.outline) == "number" and o.outline or o.outlineWidth or 1
+		d.outlineColor = T.color(o.outlineColor) or BLACK
+		d.shadow = o.shadow ~= nil and o.shadow ~= false
+		d.shadowX, d.shadowY = o.shadowX or 2, o.shadowY or 2
+		d.shadowColor = T.color(o.shadowColor) or SOFT_BLACK
+		local pen = writePen
+		pen[1], pen[2], pen[3], pen[4] = g.getColor()
+		local w, h = lay.width * lay.s, lay.height * lay.s
+		local box = width or w
+		local ox = align == "center" and box / 2 or align == "right" and box or 0
+		T._draw(st, lay, x - ox, y, pen, 1, 1, 1, 1, o.visible, d, nil, nil)
+		g.setColor(pen[1], pen[2], pen[3], pen[4])
+		return w, h
+	end
 	local font, scale = require("love.assets").font(o.font or "", o.size or 16, require("love.scene.nodes2d").textScale)
 	local s = 1 / scale
-	local g = love.graphics
 	g.setFont(font)
-	local align = o.align or "left"
-	if o.width then
-		local ox = align == "center" and o.width / 2 or align == "right" and o.width or 0
-		g.printf(text, x - ox, y, o.width * scale, align, 0, s, s)
-	else
-		local w = font:getWidth(text) * s
-		local ox = align == "center" and w / 2 or align == "right" and w or 0
-		g.print(text, x - ox, y, 0, s, s)
+	if width then
+		local ox = align == "center" and width / 2 or align == "right" and width or 0
+		g.printf(text, x - ox, y, width * scale, align, 0, s, s)
+		-- How big that was, from smitten.text (it remembers, so asking every
+		-- frame costs nothing).
+		local T = require("love.text")
+		local _, lay = T._cached(text, T._userOptions(o))
+		return lay.width * lay.s, lay.height * lay.s
 	end
+	local w = font:getWidth(text) * s
+	local ox = align == "center" and w / 2 or align == "right" and w or 0
+	g.print(text, x - ox, y, 0, s, s)
+	local lines, at = 0, text:find("\n", 1, true)
+	while at do
+		lines, at = lines + 1, text:find("\n", at + 1, true)
+	end
+	local fh = font:getHeight()
+	return w, (lines * fh * font:getLineHeight() + fh) * s
 end
 
 ---An image, or one frame of a sprite sheet: sprite("art/star.png", x, y),
@@ -567,7 +610,7 @@ end
 local globals = require("love.engine").globals
 
 -- Run as they are, every frame: wait() can't pause them.
-local DIRECT = { update = true, physicsUpdate = true, draw = true }
+local DIRECT = { update = true, physicsUpdate = true, draw = true, eachCharacter = true }
 
 local SPAWN = api.spawn
 

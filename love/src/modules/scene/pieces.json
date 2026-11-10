@@ -137,8 +137,38 @@
         "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Text", "description": "A .ttf/.otf font file, \"pixel\" for the built-in pixel font, or empty for the default font." },
         "size": { "type": "int", "default": 16, "min": 1, "group": "Text", "unit": "px", "description": "Font size." },
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
-        "align": { "type": "enum", "options": ["left", "center", "right"], "default": "center", "group": "Text", "description": "Lines up the text around the piece's position." },
-        "wrap": { "type": "number", "default": 0, "min": 0, "group": "Text", "unit": "px", "description": "Wrap lines longer than this; 0 never wraps." }
+        "align": { "type": "enum", "options": ["left", "center", "right", "justify"], "default": "center", "group": "Text", "description": "Lines up the text around the piece's position. justify stretches wrapped lines to the same width." },
+        "wrap": { "type": "number", "default": 0, "min": 0, "group": "Text", "unit": "px", "description": "Wrap lines longer than this; 0 never wraps." },
+        "wrapBy": { "type": "enum", "options": ["word", "character"], "default": "word", "group": "Text", "description": "Where a line that's too long is broken: between words, or after any character (for writing without spaces, like Japanese)." },
+        "rich": { "type": "bool", "default": false, "group": "Text", "description": "Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "outline": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "A dark outline around the text." },
+        "fontBold": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [b]bold[/b] words. Empty: the font is made thicker instead." },
+        "fontItalic": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [i]italic[/i] words. Empty: the font is slanted instead." },
+        "lineHeight": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Spacing", "description": "How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them." },
+        "letterSpacing": { "type": "number", "default": 0, "step": 0.5, "group": "Spacing", "unit": "px", "description": "Extra room between letters (negative squeezes them together)." },
+        "outlineWidth": { "type": "number", "default": 0, "min": 0, "step": 0.5, "group": "Outline and shadow", "unit": "px", "description": "How thick the outline is. 0 keeps it one screen pixel thin.", "when": { "outline": [true] } },
+        "outlineColor": { "type": "color", "default": [0, 0, 0, 0.8], "group": "Outline and shadow", "description": "The outline's color.", "when": { "outline": [true] } },
+        "shadow": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "A shadow behind the text." },
+        "shadowColor": { "type": "color", "default": [0, 0, 0, 0.5], "group": "Outline and shadow", "description": "The shadow's color.", "when": { "shadow": [true] } },
+        "shadowX": { "type": "number", "default": 2, "group": "Outline and shadow", "unit": "px", "description": "How far right the shadow falls (negative: left).", "when": { "shadow": [true] } },
+        "shadowY": { "type": "number", "default": 2, "group": "Outline and shadow", "unit": "px", "description": "How far down the shadow falls (negative: up).", "when": { "shadow": [true] } },
+        "visibleCharacters": { "type": "int", "default": -1, "min": -1, "group": "Reveal", "description": "How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect." },
+        "visibleRatio": { "type": "number", "default": 1, "min": 0, "max": 1, "step": 0.05, "group": "Reveal", "description": "How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly." }
+      },
+      "methods": {
+        "measure": { "args": "", "doc": "How big the text is as it's laid out now: width, height." },
+        "lineCount": { "args": "", "doc": "How many lines the text takes." },
+        "characterCount": { "args": "", "doc": "How many characters the text has (tags and line breaks don't count)." },
+        "characterRect": { "args": "index", "doc": "Where a character is, measured from the piece's position: x, y, width, height. For putting a cursor or a sparkle on it." },
+        "characterAt": { "args": "x, y", "doc": "The number of the character at a point (measured from the piece's position), or nil." },
+        "linkAt": { "args": "x, y", "doc": "The name of the [link=name] at a point (measured from the piece's position), or nil." },
+        "reveal": { "args": "charactersPerSecond?, from?", "doc": "Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace." },
+        "skip": { "args": "", "doc": "Shows all of the text now, and ends a reveal()." }
+      },
+      "events": {
+        "revealed": { "args": "index, char", "doc": "reveal() showed one more character: play a blip, or wait at a full stop." },
+        "finished": { "args": "", "doc": "reveal() has shown the whole text." },
+        "eachCharacter": { "args": "c", "doc": "Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it." }
       }
     },
     "Tiles": {
@@ -459,9 +489,40 @@
         "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Text", "description": "A .ttf/.otf font, \"pixel\", or empty for the default font." },
         "size": { "type": "int", "default": 20, "min": 1, "group": "Text", "unit": "px", "description": "Font size." },
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Text", "description": "Text color." },
-        "align": { "type": "enum", "options": ["left", "center", "right"], "default": "left", "group": "Text", "description": "Lines up the text inside its rectangle." },
+        "align": { "type": "enum", "options": ["left", "center", "right", "justify"], "default": "left", "group": "Text", "description": "Lines up the text inside its rectangle. justify stretches wrapped lines to the same width." },
         "valign": { "type": "enum", "options": ["top", "middle", "bottom"], "default": "top", "group": "Text", "description": "Lines up the text top to bottom." },
-        "outline": { "type": "bool", "default": false, "group": "Text", "description": "A dark outline around the text." }
+        "wrapBy": { "type": "enum", "options": ["word", "character", "none"], "default": "word", "group": "Text", "description": "Where a line too long for the rectangle is broken: between words, after any character (for writing without spaces, like Japanese), or not at all." },
+        "fit": { "type": "enum", "options": ["none", "shrink"], "default": "none", "group": "Text", "description": "shrink makes the text smaller until it fits inside the rectangle." },
+        "rich": { "type": "bool", "default": false, "group": "Text", "description": "Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "outline": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "A dark outline around the text." },
+        "fontBold": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [b]bold[/b] words. Empty: the font is made thicker instead." },
+        "fontItalic": { "type": "resource", "kinds": ["font"], "default": "", "group": "Fonts", "description": "The font file for [i]italic[/i] words. Empty: the font is slanted instead." },
+        "lineHeight": { "type": "number", "default": 1, "min": 0.1, "step": 0.05, "group": "Spacing", "description": "How far apart lines are: 1 is the font's own spacing, 1.5 leaves half a line between them." },
+        "letterSpacing": { "type": "number", "default": 0, "step": 0.5, "group": "Spacing", "unit": "px", "description": "Extra room between letters (negative squeezes them together)." },
+        "outlineWidth": { "type": "number", "default": 0, "min": 0, "step": 0.5, "group": "Outline and shadow", "unit": "px", "description": "How thick the outline is. 0 keeps it one screen pixel thin.", "when": { "outline": [true] } },
+        "outlineColor": { "type": "color", "default": [0, 0, 0, 0.8], "group": "Outline and shadow", "description": "The outline's color.", "when": { "outline": [true] } },
+        "shadow": { "type": "bool", "default": false, "group": "Outline and shadow", "description": "A shadow behind the text." },
+        "shadowColor": { "type": "color", "default": [0, 0, 0, 0.5], "group": "Outline and shadow", "description": "The shadow's color.", "when": { "shadow": [true] } },
+        "shadowX": { "type": "number", "default": 2, "group": "Outline and shadow", "unit": "px", "description": "How far right the shadow falls (negative: left).", "when": { "shadow": [true] } },
+        "shadowY": { "type": "number", "default": 2, "group": "Outline and shadow", "unit": "px", "description": "How far down the shadow falls (negative: up).", "when": { "shadow": [true] } },
+        "visibleCharacters": { "type": "int", "default": -1, "min": -1, "group": "Reveal", "description": "How many characters show, counted from the start: 0 shows nothing, -1 shows them all. reveal() counts this up for a typewriter effect." },
+        "visibleRatio": { "type": "number", "default": 1, "min": 0, "max": 1, "step": 0.05, "group": "Reveal", "description": "How much of the text shows: 0 is nothing, 0.5 the first half, 1 all of it. Tween it to reveal the text smoothly." }
+      },
+      "methods": {
+        "measure": { "args": "", "doc": "How big the text is as it's laid out now: width, height." },
+        "lineCount": { "args": "", "doc": "How many lines the text takes." },
+        "characterCount": { "args": "", "doc": "How many characters the text has (tags and line breaks don't count)." },
+        "characterRect": { "args": "index", "doc": "Where a character is, measured from the label's top-left corner: x, y, width, height. For putting a cursor or a sparkle on it." },
+        "characterAt": { "args": "x, y", "doc": "The number of the character at a point (measured from the label's top-left corner), or nil." },
+        "linkAt": { "args": "x, y", "doc": "The name of the [link=name] at a point (measured from the label's top-left corner), or nil." },
+        "reveal": { "args": "charactersPerSecond?, from?", "doc": "Shows the text a character at a time (30 a second unless you say): a typewriter. Returns a handle with cancel(), after(fn) and wait(seconds). [pause=0.5] and [speed=10] in rich text change the pace." },
+        "skip": { "args": "", "doc": "Shows all of the text now, and ends a reveal()." }
+      },
+      "events": {
+        "revealed": { "args": "index, char", "doc": "reveal() showed one more character: play a blip, or wait at a full stop." },
+        "finished": { "args": "", "doc": "reveal() has shown the whole text." },
+        "eachCharacter": { "args": "c", "doc": "Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it." },
+        "linkPressed": { "args": "name", "doc": "A [link=name] in the text was clicked or tapped." }
       }
     },
     "Button": {
@@ -473,6 +534,8 @@
         "size": { "type": "int", "default": 18, "min": 1, "group": "Button", "unit": "px", "description": "Font size." },
         "color": { "type": "color", "default": [0.25, 0.47, 0.95, 1], "group": "Button", "description": "Background color." },
         "textColor": { "type": "color", "default": [1, 1, 1, 1], "group": "Button", "description": "Text color." },
+        "rich": { "type": "bool", "default": false, "group": "Button", "description": "Reads tags in the text: [b]bold[/b], [color=red]red[/color], [wave]wavy[/wave] and more (see the Text page of the docs). Type [[ for a real square bracket." },
+        "fit": { "type": "enum", "options": ["none", "shrink"], "default": "none", "group": "Button", "description": "shrink makes the words smaller until they fit inside the button." },
         "cornerRadius": { "type": "number", "default": 6, "min": 0, "group": "Button", "unit": "px", "description": "Rounds the corners." },
         "disabled": { "type": "bool", "default": false, "group": "Button", "description": "Can't be pressed; drawn faded." },
         "autofocus": { "type": "bool", "default": false, "group": "Button", "description": "Has keyboard focus when the scene starts." }

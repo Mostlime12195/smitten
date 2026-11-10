@@ -73,9 +73,38 @@ end
 
 ---------------------------------------------------------------------------
 
+local richtext = require("love.scene.richtext")
 local Label = nodeLib.classes.Label
+richtext.install("Label")
+
+-- A Label that only uses what print can do is drawn with it, as it always
+-- was (the thin dark outline included).
+local function plainLabel(self)
+	if not richtext.plain(self) or self.fit == "shrink" then return false end
+	if self.outline then
+		local c = self.outlineColor
+		return self.outlineWidth == 0 and c[1] == 0 and c[2] == 0 and c[3] == 0 and c[4] == 0.8
+	end
+	return true
+end
+
+---The text's layout and where its top-left corner is inside the label.
+function Label:_textLayout()
+	local st = richtext.state(self)
+	local o = richtext.options(self, st)
+	local _, _, w, h = self:getRect()
+	o.width = w
+	if self.fit == "shrink" then o.fitWidth, o.fitHeight = w, h end
+	local lay = require("love.text")._prepare(st, tostring(self.text), o)
+	local valign = self.valign
+	local th = lay.boxHeight * lay.s
+	return lay, 0, valign == "middle" and (h - th) / 2 or valign == "bottom" and h - th or 0, st
+end
 
 function Label:_drawUI(x, y, w, h, alpha)
+	if not plainLabel(self) then
+		return richtext.draw(self, x, y, self.color, 1, 1, 1, alpha)
+	end
 	local font, s = scaledFont(self.font, self.size)
 	local text = tostring(self.text)
 	if self.outline then
@@ -108,9 +137,23 @@ function Button:_drawUI(x, y, w, h, alpha)
 		g.setLineWidth(2)
 		g.rectangle("line", x - 3, y - 3, w + 6, h + 6, self.cornerRadius + 3, self.cornerRadius + 3)
 	end
+	if self.rich or self.fit == "shrink" then
+		return richtext.draw(self, x, y, self.textColor, 1, 1, 1, alpha)
+	end
 	local font, s = scaledFont(self.font, self.size)
 	setColor(self.textColor, alpha)
 	printIn(tostring(self.text), font, s, x + 4, y, w - 8, h, "center", "middle")
+end
+
+---The words' layout and where their top-left corner is inside the button.
+function Button:_textLayout()
+	local st = richtext.state(self)
+	local o = richtext.options(self, st)
+	local _, _, w, h = self:getRect()
+	o.width, o.align = w - 8, "center"
+	if self.fit == "shrink" then o.fitWidth, o.fitHeight = w - 8, h end
+	local lay = require("love.text")._prepare(st, tostring(self.text), o)
+	return lay, 4, (h - lay.boxHeight * lay.s) / 2, st
 end
 
 ---True while the button is held down.
@@ -272,6 +315,24 @@ end
 function M.isPointerOver()
 	return M.hovered ~= nil
 end
+-- The [link] of a Label's rich text under a point, unless something drawn
+-- over the Label covers it: the Label and the link's name.
+local function linkUnder(x, y)
+	for i = drawnCount, 1, -1 do
+		local c = drawn[i]
+		local r = c._rect
+		if c._drawUI ~= nil and not c._dead and x >= r[1] and y >= r[2] and x < r[1] + r[3] and y < r[2] + r[4] then
+			if c.type ~= "Label" then
+				local takes = c._takes
+				if not takes or (c._inside and takes(c, x, y, false)) then return nil end
+			elseif c.rich then
+				local name = c:linkAt(x - r[1], y - r[2])
+				if name then return c, name end
+			end
+		end
+	end
+	return nil
+end
 
 ---Mouse and touch events from love.engine: (kind, x, y, button) with x, y
 ---in game coordinates; kind is "pressed" or "released".
@@ -280,6 +341,17 @@ function M.input(root, kind, x, y, button)
 	local target = M.pick(x, y, false)
 	-- Touch pieces answer fingers themselves (scene/touch.lua).
 	if target and target._touchControl then target = nil end
+	-- A [link] in a Label's rich text takes the press; the rest of a Label
+	-- lets it through.
+	local linkLabel, linkName = linkUnder(x, y)
+	if linkLabel then target = nil end
+	if kind == "pressed" then
+		M.linkLabel, M.linkName = linkLabel, linkName
+	elseif kind == "released" then
+		local label, name = M.linkLabel, M.linkName
+		M.linkLabel, M.linkName = nil, nil
+		if label and label == linkLabel and name == linkName and not label._dead then label:emit("linkPressed", name) end
+	end
 	if kind == "pressed" then
 		M.pressedOn = target
 		if target and target.type == "Button" and not target.disabled then

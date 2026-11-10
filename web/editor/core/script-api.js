@@ -124,7 +124,7 @@ export const SCRIPT_API_GROUPS = [
       ['poly', 'poly(points, fill)', 'A polygon: poly({x1, y1, x2, y2, x3, y3}).'],
       ['line', 'line(x1, y1, x2, y2, ...)', 'A line through points.'],
       ['dot', 'dot(x, y)', 'One pixel.'],
-      ['write', 'write(text, x, y, options)', 'Text; options: a size, or { size, font, align, width }.'],
+      ['write', 'write(text, x, y, options)', 'Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height.'],
       ['sprite', 'sprite(image, x, y, options)', 'An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2 }).'],
     ],
   },
@@ -136,4 +136,4 @@ export const SCRIPT_API = SCRIPT_API_GROUPS.flatMap((g) => g.items);
 export const SCRIPT_API_NAMES = new Set(SCRIPT_API.map(([name]) => name));
 
 /** Callbacks the engine calls on a script, if it has them. */
-export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'pressed', 'released', 'tick', 'finished', 'hovered', 'unhovered'];
+export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'pressed', 'released', 'tick', 'finished', 'hovered', 'unhovered', 'revealed', 'eachCharacter', 'linkPressed'];

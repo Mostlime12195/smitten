@@ -322,9 +322,37 @@ end
 ---------------------------------------------------------------------------
 -- Text
 
+-- Plain text is drawn with print, as it always was; rich text and the
+-- settings print can't do go through love.text (richtext.lua).
+
+local richtext = require("love.scene.richtext")
 local Text = nodeLib.classes.Text
+richtext.install("Text")
+
+---The text's layout and where its top-left corner is from the piece's
+---position: wrapped text hangs under the position, a single line is
+---centered on it top to bottom (as print draws them).
+function Text:_textLayout()
+	local st = richtext.state(self)
+	local o = richtext.options(self, st)
+	local wrap = self.wrap
+	local plain = richtext.plain(self) and not self.outline
+	o.width = wrap > 0 and wrap or nil
+	-- print keeps the lines of unwrapped text flush left with each other.
+	o.blockAlign = plain or nil
+	local lay = require("love.text")._prepare(st, tostring(self.text), o)
+	local align = self.align
+	if wrap > 0 then
+		return lay, align == "center" and -wrap / 2 or align == "right" and -wrap or 0, 0, st
+	end
+	local w = lay.width * lay.s
+	return lay, align == "center" and -w / 2 or align == "right" and -w or 0, -lay.base.height * lay.s / 2, st
+end
 
 function Text:_draw(tr, tg, tb, ta)
+	if not (richtext.plain(self) and not self.outline) then
+		return richtext.draw(self, 0, 0, self.color, tr, tg, tb, ta)
+	end
 	local font, scale = assets.font(self.font, self.size, M.textScale)
 	local c = self.color
 	love.graphics.setColor(c[1] * tr, c[2] * tg, c[3] * tb, (c[4] or 1) * ta)

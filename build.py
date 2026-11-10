@@ -146,7 +146,7 @@ def theora_sources():
 # Engine modules written in Lua, embedded in the core: love/src/modules/<dir>.
 # <dir>/init.lua is require("love.<dir>"), <dir>/<file>.lua is
 # require("love.<dir>.<file>").
-CORE_LUA_DIRS = ["engine", "json", "input", "tween", "assets", "storage", "display", "scene", "physics", "paths", "boards"]
+CORE_LUA_DIRS = ["engine", "json", "input", "tween", "assets", "storage", "display", "scene", "physics", "paths", "boards", "text"]
 
 
 def lua_entries(directory: Path, prefix: str):

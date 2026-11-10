@@ -31,6 +31,7 @@ const CASES = {
   errors: { game: 'tools/scene-tests/errors.zip', until: /^DONE /, check: selfChecking },
   lights: { game: 'tools/scene-tests/lights.zip', until: /^DONE /, check: selfChecking },
   levels: { game: 'tools/scene-tests/levels.zip', until: /^DONE /, check: selfChecking },
+  text: { game: 'tools/scene-tests/text.zip', until: /^DONE /, modules: '', check: selfChecking },
   smoke: { game: 'tools/scene-tests/smoke.zip', seconds: 6, check: (lines) => noErrors(lines) || (lines.some((l) => /^ready/.test(l)) ? null : 'it never printed "ready"') },
   rigid: { game: 'tools/scene-tests/rigid.zip', seconds: 5, check: noErrors },
   physics: { game: 'tools/scene-tests/physics.zip', seconds: 5, check: noErrors },

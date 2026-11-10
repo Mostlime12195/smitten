@@ -237,10 +237,11 @@ export class InspectorPanel {
         return sw;
       }
       case 'string': case 'text': case 'points': case 'tags': {
-        const multiline = def.type === 'text' && String(value ?? '').length > 30;
+        // Words always get a box with room for several lines (Enter adds one).
+        const multiline = def.type === 'text';
         const isPoints = def.type === 'points';
         const shown = isPoints ? (value || []).join(', ') : String(value ?? '');
-        const el = multiline ? h('textarea', { class: 'input', rows: 3 }, shown)
+        const el = multiline ? h('textarea', { class: 'input', rows: Math.max(2, Math.min(8, shown.split('\n').length + (shown.length > 30 ? 1 : 0))), spellcheck: 'false' }, shown)
           : h('input', { class: 'input', value: shown, spellcheck: 'false', placeholder: def.type === 'tags' ? 'tags, like ghost, coin' : '' });
         el.addEventListener('change', () => {
           if (isPoints) set(el.value.split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n)));

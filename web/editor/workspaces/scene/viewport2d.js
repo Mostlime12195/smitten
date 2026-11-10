@@ -9,6 +9,7 @@
 
 import { isA, defaultOf, equal, clone } from '../../core/schema.js';
 import { decodeCells, cellBounds } from './cells.js';
+import { parseRich, layoutRich } from '../../core/richtext.js';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 32;
@@ -620,6 +621,30 @@ function drawTextLine(g, m, text, x, y) {
   g.fill();
 }
 
+/** One fragment of rich text (core/richtext.js) with its top-left at (x, y). */
+function drawFragment(g, f, x, y, spacing) {
+  const m = f.m;
+  if (f.style.picture) {
+    // A picture in the line: a square where it goes.
+    g.fillRect(x + 1, y + 1, Math.max(1, m.base - 2), Math.max(1, m.base - 2));
+    return;
+  }
+  if (spacing) {
+    let cx = x;
+    for (const c of f.text) {
+      drawTextLine(g, m, c, cx, y);
+      cx += textWidth(m, c) + spacing;
+    }
+  } else {
+    drawTextLine(g, m, f.text, x, y);
+    // The pixel font has no bold or italic of its own: bold is drawn twice.
+    if (m.pixel && f.style.bold) drawTextLine(g, m, f.text, x + m.s, y);
+  }
+  const thick = Math.max(1, Math.round(m.size / 14));
+  if (f.style.underline) g.fillRect(x, y + m.base + thick, f.width, thick);
+  if (f.style.strike) g.fillRect(x, y + m.base - Math.round(m.base * 0.32), f.width, thick);
+}
+
 /** printf: lines in a box `limit` wide, aligned, from (x, y). */
 function printf(g, m, lines, x, y, limit, align) {
   lines.forEach((line, i) => {
@@ -1169,6 +1194,73 @@ export class Viewport2D {
     return [-ox, -oy, sheet.frameWidth, sheet.frameHeight];
   }
 
+  /** True if a piece's text needs more than plain lines: tags, spacing, justify. */
+  usesRichText(n) {
+    return !!this.get(n, 'rich') || num(this.get(n, 'lineHeight'), 1) !== 1 || num(this.get(n, 'letterSpacing')) !== 0
+      || this.get(n, 'align') === 'justify' || (this.get(n, 'wrapBy') ?? 'word') !== 'word';
+  }
+
+  /**
+   * A piece's text laid out by core/richtext.js: { lines, width, height,
+   * spacing, base (the piece's font) }. limit: the width lines wrap at (0: none).
+   */
+  richLayout(n, limit, align, blockAlign = false) {
+    const family = this.assets.font(this.get(n, 'font'));
+    const size = Math.max(1, num(this.get(n, 'size'), 16));
+    const bold = this.get(n, 'fontBold');
+    const italic = this.get(n, 'fontItalic');
+    const made = new Map();
+    const metrics = (st) => {
+      let m = made.get(st);
+      if (m) return m;
+      const sz = Math.max(1, st.size ?? size + (st.sizeAdd || 0));
+      let fam = family;
+      let css = '';
+      if (st.font) fam = this.assets.font(st.font);
+      else if (st.bold && bold) fam = this.assets.font(bold);
+      else if (st.italic && italic) fam = this.assets.font(italic);
+      if (st.bold && !(bold && !st.font)) css = `bold ${css}`;
+      if (st.italic && !(italic && !st.font && !(st.bold && bold))) css = `italic ${css}`;
+      const f = fontMetrics(fam, sz);
+      m = { ...f, size: sz, base: f.pixel ? 7 * f.s : f.ascent };
+      if (!f.pixel && css) m.font = css + f.font;
+      made.set(st, m);
+      return m;
+    };
+    const spacing = num(this.get(n, 'letterSpacing'));
+    const out = layoutRich(parseRich(this.get(n, 'text'), !!this.get(n, 'rich')), metrics, textWidth, {
+      limit, align, blockAlign, lineHeight: num(this.get(n, 'lineHeight'), 1), letterSpacing: spacing, by: this.get(n, 'wrapBy') ?? 'word',
+    });
+    out.spacing = spacing;
+    out.base = metrics({});
+    return out;
+  }
+
+  /** Draws a richLayout() with its top-left at (x, y); color(style) gives each fragment's fill. */
+  drawRich(g, t, x, y, color) {
+    for (const l of t.lines) {
+      for (const f of l.frags) {
+        g.fillStyle = color(f.style);
+        drawFragment(g, f, x + l.x + f.x, y + l.y + (l.base - f.m.base), t.spacing);
+      }
+    }
+  }
+
+  /**
+   * A piece's outline and shadow settings around its text: calls paint(dx,
+   * dy, color) for each copy behind the text (color: [r, g, b, a]).
+   */
+  textDecoration(n, paint) {
+    if (this.get(n, 'shadow')) paint(num(this.get(n, 'shadowX'), 2), num(this.get(n, 'shadowY'), 2), colorOf(this.get(n, 'shadowColor') ?? [0, 0, 0, 0.5]));
+    if (this.get(n, 'outline')) {
+      const w = num(this.get(n, 'outlineWidth')) || 1;
+      const c = colorOf(this.get(n, 'outlineColor') ?? [0, 0, 0, 0.8]);
+      const d = w * 0.7071;
+      const around = w > 1 ? [[-w, 0], [w, 0], [0, -w], [0, w], [-d, -d], [d, -d], [-d, d], [d, d]] : [[-w, 0], [w, 0], [0, -w], [0, w]];
+      for (const [ox, oy] of around) paint(ox, oy, c);
+    }
+  }
+
   textLayout(n) {
     const family = this.assets.font(this.get(n, 'font'));
     const size = Math.max(1, num(this.get(n, 'size'), 16));
@@ -1176,6 +1268,12 @@ export class Viewport2D {
     const text = String(this.get(n, 'text') ?? '');
     const wrap = num(this.get(n, 'wrap'));
     const align = this.get(n, 'align');
+    if (this.usesRichText(n)) {
+      const rich = this.richLayout(n, wrap > 0 ? wrap : 0, align);
+      const w = wrap > 0 ? wrap : rich.width;
+      const ox = align === 'center' ? w / 2 : align === 'right' ? w : 0;
+      return { m, rich, lines: [], x: -ox, y: wrap > 0 ? 0 : -m.height / 2, w, h: Math.max(m.height, rich.height), wrap, align };
+    }
     if (wrap > 0) {
       const lines = wrapText(m, text, wrap);
       const ox = align === 'center' ? wrap / 2 : align === 'right' ? wrap : 0;
@@ -1572,9 +1670,16 @@ export class Viewport2D {
     const t = this.textLayout(n);
     const c = colorOf(this.get(n, 'color'));
     this.setWorld(g, e.m);
-    g.fillStyle = rgba([c[0] * e.tint[0], c[1] * e.tint[1], c[2] * e.tint[2], c[3] * e.tint[3]]);
-    if (t.wrap > 0) printf(g, t.m, t.lines, t.x, t.y, t.wrap, t.align);
-    else t.lines.forEach((line, i) => drawTextLine(g, t.m, line, t.x, t.y + i * t.m.spacing));
+    const tinted = (k) => rgba([k[0] * e.tint[0], k[1] * e.tint[1], k[2] * e.tint[2], k[3] * e.tint[3]]);
+    const paint = (dx, dy, fill) => {
+      if (t.rich) return this.drawRich(g, t.rich, t.x + dx, t.y + dy, (st) => fill ?? tinted(st.color || c));
+      g.fillStyle = fill ?? tinted(c);
+      if (t.wrap > 0) printf(g, t.m, t.lines, t.x + dx, t.y + dy, t.wrap, t.align);
+      else t.lines.forEach((line, i) => drawTextLine(g, t.m, line, t.x + dx, t.y + dy + i * t.m.spacing));
+      return undefined;
+    };
+    this.textDecoration(n, (dx, dy, k) => paint(dx, dy, tinted(k)));
+    paint(0, 0, null);
   }
 
   drawTileMap(g, e) {
@@ -1838,13 +1943,25 @@ export class Viewport2D {
       else if (valign === 'bottom') ty = by + bh - th;
       return { m, lines, ty, bx, bw, align };
     };
+    // Rich text (tags, spacing, justify) in a box, lined up top to bottom.
+    const richIn = (bx, by, bw, bh, align, valign, color, a = alpha) => {
+      const t = this.richLayout(n, bw, align);
+      const ty = valign === 'middle' ? by + (bh - t.height) / 2 : valign === 'bottom' ? by + bh - t.height : by;
+      const paint = (dx, dy, k) => this.drawRich(g, t, bx + dx, ty + dy, (st) => (k ? rgba(k, a) : rgba(st.color || colorOf(color), a)));
+      this.textDecoration(n, paint);
+      paint(0, 0, null);
+    };
     switch (n.type) {
       case 'Label': {
-        const t = label(this.get(n, 'font'), this.get(n, 'size'), this.get(n, 'text'), x, y, w, h, this.get(n, 'align'), this.get(n, 'valign'));
-        if (this.get(n, 'outline')) {
-          g.fillStyle = `rgba(0, 0, 0, ${0.8 * alpha})`;
-          for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) printf(g, t.m, t.lines, x + ox, t.ty + oy, w, t.align);
+        if (this.usesRichText(n)) {
+          richIn(x, y, w, h, this.get(n, 'align'), this.get(n, 'valign'), this.get(n, 'color'));
+          break;
         }
+        const t = label(this.get(n, 'font'), this.get(n, 'size'), this.get(n, 'text'), x, y, w, h, this.get(n, 'align'), this.get(n, 'valign'));
+        this.textDecoration(n, (dx, dy, k) => {
+          g.fillStyle = rgba(k, alpha);
+          printf(g, t.m, t.lines, x + dx, t.ty + dy, w, t.align);
+        });
         g.fillStyle = fill(this.get(n, 'color'));
         printf(g, t.m, t.lines, x, t.ty, w, t.align);
         break;
@@ -1856,6 +1973,10 @@ export class Viewport2D {
         g.beginPath();
         roundRectPath(g, x, y, w, h, num(this.get(n, 'cornerRadius')));
         g.fill();
+        if (this.get(n, 'rich')) {
+          richIn(x + 4, y, w - 8, h, 'center', 'middle', this.get(n, 'textColor'), a);
+          break;
+        }
         const t = label(this.get(n, 'font'), this.get(n, 'size'), this.get(n, 'text'), x + 4, y, w - 8, h, 'center', 'middle');
         g.fillStyle = fill(this.get(n, 'textColor'), a);
         printf(g, t.m, t.lines, x + 4, t.ty, w - 8, 'center');

@@ -48,6 +48,10 @@ jobs:
           sudo apt-get install -y -q lua5.1
           lua5.1 tools/paths-tests/test.lua
 
+      # So are the text engine's parser and layout, with a made-up font.
+      - name: Text tests
+        run: lua5.1 tools/text-tests/test.lua
+
   build:
     runs-on: ubuntu-latest
     steps:

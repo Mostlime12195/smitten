@@ -128,6 +128,15 @@ export const SMITTEN_MODULES = {
     pointAt: ['path, distance', 'The point a distance along a path from its start: x, y, and true once it\'s the end.'],
     debugDraw: ['what?, options?', 'Draws a path, an agent\'s path or an area (with nothing: the scene\'s Walkable pieces) from a script\'s draw(). options: color, width.'],
   },
+  text: {
+    effect: ['name, fn', 'Adds an effect for rich text: after effect("bounce", fn), [bounce]boing[/bounce] calls fn(c) for each character, every frame. Change c.x, c.y, c.rotation, c.scale, c.color, c.alpha, c.visible; read c.index, c.count, c.char, c.line, c.time, c.since, c.args, c.piece.'],
+    effects: ['', 'The names of every effect, sorted.'],
+    measure: ['text, options?', 'How big a text is when drawn: width, height, lines. options: font, size, width (wraps), rich, wrap, lineHeight, letterSpacing.'],
+    wrap: ['text, options?', 'The lines a text is broken into at a width: wrap("a long sentence", { width = 120 }) gives a list of strings.'],
+    strip: ['text', 'The text without its tags: strip("[b]Hi[/b]") is "Hi".'],
+    escape: ['text', 'Makes text safe to put inside rich text (a player\'s name): square brackets are shown, not read as tags.'],
+    color: ['value', 'A color from "#ff8800", "#f80" or a name like "red": {r, g, b, a}, or nil.'],
+  },
   synth: {
     sfx: ['path', 'A .sfx sound effect made in the Sound workspace; :play() it.'],
     song: ['path', 'A .song made in the Music workspace; :play() it.'],
