@@ -5,7 +5,7 @@
 speed = 220          -- top running speed (pixels per second)
 acceleration = 2400  -- how quickly it speeds up and stops
 jumpHeight = 96      -- how high a full jump goes (pixels)
-gravity = 1800       -- how fast it falls
+fallGravity = 1800   -- how fast it falls
 maxFallSpeed = 1000
 airJumps = 0         -- extra jumps in the air: 1 is a double jump
 upJumps = true       -- the up action jumps too
@@ -47,7 +47,7 @@ end
 function physicsUpdate(dt)
   local dir = axis("left", "right")
   vx = approach(vx, dir * speed, acceleration * dt)
-  vy = math.min(vy + gravity * dt, maxFallSpeed)
+  vy = math.min(vy + fallGravity * dt, maxFallSpeed)
 
   if onGround() then
     coyote, airLeft = COYOTE_TIME, airJumps

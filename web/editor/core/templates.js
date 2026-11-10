@@ -230,9 +230,9 @@ function pixelPlatformer(name) {
   }
   files['scripts/player.lua'] = files['scripts/player.lua']
     .replace('speed = 220', 'speed = 70').replace('acceleration = 2400', 'acceleration = 700')
-    .replace('jumpHeight = 96', 'jumpHeight = 28').replace('gravity = 1800', 'gravity = 600')
+    .replace('jumpHeight = 96', 'jumpHeight = 28').replace('fallGravity = 1800', 'fallGravity = 600')
     .replace('maxFallSpeed = 1000', 'maxFallSpeed = 300');
   files['scripts/level.lua'] = files['scripts/level.lua'].replace('player.y > 900', 'player.y > 230');
-  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('speed = 80', 'speed = 25').replace('gravity = 1800', 'gravity = 600');
+  files['scripts/patrol.lua'] = files['scripts/patrol.lua'].replace('speed = 80', 'speed = 25').replace('fallGravity = 1800', 'fallGravity = 600');
   return files;
 }

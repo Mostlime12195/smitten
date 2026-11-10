@@ -4,7 +4,7 @@
 
 collector = "player"   -- the tag of what can collect it
 sound = ""             -- a sound to play when collected: a name like "coin", or a file
-points = 1
+worth = 1               -- how much it counts for
 
 function entered(other)
   if not other:is(collector) then return end
