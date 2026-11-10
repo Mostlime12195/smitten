@@ -3,12 +3,17 @@
 // first (DESIGN.md, section 8): with nothing open it shows a new, untitled
 // document, which becomes a real file the first time you change it.
 
-import { h, icon, toast } from '../ui.js';
+import { h, icon, toast, showMenu } from '../ui.js';
 import { ToolHost } from '../tool-host.js';
 import { tools } from '../tools/index.js';
 
 export class ToolWorkspace extends EventTarget {
-  /** def: { id, toolId, label, untitledLabel }; app: { project } */
+  /**
+   * def: { id, toolId, label, untitledLabel, more? }; app: { project }.
+   * more: other tools the workspace also opens files with, as
+   * [{ toolId, untitledBase, untitledLabel, newLabel, icon }] (the Sound
+   * workspace edits .wav files and records them too).
+   */
   constructor(el, app, def) {
     super();
     this.el = el;
@@ -16,7 +21,12 @@ export class ToolWorkspace extends EventTarget {
     this.def = def;
     this.project = app.project;
     this.tool = tools.find((t) => t.id === def.toolId) || tools.find((t) => t.newAssets?.[0]?.extension && def.match?.test(t.newAssets[0].extension));
+    this.kinds = [
+      { toolId: this.tool?.id, untitledBase: def.untitledBase, untitledLabel: def.untitledLabel, newLabel: def.newLabel, icon: def.icon },
+      ...(def.more || []),
+    ].map((k) => ({ ...k, tool: tools.find((t) => t.id === k.toolId) })).filter((k) => k.tool);
     this.virtual = new Map(); // untitled path -> data, not saved until changed
+    this.virtualLabels = new Map(); // untitled path -> its tab's label
     this.order = [];
     this.active = null;
     this.timers = new Map();
@@ -35,6 +45,7 @@ export class ToolWorkspace extends EventTarget {
       write: (path, data) => {
         this.ownWrite = path;
         const wasVirtual = this.virtual.delete(path);
+      this.virtualLabels.delete(path);
         this.project.write(path, data);
         this.ownWrite = null;
         if (wasVirtual) {
@@ -47,13 +58,15 @@ export class ToolWorkspace extends EventTarget {
         this.render();
       },
       openFile: (path) => this.app.openFile(path),
+      newDocument: (toolId, opts) => this.newUntitled(toolId, opts),
+      record: this.app.record ? () => this.app.record() : undefined,
       toast: (m, o) => toast(m, o),
     });
     this.project.addEventListener('file', (e) => this.onFile(e.detail));
   }
 
   canOpen(path) {
-    return !!this.tool?.match(path);
+    return this.kinds.some((k) => k.tool.match(path));
   }
 
   /** Called when the workspace is shown: opens an untitled document if nothing is open. */
@@ -62,11 +75,18 @@ export class ToolWorkspace extends EventTarget {
     else this.open(this.active || this.order[0]);
   }
 
-  newUntitled() {
-    const asset = this.tool?.newAssets?.[0];
-    if (!asset) return;
+  /**
+   * Opens a new, untitled document of the workspace's tool (or of another
+   * of its tools, by id). opts.start: call the new tool instance's start()
+   * (the sound file editor starts recording). Returns the document's path.
+   */
+  newUntitled(toolId = null, opts = {}) {
+    const kind = this.kinds.find((k) => k.toolId === toolId) || this.kinds[0];
+    const tool = kind?.tool;
+    const asset = tool?.newAssets?.[0];
+    if (!asset) return null;
     const folder = asset.folder || '';
-    const base = this.def.untitledBase;
+    const base = kind.untitledBase;
     let i = 1;
     let name;
     const exists = (b) => Object.keys(asset.files(b)).some((p) => this.project.has(`${folder ? folder + '/' : ''}${p.split('/').pop()}`) || this.virtual.has(`${folder ? folder + '/' : ''}${p.split('/').pop()}`));
@@ -78,9 +98,14 @@ export class ToolWorkspace extends EventTarget {
     for (const [p, data] of Object.entries(asset.files(name))) {
       const path = `${folder ? folder + '/' : ''}${p.split('/').pop()}`;
       this.virtual.set(path, data);
-      if (!main && this.tool.match(path)) main = path;
+      this.virtualLabels.set(path, kind.untitledLabel);
+      if (!main && tool.match(path)) main = path;
     }
-    if (main) this.open(main);
+    if (main) {
+      this.open(main);
+      if (opts.start) this.host.instance(main)?.start?.();
+    }
+    return main;
   }
 
   open(path) {
@@ -104,6 +129,7 @@ export class ToolWorkspace extends EventTarget {
     if (this.host.isDirty(path)) this.host.save(path);
     this.host.close(path);
     this.virtual.delete(path);
+    this.virtualLabels.delete(path);
     const i = this.order.indexOf(path);
     this.order.splice(i, 1);
     if (this.active === path) {
@@ -136,8 +162,9 @@ export class ToolWorkspace extends EventTarget {
     for (const path of this.order) {
       const untitled = this.virtual.has(path);
       const dirty = this.host.isDirty(path);
+      const kind = this.kinds.find((k) => k.tool.match(path)) || this.kinds[0];
       const tab = h('button', { type: 'button', class: `doc-tab ${untitled ? 'untitled' : ''}`, role: 'tab', 'aria-selected': String(path === this.active), title: untitled ? `New (saved as ${path} once you change it)` : path },
-        icon(this.def.icon, 13), h('span', { class: 'doc-name' }, untitled ? this.def.untitledLabel : path.split('/').pop()),
+        icon(kind?.icon || this.def.icon, 13), h('span', { class: 'doc-name' }, untitled ? this.virtualLabels.get(path) || this.def.untitledLabel : path.split('/').pop()),
         dirty ? h('span', { class: 'dirty-dot', title: 'Saving…' }) : null,
         h('span', { class: 'doc-close', title: 'Close' }, icon('x', 12)));
       tab.addEventListener('click', (e) => {
@@ -146,8 +173,17 @@ export class ToolWorkspace extends EventTarget {
       });
       this.tabs.append(tab);
     }
-    const add = h('button', { type: 'button', class: 'doc-new', title: `New ${this.def.untitledLabel.toLowerCase()}` }, icon('plus', 14));
-    add.addEventListener('click', () => this.newUntitled());
+    const many = this.kinds.length > 1;
+    const add = h('button', { type: 'button', class: 'doc-new', title: many ? 'New…' : `New ${this.def.untitledLabel.toLowerCase()}` }, icon('plus', 14));
+    add.addEventListener('click', () => {
+      if (!many) this.newUntitled();
+      else {
+        showMenu(add, this.kinds.map((k) => ({
+          label: k.newLabel || k.untitledLabel, icon: k.icon,
+          action: () => this.newUntitled(k.toolId, { start: !!k.start }),
+        })));
+      }
+    });
     this.tabs.append(add);
   }
 

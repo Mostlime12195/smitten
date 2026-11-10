@@ -278,6 +278,8 @@ async function openProject(id) {
     newScene: (kind) => newScene(kind),
     newScript: () => newScript(),
     openFile: (path) => openFile(path),
+    // A new recording in the Sound workspace (the Music workspace's sample instruments).
+    record: () => newRecording(),
     addNodeDialog: (parent) => addNodeTo(parent),
     setCursor: (text) => { ed.status.right.textContent = text; },
     // Completions need the engine's API list, loaded once.
@@ -296,7 +298,10 @@ async function openProject(id) {
     else {
       const defs = {
         paint: { toolId: 'sprite', untitledBase: 'image', untitledLabel: 'New image', icon: 'image' },
-        sound: { toolId: 'sfx', untitledBase: 'sound', untitledLabel: 'New sound', icon: 'wave' },
+        sound: {
+          toolId: 'sfx', untitledBase: 'sound', untitledLabel: 'New sound', newLabel: 'New sound effect', icon: 'wave',
+          more: [{ toolId: 'wav', untitledBase: 'recording', untitledLabel: 'New recording', newLabel: 'Record a sound', icon: 'record', start: true }],
+        },
         music: { toolId: 'music', untitledBase: 'song', untitledLabel: 'New song', icon: 'music' },
       };
       ed.workspaces[w.id] = new ToolWorkspace(el, wsApp, { id: w.id, ...defs[w.id] });
@@ -665,6 +670,7 @@ function newMenuItems(dir) {
     { label: 'Script', icon: 'code', action: () => newScript(null, inDir('scripts')) },
     { label: 'Image', icon: 'image', action: () => { switchWorkspace('paint'); ed.workspaces.paint.newUntitled(); } },
     { label: 'Sound effect', icon: 'wave', action: () => { switchWorkspace('sound'); ed.workspaces.sound.newUntitled(); } },
+    { label: 'Recording', icon: 'record', action: () => newRecording() },
     { label: 'Song', icon: 'music', action: () => { switchWorkspace('music'); ed.workspaces.music.newUntitled(); } },
     '-',
     { label: 'Folder', icon: 'folderPlus', action: async () => {
@@ -718,6 +724,12 @@ async function renameFile(path) {
 async function deleteFile(path, kind) {
   if (!path) return;
   if (await confirmDialog({ title: `Delete ${path.split('/').pop()}?`, message: kind === 'dir' ? 'The folder and everything in it will be deleted.' : 'The file will be deleted.', okLabel: 'Delete', danger: true })) ed.project.remove(path);
+}
+
+/** Opens a new recording in the Sound workspace and starts to record. */
+function newRecording() {
+  switchWorkspace('sound');
+  ed.workspaces.sound.newUntitled('wav', { start: true });
 }
 
 /** Opens a file in the workspace that edits it. */

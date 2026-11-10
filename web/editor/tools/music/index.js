@@ -10,8 +10,9 @@ import {
   modHeld, typingTarget, dirName, resolvePath, relativePath, waveIcon, isMac, createSlider, disclosure, SHARED_STYLE,
 } from '../sfx/audio.js';
 import {
-  SYNTH_PARAMS, SYNTH_DEFAULTS, LIMITS, parseSong, songText, defaultSong, normalizeInstrument,
+  SYNTH_PARAMS, SYNTH_DEFAULTS, SAMPLE_PARAMS, SAMPLE_DEFAULTS, SAMPLE_FILE, LIMITS, parseSong, songText, defaultSong, normalizeInstrument,
 } from './song.js';
+import { decodeWav, toMono } from '../wav/wav.js';
 
 loadStyle(SHARED_STYLE);
 loadStyle(new URL('./music.css', import.meta.url));
@@ -733,8 +734,9 @@ class MusicEditor {
     name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { name.blur(); this.element.focus(); } });
 
     const typeSeg = h('div', { class: 'segmented mus-ins-type', role: 'group', 'aria-label': 'Instrument type' },
-      h('button', { type: 'button', 'aria-pressed': String(ins.type === 'synth'), onclick: () => this.setInstrumentType(idx, 'synth') }, 'Synth'),
-      h('button', { type: 'button', 'aria-pressed': String(ins.type === 'sfx'), onclick: () => this.setInstrumentType(idx, 'sfx') }, 'Sound effect'));
+      h('button', { type: 'button', 'aria-pressed': String(ins.type === 'synth'), title: 'A wave the synthesizer makes', onclick: () => this.setInstrumentType(idx, 'synth') }, 'Synth'),
+      h('button', { type: 'button', 'aria-pressed': String(ins.type === 'sfx'), title: 'A .sfx sound effect for each note', onclick: () => this.setInstrumentType(idx, 'sfx') }, 'Sound effect'),
+      h('button', { type: 'button', 'aria-pressed': String(ins.type === 'sample'), title: 'A sound file (for example a recording) played at the pitch of each note', onclick: () => this.setInstrumentType(idx, 'sample') }, 'Sound file'));
 
     const parts = [
       h('div', { class: 'mus-ins-head' }, name),
@@ -742,7 +744,9 @@ class MusicEditor {
       h('div', { class: 'mus-ins-users' }, `Used by ${users.join(', ')}`),
     ];
 
-    if (ins.type === 'sfx') {
+    if (ins.type === 'sample') {
+      parts.push(...this.sampleControls(ins, idx));
+    } else if (ins.type === 'sfx') {
       const files = this.host.list().filter((p) => /\.sfx$/i.test(p)).sort();
       const dir = dirName(this.host.path);
       const current = ins.sfx ? this.resolveSfxPath(ins.sfx) : '';
@@ -813,12 +817,83 @@ class MusicEditor {
     this.instrumentPanel.replaceChildren(...parts);
   }
 
+  /** The controls of a sample instrument: its sound file, base note, switches and envelope. */
+  sampleControls(ins, idx) {
+    const { h } = this.ui;
+    const files = this.host.list().filter((p) => SAMPLE_FILE.test(p)).sort();
+    const dir = dirName(this.host.path);
+    const current = ins.sample ? this.resolveSfxPath(ins.sample) : '';
+    const select = h('select', { class: 'select small mus-sfx-select mus-sample-select', 'aria-label': 'Sound file' },
+      h('option', { value: '', selected: !ins.sample }, files.length ? 'Choose a sound file…' : 'No sound files in the project'),
+      ...files.map((f) => h('option', { value: f, selected: f === current }, f)),
+      ins.sample && !files.includes(current) ? h('option', { value: `missing:${ins.sample}`, selected: true }, `${ins.sample} (missing)`) : null);
+    select.addEventListener('change', () => {
+      if (select.value.startsWith('missing:')) return;
+      this.edit(() => { ins.sample = select.value ? relativePath(dir, select.value) : ''; });
+      this.renderInstrument();
+      if (select.value) this.previewNote(ins.baseNote);
+    });
+    const open = h('button', {
+      type: 'button', class: 'btn small', disabled: !current || !this.host.exists(current) || !/\.wav$/i.test(current),
+      title: 'Open the sound file in the Sound workspace, to trim it or make it louder',
+      onclick: () => this.host.openFile(current),
+    }, 'Open');
+    const record = h('button', {
+      type: 'button', class: 'btn small ghost', title: 'Record a new sound in the Sound workspace. Then choose it here.',
+      onclick: () => this.host.record?.(),
+    }, 'Record…');
+    record.hidden = !this.host.record;
+
+    const base = h('select', { class: 'select small mus-base-note', 'aria-label': 'Base note' },
+      ...Array.from({ length: 128 }, (_, n) => h('option', { value: String(n), selected: n === ins.baseNote }, `${noteName(n)} (${n})`)));
+    base.addEventListener('change', () => {
+      const n = Number(base.value);
+      this.edit(() => { ins.baseNote = n; });
+      this.renderInstrument();
+      this.previewNote(n);
+    });
+    const toggle = (key, label, on, off) => {
+      const sw = h('button', {
+        type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(!!ins[key]), 'aria-label': label,
+        onclick: () => { this.edit(() => { ins[key] = !ins[key]; }); this.renderInstrument(); },
+      });
+      return h('label', { class: 'mus-switch-row' }, sw, h('span', {}, label), h('span', { class: 'mus-hint' }, ins[key] ? on : off));
+    };
+    this.insSliders = SAMPLE_PARAMS.map((p) => {
+      const slider = createSlider(this.ui, p, {
+        get: () => ins[p.key],
+        set: (v, gesture) => {
+          if (gesture) this.history.record(`ins:${idx}:${p.key}`);
+          else this.history.record();
+          ins[p.key] = v;
+          slider.sync();
+          this.updateDirty();
+          this.renderToolbar();
+        },
+        end: () => { this.history.settle(); this.previewNote(this.hover?.midi ?? ins.baseNote); },
+        reset: p.off ?? SAMPLE_DEFAULTS[p.key],
+        escape: () => this.element.focus(),
+      });
+      return slider;
+    });
+    if (current && !/\.wav$/i.test(current)) this.loadSample(current);
+    return [
+      h('div', { class: 'mus-sfx-row' }, select, open, record),
+      h('label', { class: 'mus-field mus-base-row', title: 'A note on this row plays the sound as it is. Higher notes play it faster and higher.' },
+        h('span', {}, 'Base note'), base),
+      toggle('pitched', 'Pitched', 'higher notes play it faster and higher', 'plays as it is for every note'),
+      toggle('playToEnd', 'Play the whole sound', 'each note plays all of the sound', 'the sound stops at the end of the note'),
+      h('div', { class: 'mus-ins-sliders' }, ...this.insSliders.map((sl) => sl.element)),
+    ];
+  }
+
   instrumentMenu(anchor) {
     const s = this.song;
     const idx = s.channels[this.channel].instrument;
     this.ui.showMenu(anchor, [
       { label: 'New synth instrument', icon: 'plus', action: () => this.newInstrument({ name: 'Synth', type: 'synth', ...SYNTH_DEFAULTS }) },
       { label: 'New sound effect instrument', icon: 'plus', action: () => this.newInstrument({ name: 'Sound effect', type: 'sfx', sfx: '', pitched: false }) },
+      { label: 'New sound file instrument', icon: 'plus', action: () => this.newInstrument({ name: 'Sound file', type: 'sample', sample: this.firstSample() }) },
       { label: 'Duplicate instrument', icon: 'copy', action: () => this.newInstrument({ ...JSON.parse(JSON.stringify(s.instruments[idx])), name: `${s.instruments[idx].name} copy` }) },
       '-',
       { label: 'Delete instrument', icon: 'trash', danger: true, disabled: s.instruments.length <= 1, action: () => this.deleteInstrument(idx) },
@@ -859,6 +934,8 @@ class MusicEditor {
       if (type === 'sfx') {
         const first = this.host.list().filter((p) => /\.sfx$/i.test(p)).sort()[0];
         s.instruments[idx] = normalizeInstrument({ name: ins.name, type: 'sfx', sfx: first ? relativePath(dirName(this.host.path), first) : '', pitched: false }, idx);
+      } else if (type === 'sample') {
+        s.instruments[idx] = normalizeInstrument({ name: ins.name, type: 'sample', sample: this.firstSample() }, idx);
       } else {
         s.instruments[idx] = normalizeInstrument({ name: ins.name, type: 'synth', ...SYNTH_DEFAULTS }, idx);
       }
@@ -1719,6 +1796,55 @@ class MusicEditor {
     }
   }
 
+  /** The first sound file of the project, as a path relative to the song, or "". */
+  firstSample() {
+    const first = this.host.list().filter((p) => SAMPLE_FILE.test(p)).sort()[0];
+    return first ? relativePath(dirName(this.host.path), first) : '';
+  }
+
+  /**
+   * For renderSong: a sample instrument's sound file as {samples (mono),
+   * sampleRate}, or null. WAV files are decoded here, the same way as the
+   * engine reads them, so previews sound like the game. Other files (OGG,
+   * MP3, FLAC) are decoded by the browser, once loadSample() has finished.
+   */
+  readSample(ref) {
+    const path = this.resolveSfxPath(String(ref || ''));
+    const bytes = this.host.read(path);
+    if (!(bytes instanceof Uint8Array) || !bytes.length) return null;
+    this.samples ??= new Map();
+    const had = this.samples.get(path);
+    if (had && had.bytes === bytes) return had.sound;
+    if (!/\.wav$/i.test(path)) {
+      this.loadSample(path);
+      return null;
+    }
+    let sound = null;
+    try {
+      const d = decodeWav(bytes);
+      sound = { samples: toMono(d.channels), sampleRate: d.sampleRate };
+    } catch {
+      sound = null;
+    }
+    this.samples.set(path, { bytes, sound });
+    return sound;
+  }
+
+  /** Decode a sound file that is not a WAV file with the browser, for readSample. */
+  loadSample(path) {
+    const bytes = this.host.read(path);
+    this.samples ??= new Map();
+    if (!(bytes instanceof Uint8Array) || this.samples.get(path)?.bytes === bytes) return;
+    const entry = { bytes, sound: null };
+    this.samples.set(path, entry);
+    if (typeof OfflineAudioContext === 'undefined') return;
+    new OfflineAudioContext(1, 1, 44100).decodeAudioData(bytes.slice().buffer).then((audio) => {
+      const channels = [];
+      for (let c = 0; c < audio.numberOfChannels; c++) channels.push(audio.getChannelData(c));
+      entry.sound = { samples: Float32Array.from(toMono(channels)), sampleRate: audio.sampleRate };
+    }).catch(() => { /* not a sound the browser can read: silent in previews */ });
+  }
+
   /** A copy of the song for previews, with order replaced and muted channels left out. */
   previewSong(order) {
     const s = JSON.parse(JSON.stringify(this.song));
@@ -1730,7 +1856,7 @@ class MusicEditor {
   }
 
   async renderSong(song) {
-    const samples = await this.synth.synth.renderSong(song, (p) => this.readSfx(p));
+    const samples = await this.synth.synth.renderSong(song, (p) => this.readSfx(p), (p) => this.readSample(p));
     return samples instanceof Float32Array ? samples : Float32Array.from(samples || []);
   }
 

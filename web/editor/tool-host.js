@@ -18,7 +18,7 @@ function loadSynth() {
 export class ToolHost {
   /**
    * container: element the tools' elements go into.
-   * app: {entries(), write(path, data), setDirty(path, dirty), openFile(path), toast(message, opts)}
+   * app: {entries(), write(path, data), setDirty(path, dirty), openFile(path), newDocument(toolId, opts)?, toast(message, opts)}
    */
   constructor(container, app) {
     this.container = container;
@@ -33,6 +33,9 @@ export class ToolHost {
   }
 
   has(path) { return this.open.has(path); }
+
+  /** The tool instance open on path, or undefined. */
+  instance(path) { return this.open.get(path)?.instance; }
 
   isDirty(path) { return !!this.open.get(path)?.dirty; }
 
@@ -60,6 +63,11 @@ export class ToolHost {
       synth: loadSynth,
       toast: (message, opts) => ui.toast(message, opts),
       openFile: (p) => app.openFile(p),
+      // Opens a new, untitled document of a tool in the same workspace
+      // (opts.start: start it, e.g. record).
+      newDocument: (toolId, opts) => app.newDocument?.(toolId, opts),
+      // Records a new sound in the Sound workspace (undefined if the editor can't).
+      record: app.record ? () => app.record() : undefined,
       ui,
     };
   }

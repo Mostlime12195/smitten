@@ -5,5 +5,6 @@
 import sprite from './sprite/index.js';
 import sfx from './sfx/index.js';
 import music from './music/index.js';
+import wav from './wav/index.js';
 
-export const tools = [sprite, sfx, music];
+export const tools = [sprite, sfx, wav, music];

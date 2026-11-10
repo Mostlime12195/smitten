@@ -158,6 +158,11 @@ class SfxEditor {
       }, presetIcon(p.id), h('span', {}, p.label))),
       h('div', { class: 'snd-divider' }),
       h('button', { type: 'button', class: 'sfx-preset', title: 'Change the sound a little, keeping the wave', onclick: () => this.mutate() }, mutateIcon(), h('span', {}, 'Mutate')),
+      h('div', { class: 'snd-divider' }),
+      h('button', {
+        type: 'button', class: 'sfx-preset sfx-record', title: 'Record a sound with your microphone, in a new tab',
+        onclick: () => this.host.newDocument?.('wav', { start: true }),
+      }, micIcon(), h('span', {}, 'Record')),
     );
 
     // Waveform and the big play button
@@ -627,6 +632,10 @@ export function undoIcon(redo = false) {
 
 function pasteIcon() {
   return svgIcon('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>', 14);
+}
+
+export function micIcon(size = 16) {
+  return svgIcon('<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>', size);
 }
 
 function mutateIcon() {
