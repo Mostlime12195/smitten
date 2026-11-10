@@ -1,6 +1,8 @@
 // The tile panel, shown below the scene view while a Tiles piece is selected:
 // the tileset's tiles to pick from, the painting tools, and a small tileset
-// editor (solid, one-way and a name per tile, saved in the .tileset file).
+// editor, saved in the .tileset file: a tile's settings (solid, one-way, a
+// name), the terrains (sets of tiles that fit their neighbours by
+// themselves; terrain.js picks the tiles) and the animated tiles.
 //
 // It paints through the viewport: Viewport2D calls paintDown / paintMove /
 // paintUp / paintHover / paintOverlay / paintKey / paintCancel on it while
@@ -9,10 +11,62 @@
 
 import { decodeCells, cellsValue, cellKey, cellBounds } from './cells.js';
 import { Gesture, dirOf, relativePath, normalizePath, cssVarColor, rgba } from './viewport2d.js';
+import * as terrain from './terrain.js';
+
+// What the side of the panel shows.
+const SIDES = [
+  { id: 'tile', label: 'Tile', hint: 'The picked tiles\' settings: solid, one-way, a name' },
+  { id: 'terrains', label: 'Terrains', hint: 'Sets of tiles that fit their neighbours by themselves when you paint' },
+  { id: 'animation', label: 'Animation', hint: 'Tiles that show other tiles in turn' },
+];
+
+// A terrain's color in the panel when its entry has none.
+const TERRAIN_COLORS = ['#4caf50', '#42a5f5', '#ffb300', '#ab47bc', '#ef5350', '#26c6da', '#8d6e63', '#ec407a'];
+
+// Which side or corner each third of a tile stands for while marking a
+// terrain's tiles (0: the middle, which puts the tile in the terrain).
+const ZONES = [
+  [terrain.NW, terrain.N, terrain.NE],
+  [terrain.W, 0, terrain.E],
+  [terrain.SW, terrain.S, terrain.SE],
+];
+const SIDE_BITS = terrain.N | terrain.E | terrain.S | terrain.W;
+const bitCounts = (bit, match) => (match === 'sides' ? !!(bit & SIDE_BITS) : match === 'corners' ? !(bit & SIDE_BITS) : true);
+
+const SETS = new WeakMap(); // a tileset file's data -> its terrains, ready to use
+
+const objectOf = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+
+function sortedByNumber(map) {
+  const out = {};
+  for (const k of Object.keys(map).sort((a, b) => Number(a) - Number(b))) out[k] = map[k];
+  return out;
+}
+
+/** The frame (a tile number) an animated tile shows at a time, as tilemap.lua works it out. */
+export function animationFrame(a, time, count = Infinity) {
+  const frames = [];
+  const ends = [];
+  let total = 0;
+  const fps = Number(a?.fps) > 0 ? Number(a.fps) : 8;
+  (Array.isArray(a?.frames) ? a.frames : []).forEach((f, i) => {
+    const d = Array.isArray(a.durations) && Number(a.durations[i]) ? Number(a.durations[i]) : 1 / fps;
+    if (Number.isInteger(f) && f >= 0 && f < count && d > 0) {
+      total += d;
+      frames.push(f);
+      ends.push(total);
+    }
+  });
+  if (!frames.length) return null;
+  const t = ((time % total) + total) % total;
+  let k = 0;
+  while (k < ends.length - 1 && t >= ends[k]) k++;
+  return frames[k];
+}
 
 const TOOLS = [
   { id: 'paint', label: 'Paint', key: 'B', hint: 'Paint with the picked tiles' },
-  { id: 'erase', label: 'Erase', key: 'E', hint: 'Erase tiles (Shift-drag: a rectangle)' },
+  { id: 'erase', label: 'Erase', key: 'E', hint: 'Erase tiles (Shift-drag: a rectangle). With a terrain picked, the edges around the hole are fitted' },
   { id: 'rect', label: 'Rectangle', key: 'U', hint: 'Drag to fill a rectangle with the picked tiles' },
   { id: 'bucket', label: 'Bucket fill', key: 'G', hint: 'Fill the connected area of the same tile' },
   { id: 'pick', label: 'Pick', key: 'I', hint: 'Drag over the map to paint with those tiles (or Alt-drag with any tool)' },
@@ -63,6 +117,11 @@ export class TilesPanel {
     this.prevTool = 'select';
     this.sel = { x0: 0, y0: 0, x1: 0, y1: 0 }; // palette selection, in tiles
     this.stamp = { w: 1, h: 1, tiles: [0] };
+    this.brush = null; // the name of the terrain to paint with; null: the picked tiles
+    this.side = 'tile'; // what the side of the panel shows (SIDES)
+    this.terrainSel = 0; // the terrain shown in the Terrains side
+    this.marking = false; // clicks in the picture mark the terrain's tiles
+    this.draft = null; // a terrain's tiles while a marking drag is going on
     this.zoom = 0; // palette zoom; 0 = pick one from the tile size
     this.mode = 'tiles'; // or 'new': the new tileset form
     this.drag = null;
@@ -150,6 +209,9 @@ export class TilesPanel {
     } else if (this.tilesetPath() !== before) {
       this.sel = { x0: 0, y0: 0, x1: 0, y1: 0 };
       this.stamp = { w: 1, h: 1, tiles: [0] };
+      this.brush = null;
+      this.terrainSel = 0;
+      this.marking = false;
     }
     this.render();
     this.viewport?.redraw();
@@ -163,6 +225,7 @@ export class TilesPanel {
     for (const fn of this.cleanup) fn();
     this.cleanup = [];
     this.paletteObserver?.disconnect();
+    this.stopAnimating();
     this.root.remove();
   }
 
@@ -176,6 +239,40 @@ export class TilesPanel {
   tileset() {
     const p = this.tilesetPath();
     return p && this.assets ? this.assets.tileset(p) : null;
+  }
+
+  /** The tileset's terrains ready to use: {list, byName, of} (terrain.js). */
+  terrainSets() {
+    const ts = this.tileset();
+    if (!ts) return terrain.compileAll(null);
+    let sets = SETS.get(ts.data);
+    if (!sets) {
+      sets = terrain.compileAll(ts.data.terrains);
+      SETS.set(ts.data, sets);
+    }
+    return sets;
+  }
+
+  /** The terrains as the file lists them (what the Terrains side edits). */
+  terrainDefs() {
+    const list = this.tileset()?.data?.terrains;
+    return Array.isArray(list) ? list.filter((d) => d && typeof d === 'object') : [];
+  }
+
+  terrainColor(def, i) {
+    return typeof def?.color === 'string' && /^#[0-9a-f]{6}$/i.test(def.color) ? def.color : TERRAIN_COLORS[i % TERRAIN_COLORS.length];
+  }
+
+  /** The terrain being painted with, or null when painting plain tiles. */
+  brushTerrain() {
+    return this.brush ? this.terrainSets().byName.get(this.brush) || null : null;
+  }
+
+  setBrush(name) {
+    this.brush = name || null;
+    if (this.brushSelect) this.brushSelect.value = this.brush || '';
+    if (this.brush && (this.tool === 'pick' || this.viewport?.tool !== 'paint')) this.setTool(this.tool === 'pick' ? 'paint' : this.tool);
+    this.viewport?.redraw();
   }
 
   paths() {
@@ -261,9 +358,15 @@ export class TilesPanel {
   // Rendering
 
   render() {
+    // Keep the picture where it was scrolled to (saving a tile's settings
+    // comes back here).
+    const scroll = this.palette && this.renderedTileset === this.tilesetPath() ? [this.palette.wrap.scrollLeft, this.palette.wrap.scrollTop] : null;
     this.root.replaceChildren();
     this.paletteObserver?.disconnect();
+    this.stopAnimating();
     this.palette = null;
+    this.brushSelect = null;
+    this.draft = null;
     this.renderedTileset = this.tilesetPath();
     if (!this.viewport) {
       this.root.append(h('div', { class: 'tmp-empty' }, 'Tiles are painted in the scene view.'));
@@ -284,6 +387,10 @@ export class TilesPanel {
       return;
     }
     this.renderTiles(ts);
+    if (scroll && this.palette) {
+      this.palette.wrap.scrollLeft = scroll[0];
+      this.palette.wrap.scrollTop = scroll[1];
+    }
   }
 
   renderSetup(path) {
@@ -345,8 +452,27 @@ export class TilesPanel {
     });
     this.infoEl = h('span', { class: 'tmp-info' });
     this.zoomLabel = h('span', { class: 'tmp-zoom' });
+    // What the tools paint with: the picked tiles, or a terrain.
+    const sets = this.terrainSets();
+    if (this.brush && !sets.byName.has(this.brush)) this.brush = null;
+    const brush = h('select', { class: 'tmp-select', title: 'What the tools paint with: the tiles you picked, or a terrain, which picks the tiles that fit their neighbours', 'aria-label': 'Paint with' });
+    brush.append(h('option', { value: '', selected: !this.brush }, 'Picked tiles'));
+    for (const t of sets.list) brush.append(h('option', { value: t.name, selected: t.name === this.brush }, `Terrain: ${t.name}`));
+    if (!sets.list.length) brush.append(h('option', { value: '__make' }, 'Make a terrain…'));
+    brush.addEventListener('change', () => {
+      if (brush.value === '__make') {
+        brush.value = '';
+        this.side = 'terrains';
+        this.renderSide();
+        return;
+      }
+      this.setBrush(brush.value);
+    });
+    this.brushSelect = brush;
     const bar = h('div', { class: 'tmp-bar' },
       tools,
+      h('span', { class: 'tmp-sep' }),
+      h('label', { class: 'tmp-field' }, h('span', {}, 'Paint with'), brush),
       h('span', { class: 'tmp-sep' }),
       h('label', { class: 'tmp-field' }, h('span', {}, 'Tileset'), select),
       h('span', { class: 'tmp-spacer' }),
@@ -379,11 +505,45 @@ export class TilesPanel {
     }
 
     this.propsEl = h('div', { class: 'tmp-props' });
-    this.root.append(bar, h('div', { class: 'tmp-body' }, wrap, this.propsEl));
+    this.sideTabs = h('div', { class: 'tmp-tabs', role: 'tablist', 'aria-label': 'Tileset' });
+    this.root.append(bar, h('div', { class: 'tmp-body' }, wrap, h('div', { class: 'tmp-side' }, this.sideTabs, this.propsEl)));
     this.updateTools();
+    this.renderSide();
+    this.updateInfo();
+    this.startAnimating();
+  }
+
+  /** The side of the panel: its tabs and what the chosen one shows. */
+  renderSide() {
+    if (!this.sideTabs) return;
+    this.sideTabs.replaceChildren();
+    for (const t of SIDES) {
+      this.sideTabs.append(h('button', {
+        type: 'button', class: 'tmp-tab', role: 'tab', title: t.hint, 'aria-selected': String(t.id === this.side),
+        onclick: () => {
+          this.side = t.id;
+          this.renderSide();
+        },
+      }, t.label));
+    }
     this.renderProps();
     this.drawPalette();
-    this.updateInfo();
+  }
+
+  // The picture plays its animated tiles while there are any.
+  startAnimating() {
+    this.stopAnimating();
+    const anims = Object.keys(objectOf(this.tileset()?.data?.animations));
+    if (!anims.length || typeof setInterval === 'undefined') return;
+    this.animTimer = setInterval(() => {
+      if (!this.palette || !this.root.isConnected) this.stopAnimating();
+      else if (!this.paletteDrag && !this.draft && this.root.offsetParent !== null) this.drawPalette();
+    }, 100);
+  }
+
+  stopAnimating() {
+    if (this.animTimer) clearInterval(this.animTimer);
+    this.animTimer = null;
   }
 
   updateTools() {
@@ -494,6 +654,83 @@ export class TilesPanel {
         g.fill();
       }
     }
+    // Animated tiles: the frame they show now, and a mark in the corner.
+    const time = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    for (const [k, a] of Object.entries(objectOf(ts.data.animations))) {
+      const t = Number(k);
+      if (!(t >= 0 && t < ts.count)) continue;
+      const f = animationFrame(a, time, ts.count);
+      if (f === null) continue;
+      const [x, y] = cell(t);
+      if (f !== t) {
+        g.clearRect(x, y, tw, th);
+        g.drawImage(img.bitmap, (f % ts.columns) * ts.tileWidth, Math.floor(f / ts.columns) * ts.tileHeight, ts.tileWidth, ts.tileHeight, x, y, tw, th);
+      }
+      const m = Math.max(5, Math.min(9, tw / 3));
+      g.beginPath();
+      g.moveTo(x + 2, y + 2);
+      g.lineTo(x + 2 + m, y + 2 + m / 2);
+      g.lineTo(x + 2, y + 2 + m);
+      g.closePath();
+      g.fillStyle = c.accent;
+      g.fill();
+      g.lineWidth = 1;
+      g.strokeStyle = rgba(c.bg, 0.8);
+      g.stroke();
+    }
+    // Terrains: where each tile of a terrain carries on (its sides and
+    // corners), in the terrain's color. The chosen terrain in full, the
+    // others as a dot.
+    if (this.side === 'terrains') {
+      const defs = this.terrainDefs();
+      defs.forEach((def, i) => {
+        const chosen = i === this.terrainSel;
+        const color = this.terrainColor(def, i);
+        const match = terrain.matchOf(def.match);
+        const tiles = chosen && this.draft ? this.draft.tiles : objectOf(def.tiles);
+        for (const [k, v] of Object.entries(tiles)) {
+          const t = Number(k);
+          if (!(Number.isInteger(t) && t >= 0 && t < ts.count)) continue;
+          const [x, y] = cell(t);
+          if (!chosen) {
+            g.beginPath();
+            g.arc(x + tw / 2, y + th / 2, Math.max(2, Math.min(tw, th) / 8), 0, Math.PI * 2);
+            g.fillStyle = color;
+            g.fill();
+            continue;
+          }
+          const mask = Number(v) || 0;
+          const counted = terrain.reduce(mask, match, true);
+          for (let j = 0; j < 3; j++) {
+            for (let zi = 0; zi < 3; zi++) {
+              const bit = ZONES[j][zi];
+              if (bit && !(mask & bit)) continue;
+              if (bit && !bitCounts(bit, match)) continue;
+              // A corner without both its sides doesn't count: drawn faint.
+              g.globalAlpha = bit === 0 ? 0.75 : counted & bit ? 0.6 : 0.2;
+              g.fillStyle = color;
+              g.fillRect(x + (zi * tw) / 3, y + (j * th) / 3, tw / 3, th / 3);
+            }
+          }
+          g.globalAlpha = 1;
+        }
+      });
+      // While marking, the tile under the pointer shows its nine parts.
+      if (this.marking && this.paletteHover && defs[this.terrainSel]) {
+        const x = this.paletteHover.x * tw;
+        const y = this.paletteHover.y * th;
+        g.beginPath();
+        for (let i = 1; i < 3; i++) {
+          g.moveTo(x + (i * tw) / 3, y);
+          g.lineTo(x + (i * tw) / 3, y + th);
+          g.moveTo(x, y + (i * th) / 3);
+          g.lineTo(x + tw, y + (i * th) / 3);
+        }
+        g.lineWidth = 1;
+        g.strokeStyle = rgba(c.fg, 0.6);
+        g.stroke();
+      }
+    }
     // Grid
     if (tw >= 6 && th >= 6) {
       g.beginPath();
@@ -527,9 +764,75 @@ export class TilesPanel {
     if (this.sel) box(this.sel, c.accent, 2);
   }
 
+  /** Marking a terrain's tiles: a click or a drag over the thirds of the tiles in the picture. */
+  maskPointer(type, e) {
+    const ts = this.tileset();
+    const defs = this.terrainDefs();
+    const def = defs[this.terrainSel];
+    const r = this.palette.canvas.getBoundingClientRect();
+    const z = this.paletteZoom();
+    const fx = (e.clientX - r.left) / (ts.tileWidth * z);
+    const fy = (e.clientY - r.top) / (ts.tileHeight * z);
+    const x = Math.floor(fx);
+    const y = Math.floor(fy);
+    const inside = x >= 0 && y >= 0 && x < ts.columns && y < ts.rows;
+    this.paletteHover = inside ? { x, y } : null;
+    const tile = y * ts.columns + x;
+    const bit = inside ? ZONES[Math.min(2, Math.floor((fy - y) * 3))][Math.min(2, Math.floor((fx - x) * 3))] : 0;
+    const match = terrain.matchOf(def.match);
+    const apply = () => {
+      const d = this.draft;
+      if (!d || !inside || (bit === 0) !== d.middle || (bit && !bitCounts(bit, match))) return;
+      const key = String(tile);
+      const has = key in d.tiles;
+      const cur = has ? Number(d.tiles[key]) || 0 : 0;
+      if (d.middle) {
+        if (d.on && !has) d.tiles[key] = 0;
+        else if (!d.on && has) delete d.tiles[key];
+        else return;
+      } else {
+        const next = d.on ? cur | bit : cur & ~bit;
+        if (has && next === cur) return;
+        if (!has && !d.on) return;
+        d.tiles[key] = next;
+      }
+      d.changed = true;
+    };
+    if (type === 'down' && e.button === 0 && inside) {
+      this.root.focus({ preventScroll: true });
+      try {
+        this.palette.canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // not a live pointer
+      }
+      const tiles = { ...objectOf(def.tiles) };
+      const key = String(tile);
+      // The first click decides: it turns that part on, or off, and the drag does the same.
+      const on = bit === 0 ? !(key in tiles) : !(key in tiles) || !((Number(tiles[key]) || 0) & bit);
+      this.draft = { tiles, on, middle: bit === 0, changed: false };
+      apply();
+    } else if (type === 'move') apply();
+    else if (type === 'up' && this.draft) {
+      const d = this.draft;
+      this.draft = null;
+      if (d.changed) {
+        this.updateTerrain(this.terrainSel, (t) => {
+          t.tiles = d.tiles;
+        });
+        return;
+      }
+    }
+    this.drawPalette();
+    this.updateInfo();
+  }
+
   palettePointer(type, e) {
     const ts = this.tileset();
     if (!ts?.count || !this.palette) return;
+    if (this.side === 'terrains' && this.marking && this.terrainDefs()[this.terrainSel]) {
+      this.maskPointer(type, e);
+      return;
+    }
     const r = this.palette.canvas.getBoundingClientRect();
     const z = this.paletteZoom();
     const x = Math.floor((e.clientX - r.left) / (ts.tileWidth * z));
@@ -554,6 +857,8 @@ export class TilesPanel {
       this.paletteDrag = false;
       this.stampFromSelection();
       // Picking tiles means painting with them next.
+      this.brush = null;
+      if (this.brushSelect) this.brushSelect.value = '';
       if (this.tool === 'erase' || this.tool === 'pick') this.tool = 'paint';
       this.setTool(this.tool);
       this.renderProps();
@@ -569,6 +874,14 @@ export class TilesPanel {
     if (!el) return;
     el.replaceChildren();
     const ts = this.tileset();
+    if (ts && this.side === 'terrains') {
+      this.renderTerrains(el, ts);
+      return;
+    }
+    if (ts && this.side === 'animation') {
+      this.renderAnimation(el, ts);
+      return;
+    }
     const tiles = this.selectedTiles();
     if (!ts || !tiles.length) {
       el.append(h('p', { class: 'tmp-note' }, ts?.count ? 'Pick tiles to see their properties.' : 'Tile properties show here once the tileset has tiles.'));
@@ -610,13 +923,13 @@ export class TilesPanel {
         if (e.key === 'Enter') input.blur();
         e.stopPropagation();
       });
-      el.append(h('label', { class: 'tmp-field tmp-field-col', title: 'Read it in scripts with tilemap:getTileProperties(tile).name' }, h('span', {}, 'Name'), input));
+      el.append(h('label', { class: 'tmp-field tmp-field-col', title: 'Read it in scripts with tiles:tileInfo(tile).name' }, h('span', {}, 'Name'), input));
     }
     el.append(h('p', { class: 'tmp-note' }, `Saved in ${ts.path.split('/').pop()}.`));
   }
 
-  /** Changes the properties of tiles in the .tileset file. */
-  updateTiles(tiles, fn) {
+  /** Changes the .tileset file: fn gets its data to change. */
+  updateTileset(fn) {
     const ts = this.tileset();
     if (!ts) return;
     let data;
@@ -625,17 +938,269 @@ export class TilesPanel {
     } catch {
       return;
     }
-    const map = { ...(data.tiles || {}) };
-    for (const t of tiles) {
-      const p = { ...(map[String(t)] || {}) };
-      fn(p);
-      if (Object.keys(p).length) map[String(t)] = p;
-      else delete map[String(t)];
-    }
-    const sorted = {};
-    for (const k of Object.keys(map).sort((a, b) => Number(a) - Number(b))) sorted[k] = map[k];
-    data.tiles = sorted;
+    if (!data || typeof data !== 'object') return;
+    fn(data);
     this.project.write(ts.path, `${JSON.stringify(data, null, 2)}\n`);
+  }
+
+  /** Changes the properties of tiles in the .tileset file. */
+  updateTiles(tiles, fn) {
+    this.updateTileset((data) => {
+      const map = { ...(data.tiles || {}) };
+      for (const t of tiles) {
+        const p = { ...(map[String(t)] || {}) };
+        fn(p);
+        if (Object.keys(p).length) map[String(t)] = p;
+        else delete map[String(t)];
+      }
+      data.tiles = sortedByNumber(map);
+    });
+  }
+
+  // Terrains -------------------------------------------------------------------
+
+  /**
+   * Changes terrain i of the .tileset file: fn gets its entry. A tile
+   * belongs to one terrain, so the tiles it has afterwards leave the others.
+   */
+  updateTerrain(i, fn) {
+    this.updateTileset((data) => {
+      const list = Array.isArray(data.terrains) ? data.terrains.filter((d) => d && typeof d === 'object') : [];
+      const def = list[i];
+      if (!def) return;
+      fn(def, list);
+      def.tiles = sortedByNumber(objectOf(def.tiles));
+      for (const other of list) {
+        if (other === def || !other.tiles) continue;
+        for (const k of Object.keys(def.tiles)) delete other.tiles[k];
+      }
+      data.terrains = list;
+    });
+  }
+
+  addTerrain() {
+    const names = new Set(this.terrainDefs().map((d, i) => terrain.compile(d, i + 1).name));
+    let name = 'terrain';
+    for (let n = 2; names.has(name); n++) name = `terrain${n}`;
+    this.terrainSel = this.terrainDefs().length;
+    this.marking = true;
+    this.updateTileset((data) => {
+      const list = Array.isArray(data.terrains) ? data.terrains.filter((d) => d && typeof d === 'object') : [];
+      list.push({ name, match: 'all', color: TERRAIN_COLORS[list.length % TERRAIN_COLORS.length], tiles: {} });
+      data.terrains = list;
+    });
+  }
+
+  /** Fills in a terrain's tiles from a sheet layout, starting at the picked tile. */
+  applyLayout(id) {
+    const ts = this.tileset();
+    const layout = terrain.LAYOUTS.find((l) => l.id === id);
+    if (!ts || !layout) return;
+    const first = this.selectedTiles()[0] ?? 0;
+    const map = terrain.layoutTiles(layout, first, ts.columns, ts.count);
+    if (!map) {
+      this.viewport?.flash(`That layout is ${layout.rows[0].length} × ${layout.rows.length} tiles: it doesn't fit in the picture starting at tile ${first}. Pick its top-left tile first.`);
+      return;
+    }
+    this.updateTerrain(this.terrainSel, (t) => {
+      t.match = layout.match;
+      t.tiles = { ...objectOf(t.tiles), ...map };
+    });
+  }
+
+  renderTerrains(el, ts) {
+    const defs = this.terrainDefs();
+    if (this.terrainSel >= defs.length) this.terrainSel = Math.max(0, defs.length - 1);
+    el.append(h('p', { class: 'tmp-note' }, 'A terrain is a set of tiles for one material: grass, a wall, water. Paint with it and the edges and corners fit by themselves.'));
+    const list = h('div', { class: 'tmp-terrains', role: 'listbox', 'aria-label': 'Terrains' });
+    defs.forEach((d, i) => {
+      const t = terrain.compile(d, i + 1);
+      list.append(h('button', {
+        type: 'button', class: 'tmp-terrain', role: 'option', 'aria-selected': String(i === this.terrainSel), title: `${t.name}: ${t.tiles.size} tiles`,
+        onclick: () => {
+          this.terrainSel = i;
+          this.renderProps();
+          this.drawPalette();
+        },
+      }, h('span', { class: 'tmp-swatch', style: `background:${this.terrainColor(d, i)}` }), h('span', { class: 'tmp-terrain-name' }, t.name), h('span', { class: 'tmp-terrain-count' }, String(t.tiles.size))));
+    });
+    el.append(list, h('button', { type: 'button', class: 'tmp-btn', title: 'Add a terrain to this tileset', onclick: () => this.addTerrain() }, 'New terrain'));
+    const def = defs[this.terrainSel];
+    if (!def) {
+      this.marking = false;
+      return;
+    }
+    const sel = this.terrainSel;
+    const compiled = terrain.compile(def, sel + 1);
+    const stop = (input) => input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+      e.stopPropagation();
+    });
+
+    const name = h('input', { type: 'text', class: 'tmp-input', value: compiled.name, spellcheck: 'false' });
+    name.addEventListener('change', () => {
+      const others = new Set(defs.filter((d) => d !== def).map((d, i) => terrain.compile(d, i + 1).name));
+      let v = name.value.trim() || compiled.name;
+      for (let n = 2; others.has(v); n++) v = `${name.value.trim()}${n}`;
+      if (v === compiled.name) {
+        name.value = v;
+        return;
+      }
+      if (this.brush === compiled.name) this.brush = v;
+      this.updateTerrain(sel, (t) => {
+        t.name = v;
+      });
+    });
+    stop(name);
+
+    const match = h('select', { class: 'tmp-select' });
+    for (const m of terrain.MATCHES) match.append(h('option', { value: m.id, selected: m.id === compiled.match, title: m.hint }, m.label));
+    match.addEventListener('change', () => this.updateTerrain(sel, (t) => {
+      t.match = match.value;
+    }));
+    const matchHint = terrain.MATCHES.find((m) => m.id === compiled.match).hint;
+
+    const color = h('input', { type: 'color', class: 'tmp-color', value: this.terrainColor(def, sel), 'aria-label': 'Color in this panel' });
+    color.addEventListener('change', () => this.updateTerrain(sel, (t) => {
+      t.color = color.value;
+    }));
+
+    const mark = h('button', {
+      type: 'button', class: 'tmp-btn tmp-toggle', 'aria-pressed': String(this.marking),
+      title: 'Then click in the picture: the middle of a tile puts it in the terrain, its sides and corners say where the terrain carries on into the next cell',
+      onclick: () => {
+        this.marking = !this.marking;
+        this.renderProps();
+        this.drawPalette();
+      },
+    }, this.marking ? 'Marking tiles: click the picture' : 'Mark its tiles');
+
+    const first = this.selectedTiles()[0] ?? 0;
+    const layout = h('select', { class: 'tmp-select', title: `Marks a whole sheet at once, when the picture is drawn in one of these layouts. It starts at the picked tile (tile ${first}): pick the sheet's top-left tile first (with marking off).` });
+    layout.append(h('option', { value: '' }, 'Fill in from a layout…'));
+    for (const l of terrain.LAYOUTS) layout.append(h('option', { value: l.id, title: l.hint }, l.label));
+    layout.addEventListener('change', () => {
+      const id = layout.value;
+      layout.value = '';
+      if (id) this.applyLayout(id);
+    });
+
+    el.append(
+      h('label', { class: 'tmp-field tmp-field-col', title: 'Scripts use it: level:setTerrain(column, row, "grass")' }, h('span', {}, 'Name'), h('div', { class: 'tmp-row' }, name, color)),
+      h('label', { class: 'tmp-field tmp-field-col', title: matchHint }, h('span', {}, 'Neighbours that count'), match),
+      mark,
+      this.marking ? h('p', { class: 'tmp-note' }, 'Click the middle of every tile of this terrain, then the sides and corners where it joins more of itself. Click again to take a mark away; drag to mark many.') : null,
+      layout,
+      h('button', {
+        type: 'button', class: 'tmp-btn tmp-primary', disabled: compiled.first === null, title: compiled.first === null ? 'Mark some tiles first' : `Paint ${compiled.name} in the scene`,
+        onclick: () => {
+          this.marking = false;
+          this.setBrush(compiled.name);
+          this.setTool(this.tool === 'pick' ? 'paint' : this.tool);
+          this.renderProps();
+          this.drawPalette();
+        },
+      }, 'Paint with it'),
+      h('button', {
+        type: 'button', class: 'tmp-btn', title: 'Removes the terrain from the tileset. Tiles already painted stay as they are.',
+        onclick: () => {
+          if (this.brush === compiled.name) this.brush = null;
+          this.updateTileset((data) => {
+            const all = Array.isArray(data.terrains) ? data.terrains.filter((d) => d && typeof d === 'object') : [];
+            all.splice(sel, 1);
+            if (all.length) data.terrains = all;
+            else delete data.terrains;
+          });
+        },
+      }, 'Delete terrain'),
+      h('p', { class: 'tmp-note' }, `${compiled.tiles.size} tiles · saved in ${ts.path.split('/').pop()}.`),
+    );
+  }
+
+  // Animated tiles -------------------------------------------------------------
+
+  renderAnimation(el, ts) {
+    const tiles = this.selectedTiles();
+    const t = tiles[0];
+    const anims = objectOf(ts.data.animations);
+    el.append(h('p', { class: 'tmp-note' }, 'An animated tile shows other tiles in turn: water, lava, torches. Paint with its first tile; the game plays the rest.'));
+    if (t === undefined) {
+      el.append(h('p', { class: 'tmp-note' }, 'Pick a tile to animate.'));
+      return;
+    }
+    const a = objectOf(anims[String(t)]);
+    const has = Array.isArray(a.frames) && a.frames.length > 0;
+    const setAnim = (fn) => this.updateTileset((data) => {
+      const map = { ...objectOf(data.animations) };
+      const cur = { ...objectOf(map[String(t)]) };
+      fn(cur);
+      if (Array.isArray(cur.frames) && cur.frames.length) map[String(t)] = cur;
+      else delete map[String(t)];
+      if (Object.keys(map).length) data.animations = sortedByNumber(map);
+      else delete data.animations;
+    });
+    const numbers = (text, whole) => text.split(/[\s,;]+/).map(Number).filter((v) => Number.isFinite(v) && (whole ? Number.isInteger(v) && v >= 0 && v < ts.count : v > 0));
+    const stop = (input) => input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+      e.stopPropagation();
+    });
+    el.append(h('div', { class: 'tmp-props-title' }, `Tile ${t}`));
+    if (tiles.length >= 2) {
+      el.append(h('button', {
+        type: 'button', class: 'tmp-btn tmp-primary', title: `Tile ${t} will show tiles ${tiles.join(', ')} in turn`,
+        onclick: () => setAnim((cur) => {
+          cur.frames = tiles.slice();
+          if (!(Number(cur.fps) > 0)) cur.fps = 8;
+          delete cur.durations;
+        }),
+      }, `${has ? 'Use' : 'Animate with'} these ${tiles.length} tiles`));
+    } else if (!has) {
+      el.append(h('p', { class: 'tmp-note' }, 'Drag over the frames in the picture (in a row, first to last) and press the button that appears, or type the tile numbers here.'));
+    }
+    const frames = h('input', { type: 'text', class: 'tmp-input', value: has ? a.frames.join(', ') : '', placeholder: 'For example 8, 9, 10', spellcheck: 'false' });
+    frames.addEventListener('change', () => {
+      const list = numbers(frames.value, true);
+      setAnim((cur) => {
+        cur.frames = list;
+        if (list.length && !(Number(cur.fps) > 0)) cur.fps = 8;
+        if (Array.isArray(cur.durations) && cur.durations.length !== list.length) delete cur.durations;
+      });
+    });
+    stop(frames);
+    el.append(h('label', { class: 'tmp-field tmp-field-col', title: 'The tiles it shows, in order (tile numbers, counted from 0 across the picture)' }, h('span', {}, 'Frames'), frames));
+    if (!has) return;
+    const fps = h('input', { type: 'number', class: 'tmp-input tmp-num', min: '0.1', max: '60', step: '1', value: String(Number(a.fps) > 0 ? a.fps : 8) });
+    fps.addEventListener('change', () => {
+      const v = Number(fps.value);
+      if (v > 0) setAnim((cur) => {
+        cur.fps = v;
+      });
+    });
+    stop(fps);
+    const times = h('input', { type: 'text', class: 'tmp-input', value: Array.isArray(a.durations) ? a.durations.join(', ') : '', placeholder: 'All the same', spellcheck: 'false' });
+    times.addEventListener('change', () => {
+      const list = numbers(times.value, false);
+      setAnim((cur) => {
+        if (list.length) {
+          // One time for each frame; the last one given stands for the rest.
+          cur.durations = cur.frames.map((_, i) => list[Math.min(i, list.length - 1)]);
+        } else delete cur.durations;
+      });
+    });
+    stop(times);
+    const random = h('input', { type: 'checkbox' });
+    random.checked = a.randomStart === true;
+    random.addEventListener('change', () => setAnim((cur) => {
+      if (random.checked) cur.randomStart = true;
+      else delete cur.randomStart;
+    }));
+    el.append(
+      h('label', { class: 'tmp-field tmp-field-col', title: 'How many frames it shows each second' }, h('span', {}, 'Frames a second'), fps),
+      h('label', { class: 'tmp-field tmp-field-col', title: 'Seconds for each frame, like 0.8, 0.1, 0.1, when they aren\'t all the same. Empty: the speed above.' }, h('span', {}, 'Seconds for each frame'), times),
+      h('label', { class: 'tmp-check', title: 'Every cell starts at a different point of the loop, so a lake doesn\'t ripple all in step' }, random, h('span', {}, 'Random start')),
+      h('button', { type: 'button', class: 'tmp-btn', onclick: () => setAnim((cur) => delete cur.frames) }, 'Remove animation'),
+      h('p', { class: 'tmp-note' }, `Solid and the other settings come from tile ${t}. Saved in ${ts.path.split('/').pop()}.`),
+    );
   }
 
   // New tileset ---------------------------------------------------------------
@@ -815,6 +1380,21 @@ export class TilesPanel {
     this.gesture.set([[this.node, { cells: cellsValue(this.work) }]]);
   }
 
+  /**
+   * get and set on the stroke's cells for terrain.js; changed() tells
+   * whether a set changed anything since the stroke's cells were made.
+   */
+  terrainAccess() {
+    let changed = false;
+    return {
+      get: (x, y) => this.work.get(cellKey(x, y)),
+      set: (x, y, t) => {
+        if (this.setCell(x, y, t)) changed = true;
+      },
+      changed: () => changed,
+    };
+  }
+
   endStroke() {
     this.gesture?.end();
     this.gesture = null;
@@ -860,7 +1440,11 @@ export class TilesPanel {
     const sy = y0 < y1 ? 1 : -1;
     let err = dx + dy;
     const erase = d.tool === 'erase';
-    const { w, h: hh } = erase ? { w: 1, h: 1 } : this.stamp;
+    // A terrain paints cell by cell and fits the cells around each one; with
+    // a terrain picked, erasing fits the cells around the hole too.
+    const sets = d.sets;
+    const access = sets ? this.terrainAccess() : null;
+    const { w, h: hh } = erase || sets ? { w: 1, h: 1 } : this.stamp;
     let changed = false;
     for (let guard = 0; guard < 100000; guard++) {
       // Multi-tile stamps repeat on a grid from where the stroke started.
@@ -869,7 +1453,8 @@ export class TilesPanel {
       const key = `${ax},${ay}`;
       if (!d.done.has(key)) {
         d.done.add(key);
-        if (erase ? this.setCell(ax, ay, -1) : this.stampAt(ax, ay)) changed = true;
+        if (sets) terrain.place(access.get, access.set, sets.of, ax, ay, erase ? null : d.terrain);
+        else if (erase ? this.setCell(ax, ay, -1) : this.stampAt(ax, ay)) changed = true;
       }
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
@@ -883,7 +1468,7 @@ export class TilesPanel {
       }
     }
     d.last = [x1, y1];
-    if (changed) this.commit();
+    if (changed || access?.changed()) this.commit();
   }
 
   paintDown(info, e) {
@@ -892,19 +1477,25 @@ export class TilesPanel {
     if (!ts) return;
     let tool = e.altKey ? 'pick' : this.tool;
     if (tool === 'erase' && e.shiftKey) tool = 'eraseRect';
-    if ((tool === 'paint' || tool === 'rect' || tool === 'bucket') && !this.hasStamp()) {
+    const brush = tool === 'pick' ? null : this.brushTerrain();
+    const paints = tool === 'paint' || tool === 'rect' || tool === 'bucket';
+    if (paints && brush && brush.first === null) {
+      this.viewport.flash(`The terrain ${brush.name} has no tiles yet: mark some in the Tiles panel (Terrains).`);
+      return;
+    }
+    if (paints && !brush && !this.hasStamp()) {
       this.viewport.flash(ts.count ? 'Pick a tile in the Tiles panel first.' : 'This tileset has no tiles yet: check its image.');
       return;
     }
     this.hover = info;
-    this.drag = { tool, x0: info.cx, y0: info.cy, x1: info.cx, y1: info.cy };
+    this.drag = { tool, x0: info.cx, y0: info.cy, x1: info.cx, y1: info.cy, terrain: brush, sets: brush ? this.terrainSets() : null };
     if (tool === 'paint' || tool === 'erase') {
       this.beginStroke(tool === 'paint' ? 'Paint tiles' : 'Erase tiles');
       Object.assign(this.drag, { last: [info.cx, info.cy], ox: info.cx, oy: info.cy, done: new Set() });
       this.strokeTo(info.cx, info.cy);
     } else if (tool === 'bucket') {
       this.drag = null;
-      this.bucket(info.cx, info.cy, info.visible);
+      this.bucket(info.cx, info.cy, info.visible, brush);
     }
   }
 
@@ -950,24 +1541,37 @@ export class TilesPanel {
     if ((x1 - x0 + 1) * (y1 - y0 + 1) > 1e6) return;
     this.beginStroke(erase ? 'Erase tiles' : 'Fill rectangle');
     let changed = false;
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        const t = erase ? -1 : this.patternAt(x, y, x0, y0);
-        if ((erase || t >= 0) && this.setCell(x, y, t)) changed = true;
+    if (d.sets) {
+      const access = this.terrainAccess();
+      terrain.fill(access.get, access.set, d.sets.of, x0, y0, x1 - x0 + 1, y1 - y0 + 1, erase ? null : d.terrain);
+      changed = access.changed();
+    } else {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const t = erase ? -1 : this.patternAt(x, y, x0, y0);
+          if ((erase || t >= 0) && this.setCell(x, y, t)) changed = true;
+        }
       }
     }
     if (changed) this.commit();
     this.endStroke();
   }
 
-  /** Fills the connected cells holding the same tile, inside the used area and the view. */
-  bucket(cx, cy, visible) {
+  /**
+   * Fills the connected cells holding the same tile, inside the used area
+   * and the view. With a terrain: the connected cells of the same terrain
+   * (or the same plain tile, or empty), and the edges are fitted.
+   */
+  bucket(cx, cy, visible, brush = null) {
     const work = this.cells();
     const used = cellBounds(work);
     let b = visible ? { ...visible } : { x0: cx - 32, y0: cy - 32, x1: cx + 32, y1: cy + 32 };
     if (used) b = { x0: Math.min(b.x0, used.x0), y0: Math.min(b.y0, used.y0), x1: Math.max(b.x1, used.x1), y1: Math.max(b.y1, used.y1) };
-    const target = work.has(cellKey(cx, cy)) ? work.get(cellKey(cx, cy)) : -1;
-    if (this.stamp.w === 1 && this.stamp.h === 1 && this.stamp.tiles[0] === target) return;
+    const sets = brush ? this.terrainSets() : null;
+    // What a cell counts as: its terrain when a terrain is the brush, else its tile.
+    const kind = (v) => (sets && v >= 0 && sets.of.get(v)) || v;
+    const target = kind(work.has(cellKey(cx, cy)) ? work.get(cellKey(cx, cy)) : -1);
+    if (brush ? target === brush : this.stamp.w === 1 && this.stamp.h === 1 && this.stamp.tiles[0] === target) return;
     const seen = new Set([cellKey(cx, cy)]);
     const stack = [[cx, cy]];
     const cells = [];
@@ -978,7 +1582,7 @@ export class TilesPanel {
         if (nx < b.x0 || ny < b.y0 || nx > b.x1 || ny > b.y1) continue;
         const k = cellKey(nx, ny);
         if (seen.has(k)) continue;
-        const v = work.has(k) ? work.get(k) : -1;
+        const v = kind(work.has(k) ? work.get(k) : -1);
         if (v !== target) continue;
         seen.add(k);
         stack.push([nx, ny]);
@@ -986,9 +1590,21 @@ export class TilesPanel {
     }
     this.beginStroke('Fill tiles');
     let changed = false;
-    for (const [x, y] of cells) {
-      const t = this.patternAt(x, y, cx, cy);
-      if (t >= 0 && this.setCell(x, y, t)) changed = true;
+    if (brush) {
+      const access = this.terrainAccess();
+      for (const [x, y] of cells) access.set(x, y, brush.first);
+      for (const [x, y] of cells) terrain.refresh(access.get, access.set, sets.of, x, y, true);
+      for (const [x, y] of cells) {
+        for (const [dx, dy] of terrain.AROUND) {
+          if (!seen.has(cellKey(x + dx, y + dy))) terrain.refresh(access.get, access.set, sets.of, x + dx, y + dy, false);
+        }
+      }
+      changed = access.changed();
+    } else {
+      for (const [x, y] of cells) {
+        const t = this.patternAt(x, y, cx, cy);
+        if (t >= 0 && this.setCell(x, y, t)) changed = true;
+      }
     }
     if (changed) this.commit();
     this.endStroke();
@@ -1012,6 +1628,8 @@ export class TilesPanel {
       return;
     }
     this.stamp = { w, h: hh, tiles };
+    this.brush = null;
+    if (this.brushSelect) this.brushSelect.value = '';
     // Show it in the palette when it's a block of the tileset as it is.
     const ts = this.tileset();
     this.sel = null;
@@ -1037,7 +1655,8 @@ export class TilesPanel {
       const y0 = Math.min(d.y0, d.y1);
       const x1 = Math.max(d.x0, d.x1);
       const y1 = Math.max(d.y0, d.y1);
-      if (d.tool === 'rect' && (x1 - x0 + 1) * (y1 - y0 + 1) <= limit) {
+      if (d.tool === 'rect' && d.terrain) api.fill(x0, y0, x1, y1, rgba(cssVarColor(this.root, '--accent', '#41a6f6'), 0.25));
+      else if (d.tool === 'rect' && (x1 - x0 + 1) * (y1 - y0 + 1) <= limit) {
         for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) api.tile(x, y, this.patternAt(x, y, x0, y0), 0.65);
       }
       if (d.tool === 'eraseRect') api.fill(x0, y0, x1, y1, api.colors.dangerFill);
@@ -1047,6 +1666,13 @@ export class TilesPanel {
     const c = this.hover;
     if (!c) return;
     const tool = d?.tool || this.tool;
+    // A terrain: its lone tile under the pointer (the real ones come as you paint).
+    const brush = d ? d.terrain : this.brushTerrain();
+    if (brush && (tool === 'paint' || tool === 'bucket' || tool === 'rect')) {
+      api.tile(c.cx, c.cy, terrain.pick(brush, 0, c.cx, c.cy), 0.65);
+      api.outline(c.cx, c.cy, c.cx, c.cy);
+      return;
+    }
     if (tool === 'paint') {
       const { w, h: hh } = this.stamp;
       const ax = d ? d.ox + Math.floor((c.cx - d.ox) / w) * w : c.cx;

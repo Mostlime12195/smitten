@@ -1969,7 +1969,8 @@ export class Viewport2D {
           if (!String(this.get(n, 'text') ?? '').length) icon = 'text';
           break;
         case 'node2d':
-          if (!e.children.length) icon = 'marker';
+          if (e.type === 'Background') icon = 'background';
+          else if (!e.children.length) icon = 'marker';
           break;
         default:
       }
@@ -2020,10 +2021,70 @@ export class Viewport2D {
         g.setLineDash([]);
       } else if (e.kind === 'light' && !e.node.readonly) {
         this.drawLightGizmo(g, e);
+      } else if (e.type === 'Background' && !e.node.readonly) {
+        this.drawBackgroundGizmo(g, e, disp);
       }
     }
     this.drawTintSwatch(g, sc, disp);
     for (const gz of this.gizmos()) drawIcon(g, gz.icon, gz.sx, gz.sy, rgba(ink, 0.75), rgba(halo, 0.45));
+  }
+
+  /**
+   * A Background: what's inside is shown where it was placed (where the game
+   * shows it while the camera is on the scene's first screen). A badge says
+   * how fast it scrolls, and an outline shows the size it repeats at, with
+   * the start of the next copy beside it.
+   */
+  drawBackgroundGizmo(g, e, disp) {
+    const n = e.node;
+    const fmt = (v) => String(Math.round(num(v, 0) * 100) / 100);
+    const sx = num(this.get(n, 'scrollX'), 0.5);
+    const sy = num(this.get(n, 'scrollY'), 0.5);
+    const rw = Math.max(0, num(this.get(n, 'repeatWidth'), 0));
+    const rh = Math.max(0, num(this.get(n, 'repeatHeight'), 0));
+    const accent = this.colors.accent;
+    const at = (x, y) => this.toScreen(e.m[0] * x + e.m[2] * y + e.m[4], e.m[1] * x + e.m[3] * y + e.m[5]);
+    if (rw > 0 || rh > 0) {
+      // One copy: the repeat size, or the game's size where it doesn't repeat.
+      const w = rw || disp.width;
+      const hh = rh || disp.height;
+      const quad = (x, y) => {
+        const pts = [at(x, y), at(x + w, y), at(x + w, y + hh), at(x, y + hh)];
+        g.beginPath();
+        pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py)));
+        g.closePath();
+      };
+      g.lineWidth = 1;
+      g.setLineDash([2, 4]);
+      g.strokeStyle = rgba(accent, 0.35);
+      if (rw > 0) {
+        quad(w, 0);
+        g.stroke();
+      }
+      if (rh > 0) {
+        quad(0, hh);
+        g.stroke();
+      }
+      g.setLineDash([7, 4]);
+      g.strokeStyle = rgba(accent, 0.85);
+      quad(0, 0);
+      g.stroke();
+      g.setLineDash([]);
+    }
+    const [ox, oy] = at(0, 0);
+    let text = sx === sy ? `scroll ${fmt(sx)}` : `scroll ${fmt(sx)}, ${fmt(sy)}`;
+    if (rw > 0 || rh > 0) text += rw > 0 && rh > 0 ? ` · repeats every ${fmt(rw)} × ${fmt(rh)}` : rw > 0 ? ` · repeats every ${fmt(rw)}` : ` · repeats every ${fmt(rh)} down`;
+    g.font = '11px system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    g.textAlign = 'left';
+    const tw = g.measureText(text).width;
+    const bx = Math.round(ox) + 13.5;
+    const by = Math.round(oy) - 8.5;
+    g.fillStyle = rgba(disp.halo, 0.7);
+    roundRectPath(g, bx, by, tw + 10, 17, 4);
+    g.fill();
+    g.fillStyle = rgba(disp.ink, 0.85);
+    g.fillText(text, bx + 5, by + 9);
   }
 
   /** A Light: how far a point light reaches, or which way a sun shines. */
@@ -3297,6 +3358,14 @@ function drawIcon(g, icon, x, y, color, halo) {
         g.rect(-6, -6, 12, 12);
         g.moveTo(-6, 6);
         g.lineTo(6, -6);
+        break;
+      case 'background':
+        g.moveTo(-7.5, 6);
+        g.lineTo(-2.5, -6);
+        g.lineTo(0.5, 0);
+        g.lineTo(3.5, -3);
+        g.lineTo(7.5, 6);
+        g.closePath();
         break;
       case 'camera':
         g.rect(-7, -4, 10, 8);

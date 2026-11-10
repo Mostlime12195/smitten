@@ -174,15 +174,147 @@
   touch-action: none;
 }
 
+/* The side: Tile, Terrains and Animation tabs over what the chosen one shows. */
+.tmp-side {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 232px;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+}
+
+.tmp-tabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tmp-tab {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tmp-tab:hover {
+  color: var(--fg);
+}
+
+.tmp-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--fg);
+}
+
+.tmp-tab:focus-visible,
+.tmp-terrain:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .tmp-props {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: none;
-  width: 200px;
+  flex: 1;
+  min-height: 0;
   padding: 10px 12px;
-  border-left: 1px solid var(--border);
   overflow-y: auto;
+}
+
+.tmp-props .tmp-btn {
+  justify-content: center;
+  flex: none;
+}
+
+.tmp-props .tmp-select {
+  max-width: none;
+}
+
+.tmp-props .tmp-row .tmp-input {
+  flex: 1;
+}
+
+.tmp-btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tmp-btn.tmp-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tmp-terrains {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tmp-terrains:empty {
+  display: none;
+}
+
+.tmp-terrain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tmp-terrain:hover {
+  background: var(--hover);
+}
+
+.tmp-terrain[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tmp-terrain-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tmp-terrain-count {
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.tmp-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.tmp-color {
+  flex: none;
+  width: 30px;
+  height: 26px;
+  padding: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
 }
 
 .tmp-props-title {

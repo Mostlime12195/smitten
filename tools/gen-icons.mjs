@@ -32,7 +32,7 @@ const NAMES = {
   bodyPhysics: 'package', zone: 'square-dashed', hitbox: 'scan', joint: 'link-2', ui: 'app-window',
   label: 'case-sensitive', button: 'mouse-pointer-click', panel: 'panel-top', picture: 'image', bar: 'battery-medium',
   walkable: 'land-plot',
-  sound: 'volume-2', light: 'lightbulb', occluder: 'eclipse', tint: 'sun-moon',
+  sound: 'volume-2', light: 'lightbulb', occluder: 'eclipse', tint: 'sun-moon', background: 'mountain',
   // Ready-made scripts
   footprints: 'footprints', walk: 'move', patrol: 'arrow-left-right', chase: 'crosshair', fly: 'send',
   coins: 'coins', spin: 'refresh-cw', bob: 'waves', hand: 'hand',
