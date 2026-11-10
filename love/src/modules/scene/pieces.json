@@ -381,7 +381,7 @@
     },
     "Zone": {
       "extends": "Group", "group": "physics", "icon": "zone", "module": "physics2d",
-      "description": "An area that detects bodies and zones that go in and out. It does not block them, and it ignores still bodies.",
+      "description": "An area that detects bodies and zones that go in and out. It does not block them, and it ignores still bodies. When forces is on, it changes the gravity, drag and push of physics bodies inside it.",
       "properties": {
         "shape": { "type": "enum", "options": ["auto", "rectangle", "circle", "capsule", "polygon", "none"], "default": "auto", "group": "Zone", "description": "auto fits the Sprites and Shapes inside it. The shapes turn and scale with the Zone." },
         "width": { "type": "number", "default": 32, "min": 0, "group": "Zone", "unit": "px", "description": "The width of the rectangle or capsule.", "when": { "shape": ["rectangle", "capsule"] } },
@@ -389,7 +389,17 @@
         "radius": { "type": "number", "default": 16, "min": 0, "group": "Zone", "unit": "px", "description": "The radius of the circle.", "when": { "shape": ["circle"] } },
         "points": { "type": "points", "default": [0, -16, 16, 16, -16, 16], "group": "Zone", "description": "The corner points x1, y1, x2, y2, ... (8 corners at most).", "when": { "shape": ["polygon"] } },
         "detects": { "type": "tags", "default": "", "group": "Zone", "description": "The Zone notices only things with one of these tags. If it is empty, it notices everything." },
-        "active": { "type": "bool", "default": true, "group": "Zone", "description": "When this is on, the Zone notices things that go in and out." }
+        "active": { "type": "bool", "default": true, "group": "Zone", "description": "When this is on, the Zone notices things that go in and out." },
+        "forces": { "type": "bool", "default": false, "group": "Forces", "description": "When this is on, the Zone changes how physics bodies move inside it: gravity, drag and a steady push." },
+        "gravity": { "type": "enum", "options": ["scene", "add", "replace"], "default": "scene", "group": "Forces", "description": "scene: bodies feel only the scene's gravity. add: the Zone's gravity adds to the scene's gravity. replace: bodies feel the Zone's gravity instead.", "when": { "forces": [true] } },
+        "toCenter": { "type": "bool", "default": false, "group": "Forces", "description": "When this is on, the Zone pulls towards its position, like a planet, and not in one direction.", "when": { "forces": [true], "gravity": ["add", "replace"] } },
+        "gravityX": { "type": "number", "default": 0, "step": 10, "group": "Forces", "unit": "px/s²", "description": "The Zone's gravity, to the right (negative is to the left).", "when": { "forces": [true], "gravity": ["add", "replace"], "toCenter": [false] } },
+        "gravityY": { "type": "number", "default": 0, "step": 10, "group": "Forces", "unit": "px/s²", "description": "The Zone's gravity, down (negative is up). With replace, 0 and 0 make bodies float.", "when": { "forces": [true], "gravity": ["add", "replace"], "toCenter": [false] } },
+        "gravityStrength": { "type": "number", "default": 980, "step": 10, "group": "Forces", "unit": "px/s²", "description": "How hard the Zone pulls towards its position. The pull is the same everywhere in the Zone.", "when": { "forces": [true], "gravity": ["add", "replace"], "toCenter": [true] } },
+        "drag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Forces", "description": "Slows down the movement of bodies inside, like water or thick air. It adds to their own drag.", "when": { "forces": [true] } },
+        "spinDrag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Forces", "description": "Slows down the turning of bodies inside.", "when": { "forces": [true] } },
+        "pushX": { "type": "number", "default": 0, "step": 10, "group": "Forces", "description": "A steady push to the right on each body inside, for wind, currents and conveyor belts. A heavy body speeds up less.", "when": { "forces": [true] } },
+        "pushY": { "type": "number", "default": 0, "step": 10, "group": "Forces", "description": "A steady push down on each body inside (negative is up).", "when": { "forces": [true] } }
       },
       "methods": {
         "inside": { "args": "", "doc": "Returns a list of the bodies and zones that are inside it now." },

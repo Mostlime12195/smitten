@@ -2441,6 +2441,8 @@ export class Viewport2D {
         g.setLineDash([3, 3]);
         g.stroke();
         g.setLineDash([]);
+      } else if (e.kind === 'area' && !e.node.readonly && this.get(e.node, 'forces') === true) {
+        this.drawForceGizmo(g, e);
       } else if (e.kind === 'light' && !e.node.readonly) {
         this.drawLightGizmo(g, e);
       } else if (e.type === 'Background' && !e.node.readonly) {
@@ -2507,6 +2509,55 @@ export class Viewport2D {
     g.fill();
     g.fillStyle = rgba(disp.ink, 0.85);
     g.fillText(text, bx + 5, by + 9);
+  }
+
+  /**
+   * A Zone with forces: an arrow for its gravity (or four towards its
+   * position, for a pull to the center) and a dashed one for its push. The
+   * directions are the scene's, as physics2d.lua applies them; the lengths
+   * grow with the strength, up to a limit.
+   */
+  drawForceGizmo(g, e) {
+    const n = e.node;
+    const [sx, sy] = this.toScreen(e.m[4], e.m[5]);
+    const arrow = (x0, y0, dx, dy, len) => {
+      const l = Math.hypot(dx, dy);
+      if (!l) return;
+      const c = dx / l;
+      const s = dy / l;
+      const x1 = x0 + c * len;
+      const y1 = y0 + s * len;
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.moveTo(x1 - c * 7 + s * 4, y1 - s * 7 - c * 4);
+      g.lineTo(x1, y1);
+      g.lineTo(x1 - c * 7 - s * 4, y1 - s * 7 + c * 4);
+    };
+    const size = (v) => clamp(18 + Math.sqrt(Math.abs(v)) * 1.2, 22, 70);
+    g.lineWidth = 1.5;
+    g.strokeStyle = rgba(this.colors.accent, this.get(n, 'active') === false ? 0.35 : 0.85);
+    const mode = this.get(n, 'gravity');
+    if (mode === 'add' || mode === 'replace') {
+      g.beginPath();
+      if (this.get(n, 'toCenter')) {
+        const len = size(num(this.get(n, 'gravityStrength'), 980)) * 0.5;
+        for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) arrow(sx - dx * (len + 10), sy - dy * (len + 10), dx, dy, len);
+      } else {
+        const gx = num(this.get(n, 'gravityX'));
+        const gy = num(this.get(n, 'gravityY'));
+        arrow(sx, sy, gx, gy, size(Math.hypot(gx, gy)));
+      }
+      g.stroke();
+    }
+    const px = num(this.get(n, 'pushX'));
+    const py = num(this.get(n, 'pushY'));
+    if (px || py) {
+      g.beginPath();
+      g.setLineDash([4, 3]);
+      arrow(sx, sy, px, py, size(Math.hypot(px, py)));
+      g.stroke();
+      g.setLineDash([]);
+    }
   }
 
   /** A Light: how far a point light reaches, or which way a sun shines. */

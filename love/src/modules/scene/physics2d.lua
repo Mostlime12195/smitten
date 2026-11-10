@@ -11,7 +11,9 @@
 --   physics   a dynamic body: Box2D moves it
 --
 -- A Zone is a body of sensors; solid Tiles are chain segments along the
--- outline of their solid cells. Shapes turn with their pieces.
+-- outline of their solid cells. Shapes turn with their pieces. A Zone with
+-- forces on changes the physics of the physics bodies inside it (its own
+-- gravity, drag, a steady push): see "Forces in zones" below.
 --
 -- Every physics step (love.scene, 60 a second): scripts run (physicsUpdate),
 -- then sync() hands Box2D what scripts changed (positions, speeds, shapes,
@@ -48,6 +50,8 @@ local anchor = nil -- a static body at the origin, for joints pinned in place
 
 local bodies, zones, tilemaps = {}, {}, {}
 M.bodies, M.zones, M.tilemaps = bodies, zones, tilemaps
+local forced = {} -- bodies inside at least one Zone with forces on
+M.forced = forced
 
 local STEP_SUBSTEPS = 4
 local TELEPORT = 64 -- moving a still or scripted body further than this in a step jumps there
@@ -493,6 +497,24 @@ local function typeFor(n)
 	return BODY_STATIC
 end
 
+-- What Box2D gets as a physics body's gravity multiplier, drag and spin
+-- drag: its own, changed by the force zones it's in (n._zReplace,
+-- n._zDrag, n._zSpin, worked out each step by zoneForces below). Handed
+-- over only when something changed, or with force.
+local function bodyProps(n, force)
+	local gs, drag, spinDrag = n[GRAVITY_SCALE], n.drag, n.spinDrag
+	if n._fz then
+		-- In a zone that replaces gravity, the zone applies it instead.
+		if n._zReplace then gs = 0 end
+		drag, spinDrag = drag + n._zDrag, spinDrag + n._zSpin
+	end
+	if force or gs ~= n._gravity or drag ~= n._drag or spinDrag ~= n._spinDrag or n.fixedRotation ~= n._fixed
+		or n.bullet ~= n._bullet then
+		b2.setBodyProps(n._body, gs, drag, spinDrag, n.fixedRotation, n.bullet)
+		n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = gs, drag, spinDrag, n.fixedRotation, n.bullet
+	end
+end
+
 local function create(n)
 	ensureWorld()
 	local x, y, angle = worldPose(n)
@@ -508,8 +530,7 @@ local function create(n)
 	n._pt, n._det, n._tagsDirty = n.passThrough, n.detects, false
 	n._active = n.active
 	if t == BODY_DYNAMIC then
-		b2.setBodyProps(n._body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-		n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
+		bodyProps(n, true)
 		b2.setVelocity(n._body, n.vx, n.vy, n.spin * RAD)
 		n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 		n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
@@ -585,8 +606,7 @@ local function syncBody(n, h)
 		b2.setTransform(body, x, y, angle, true)
 		n._bx, n._by, n._ba, n._bmoving = x, y, angle, false
 		if t == BODY_DYNAMIC then
-			b2.setBodyProps(body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
+			bodyProps(n, true)
 			b2.setVelocity(body, n.vx, n.vy, n.spin * RAD)
 			n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 			n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
@@ -611,11 +631,7 @@ local function syncBody(n, h)
 			b2.setMass(body, n.mass)
 			n._mass = n.mass
 		end
-		if n[GRAVITY_SCALE] ~= n._gravity or n.drag ~= n._drag or n.spinDrag ~= n._spinDrag or n.fixedRotation ~= n._fixed
-			or n.bullet ~= n._bullet then
-			b2.setBodyProps(body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
-		end
+		bodyProps(n)
 		if n.asleep ~= n._lastAsleep then
 			b2.setAwake(body, not n.asleep)
 			n._lastAsleep = n.asleep
@@ -648,6 +664,149 @@ local function syncBody(n, h)
 	end
 end
 
+---------------------------------------------------------------------------
+-- Forces in zones (docs/physics.md). A Zone with forces on (and active)
+-- changes the physics of the physics bodies inside it: gravity of its own
+-- (added to the scene's, or instead of it; one way, or towards the Zone's
+-- position), drag and spin drag (added to the body's own) and a steady push
+-- (a force). Only physics bodies feel them; a body's gravityScale
+-- multiplies the zone's gravity as it does the scene's. Which bodies are
+-- inside is what entered and exited go by (so detects filters them too).
+--
+-- Each such body keeps the force zones it's in, in the order it went into
+-- them (n._fz), and is in the forced list; each step, before Box2D steps,
+-- only those bodies are worked on. Zones without forces cost nothing more
+-- than before, and nothing is made per step.
+--
+-- Overlapping zones: gravity that adds, drags and pushes all add up; of the
+-- zones that replace gravity, the one the body went into last wins.
+
+local GRAVITY_MODE = { add = 1, replace = 2 }
+
+local function number(v) return type(v) == "number" and v == v and v or 0 end
+
+-- A force zone's settings, read once a step (scripts may change them).
+local function readForces(z)
+	z._fMode = GRAVITY_MODE[z.gravity] or 0
+	z._fCenter = z.toCenter == true
+	z._fgx, z._fgy = number(z.gravityX), number(z.gravityY)
+	z._fStrength = number(z.gravityStrength)
+	z._fDrag, z._fSpin = max(0, number(z.drag)), max(0, number(z.spinDrag))
+	z._fpx, z._fpy = number(z.pushX), number(z.pushY)
+end
+
+-- Body o is in force zone z (it went in, or z's forces came on).
+local function addForceZone(o, z)
+	if o.type ~= "Body" or o._dead then return end
+	local list = o._fz
+	if not list then
+		list = {}
+		o._fz = list
+		o._zReplace, o._zDrag, o._zSpin = false, 0, 0
+		forced[#forced + 1] = o
+		o._forcedIndex = #forced
+	end
+	for i = 1, #list do
+		if list[i] == z then return end
+	end
+	list[#list + 1] = z
+end
+
+-- o is in no force zone any more.
+local function dropForced(o)
+	local i = o._forcedIndex
+	if not i or forced[i] ~= o then
+		i = nil
+		for j = 1, #forced do
+			if forced[j] == o then i = j break end
+		end
+	end
+	if i then
+		local last = forced[#forced]
+		forced[i] = last
+		last._forcedIndex = i
+		forced[#forced] = nil
+	end
+	o._forcedIndex, o._fz = nil, nil
+	o._zReplace, o._zDrag, o._zSpin = nil, nil, nil
+end
+
+-- o left z (or z's forces went off). Out of the last one, it's back to
+-- its own settings.
+local function removeForceZone(o, z)
+	local list = o._fz
+	if not list then return end
+	for i = #list, 1, -1 do
+		if list[i] == z then
+			table.remove(list, i)
+			break
+		end
+	end
+	if #list == 0 then
+		dropForced(o)
+		if o._body and o._btype == BODY_DYNAMIC and not o._dead then bodyProps(o) end
+	end
+end
+
+local function setForcing(z, on)
+	z._forcing = on
+	local inside = z._in
+	if not inside then return end
+	for o in pairs(inside) do
+		if on then addForceZone(o, z) else removeForceZone(o, z) end
+	end
+end
+
+-- The gravity of zone z on a body: x, y in pixels per second per second.
+local function zoneGravity(z, body)
+	if z._fCenter then
+		local x, y = b2.getTransform(body)
+		local dx, dy = z._bx - x, z._by - y
+		local d = sqrt(dx * dx + dy * dy)
+		if d < 0.001 then return 0, 0 end
+		local k = z._fStrength / d
+		return dx * k, dy * k
+	end
+	return z._fgx, z._fgy
+end
+
+-- What the force zones a body is in do to it in this step.
+local function zoneForces(n)
+	local body = n._body
+	if not body or n._dead or n._btype ~= BODY_DYNAMIC then return end
+	local list = n._fz
+	local gx, gy, px, py, drag, spin = 0, 0, 0, 0, 0, 0
+	local replace = nil
+	for i = #list, 1, -1 do
+		local z = list[i]
+		local mode = z._fMode
+		if mode == 2 then
+			if not replace then replace = z end
+		elseif mode == 1 then
+			local ax, ay = zoneGravity(z, body)
+			gx, gy = gx + ax, gy + ay
+		end
+		drag, spin = drag + z._fDrag, spin + z._fSpin
+		px, py = px + z._fpx, py + z._fpy
+	end
+	if replace then
+		local ax, ay = zoneGravity(replace, body)
+		gx, gy = gx + ax, gy + ay
+	end
+	n._zReplace, n._zDrag, n._zSpin = replace ~= nil, drag, spin
+	bodyProps(n)
+	if gx ~= 0 or gy ~= 0 then
+		-- As a force, so it's exactly like the scene's gravity: Box2D gives
+		-- it to the body in each substep.
+		local k = number(n[GRAVITY_SCALE]) * b2.getMass(body)
+		px, py = px + gx * k, py + gy * k
+	end
+	if px ~= 0 or py ~= 0 then
+		b2.applyForce(body, px, py)
+		n.asleep, n._lastAsleep = false, false
+	end
+end
+
 local function syncZone(n)
 	if n.active ~= n._active then
 		n._active = n.active
@@ -662,6 +821,9 @@ local function syncZone(n)
 		b2.setTransform(n._body, x, y, angle)
 		n._bx, n._by, n._ba = x, y, angle
 	end
+	local on = n.forces == true and n.active ~= false
+	if on ~= n._forcing then setForcing(n, on) end
+	if on then readForces(n) end
 end
 
 ---------------------------------------------------------------------------
@@ -863,6 +1025,7 @@ local function zoneEnter(z, o)
 	local c = (inside[o] or 0) + 1
 	inside[o] = c
 	if c == 1 then
+		if z._forcing then addForceZone(o, z) end
 		z:emit("entered", o)
 		if o.type == "Body" and not o._dead and not z._dead then o:emit("entered", z) end
 	end
@@ -877,6 +1040,7 @@ local function zoneExit(z, o)
 		return
 	end
 	inside[o] = nil
+	if o._fz then removeForceZone(o, z) end
 	if not z._dead then z:emit("exited", o) end
 	if o.type == "Body" and not o._dead then o:emit("exited", z) end
 end
@@ -918,6 +1082,7 @@ step = function(h)
 	end
 	for i = 1, #tilemaps do syncTiles(tilemaps[i]) end
 	if joints then joints.sync(h) end
+	for i = 1, #forced do zoneForces(forced[i]) end
 
 	b2.step(world, h, STEP_SUBSTEPS)
 
@@ -947,6 +1112,11 @@ reset = function()
 			n._body, n._shapes, n._slot, n._listIndex, n._grab = nil, nil, nil, nil, nil
 			list[i] = nil
 		end
+	end
+	for i = #forced, 1, -1 do
+		local n = forced[i]
+		n._forcedIndex, n._fz, n._zReplace, n._zDrag, n._zSpin = nil, nil, nil, nil, nil
+		forced[i] = nil
 	end
 	for _, map in ipairs(tilemaps) do map._phys = nil end
 	slots, freeSlots, freedThisStep, slotCount = {}, {}, {}, 0
@@ -979,6 +1149,9 @@ end
 function Body:_exit()
 	removeFrom(bodies, self)
 	destroy(self)
+	-- (Only moving elsewhere in the scene, it's still in its zones until
+	-- they say it left.)
+	if self._fz and self._dead then dropForced(self) end
 end
 
 -- Tags change what passes through what.
@@ -1283,12 +1456,14 @@ local Zone = nodeLib.classes.Zone
 function Zone:_enter()
 	addTo(zones, self)
 	self._in = {}
+	self._forcing = false
 	create(self)
 end
 
 function Zone:_exit()
 	removeFrom(zones, self)
 	destroy(self)
+	if self._forcing then setForcing(self, false) end
 	self._in = nil
 end
 
