@@ -39,7 +39,9 @@ const CASES = {
   // and inside a page that stands in for a game's page there.
   boards: { game: 'tools/scene-tests/boards.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },
   'boards-site': { url: '/tools/scene-tests/boards-site.html', until: /^DONE /, check: (lines) => mode(lines, 'site') || selfChecking(lines) },
-  players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking },
+  // Players' input and the touch pieces: its own checks, then real touches
+  // from the browser on the stick, a button and the game behind them.
+  players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking, touch: true, after: realTouches },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 
@@ -59,6 +61,38 @@ function selfChecking(lines) {
   const done = lines.find((l) => /^DONE /.test(l));
   if (!done) return noErrors(lines) || 'it never printed DONE';
   return /^DONE [1-9]\d* passed, 0 failed/.test(done) ? null : done;
+}
+
+// Real fingers, through the browser, on the players test once its own checks
+// are done (it prints a LIVE line whenever what its controls read changes):
+// a thumb on the stick, a second finger on the jump button, a third on the
+// game behind them (the mouse), then a tap on the game alone.
+async function realTouches(page, lines) {
+  const rect = JSON.parse(await page.eval(`(() => { const r = document.querySelector('#canvas').getBoundingClientRect(); return JSON.stringify([r.left, r.top, r.width, r.height]); })()`));
+  const [left, top, w, h] = rect;
+  // The test is 640×360, fitted into the canvas.
+  const s = Math.min(w / 640, h / 360);
+  const at = (x, y, id) => ({ x: Math.round(left + (w - 640 * s) / 2 + x * s), y: Math.round(top + (h - 360 * s) / 2 + y * s), id });
+  const step = async (what, type, touchPoints, want) => {
+    const from = lines.length;
+    await page.send('Input.dispatchTouchEvent', { type, touchPoints });
+    if (!want) return null;
+    for (let i = 0; i < 50; i++) {
+      if (lines.slice(from).some((l) => l.startsWith('LIVE') && l.includes(want))) return null;
+      await sleep(100);
+    }
+    return `real touches: ${what}: wanted "${want}", the last was "${lines.filter((l) => l.startsWith('LIVE')).pop()}"`;
+  };
+  const stick = at(80, 280, 1);
+  const pushed = at(105, 280, 1);
+  const button = at(440, 280, 2);
+  return await step('a thumb on the stick', 'touchStart', [stick])
+    || await step('the stick pushed halfway', 'touchMove', [pushed], 'axis=0.50 jump=false mouse=false')
+    || await step('a second finger on the button', 'touchStart', [pushed, button], 'axis=0.50 jump=true mouse=false')
+    || await step('a third finger on the game', 'touchStart', [pushed, button, at(200, 100, 3)], 'axis=0.50 jump=true mouse=true')
+    || await step('all fingers up', 'touchEnd', [], 'axis=0.00 jump=false mouse=false')
+    || await step('a tap on the game', 'touchStart', [at(200, 100, 4)], 'axis=0.00 jump=false mouse=true')
+    || await step('the tap ends', 'touchEnd', [], 'mouse=false');
 }
 
 function plainError(lines) {
@@ -81,6 +115,8 @@ async function runCase(name) {
     }
   });
   const modules = c.modules ?? 'physics2d';
+  // A touch screen for the page, so the browser sends touch events.
+  if (c.touch) await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await page.goto(c.url ? `${BASE}${c.url}` : `${BASE}/player.html?game=${c.game}&autoplay=1${modules ? `&modules=${modules}` : ''}`);
   const t0 = Date.now();
   if (c.until) {
@@ -91,8 +127,10 @@ async function runCase(name) {
     while (!lines.length && Date.now() - t0 < 20000) await sleep(100);
     await sleep(c.seconds * 1000);
   }
+  let problem = c.check(lines);
+  if (!problem && c.after) problem = await c.after(page, lines).catch((e) => `the runner's own step stopped: ${e.message || e}`);
   page.close();
-  return { problem: c.check(lines), lines };
+  return { problem, lines };
 }
 
 async function main() {

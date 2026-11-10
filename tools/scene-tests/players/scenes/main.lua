@@ -191,7 +191,7 @@ local function players()
 
   -- Mistakes say what's wrong.
   local ok, err = pcall(input.press, "jmup")
-  check("error: unknown action", not ok and tostring(err):find("no input action", 1, true) and tostring(err):find("jump", 1, true), err)
+  check("error: unknown action", not ok and tostring(err):find("no input action or key called \"jmup\"", 1, true), err)
   ok, err = pcall(pressed, "jump", 0)
   check("error: player 0", not ok and tostring(err):find("a player is a number from 1 up", 1, true), err)
   ok, err = pcall(input.on, "gamepadaded", print)
@@ -384,6 +384,9 @@ local function touch()
   finger("released", 2, 570, 110)
   frame()
 
+  -- As they were, for the runner's real fingers.
+  stick.mode = "fixed"
+  stick.deadzone = 0
   return stick, jump
 end
 

@@ -143,8 +143,8 @@ export async function projectSettingsDialog(project, { tab = 'general' } = {}) {
   const splash = { image: '', background: '', duration: 1, madeWith: true, ...(s.splash || {}) };
   const images = project.paths().filter((p) => /\.(png|jpe?g|webp|gif|svg)$/i.test(p));
   const splashImage = select(splash.image, [['', '(none)'], ...images.map((p) => [p, p])]);
-  const toHex = (c) => Array.isArray(c) ? `#${c.slice(0, 3).map((n) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, '0')).join('')}` : /^#[0-9a-f]{6}$/i.test(c) ? c : '#0b0c0f';
-  const splashBackground = h('input', { type: 'color', value: toHex(splash.background), 'aria-label': 'Splash background' });
+  const splashHex = (c) => Array.isArray(c) ? `#${c.slice(0, 3).map((n) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, '0')).join('')}` : /^#[0-9a-f]{6}$/i.test(c) ? c : '#0b0c0f';
+  const splashBackground = h('input', { type: 'color', value: splashHex(splash.background), 'aria-label': 'Splash background' });
   const splashDuration = text(splash.duration, { type: 'number', min: 0, max: 10, step: 0.5, style: 'width: 90px' });
   const madeWith = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(splash.madeWith !== false), 'aria-label': 'Made with Smitten' });
   madeWith.addEventListener('click', () => {
