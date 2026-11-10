@@ -88,8 +88,9 @@
 <tr><td><strong>Opacity</strong></td><td>A light touch makes a faint line</td></tr>
 <tr><td><strong>Size and opacity</strong></td><td>A light touch makes a thin, faint line</td></tr></tbody>
 </table></div>
-<p><strong>Lightest touch gives</strong> in the same menu sets how much of the size or the opacity the lightest touch gives. At 0%, the lightest touch paints almost nothing.</p>
-<p>The brush and the eraser each keep their own <strong>Pen</strong> setting, for smooth brushes and for pixel brushes. For smooth brushes, the default is <strong>Size</strong>. For pixel brushes, the default is <strong>Nothing</strong>, so pixel art keeps hard, even lines. The pressure does not change strokes that you make with a mouse.</p>
+<p><strong>Lightest touch gives</strong> in the same menu sets how much of the size or the opacity the lightest touch gives. The default is 10%. At 0%, the lightest touch paints almost nothing.</p>
+<p>There is one <strong>Pen</strong> setting for smooth brushes and one for pixel brushes. The brush, the eraser and the eraser end of the pen all use it. For smooth brushes, the default is <strong>Size</strong>. For pixel brushes, the default is <strong>Nothing</strong>, so pixel art keeps hard, even lines.</p>
+<p>In one stroke, each pixel keeps the strongest paint that the stroke gave it. Because of this, a light stroke at 100% opacity stays light, also where it crosses itself. A light press of the eraser erases only part of the color. While you paint with the pen, the circle of the brush shows the size that the pressure gives. The pressure does not change strokes that you make with a mouse.</p>
 <p>To use an image in a scene, drag the file from the <strong>Files</strong> panel into the scene view. The editor makes a <code>Sprite</code> piece that shows it.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sound"><span>Previous</span>Sound and music</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>

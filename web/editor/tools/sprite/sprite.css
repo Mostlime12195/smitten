@@ -191,7 +191,9 @@
 }
 /* The brush outline and crosshair: moved with a transform (no drawing). */
 .spr-brush-outline, .spr-crosshair { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
-.spr-brush-outline { box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.25); }
+.spr-brush-outline { --pen-fill: 0; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  /* With pressure on opacity, a faint fill shows how strong the stroke is now. */
+  background: rgba(128, 128, 128, calc(var(--pen-fill) * 0.4)); }
 .spr-brush-outline.round { border-radius: 50%; }
 .spr-crosshair { width: 9px; height: 9px; }
 .spr-crosshair::before, .spr-crosshair::after { content: ''; position: absolute; background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }

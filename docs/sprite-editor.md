@@ -94,14 +94,20 @@ The pressure of the pen can change the brush and the eraser. Click the
 | **Size and opacity** | A light touch makes a thin, faint line |
 
 **Lightest touch gives** in the same menu sets how much of the size or the
-opacity the lightest touch gives. At 0%, the lightest touch paints almost
-nothing.
+opacity the lightest touch gives. The default is 10%. At 0%, the lightest
+touch paints almost nothing.
 
-The brush and the eraser each keep their own **Pen** setting, for smooth
-brushes and for pixel brushes. For smooth brushes, the default is
-**Size**. For pixel brushes, the default is **Nothing**, so pixel art
-keeps hard, even lines. The pressure does not change strokes that you make
-with a mouse.
+There is one **Pen** setting for smooth brushes and one for pixel brushes.
+The brush, the eraser and the eraser end of the pen all use it. For smooth
+brushes, the default is **Size**. For pixel brushes, the default is
+**Nothing**, so pixel art keeps hard, even lines.
+
+In one stroke, each pixel keeps the strongest paint that the stroke gave
+it. Because of this, a light stroke at 100% opacity stays light, also
+where it crosses itself. A light press of the eraser erases only part of
+the color. While you paint with the pen, the circle of the brush shows the
+size that the pressure gives. The pressure does not change strokes that
+you make with a mouse.
 
 To use an image in a scene, drag the file from the **Files** panel into the
 scene view. The editor makes a `Sprite` piece that shows it.

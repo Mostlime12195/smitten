@@ -166,11 +166,12 @@ export class SpriteEditor {
     this.filled = prefs.filled ?? false;
     this.mirrorX = false;
     this.mirrorY = false;
-    // What the pressure of a pen changes, for each tool and brush mode
-    // ("brush:smooth": 'off', 'size', 'opacity' or 'both'), and how much of
-    // the brush the lightest touch gives (percent). A mouse never uses it.
+    // What the pressure of a pen changes, for each brush mode ("pen:smooth":
+    // 'off', 'size', 'opacity' or 'both'; the brush, the eraser and the
+    // eraser end of the pen all use it), and how much of the brush the
+    // lightest touch gives (percent). A mouse never uses it.
     this.pressure = prefs.pressure && typeof prefs.pressure === 'object' ? prefs.pressure : {};
-    this.pressureMin = clamp(prefs.pressureMin ?? 25, 0, 100);
+    this.pressureMin = clamp(prefs.pressureMin ?? 10, 0, 100);
     this.penSeenAt = -Infinity; // when a pen was last near the screen (palm rejection)
     this.penDown = false;
     this.pixelGrid = prefs.pixelGrid ?? true;
@@ -231,7 +232,7 @@ export class SpriteEditor {
 
   /** The Pen menu: what pressure changes, and how much the lightest touch gives. */
   pressureMenu() {
-    const key = `${this.tool === 'eraser' ? 'eraser' : 'brush'}:${this.mode}`;
+    const key = `pen:${this.mode}`;
     const now = this.pressureMode();
     const set = (fn) => () => { fn(); this.persist(); this.renderOptions(); this.element.focus({ preventScroll: true }); };
     this.ui.showMenu(this.optPressure, [
@@ -243,10 +244,13 @@ export class SpriteEditor {
     ]);
   }
 
-  /** What pen pressure changes for the brush or the eraser in the current mode (off for pixel brushes unless you turn it on). */
-  pressureMode(tool = this.tool) {
-    const t = tool === 'eraser' ? 'eraser' : 'brush';
-    return this.pressure[`${t}:${this.mode}`] || (this.mode === 'smooth' ? 'size' : 'off');
+  /**
+   * What pen pressure changes in the current brush mode: the same for the
+   * brush, the eraser and the eraser end of the pen (off for pixel brushes
+   * unless you turn it on). Older settings kept one for the brush: it is used.
+   */
+  pressureMode() {
+    return this.pressure[`pen:${this.mode}`] || this.pressure[`brush:${this.mode}`] || (this.mode === 'smooth' ? 'size' : 'off');
   }
   get frame() { return this.doc.frames[this.current]; }
 
@@ -1619,7 +1623,7 @@ export class SpriteEditor {
     if (e.altKey && tool !== 'select' && tool !== 'origin') tool = 'picker';
     if (tool !== 'select') this.commitFloating();
     const color = secondary ? this.secondary : this.primary;
-    const pressure = pen && (tool === 'brush' || tool === 'eraser') && this.pressureMode(tool) !== 'off' ? this.pressureMode(tool) : null;
+    const pressure = pen && (tool === 'brush' || tool === 'eraser') && this.pressureMode() !== 'off' ? this.pressureMode() : null;
     const base = { id: e.pointerId, pointerType: e.pointerType, tool, color, erase: tool === 'eraser' || color[3] === 0, pressure };
 
     if (tool === 'brush' || tool === 'eraser') {
@@ -2344,14 +2348,22 @@ export class SpriteEditor {
     if (show) {
       const { ox, oy, dpr } = this.view();
       const snap = (v) => Math.round(v * dpr) / dpr;
+      // While a pen paints, the outline shows the size the pressure gives now.
+      const d = this.drag;
+      const pressing = d?.kind === 'stroke' && d.pressure && hv.pr != null;
+      const scale = pressing ? draw.pressureScale(hv.pr, this.pressureMin / 100) : 1;
+      const sized = pressing && (d.pressure === 'size' || d.pressure === 'both');
+      const faint = pressing && (d.pressure === 'opacity' || d.pressure === 'both');
+      const size = sized ? (this.mode === 'pixel' ? Math.max(1, Math.round(this.size * scale)) : this.size * scale) : this.size;
+      brushEl.style.setProperty('--pen-fill', faint ? String(Math.round(scale * 100) / 100) : '0');
       if (this.mode === 'pixel') {
-        const off = Math.floor((this.size - 1) / 2);
+        const off = Math.floor((size - 1) / 2);
         x = snap(ox + (hv.x - off) * z);
         y = snap(oy + (hv.y - off) * z);
-        w = h = this.size * z;
+        w = h = size * z;
         show = w >= 3;
       } else {
-        const r = (this.size / 2) * z;
+        const r = (size / 2) * z;
         const cx = ox + hv.fx * z, cy = oy + hv.fy * z;
         x = cx - r; y = cy - r; w = h = 2 * r;
         round = true;
@@ -2410,6 +2422,8 @@ export class SpriteEditor {
     if (hv && hv.x >= 0 && hv.y >= 0 && hv.x < doc.fw && hv.y < doc.fh) parts.push(`${hv.x}, ${hv.y}`);
     const s = this.floating || this.selection;
     if (s) parts.push(`${s.w}×${s.h} selected`);
+    // While a pen paints: the pressure that the tablet sends (so you can check it).
+    if (hv && hv.pr != null && this.drag?.kind === 'stroke') parts.push(`pressure ${hv.pr.toFixed(2)}`);
     // Only when the text changes: each change makes the page lay out again.
     const pos = parts.join('  ·  ');
     const info = doc.count > 1 ? `Frame ${this.current} of ${doc.count}` : '';

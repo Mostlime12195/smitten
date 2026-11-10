@@ -309,7 +309,80 @@ try {
   await pen('mousePressed', cx - 40 * z2, cy, 0.5, 'right', 2);
   await pen('mouseReleased', cx - 40 * z2, cy, 0, 'right', 0);
   check('pen: the side button picks the color under it', await page.eval(`${spr}.querySelector('.spr-hex').value`) === '#000000', await page.eval(`${spr}.querySelector('.spr-hex').value`));
+  // The eraser (and the eraser end) follow the pen's pressure on size too,
+  // with the one Pen setting of the brush mode.
+  const setSize = (n) => page.eval(`(() => { const i = ${spr}.querySelector('input.spr-num-field[aria-label="Size"]'); i.value = '${n}'; i.dispatchEvent(new Event('change')); })()`);
+  const rowAlpha = (y) => page.eval(`(() => { const c = ${spr}.querySelector('.spr-frame.current canvas'); const d = c.getContext('2d').getImageData(0, ${y}, c.width, 1).data; const a = []; for (let x = 0; x < c.width; x++) a.push(d[x * 4 + 3]); return JSON.stringify(a); })()`).then(JSON.parse);
+  const imgY = Math.round(W2 / 2 + 90); // a row below the three lines
+  await setSize(30);
+  await mouseStroke(cy + 90 * z2);
+  await setSize(16);
+  const eraseEnd = (x, force) => page.eval(`(() => {
+    const c = ${spr}.querySelector('.spr-canvas');
+    const ev = (type, y, buttons) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 78, pointerType: 'pen', isPrimary: true,
+      button: type === 'pointermove' ? -1 : 5, buttons, pressure: buttons ? ${force} : 0, clientX: ${cx} + ${x} * ${z2}, clientY: y }));
+    ev('pointerdown', ${cy + 70 * z2}, 32);
+    for (let i = 1; i <= 10; i++) ev('pointermove', ${cy + 70 * z2} + i * ${4 * z2}, 32);
+    ev('pointerup', ${cy + 110 * z2}, 0);
+  })()`);
+  await eraseEnd(-50, 0.1);
+  await eraseEnd(50, 1);
+  await key('e', 'KeyE', 69);
+  await pen('mouseMoved', cx, cy + 70 * z2, 0, 'none', 0);
+  await pen('mousePressed', cx, cy + 70 * z2, 0.1);
+  for (let i = 1; i <= 10; i++) { await pen('mouseMoved', cx, cy + 70 * z2 + i * 4 * z2, 0.1); await sleep(10); }
+  await pen('mouseReleased', cx, cy + 110 * z2, 0, 'left', 0);
+  await key('b', 'KeyB', 66);
+  await frame();
+  {
+    const row = await rowAlpha(imgY);
+    const gap = (x) => row.slice(x - 14, x + 15).filter((a) => a < 128).length;
+    const mid = Math.round(W2 / 2);
+    const light = gap(mid - 50), heavy = gap(mid + 50), tool = gap(mid);
+    check('pen: the eraser end follows pressure on size', light > 0 && light < heavy && heavy >= 14, { light, heavy });
+    check('pen: the eraser tool follows pressure on size', tool > 0 && tool < heavy, { tool, heavy });
+  }
+  // Pressure on opacity: a light stroke at 100% opacity is light, and
+  // going back over it in the same stroke does not make it darker.
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Opacity'), 'the Pen menu');
+  await click(menuItem('Opacity'));
+  check('pen: pressure on opacity is set', await page.eval(`${spr}.querySelector('.spr-pen-btn').dataset.mode`) === 'opacity');
+  const yLight = cy + 30 * z2, yBack = cy + 45 * z2;
+  await penStroke(yLight, 0.2);
+  // There and back, in one stroke.
+  await pen('mouseMoved', cx - 80 * z2, yBack, 0, 'none', 0);
+  await pen('mousePressed', cx - 80 * z2, yBack, 0.2);
+  for (let i = 1; i <= 20; i++) { await pen('mouseMoved', cx - 80 * z2 + (160 * z2 * i) / 20, yBack, 0.2); await sleep(8); }
+  for (let i = 19; i >= 0; i--) { await pen('mouseMoved', cx - 80 * z2 + (160 * z2 * i) / 20, yBack, 0.2); await sleep(8); }
+  await pen('mouseReleased', cx - 80 * z2, yBack, 0, 'left', 0);
+  await frame();
+  {
+    const one = Math.max(...(await rowAlpha(Math.round(W2 / 2 + 30))).slice(Math.round(W2 / 2) - 40, Math.round(W2 / 2) + 40));
+    const twice = Math.max(...(await rowAlpha(Math.round(W2 / 2 + 45))).slice(Math.round(W2 / 2) - 40, Math.round(W2 / 2) + 40));
+    check('pen: a light stroke at 100% opacity is light (alpha below full)', one > 20 && one < 128, one);
+    check('pen: going back over it in the same stroke does not add up', Math.abs(twice - one) <= 2, { one, twice });
+  }
+  // The brush outline shows the size that the pressure gives, while the pen paints.
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Size'), 'the Pen menu');
+  await click(menuItem('Size'));
+  await setSize(40);
+  await pen('mouseMoved', cx - 60 * z2, cy - 100 * z2, 0, 'none', 0);
+  await pen('mousePressed', cx - 60 * z2, cy - 100 * z2, 0.2);
+  await pen('mouseMoved', cx - 50 * z2, cy - 100 * z2, 0.2);
+  await frame();
+  const wLight = await page.eval(`${spr}.querySelector('.spr-brush-outline').getBoundingClientRect().width`);
+  await pen('mouseMoved', cx - 40 * z2, cy - 100 * z2, 1);
+  await frame();
+  const wHeavy = await page.eval(`${spr}.querySelector('.spr-brush-outline').getBoundingClientRect().width`);
+  await pen('mouseReleased', cx - 40 * z2, cy - 100 * z2, 0, 'left', 0);
+  await key('z', 'KeyZ', 90, 2);
+  await setSize(8);
+  check('pen: the brush outline follows the pressure', wLight > 5 && wLight < wHeavy * 0.5 && Math.abs(wHeavy - 40 * z2) <= 3, { wLight, wHeavy });
+
   // Palm rejection: right after the pen was near, a finger does not paint.
+  const linesBefore = JSON.stringify(await runs(Math.round(W2 / 2)));
   await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await pen('mouseMoved', cx, cy + 100 * z2, 0, 'none', 0);
   const touch = (type, points) => page.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([x, y], id) => ({ x, y, id })) });
@@ -317,7 +390,7 @@ try {
   for (let i = 1; i <= 10; i++) { await touch('touchMove', [[cx - 60 * z2 + i * 12 * z2, cy + 90 * z2]]); await sleep(10); }
   await touch('touchEnd', []);
   await frame();
-  check('palm rejection: a finger next to the pen paints nothing', (await runs(Math.round(W2 / 2))).length === 3, await runs(Math.round(W2 / 2)));
+  check('palm rejection: a finger next to the pen paints nothing', JSON.stringify(await runs(Math.round(W2 / 2))) === linesBefore, await runs(Math.round(W2 / 2)));
   // Two fingers, with no pen near: a pinch zooms in.
   await sleep(1200);
   const zBefore = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`));
@@ -327,11 +400,38 @@ try {
   await sleep(300);
   const zAfter = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`));
   check('touch: a pinch with two fingers zooms in', zAfter > zBefore * 1.5, { zBefore, zAfter });
-  check('touch: a pinch paints nothing', (await runs(Math.round(W2 / 2))).length === 3, await runs(Math.round(W2 / 2)));
+  check('touch: a pinch paints nothing', JSON.stringify(await runs(Math.round(W2 / 2))) === linesBefore, await runs(Math.round(W2 / 2)));
   await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await page.eval(`${spr}.focus()`);
+  await key('0', 'Digit0', 48); // the pinch zoomed in: fit again
+  await frame();
   // Pixel brushes keep no pressure by default.
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Pixel')`);
   check('pen: a pixel brush has no pressure by default', await page.eval(`${spr}.querySelector('.spr-pen-btn').dataset.mode`) === 'off');
+  // Pixel brushes: Size turned on with the brush picked works for the eraser end too (one setting).
+  await click(`${spr}.querySelector('.spr-pen-btn')`);
+  await until(menuItem('Size'), 'the Pen menu');
+  await click(menuItem('Size'));
+  await setSize(30);
+  await mouseStroke(cy - 100 * z2);
+  await setSize(16);
+  const eraseEndAt = (x, force) => page.eval(`(() => {
+    const c = ${spr}.querySelector('.spr-canvas');
+    const ev = (type, y, buttons) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 79, pointerType: 'pen', isPrimary: true,
+      button: type === 'pointermove' ? -1 : 5, buttons, pressure: buttons ? ${force} : 0, clientX: ${cx} + ${x} * ${z2}, clientY: y }));
+    ev('pointerdown', ${cy - 120 * z2}, 32);
+    for (let i = 1; i <= 10; i++) ev('pointermove', ${cy - 120 * z2} + i * ${4 * z2}, 32);
+    ev('pointerup', ${cy - 80 * z2}, 0);
+  })()`);
+  await eraseEndAt(-50, 0.1);
+  await eraseEndAt(50, 1);
+  await frame();
+  {
+    const row = await rowAlpha(Math.round(W2 / 2 - 100));
+    const gap = (x) => row.slice(x - 14, x + 15).filter((a) => a < 128).length;
+    const mid = Math.round(W2 / 2);
+    check('pen: with pixel brushes, Size set on the brush works for the eraser end', gap(mid - 50) > 0 && gap(mid - 50) < gap(mid + 50) && gap(mid + 50) === 16, { light: gap(mid - 50), heavy: gap(mid + 50) });
+  }
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Smooth')`);
   await shot('pen');
 
