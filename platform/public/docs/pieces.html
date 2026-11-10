@@ -301,8 +301,8 @@
 <tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>The image of each particle. If it is empty, the piece draws soft dots.</td></tr>
 <tr><td><code>speed</code></td><td>number (px/s)</td><td>100</td><td>The starting speed of each particle.</td></tr>
 <tr><td><code>speedRandom</code></td><td>number</td><td>0.5</td><td>How much the speed changes from particle to particle (0 to 1).</td></tr>
-<tr><td><code>direction</code></td><td>angle (°)</td><td>-5156.62°</td><td>The direction in which particles move, in degrees: 0 is right, 90 is down, -90 is up.</td></tr>
-<tr><td><code>spread</code></td><td>angle (°)</td><td>1718.87°</td><td>How much the direction changes to each side, in degrees.</td></tr>
+<tr><td><code>direction</code></td><td>angle (°)</td><td>-90°</td><td>The direction in which particles move, in degrees: 0 is right, 90 is down, -90 is up.</td></tr>
+<tr><td><code>spread</code></td><td>angle (°)</td><td>30°</td><td>How much the direction changes to each side, in degrees.</td></tr>
 <tr><td><code>gravityX</code></td><td>number (px/s²)</td><td>0</td><td>A constant pull sideways.</td></tr>
 <tr><td><code>gravityY</code></td><td>number (px/s²)</td><td>0</td><td>A constant pull down.</td></tr>
 <tr><td><code>sizeStart</code></td><td>number (px)</td><td>8</td><td>The size of a particle when it starts.</td></tr>
@@ -383,7 +383,7 @@
 <tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>The horizontal speed, in pixels per second.</td></tr>
 <tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed.</td></tr>
 <tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed.</td></tr>
-<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that is still ground, in degrees. move() walks up it and does not slide back.</td></tr>
+<tr><td><code>slope</code></td><td>angle (°)</td><td>45°</td><td>The steepest surface that is still ground, in degrees. move() walks up it and does not slide back.</td></tr>
 <tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass.</td></tr>
 <tr><td><code>friction</code></td><td>number</td><td>0.3</td><td>How much it grips what it touches: 0 is ice.</td></tr>
 <tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 is no bounce, 1 bounces forever.</td></tr>
@@ -485,8 +485,8 @@
 <tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance).</td></tr>
 <tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The maximum torque (pin, wheel) or force (slider, distance) that the motor uses.</td></tr>
 <tr><td><code>limit</code></td><td>bool</td><td>false</td><td>When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper.</td></tr>
-<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The maximum angle that a pin turns anticlockwise, in degrees.</td></tr>
-<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The maximum angle that a pin turns clockwise, in degrees.</td></tr>
+<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-45°</td><td>The maximum angle that a pin turns anticlockwise, in degrees.</td></tr>
+<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>45°</td><td>The maximum angle that a pin turns clockwise, in degrees.</td></tr>
 <tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The maximum distance that a slider or wheel moves back.</td></tr>
 <tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The maximum distance that a slider or wheel moves forward.</td></tr>
 <tr><td><code>strength</code></td><td>number</td><td>0</td><td>The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body.</td></tr>

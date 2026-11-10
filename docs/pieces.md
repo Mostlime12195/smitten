@@ -310,8 +310,8 @@ Extends [Group](#group).
 | `image` | resource | "" | The image of each particle. If it is empty, the piece draws soft dots. |
 | `speed` | number (px/s) | 100 | The starting speed of each particle. |
 | `speedRandom` | number | 0.5 | How much the speed changes from particle to particle (0 to 1). |
-| `direction` | angle (°) | -5156.62° | The direction in which particles move, in degrees: 0 is right, 90 is down, -90 is up. |
-| `spread` | angle (°) | 1718.87° | How much the direction changes to each side, in degrees. |
+| `direction` | angle (°) | -90° | The direction in which particles move, in degrees: 0 is right, 90 is down, -90 is up. |
+| `spread` | angle (°) | 30° | How much the direction changes to each side, in degrees. |
 | `gravityX` | number (px/s²) | 0 | A constant pull sideways. |
 | `gravityY` | number (px/s²) | 0 | A constant pull down. |
 | `sizeStart` | number (px) | 8 | The size of a particle when it starts. |
@@ -406,7 +406,7 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | `vx` | number (px/s) | 0 | The horizontal speed, in pixels per second. |
 | `vy` | number (px/s) | 0 | The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed. |
 | `spin` | angle (°/s) | 0° | How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed. |
-| `slope` | angle (°) | 2578.31° | The steepest surface that is still ground, in degrees. move() walks up it and does not slide back. |
+| `slope` | angle (°) | 45° | The steepest surface that is still ground, in degrees. move() walks up it and does not slide back. |
 | `mass` | number (kg) | 1 | The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass. |
 | `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
 | `bounce` | number | 0 | How much it bounces: 0 is no bounce, 1 bounces forever. |
@@ -517,8 +517,8 @@ Extends [Group](#group). Uses the physics2d (Box2D) module.
 | `motorSpeed` | number | 90 | The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance). |
 | `motorStrength` | number | 100000 | The maximum torque (pin, wheel) or force (slider, distance) that the motor uses. |
 | `limit` | bool | false | When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper. |
-| `minAngle` | angle (°) | -2578.31° | The maximum angle that a pin turns anticlockwise, in degrees. |
-| `maxAngle` | angle (°) | 2578.31° | The maximum angle that a pin turns clockwise, in degrees. |
+| `minAngle` | angle (°) | -45° | The maximum angle that a pin turns anticlockwise, in degrees. |
+| `maxAngle` | angle (°) | 45° | The maximum angle that a pin turns clockwise, in degrees. |
 | `lower` | number (px) | -50 | The maximum distance that a slider or wheel moves back. |
 | `upper` | number (px) | 50 | The maximum distance that a slider or wheel moves forward. |
 | `strength` | number | 0 | The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body. |

@@ -57,7 +57,8 @@ const cell = (s) => String(s).replace(/\|/g, '\\|');
 
 const fmt = (v, p) => {
   if (v === null || v === undefined) return 'none';
-  if (p.type === 'angle') return `${Math.round(v * 180 / Math.PI * 100) / 100}°`;
+  // pieces.json keeps angles in degrees, as scripts of version 3 see them.
+  if (p.type === 'angle') return `${v}°`;
   if (Array.isArray(v)) return `{${v.join(', ')}}`;
   if (typeof v === 'string') return v === '' ? '""' : `"${v}"`;
   return String(v);

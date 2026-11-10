@@ -304,7 +304,7 @@ stronger than that force. Then it sends the `broke` event. `getAngle()`,
 | `vx` | number (px/s) | 0 | The horizontal speed, in pixels per second. |
 | `vy` | number (px/s) | 0 | The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed. |
 | `spin` | angle (°/s) | 0° | How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed. |
-| `slope` | angle (°) | 2578.31° | The steepest surface that is still ground, in degrees. move() walks up it and does not slide back. |
+| `slope` | angle (°) | 45° | The steepest surface that is still ground, in degrees. move() walks up it and does not slide back. |
 | `mass` | number (kg) | 1 | The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass. |
 | `friction` | number | 0.3 | How much it grips what it touches: 0 is ice. |
 | `bounce` | number | 0 | How much it bounces: 0 is no bounce, 1 bounces forever. |
@@ -403,8 +403,8 @@ stronger than that force. Then it sends the `broke` event. `getAngle()`,
 | `motorSpeed` | number | 90 | The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance). |
 | `motorStrength` | number | 100000 | The maximum torque (pin, wheel) or force (slider, distance) that the motor uses. |
 | `limit` | bool | false | When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper. |
-| `minAngle` | angle (°) | -2578.31° | The maximum angle that a pin turns anticlockwise, in degrees. |
-| `maxAngle` | angle (°) | 2578.31° | The maximum angle that a pin turns clockwise, in degrees. |
+| `minAngle` | angle (°) | -45° | The maximum angle that a pin turns anticlockwise, in degrees. |
+| `maxAngle` | angle (°) | 45° | The maximum angle that a pin turns clockwise, in degrees. |
 | `lower` | number (px) | -50 | The maximum distance that a slider or wheel moves back. |
 | `upper` | number (px) | 50 | The maximum distance that a slider or wheel moves forward. |
 | `strength` | number | 0 | The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body. |
