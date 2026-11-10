@@ -271,6 +271,14 @@ export function pixelEllipse(mask, x0, y0, x1, y1, width, filled, clip) {
 // ---------------------------------------------------------------------------
 // Fill
 
+// Shared by all fills (a fill is never in two places at once).
+let fillBuffer = null;
+const fillStack = [];
+function fillScratch(n) {
+  if (!fillBuffer || fillBuffer.length < n) fillBuffer = new Uint8Array(n);
+  return fillBuffer;
+}
+
 /**
  * Flood fill coverage from pixel (x, y) of buf: the pixels whose color is
  * within `tolerance` (0-255, per channel, on premultiplied colors so every
@@ -285,12 +293,18 @@ export function floodMask(mask, buf, w, h, x, y, tolerance, contiguous, clip) {
   const sa = buf[i0 + 3];
   const sr = (buf[i0] * sa) / 255, sg = (buf[i0 + 1] * sa) / 255, sb = (buf[i0 + 2] * sa) / 255;
   const t = tolerance + 0.5; // exact matches at 0 despite rounding
-  const match = (p) => {
+  let match = (p) => {
     const i = p * 4;
     const a = buf[i + 3];
     if (Math.abs(a - sa) > t) return false;
     return Math.abs((buf[i] * a) / 255 - sr) <= t && Math.abs((buf[i + 1] * a) / 255 - sg) <= t && Math.abs((buf[i + 2] * a) / 255 - sb) <= t;
   };
+  // Tolerance 0: compare whole pixels as 32-bit numbers (every transparent pixel matches every other).
+  const u32 = tolerance === 0 ? words(buf) : null;
+  if (u32) {
+    const target = u32[y * w + x];
+    match = sa === 0 ? (p) => buf[p * 4 + 3] === 0 : (p) => u32[p] === target;
+  }
   let bx0 = x, by0 = y, bx1 = x, by1 = y;
   if (!contiguous) {
     for (let py = area.y0; py < area.y1; py++) {
@@ -304,29 +318,39 @@ export function floodMask(mask, buf, w, h, x, y, tolerance, contiguous, clip) {
     }
     return mask.mark({ x0: bx0, y0: by0, x1: bx1 + 1, y1: by1 + 1 });
   }
-  // The mask itself marks the pixels already filled (no buffer of the image's size for each fill).
-  if (data[y * w + x]) return null;
-  const ok = (px, py) => {
-    const p = py * w + px;
-    return !data[p] && match(p);
-  };
-  const stack = [x, y];
+  if (data[y * w + x]) return null; // filled already (a mirror of this fill)
+  // Pass 1: which pixels of the area match and are not filled yet, in one
+  // byte buffer that all fills share. Pass 2: a scanline fill over it.
+  const ok = fillScratch(w * h);
+  const target = u32 ? u32[y * w + x] : 0;
+  for (let py = area.y0; py < area.y1; py++) {
+    let p = py * w + area.x0;
+    const end = py * w + area.x1;
+    if (u32 && sa !== 0) for (; p < end; p++) ok[p] = !data[p] && u32[p] === target ? 1 : 0;
+    else if (u32) for (; p < end; p++) ok[p] = !data[p] && buf[p * 4 + 3] === 0 ? 1 : 0;
+    else for (; p < end; p++) ok[p] = !data[p] && match(p) ? 1 : 0;
+  }
+  const stack = fillStack;
+  stack.length = 0;
+  stack.push(x, y);
   while (stack.length) {
     const py = stack.pop(), px = stack.pop();
-    if (data[py * w + px]) continue;
+    const row = py * w;
+    if (!ok[row + px]) continue;
     let lx = px;
-    while (lx > area.x0 && ok(lx - 1, py)) lx--;
+    while (lx > area.x0 && ok[row + lx - 1]) lx--;
     let rx = px;
-    while (rx < area.x1 - 1 && ok(rx + 1, py)) rx++;
-    data.fill(255, py * w + lx, py * w + rx + 1);
+    while (rx < area.x1 - 1 && ok[row + rx + 1]) rx++;
+    data.fill(255, row + lx, row + rx + 1);
+    ok.fill(0, row + lx, row + rx + 1);
     if (lx < bx0) bx0 = lx; if (rx > bx1) bx1 = rx;
     if (py < by0) by0 = py; if (py > by1) by1 = py;
-    for (const ny of [py - 1, py + 1]) {
+    for (let ny = py - 1; ny <= py + 1; ny += 2) {
       if (ny < area.y0 || ny >= area.y1) continue;
+      const nrow = ny * w;
       let inRun = false;
       for (let cx = lx; cx <= rx; cx++) {
-        const good = ok(cx, ny);
-        if (good && !inRun) { stack.push(cx, ny); inRun = true; } else if (!good) inRun = false;
+        if (ok[nrow + cx]) { if (!inRun) { stack.push(cx, ny); inRun = true; } } else inRun = false;
       }
     }
   }
@@ -346,11 +370,17 @@ export function composite(dst, base, mask, w, box, color, opacity, erase) {
   const md = mask.data;
   const [cr, cg, cb, ca] = color;
   const k = (opacity * (erase ? 1 : ca / 255)) / 255;
+  // Full coverage of an opaque color (or a full erase) puts the color as it is.
+  const solid = k * 255 >= 1;
   for (let y = box.y0; y < box.y1; y++) {
     let p = y * w + box.x0;
     for (let x = box.x0; x < box.x1; x++, p++) {
       const j = p * 4;
       const m = md[p];
+      if (m === 255 && solid) {
+        if (erase) { dst[j] = 0; dst[j + 1] = 0; dst[j + 2] = 0; dst[j + 3] = 0; } else { dst[j] = cr; dst[j + 1] = cg; dst[j + 2] = cb; dst[j + 3] = 255; }
+        continue;
+      }
       const br = base[j], bg = base[j + 1], bb = base[j + 2], ba = base[j + 3];
       const sa = m * k;
       if (sa <= 0) {

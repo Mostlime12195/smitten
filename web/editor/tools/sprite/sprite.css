@@ -178,6 +178,17 @@
 .spr-viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--editor-bg); touch-action: none; }
 .spr-canvas { position: absolute; inset: 0; display: block; touch-action: none; }
 .spr-overlay { pointer-events: none; }
+/* Lifted pixels and the selection outline: elements moved with a transform. */
+.spr-floating { position: absolute; left: 0; top: 0; pointer-events: none; transform-origin: 0 0; will-change: transform; image-rendering: pixelated; }
+.spr-floating.smooth { image-rendering: auto; }
+.spr-selection {
+  --ants-h: linear-gradient(90deg, rgba(0, 0, 0, 0.6) 50%, rgba(255, 255, 255, 0.92) 50%);
+  --ants-v: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 50%, rgba(255, 255, 255, 0.92) 50%);
+  position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform;
+  /* Dashes of a dark and a light color, so the outline shows on any image. */
+  background: var(--ants-h) 0 0 / 8px 1px repeat-x, var(--ants-h) 0 100% / 8px 1px repeat-x,
+    var(--ants-v) 0 0 / 1px 8px repeat-y, var(--ants-v) 100% 0 / 1px 8px repeat-y;
+}
 /* The brush outline and crosshair: moved with a transform (no drawing). */
 .spr-brush-outline, .spr-crosshair { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
 .spr-brush-outline { box-sizing: border-box; border: 1px solid rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.25); }

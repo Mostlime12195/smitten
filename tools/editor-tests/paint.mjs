@@ -29,7 +29,7 @@ function check(name, ok, detail) {
     console.log(`PASS ${name}`);
   } else {
     failed++;
-    console.log(`FAIL ${name}${detail !== undefined ? `: ${detail}` : ''}`);
+    console.log(`FAIL ${name}${detail !== undefined ? `: ${typeof detail === 'object' ? JSON.stringify(detail) : detail}` : ''}`);
   }
   return ok;
 }
@@ -194,6 +194,47 @@ try {
   check('a stroke outside the image draws nothing', outside.full === 0 && outside.part === 0 && outside.marks === 0, outside);
   await sleep(100);
   check('a stroke outside the image changes nothing (the tab stays saved)', await page.eval(`!${dot}`));
+
+  // Moving a selection moves an element: nothing is drawn again. Panning
+  // copies the kept image: the image is not drawn again either.
+  await page.eval(`${spr}.focus()`);
+  await key('m', 'KeyM', 77);
+  await mouse('mouseMoved', cx - 50 * zoom, cy - 50 * zoom, 0);
+  await mouse('mousePressed', cx - 50 * zoom, cy - 50 * zoom);
+  await mouse('mouseMoved', cx + 50 * zoom, cy + 50 * zoom);
+  await mouse('mouseReleased', cx + 50 * zoom, cy + 50 * zoom, 0);
+  await frame();
+  await mouse('mouseMoved', cx, cy, 0);
+  await mouse('mousePressed', cx, cy);
+  await mouse('mouseMoved', cx + 2, cy + 1);
+  await frame();
+  const m0 = await stats();
+  for (let i = 1; i <= 20; i++) { await mouse('mouseMoved', cx + 2 + i * 3, cy + 1 + i * 2); await sleep(10); }
+  await frame();
+  const m1 = await stats();
+  await mouse('mouseReleased', cx + 62, cy + 41, 0);
+  const moveDraws = { full: m1.fullDraws - m0.fullDraws, part: m1.partDraws - m0.partDraws, image: m1.imageDraws - m0.imageDraws + m1.cacheDraws - m0.cacheDraws };
+  check('moving a selection draws nothing again', moveDraws.full === 0 && moveDraws.part === 0 && moveDraws.image === 0, moveDraws);
+  await page.eval(`${spr}.focus()`);
+  await key('Escape', 'Escape', 27);
+  await frame();
+  const pan = async () => {
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx, y: cy, button: 'middle', buttons: 4, clickCount: 1 });
+    await frame();
+    const a = await stats();
+    for (let i = 1; i <= 20; i++) { await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx + i * 4, y: cy + i * 2, button: 'middle', buttons: 4 }); await sleep(10); }
+    await frame();
+    const b = await stats();
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx + 80, y: cy + 40, button: 'middle', buttons: 0, clickCount: 1 });
+    return { frames: b.fullDraws - a.fullDraws, image: b.imageDraws - a.imageDraws, cache: b.cacheDraws - a.cacheDraws };
+  };
+  // Zoomed out (below 100% the image is smoothed, which is slow to draw).
+  await page.eval(`${spr}.focus()`);
+  await key('-', 'Minus', 189);
+  await frame();
+  const panned = await pan();
+  check('zoomed out, panning copies the kept image (the image is not drawn again)', panned.frames > 0 && panned.image === 0 && panned.cache === 0, panned);
+  await key('0', 'Digit0', 48);
 
   // The menu of an image in the Files panel says where it opens.
   const row = (p) => `[...document.querySelectorAll('.tree-row')].find((r) => r.dataset.path === ${JSON.stringify(p)})`;

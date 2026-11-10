@@ -28,6 +28,11 @@ const TRANSPARENT = [0, 0, 0, 0];
 const SHAPES = new Set(['line', 'rect', 'ellipse']);
 const PAINT_TOOLS = new Set(['brush', 'eraser', 'line', 'rect', 'ellipse']);
 const MAX_RECENT = 16;
+// Zoomed out, the image drawn at the current zoom (smoothed, which is slow)
+// is kept while it has at most this many device pixels, so panning only
+// copies it to the screen. Zoomed in, drawing the pixels that show is cheap.
+const CACHE_MAX_PIXELS = 6 * 1024 * 1024;
+const ZOOM_SETTLE_MS = 160; // while you zoom, the kept image is stretched; it is drawn sharp this long after the last step
 
 const TOOLS = [
   { id: 'brush', label: 'Brush', key: 'B' },
@@ -187,7 +192,8 @@ export class SpriteEditor {
     this.needOverlay = false;
     // How much drawing happened (tools/editor-tests/paint.mjs checks that a
     // stroke draws only the changed part, and no marks).
-    this.stats = { fullDraws: 0, partDraws: 0, overlayDraws: 0 };
+    // imageDraws: the image drawn onto the screen directly; cacheDraws: into the kept image.
+    this.stats = { fullDraws: 0, partDraws: 0, overlayDraws: 0, imageDraws: 0, cacheDraws: 0 };
     this.undoStack = [];
     this.redoStack = [];
     this.undoBytes = 0;
@@ -454,6 +460,7 @@ export class SpriteEditor {
     // elements moved by a transform, so moving the mouse draws nothing again.
     this.brushEl = h('div', { class: 'spr-brush-outline', 'aria-hidden': 'true', hidden: true });
     this.crossEl = h('div', { class: 'spr-crosshair', 'aria-hidden': 'true', hidden: true });
+    this.selEl = h('div', { class: 'spr-selection', 'aria-hidden': 'true', hidden: true });
     this.statusEl = h('div', { class: 'spr-status' }, this.statusInfo = h('span', {}), this.statusPos = h('span', {}));
     this.errorEl = h('div', { class: 'spr-error', hidden: true });
     this.emptyHint = h('div', { class: 'spr-empty-hint', hidden: true },
@@ -468,7 +475,7 @@ export class SpriteEditor {
       this.zoomLabel,
       this.iconButton('zoomIn', 'Zoom in (+)', () => this.zoomStep(1)),
       this.iconButton('fit', 'Fit to view (0)', () => this.fit()));
-    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas, this.overlay, this.brushEl, this.crossEl, this.emptyHint, this.statusEl, this.viewBar, this.errorEl);
+    this.viewport = h('div', { class: 'spr-viewport' }, this.canvas, this.overlay, this.selEl, this.brushEl, this.crossEl, this.emptyHint, this.statusEl, this.viewBar, this.errorEl);
     this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
     this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
@@ -1452,15 +1459,14 @@ export class SpriteEditor {
     this.moveFloating(this.floating.x + dx, this.floating.y + dy);
   }
 
-  /** Put the lifted pixels at x, y: draws again only where they were and where they are now. */
+  /** Put the lifted pixels at x, y (an element over the canvas: nothing is drawn again). */
   moveFloating(x, y) {
     const f = this.floating;
     if (f.x === x && f.y === y) return;
-    const old = { x0: f.x, y0: f.y, x1: f.x + f.w, y1: f.y + f.h };
     f.x = x;
     f.y = y;
-    this.renderBox(draw.union(old, { x0: x, y0: y, x1: x + f.w, y1: y + f.h }));
-    this.renderOverlay();
+    this.schedule(); // only the element moves
+    this.renderStatus();
   }
 
   flip(horizontal) {
@@ -1605,7 +1611,7 @@ export class SpriteEditor {
       case 'pan':
         this.panX = d.px + e.clientX - d.sx;
         this.panY = d.py + e.clientY - d.sy;
-        this.render();
+        this.renderView();
         break;
       case 'stroke': {
         const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
@@ -1748,11 +1754,12 @@ export class SpriteEditor {
     const z = clamp(g.zoom * (Math.hypot(a.x - b.x, a.y - b.y) / g.dist), MIN_ZOOM, MAX_ZOOM);
     // The point under the gesture's start center stays under its current center.
     const fx = (g.cx - g.panX) / g.zoom, fy = (g.cy - g.panY) / g.zoom;
+    if (z !== this.zoom) this.zoomedAt = performance.now();
     this.zoom = z;
     this.panX = cx - fx * z;
     this.panY = cy - fy * z;
     this.renderZoom();
-    this.render();
+    this.renderView();
   }
 
   onWheel(e) {
@@ -1762,16 +1769,16 @@ export class SpriteEditor {
     const dx = e.deltaX * scale, dy = e.deltaY * scale;
     if (e.ctrlKey || e.metaKey) {
       // Trackpad pinch (or Ctrl+wheel): zoom smoothly around the pointer.
-      this.setZoom(this.zoom * Math.exp(-dy * 0.01), e.clientX - r.left, e.clientY - r.top);
+      this.setZoom(this.zoom * Math.exp(-dy * 0.01), e.clientX - r.left, e.clientY - r.top, true);
       return;
     }
     if (e.shiftKey || Math.abs(dx) > Math.abs(dy)) {
       this.panX -= e.shiftKey && !dx ? dy : dx;
       if (!e.shiftKey) this.panY -= dy;
-      this.render();
+      this.renderView();
       return;
     }
-    this.setZoom(this.zoom * Math.exp(-clamp(dy, -200, 200) * 0.0025), e.clientX - r.left, e.clientY - r.top);
+    this.setZoom(this.zoom * Math.exp(-clamp(dy, -200, 200) * 0.0025), e.clientX - r.left, e.clientY - r.top, true);
   }
 
   // -------------------------------------------------------------------------
@@ -1849,8 +1856,10 @@ export class SpriteEditor {
   // -------------------------------------------------------------------------
   // View
 
-  setZoom(z, ax, ay) {
+  /** settle: a step of a wheel or pinch zoom (the image is drawn sharp when the steps stop). */
+  setZoom(z, ax, ay, settle = false) {
     z = clamp(z, MIN_ZOOM, MAX_ZOOM);
+    if (settle && z !== this.zoom) this.zoomedAt = performance.now();
     const W = this.viewport.clientWidth, H = this.viewport.clientHeight;
     ax ??= W / 2;
     ay ??= H / 2;
@@ -1861,7 +1870,7 @@ export class SpriteEditor {
     this.renderZoom();
     this.renderStatus();
     this.updateCursor();
-    this.render();
+    this.renderView();
   }
 
   zoomStep(dir, ax, ay) {
@@ -1886,7 +1895,7 @@ export class SpriteEditor {
     this.renderZoom();
     this.renderStatus();
     this.updateCursor();
-    this.render();
+    this.renderView();
   }
 
   renderZoom() {
@@ -1911,6 +1920,15 @@ export class SpriteEditor {
 
   /** Draw everything again (soon, once per frame). */
   render() {
+    this.cacheDirty = true;
+    this.zoomedAt = -Infinity;
+    this.needBase = true;
+    this.needOverlay = true;
+    this.schedule();
+  }
+
+  /** The view moved or zoomed: the image is the same, so the kept image can be copied. */
+  renderView() {
     this.needBase = true;
     this.needOverlay = true;
     this.schedule();
@@ -1931,7 +1949,9 @@ export class SpriteEditor {
   /** Draw the part of the image in box (image pixels) again. The marks over it stay. */
   renderBox(box) {
     if (!box) { this.render(); return; }
+    this.zoomedAt = -Infinity; // show the change sharp at once
     if (this.needBase !== true) this.needBase = draw.union(this.needBase, box);
+    this.cacheBox = draw.union(this.cacheBox, box);
     this.schedule();
   }
 
@@ -1966,6 +1986,7 @@ export class SpriteEditor {
     }
     if (over) { this.stats.overlayDraws++; this.drawOverlay(); }
     this.placeBrushOutline();
+    this.placeSelection();
     if (this.statusDirty) this.writeStatus();
     if (base) this.startPreview();
   }
@@ -1989,9 +2010,37 @@ export class SpriteEditor {
     return c;
   }
 
+  /**
+   * The kept image at the current zoom (null when it would be too big; the
+   * image is then drawn directly). While a zoom settles, the kept image of
+   * the zoom before is returned, to draw stretched.
+   */
+  imageCache(dpr) {
+    const { fw, fh } = this.doc;
+    const z = this.zoom;
+    const c = this.cache;
+    const same = c && c.fw === fw && c.fh === fh && c.dpr === dpr;
+    if (same && c.zoom === z) return c;
+    if (same && c.ready && performance.now() - (this.zoomedAt ?? -Infinity) < ZOOM_SETTLE_MS) return c;
+    const cw = Math.ceil(fw * z * dpr), ch = Math.ceil(fh * z * dpr);
+    if (z >= 1 || cw < 1 || ch < 1 || cw * ch > CACHE_MAX_PIXELS) return null;
+    const next = c || (this.cache = { canvas: document.createElement('canvas') });
+    next.canvas.width = cw;
+    next.canvas.height = ch;
+    Object.assign(next, { fw, fh, dpr, zoom: z, ready: false, stale: null });
+    return next;
+  }
+
+  /** Draw the image sharp once the zoom has not changed for a moment. */
+  settleSoon() {
+    if (this.settleTimer) return;
+    const wait = Math.max(10, ZOOM_SETTLE_MS - (performance.now() - this.zoomedAt) + 10);
+    this.settleTimer = setTimeout(() => { this.settleTimer = null; this.renderView(); }, wait);
+  }
+
   /** The image, its grids and border; only inside box (image pixels) if given. */
   drawBase(box) {
-    const { ctx, doc, zoom: z, theme } = this;
+    const { ctx, zoom: z, theme } = this;
     const { dpr, W, H, ox, oy, pw, ph, px, snap } = this.view();
     if (!W || !H) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2006,24 +2055,85 @@ export class SpriteEditor {
     }
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, W, H);
-    if (!this.loaded || this.failed) { ctx.restore(); return; }
+    if (this.loaded && !this.failed) {
+      const cache = this.imageCache(dpr);
+      const changed = this.cacheBox;
+      this.cacheBox = null;
+      if (!cache) {
+        this.drawImageLayer(ctx, ox, oy, W, H, box);
+      } else if (cache.zoom !== z) {
+        // Zooming: the kept image stretched (cheap) until the zoom settles.
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'low';
+        ctx.drawImage(cache.canvas, ox, oy, pw, ph);
+        this.settleSoon();
+      } else if (box && cache.ready && !this.cacheDirty) {
+        // Painting: draw the changed part onto the screen as it is, and bring
+        // the kept image up to date only when the view moves (no work twice).
+        this.drawImageLayer(ctx, ox, oy, W, H, box);
+        cache.stale = draw.union(cache.stale, changed || box);
+      } else {
+        const cc = cache.canvas.getContext('2d');
+        cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!cache.ready || this.cacheDirty) {
+          this.drawImageLayer(cc, 0, 0, cache.canvas.width / dpr, cache.canvas.height / dpr, null);
+          cache.ready = true;
+          cache.stale = null;
+          this.cacheDirty = false;
+        } else if (cache.stale || changed) {
+          this.drawImageLayer(cc, 0, 0, cache.canvas.width / dpr, cache.canvas.height / dpr, draw.union(cache.stale, changed));
+          cache.stale = null;
+        }
+        // Copied pixel for pixel: no scaling, no smoothing.
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(cache.canvas, Math.round(ox * dpr), Math.round(oy * dpr));
+        ctx.restore();
+      }
+      ctx.lineWidth = px;
+      ctx.strokeStyle = theme.border;
+      ctx.strokeRect(snap(ox) - px, snap(oy) - px, Math.round(pw * dpr) / dpr + px, Math.round(ph * dpr) / dpr + px);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The checkerboard, the onion skin, the frame and the grids, with the
+   * image's top-left corner at ox, oy of ctx (W×H); only inside box if given.
+   */
+  drawImageLayer(ctx, ox, oy, W, H, box) {
+    const { doc, zoom: z, theme } = this;
+    if (ctx === this.ctx) this.stats.imageDraws++; else this.stats.cacheDraws++;
+    const dpr = ctx.getTransform().a || 1;
+    const px = 1 / dpr;
+    const snap = (v) => Math.round(v * dpr) / dpr + px / 2;
     const { fw, fh } = doc;
+    const pw = fw * z, ph = fh * z;
+    ctx.save();
+    if (box) {
+      const x0 = Math.floor(ox + box.x0 * z) - 2, y0 = Math.floor(oy + box.y0 * z) - 2;
+      const x1 = Math.ceil(ox + box.x1 * z) + 2, y1 = Math.ceil(oy + box.y1 * z) + 2;
+      ctx.beginPath();
+      ctx.rect(x0, y0, x1 - x0, y1 - y0);
+      ctx.clip();
+    }
+    ctx.beginPath();
+    ctx.rect(ox, oy, pw, ph);
+    ctx.clip();
 
     // Checkerboard cells: a power of two of image pixels, at least 8 screen pixels.
     let cell = 1;
     while (cell * z < 8) cell *= 2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(ox, oy, pw, ph);
-    ctx.clip();
     ctx.imageSmoothingEnabled = false;
     const checker = this.checkerCanvas(cell);
     ctx.drawImage(checker, ox, oy, checker.width * cell * z, checker.height * cell * z);
-    ctx.restore();
 
-    // Zoomed out, filter the image so it looks as it will; zoomed in, show the pixels.
+    // Zoomed out, filter the image so it looks as it will; zoomed in, show the
+    // pixels. The best filter only below 50% (it is slow after each change,
+    // and above 50% the simple one looks the same).
     ctx.imageSmoothingEnabled = z < 1;
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = z < 0.5 ? 'high' : 'low';
     if (this.onion && doc.count > 1) {
       ctx.globalAlpha = 0.3;
       if (this.current > 0) ctx.drawImage(this.frameCanvases[this.current - 1], ox, oy, pw, ph);
@@ -2032,8 +2142,6 @@ export class SpriteEditor {
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(this.frameCanvases[this.current], ox, oy, pw, ph);
-    const fl = this.floating;
-    if (fl) ctx.drawImage(fl.canvas, ox + fl.x * z, oy + fl.y * z, fl.w * z, fl.h * z);
     ctx.imageSmoothingEnabled = false;
 
     // Visible pixel range (only the part being drawn again, if any)
@@ -2063,11 +2171,44 @@ export class SpriteEditor {
     };
     if (this.pixelGrid && z >= GRID_ZOOM) gridLines(1, 1, 0.12);
     if (this.grid && this.gridW * z >= 4 && this.gridH * z >= 4) gridLines(this.gridW, this.gridH, 0.32);
-
-    ctx.lineWidth = px;
-    ctx.strokeStyle = theme.border;
-    ctx.strokeRect(snap(ox) - px, snap(oy) - px, Math.round(pw * dpr) / dpr + px, Math.round(ph * dpr) / dpr + px);
     ctx.restore();
+  }
+
+  /**
+   * The lifted pixels and the selection outline are elements over the
+   * canvas, moved with a transform: moving a selection draws nothing again.
+   */
+  placeSelection() {
+    const { zoom: z, selEl } = this;
+    const { ox, oy } = this.view();
+    const fl = this.floating;
+    const want = fl ? fl.canvas : null;
+    if (this.floatEl !== want) {
+      this.floatEl?.remove();
+      this.floatEl = want;
+      if (want) { want.className = 'spr-floating'; this.overlay.before(want); }
+    }
+    if (fl) {
+      const key = `${fl.w}x${fl.h}@${z}`;
+      if (fl.key !== key) {
+        fl.key = key;
+        fl.canvas.style.width = `${fl.w * z}px`;
+        fl.canvas.style.height = `${fl.h * z}px`;
+        fl.canvas.classList.toggle('smooth', z < 1);
+      }
+      fl.canvas.style.transform = `translate(${ox + fl.x * z}px, ${oy + fl.y * z}px)`;
+    }
+    const s = this.loaded && !this.failed ? fl || this.selection : null;
+    if (s) {
+      const key = `${s.w}x${s.h}@${z}`;
+      if (this.selKey !== key) {
+        this.selKey = key;
+        selEl.style.width = `${Math.round(s.w * z) + 1}px`;
+        selEl.style.height = `${Math.round(s.h * z) + 1}px`;
+      }
+      selEl.style.transform = `translate(${Math.round(ox + s.x * z)}px, ${Math.round(oy + s.y * z)}px)`;
+    }
+    if (selEl.hidden === !!s) selEl.hidden = !s;
   }
 
   /** The marks over the image: mirror lines, brush outline, selection, origin. */
@@ -2077,7 +2218,7 @@ export class SpriteEditor {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
     // With no marks, hide it: one full-size layer less for the browser to put on screen.
-    const empty = !(this.mirrorX || this.mirrorY || this.floating || this.selection || doc.origin || (this.tool === 'origin' && this.hover));
+    const empty = !(this.mirrorX || this.mirrorY || doc.origin || (this.tool === 'origin' && this.hover));
     if (this.overlay.hidden !== empty) this.overlay.hidden = empty;
     if (empty) return;
     if (!W || !H || !this.loaded || this.failed) return;
@@ -2094,21 +2235,6 @@ export class SpriteEditor {
       if (this.mirrorX) { ctx.moveTo(snap(ox + pw / 2), oy - 8); ctx.lineTo(snap(ox + pw / 2), oy + ph + 8); }
       if (this.mirrorY) { ctx.moveTo(ox - 8, snap(oy + ph / 2)); ctx.lineTo(ox + pw + 8, snap(oy + ph / 2)); }
       ctx.stroke();
-      ctx.restore();
-    }
-
-    // Selection outline
-    const s = this.floating || this.selection;
-    if (s) {
-      const sx = snap(ox + s.x * z), sy = snap(oy + s.y * z);
-      ctx.save();
-      ctx.lineWidth = Math.max(1, px);
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = MARK_DARK;
-      ctx.strokeRect(sx, sy, s.w * z, s.h * z);
-      ctx.lineDashOffset = 4;
-      ctx.strokeStyle = MARK_LIGHT;
-      ctx.strokeRect(sx, sy, s.w * z, s.h * z);
       ctx.restore();
     }
 
