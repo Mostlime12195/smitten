@@ -9,11 +9,14 @@
 // Prints PASS or FAIL for each check and exits with 1 if one failed.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launch, sleep } from '../stress/run.mjs';
-import { decodePNG } from '../../web/editor/tools/sprite/png.js';
+import { decodePNG, encodePNGSync } from '../../web/editor/tools/sprite/png.js';
+import { nearestIndex } from '../../web/editor/tools/sprite/palette.js';
+import { hexToRgba } from '../../web/editor/tools/sprite/draw.js';
+import { tmpdir } from 'node:os';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = Number(process.env.PORT) || 8776;
@@ -473,6 +476,179 @@ try {
   }
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Smooth')`);
   await shot('pen');
+
+  // ---------------------------------------------------------------------
+  // Mirror drawing, layers, moving and turning a selection, palette lock.
+  await click(`document.querySelector('.workspace[data-ws="paint"] .doc-new')`);
+  await sleep(600);
+  await page.eval(`${spr}.focus()`);
+  await key('0', 'Digit0', 48);
+  await frame();
+  const z3 = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`)) / 100;
+  // The image's top-left corner on the screen (the fit puts it in the middle).
+  const [il, it] = JSON.parse(await page.eval(`JSON.stringify((() => { const r = ${spr}.querySelector('.spr-canvas').getBoundingClientRect(); return [r.left + Math.round((r.width - 256 * ${z3}) / 2), r.top + Math.round((r.height - 256 * ${z3}) / 2)]; })())`));
+  const at = (x, y) => [il + (x + 0.5) * z3, it + (y + 0.5) * z3];
+  const pixel = (x, y) => page.eval(`[...${spr}.querySelector('.spr-frame.current canvas').getContext('2d').getImageData(${x}, ${y}, 1, 1).data]`);
+  const line = async (x0, y0, x1, y1) => {
+    const [a, b] = at(x0, y0), [c, d] = at(x1, y1);
+    await mouse('mouseMoved', a, b, 0);
+    await mouse('mousePressed', a, b);
+    for (let i = 1; i <= 16; i++) { await mouse('mouseMoved', a + ((c - a) * i) / 16, b + ((d - b) * i) / 16); await sleep(8); }
+    await mouse('mouseReleased', c, d, 0);
+    await frame();
+  };
+  const setHex = (hex) => page.eval(`(() => { const i = ${spr}.querySelector('.spr-hex'); i.value = '${hex}'; i.dispatchEvent(new Event('change')); })()`);
+  await key('b', 'KeyB', 66);
+  await click(`${spr}.querySelector('button[title^="Mirror left and right"]')`);
+  await line(40, 40, 40, 100);
+  check('mirror: a stroke on the left also paints on the right', (await pixel(40, 70))[3] > 200 && (await pixel(215, 70))[3] > 200, [await pixel(40, 70), await pixel(215, 70)]);
+  // Drag the handle of the mirror line (above the image) to x = 100.
+  {
+    const [hx] = at(128, 0);
+    const hy = it - 14;
+    await mouse('mouseMoved', il + 128 * z3, hy, 0);
+    await mouse('mousePressed', il + 128 * z3, hy);
+    for (let i = 1; i <= 8; i++) { await mouse('mouseMoved', il + 128 * z3 - (28 * z3 * i) / 8, hy); await sleep(10); }
+    await mouse('mouseReleased', il + 100 * z3, hy, 0);
+    void hx;
+  }
+  await line(60, 120, 60, 160);
+  check('mirror: the line moved to x = 100 mirrors x = 60 onto x = 139', (await pixel(139, 140))[3] > 200 && (await pixel(195, 140))[3] === 0, [await pixel(139, 140), await pixel(195, 140)]);
+  await click(`${spr}.querySelector('button[title^="Mirror left and right"]')`);
+  await shot('mirror');
+
+  // A second layer, its opacity, hiding it, and undo.
+  await click(`${spr}.querySelector('button[title="New layer over this one"]')`);
+  await frame();
+  check('layers: a new layer', await page.eval(`${spr}.querySelectorAll('.spr-layer').length`) === 2);
+  await setHex('#ff0000');
+  await line(20, 200, 236, 200);
+  check('layers: red on the new layer', (await pixel(128, 200)).join() === '255,0,0,255', await pixel(128, 200));
+  await page.eval(`(() => { const r = ${spr}.querySelector('input[aria-label="Layer opacity"]'); r.value = '50'; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); })()`);
+  await frame();
+  const halfPx = await pixel(128, 200);
+  check('layers: at 50% opacity the layer shows half', Math.abs(halfPx[3] - 128) <= 2 && halfPx[0] > 240, halfPx);
+  await click(`${spr}.querySelector('.spr-layer.selected .spr-layer-eye')`);
+  await frame();
+  check('layers: a hidden layer does not show', (await pixel(128, 200))[3] === 0, await pixel(128, 200));
+  await page.eval(`${spr}.focus()`);
+  await key('z', 'KeyZ', 90, 2);
+  await frame();
+  check('layers: undo shows it again', Math.abs((await pixel(128, 200))[3] - 128) <= 2, await pixel(128, 200));
+  await shot('layers');
+
+  // Move a selection of the red line down, then turn a selection.
+  await key('m', 'KeyM', 77);
+  await line(20, 190, 60, 210);
+  await line(40, 200, 40, 230);
+  await key('Enter', 'Enter', 13);
+  await frame();
+  check('selection: the moved pixels are in their new place', Math.abs((await pixel(40, 230))[3] - 128) <= 2 && (await pixel(40, 200))[3] === 0, [await pixel(40, 230), await pixel(40, 200)]);
+  await key('Escape', 'Escape', 27);
+  await line(100, 195, 139, 204);
+  await key('r', 'KeyR', 82);
+  await frame();
+  const status = await page.eval(`${spr}.querySelector('.spr-status').textContent`);
+  check('selection: R turns a 40×10 selection into 10×40', /10×40 selected/.test(status), status);
+  await key('Escape', 'Escape', 27);
+  await frame();
+  check('selection: Escape puts the turned pixels down', Math.abs((await pixel(119, 180))[3] - 128) <= 2 && (await pixel(100, 200))[3] === 0, [await pixel(119, 180), await pixel(100, 200)]);
+  await key('z', 'KeyZ', 90, 2);
+  await frame();
+  check('selection: one undo takes the turn back', Math.abs((await pixel(100, 200))[3] - 128) <= 2, await pixel(100, 200));
+
+  // Locked to the PICO-8 palette, on the first layer: an off-palette color paints its nearest palette color.
+  await click(`[...${spr}.querySelectorAll('.spr-layer')].find((r) => r.textContent.includes('Layer 1'))`);
+  await page.eval(`(() => { const s = ${spr}.querySelector('select[aria-label="Palette"]'); s.value = 'pico8'; s.dispatchEvent(new Event('change')); })()`);
+  await click(`${spr}.querySelector('button[title^="Lock to the palette"]')`);
+  await setHex('#3a5f8c');
+  await key('b', 'KeyB', 66);
+  await line(20, 240, 236, 240);
+  const pico8 = ['#000000', '#1d2b53', '#7e2553', '#008751', '#ab5236', '#5f574f', '#c2c3c7', '#fff1e8', '#ff004d', '#ffa300', '#ffec27', '#00e436', '#29adff', '#83769c', '#ff77a8', '#ffccaa'].map(hexToRgba);
+  const want = pico8[nearestIndex(pico8, 0x3a, 0x5f, 0x8c)];
+  const locked = await pixel(128, 240);
+  check('palette lock: the stroke is the nearest palette color', locked[0] === want[0] && locked[1] === want[1] && locked[2] === want[2] && locked[3] === 255, { locked, want });
+  const edge = await pixel(128, 236);
+  check('palette lock: the soft edge is a palette color or transparent', edge[3] === 0 || (edge[3] === 255 && pico8.some((c) => c[0] === edge[0] && c[1] === edge[1] && c[2] === edge[2])), edge);
+  await click(`${spr}.querySelector('button[title^="Lock to the palette"]')`);
+  await shot('palette-lock');
+
+  // Saved: the PNG is the layers flattened, and the .sprite file keeps the layers.
+  const dot3 = `document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"] .dirty-dot')`;
+  await until(`!${dot3} && !document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"]').classList.contains('untitled')`, 'the save of the layers', 15000);
+  const layersPng = await page.eval(`document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"]').title`);
+  const layersMeta = layersPng.replace(/\.png$/, '.sprite');
+  const metaText = await readFile(layersMeta);
+  let meta = null;
+  try { meta = JSON.parse(metaText.slice(5)); } catch { /* checked below */ }
+  check('save: the .sprite file has the two layers, bottom first', meta?.layers?.length === 2 && meta.layers[1].name === 'Layer 2' && meta.layers[1].opacity === 0.5 && meta.layers.every((l) => l.image.startsWith('data:image/png;base64,')), metaText?.slice(0, 300));
+  // The saved file reaches IndexedDB a moment after the save: wait for the last stroke in it.
+  let flatPng = null;
+  const fp = (x, y) => [...flatPng.data.subarray((y * flatPng.width + x) * 4, (y * flatPng.width + x) * 4 + 4)];
+  for (let i = 0; i < 40; i++) {
+    const b64 = await readFile(layersPng);
+    if (b64 && !b64.startsWith('text:')) {
+      flatPng = await decodePNG(Buffer.from(b64, 'base64'));
+      if (fp(128, 240)[3] === 255) break;
+    }
+    await sleep(250);
+  }
+  check('save: the PNG (what the game draws) is the layers flattened', Math.abs(fp(40, 230)[3] - 128) <= 2 && fp(40, 230)[0] > 240 && fp(128, 240)[0] === want[0], [fp(40, 230), fp(128, 240)]);
+
+  // ---------------------------------------------------------------------
+  // Import a sprite sheet: 4 cells of 16×16, a margin of 1 and spacing of 1,
+  // the third cell empty.
+  const sheetFile = join(mkdtempSync(join(tmpdir(), 'smitten-sheet-')), 'walk-sheet.png');
+  {
+    const W = 2 + 4 * 16 + 3, H = 18;
+    const d = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const cx = Math.floor((x - 1) / 17), inCell = x >= 1 && y >= 1 && y < 17 && (x - 1) % 17 < 16 && cx < 4;
+        const c = !inCell ? [90, 90, 90, 255] : cx === 2 ? [0, 0, 0, 0] : [60 * (cx + 1), 200, 40 * cx, 255];
+        d.set(c, (y * W + x) * 4);
+      }
+    }
+    writeFileSync(sheetFile, encodePNGSync(d, W, H));
+  }
+  await click(`document.querySelector('.workspace[data-ws="paint"] .doc-new')`);
+  await sleep(600);
+  await click(`${spr}.querySelector('button[title^="More:"]')`);
+  await until(menuItem('Import sprite sheet…'), 'the More menu');
+  await click(menuItem('Import sprite sheet…'));
+  await until(`document.querySelector('dialog[open] .spr-sheet-preview')`, 'the import dialog');
+  {
+    const { root } = await page.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await page.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'dialog[open] .spr-sheet-file' });
+    await page.send('DOM.setFileInputFiles', { nodeId, files: [sheetFile] });
+  }
+  await until(`/cells of/.test(document.querySelector('dialog[open] .spr-form-note:last-of-type')?.textContent || [...document.querySelectorAll('dialog[open] .spr-form-note')].map((n) => n.textContent).join(' '))`, 'the sheet in the dialog', 8000);
+  const setField = (label, v) => page.eval(`(() => { const i = document.querySelector('dialog[open] input[aria-label="${label}"]'); i.value = '${v}'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await setField('Frame width', 16);
+  await setField('Frame height', 16);
+  await setField('Margin', 1);
+  await setField('Spacing', 1);
+  const noteText = await page.eval(`[...document.querySelectorAll('dialog[open] .spr-form-note')].map((n) => n.textContent).join(' ')`);
+  check('sheet: cut into 4 cells of 16×16, the empty one left out', /4×1 cells of 16×16\. 3 chosen/.test(noteText), noteText);
+  await shot('sheet-dialog');
+  await click(`document.querySelector('dialog[open] button[type=submit]')`);
+  await until(`!document.querySelector('dialog[open]')`, 'the dialog to close');
+  await frame();
+  check('sheet: the image has the 3 frames', await page.eval(`${spr}.querySelectorAll('.spr-frame').length`) === 3);
+  check('sheet: the frame size is 16 × 16', (await page.eval(`${spr}.querySelector('.spr-size-btn').textContent`)).replace(/\s/g, '') === '16×16');
+  check('sheet: an animation "walk" with the 3 frames', /walk/.test(await page.eval(`${spr}.querySelector('.spr-anim-list').textContent`)) && /3 frames/.test(await page.eval(`${spr}.querySelector('.spr-anim-list').textContent`)));
+  const f1 = await page.eval(`[...${spr}.querySelectorAll('.spr-frame canvas')][1].getContext('2d').getImageData(8, 8, 1, 1).data.join()`);
+  check('sheet: frame 1 has the second cell (no margin or spacing in it)', f1 === '120,200,40,255', f1);
+  const dot4 = dot3;
+  await until(`!${dot4} && !document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"]').classList.contains('untitled')`, 'the save of the sheet', 15000);
+  const sheetPng = await page.eval(`document.querySelector('.workspace[data-ws="paint"] .doc-tab[aria-selected="true"]').title`);
+  let sm = {};
+  for (let i = 0; i < 40 && !sm.animations; i++) {
+    sm = JSON.parse((await readFile(sheetPng.replace(/\.png$/, '.sprite')) || 'text:{}').slice(5));
+    if (!sm.animations) await sleep(250);
+  }
+  check('sheet: a normal .sprite file with the animation', sm.frameWidth === 16 && sm.frameHeight === 16 && JSON.stringify(sm.animations?.walk?.frames) === '[0,1,2]' && !sm.layers, sm);
+  await shot('sheet-imported');
 
   check('no errors in the page', problems.length === 0, problems.join('\n'));
 } catch (e) {

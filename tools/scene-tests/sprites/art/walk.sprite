@@ -1,0 +1,14 @@
+{
+  "format": "smitten.sprite",
+  "version": 1,
+  "image": "walk.png",
+  "frameWidth": 6,
+  "frameHeight": 6,
+  "animations": {
+    "walk": {
+      "frames": [0, 1, 2],
+      "fps": 10,
+      "loop": true
+    }
+  }
+}

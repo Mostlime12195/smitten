@@ -43,7 +43,9 @@ jobs:
         run: node web/editor/workspaces/scene/keyframes.test.mjs
 
       - name: Sprite editor tests
-        run: node web/editor/tools/sprite/draw.test.mjs
+        run: |
+          node web/editor/tools/sprite/draw.test.mjs
+          node web/editor/tools/sprite/sprite.test.mjs
 
       - name: Sound file tests
         run: node web/editor/tools/wav/wav.test.mjs

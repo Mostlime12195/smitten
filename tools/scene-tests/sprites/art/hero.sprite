@@ -1,0 +1,30 @@
+{
+  "format": "smitten.sprite",
+  "version": 1,
+  "image": "hero.png",
+  "frameWidth": 8,
+  "frameHeight": 8,
+  "animations": {
+    "idle": {
+      "frames": [0, 1],
+      "fps": 4,
+      "loop": true
+    }
+  },
+  "layers": [
+    {
+      "name": "Body",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAYAAADwdn+XAAAAJklEQVR4nGNkYPj/nwEfOMGIV5oJrywRYPgYgC2g8AcetV1APgAAloMC2eYqzUUAAAAASUVORK5CYII="
+    },
+    {
+      "name": "Shade",
+      "opacity": 0.5,
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAYAAADwdn+XAAAAHElEQVR4nGP8z8DwnwEJMIIR8YCJFMWjBgxWAwAdZAIQZkOSxQAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "Hidden",
+      "hidden": true,
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAYAAADwdn+XAAAAGUlEQVR4nGP8////fwYKABMlmkcNGCwGAAAgqgQMLWalCwAAAABJRU5ErkJggg=="
+    }
+  ]
+}

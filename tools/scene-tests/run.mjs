@@ -8,6 +8,7 @@
 // itself; CHROME and CHROME_FLAGS are as in tools/stress/run.mjs.
 //
 //   errors, lights,   print PASS or FAIL for each check, then DONE
+//   sprites           (sprites: made in the sprite editor; layers, a sheet)
 //   paths, levels,
 //   players, text, ui, forces,
 //   animation
@@ -55,6 +56,9 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const CASES = {
   errors: { game: 'tools/scene-tests/errors.zip', until: /^DONE /, check: selfChecking },
   lights: { game: 'tools/scene-tests/lights.zip', until: /^DONE /, check: selfChecking },
+  // Sprites made in the sprite editor (make-sprites-fixture.mjs): layers draw
+  // flattened, and a walk cycle cut from a sheet has its frames and plays.
+  sprites: { game: 'tools/scene-tests/sprites.zip', until: /^DONE /, modules: '', check: selfChecking },
   levels: { game: 'tools/scene-tests/levels.zip', until: /^DONE /, check: selfChecking },
   animation: { game: 'tools/scene-tests/animation.zip', until: /^DONE /, modules: '', check: selfChecking },
   text: { game: 'tools/scene-tests/text.zip', until: /^DONE /, modules: '', check: selfChecking },
