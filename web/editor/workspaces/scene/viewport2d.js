@@ -2511,6 +2511,8 @@ export class Viewport2D {
     const bx = Math.round(ox) + 13.5;
     const by = Math.round(oy) - 8.5;
     g.fillStyle = rgba(disp.halo, 0.7);
+    // A new path: the outline of the repeat size is still the current one.
+    g.beginPath();
     roundRectPath(g, bx, by, tw + 10, 17, 4);
     g.fill();
     g.fillStyle = rgba(disp.ink, 0.85);
