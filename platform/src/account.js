@@ -2,7 +2,7 @@
 // claiming games published before accounts, and the editor's sign-in.
 
 import { createHash } from 'node:crypto';
-import { HttpError, cookie, json, readCookie, readJson } from './http.js';
+import { HttpError, cookie, decodePart, json, readCookie, readJson } from './http.js';
 import { checkLimit, countHit, db, hmac, rateLimit, randomCode, safeEqual, sha256, ID_PATTERN } from './db.js';
 import {
   FAILED_PER_USER, SESSION_COOKIE, SESSION_DAYS, accountView, auth, confirmPassword, createSession, hashPassword, ipHash, newRecoveryCodes,
@@ -315,7 +315,8 @@ export async function claimGames(ctx) {
 
 /** A public profile: {user: {username, displayName, createdAt, games}}. Its games come from /api/games?user=. */
 export function getProfile(ctx, username) {
-  const user = findUser(decodeURIComponent(username));
+  const name = decodePart(username);
+  const user = name === null ? null : findUser(name);
   if (!user || user.status !== 'active') throw new HttpError(404, "There's no one here with that name.");
   const games = db.get("SELECT COUNT(*) AS n FROM games WHERE owner_id = ? AND status = 'public'", user.id).n;
   return json({ user: { ...publicUser(user), createdAt: user.created_at, games } });

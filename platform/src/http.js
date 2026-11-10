@@ -58,13 +58,26 @@ export async function readJson(request) {
   throw new HttpError(400, 'The request must be a JSON object.');
 }
 
+/** decodeURIComponent, or null for malformed percent-encoding (/%E0) instead of throwing. */
+export function decodePart(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Cookies
 
 export function readCookie(request, name) {
   for (const part of (request.headers.get('Cookie') || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+    if (i <= 0 || part.slice(0, i).trim() !== name) continue;
+    // A value that isn't valid percent-encoding counts as no cookie:
+    // throwing would fail every request from that browser.
+    const value = decodePart(part.slice(i + 1).trim());
+    if (value !== null) return value;
   }
   return null;
 }

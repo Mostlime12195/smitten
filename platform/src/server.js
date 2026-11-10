@@ -27,7 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.js';
 import { openDb, db, ID_PATTERN } from './db.js';
 import { initStorage } from './storage.js';
-import { HttpError, errorResponse, json, preflight, redirect, withCors, withSecurityHeaders } from './http.js';
+import { HttpError, decodePart, errorResponse, json, preflight, redirect, withCors, withSecurityHeaders } from './http.js';
+import { COMPRESSIBLE, encodedFile, encodedText } from './compress.js';
 import {
   getConfig, listGames, publishGame, getGame, updateGame, deleteGame,
   getGameFile, getThumbnail, countPlay, reportGame, uploadLimit,
@@ -148,10 +149,15 @@ const TYPES = {
   '.woff2': 'font/woff2',
 };
 
-/** A file under public/, with an ETag and 304s; null if there's none. */
+/**
+ * A file under public/, with an ETag and 304s, compressed if the request
+ * accepts that (compress.js); null if there's none.
+ */
 async function staticFile(ctx, path) {
   const root = ctx.config.publicDir;
-  const file = normalize(join(root, decodeURIComponent(path)));
+  const decoded = decodePart(path);
+  if (decoded === null) return null;
+  const file = normalize(join(root, decoded));
   if (!file.startsWith(root + sep)) return null;
   let info;
   try {
@@ -160,18 +166,29 @@ async function staticFile(ctx, path) {
     return null;
   }
   if (!info.isFile()) return null;
-  const etag = `"${info.size.toString(36)}-${Math.floor(info.mtimeMs).toString(36)}"`;
+  const ext = extname(file).toLowerCase();
+  const compressible = COMPRESSIBLE.has(ext);
+  // A Range would count bytes of the file itself, so it gets the file as it is.
+  const encoded = compressible && !ctx.request.headers.has('Range')
+    ? await encodedFile(file, info, ctx.request.headers.get('Accept-Encoding'))
+    : null;
+  // Each encoding is a different body, so it has its own ETag.
+  const etag = `"${info.size.toString(36)}-${Math.floor(info.mtimeMs).toString(36)}${encoded ? `-${encoded.encoding}` : ''}"`;
   const headers = {
-    'Content-Type': TYPES[extname(file).toLowerCase()] || 'application/octet-stream',
+    'Content-Type': TYPES[ext] || 'application/octet-stream',
     ETag: etag,
-    'Cache-Control': 'no-cache',
+    // The player asks for the engine's files with ?v=<hash of the build>:
+    // that URL never changes its content. Pages are always checked.
+    'Cache-Control': ctx.url.searchParams.get('v') && ext !== '.html' ? 'public, max-age=31536000, immutable' : 'no-cache',
   };
+  if (compressible) headers.Vary = 'Accept-Encoding';
+  if (encoded) headers['Content-Encoding'] = encoded.encoding;
   if ((ctx.request.headers.get('If-None-Match') || '').split(',').map((s) => s.trim()).includes(etag)) {
     return new Response(null, { status: 304, headers });
   }
-  headers['Content-Length'] = String(info.size);
-  const body = ctx.request.method === 'HEAD' ? null : Readable.toWeb(createReadStream(file));
-  return new Response(body, { headers });
+  headers['Content-Length'] = String(encoded ? encoded.size : info.size);
+  if (ctx.request.method === 'HEAD') return new Response(null, { headers });
+  return new Response(encoded ? encoded.body() : Readable.toWeb(createReadStream(file)), { headers });
 }
 
 const escapeAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -184,18 +201,20 @@ const escapeText = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
  */
 async function page(ctx, name, { status = 200, meta = null } = {}) {
   let html = await readFile(join(ctx.config.publicDir, name), 'utf8');
-  html = html.replace(/<meta name="smitten-editor-url" content="[^"]*">/, `<meta name="smitten-editor-url" content="${escapeAttr(ctx.config.editorUrl)}">`);
+  // The replacements are functions: in a replacement string, a title like
+  // "$& and $'" would paste parts of the page into itself.
+  html = html.replace(/<meta name="smitten-editor-url" content="[^"]*">/, () => `<meta name="smitten-editor-url" content="${escapeAttr(ctx.config.editorUrl)}">`);
   if (meta) {
     html = html
-      .replace(/<title>[^<]*<\/title>/, `<title>${escapeText(meta.title)} · Smitten</title>`)
-      .replace(/(<meta (?:name="description"|property="og:description") content=")[^"]*(">)/g, `$1${escapeAttr(meta.description)}$2`)
-      .replace(/(<meta property="og:title" content=")[^"]*(">)/, `$1${escapeAttr(meta.title)}$2`);
-    if (meta.image) html = html.replace('</head>', `<meta property="og:image" content="${escapeAttr(meta.image)}">\n</head>`);
+      .replace(/<title>[^<]*<\/title>/, () => `<title>${escapeText(meta.title)} · Smitten</title>`)
+      .replace(/(<meta (?:name="description"|property="og:description") content=")[^"]*(">)/g, (_, open, close) => `${open}${escapeAttr(meta.description)}${close}`)
+      .replace(/(<meta property="og:title" content=")[^"]*(">)/, (_, open, close) => `${open}${escapeAttr(meta.title)}${close}`);
+    if (meta.image) html = html.replace('</head>', () => `<meta property="og:image" content="${escapeAttr(meta.image)}">\n</head>`);
   }
-  return new Response(ctx.request.method === 'HEAD' ? null : html, {
-    status,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' },
-  });
+  const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', Vary: 'Accept-Encoding' };
+  const encoded = await encodedText(html, ctx.request.headers.get('Accept-Encoding'));
+  if (encoded) headers['Content-Encoding'] = encoded.encoding;
+  return new Response(ctx.request.method === 'HEAD' ? null : encoded ? encoded.body : html, { status, headers });
 }
 
 function playMeta(ctx, id) {
@@ -331,7 +350,15 @@ function limitedBody(req, ctx, max) {
 
 export function createApp(config) {
   return async function handle(req, res) {
-    const url = new URL(req.url || '/', config.publicOrigin);
+    let url;
+    try {
+      url = new URL(req.url || '/', config.publicOrigin);
+    } catch {
+      // "GET //[" isn't a URL. Thrown from here, it would end the process.
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff', Connection: 'close' });
+      res.end('Bad request.');
+      return;
+    }
     const ctx = { config, url, origin: config.publicOrigin, ...clientIp(req, config), bodyTooBig: false };
     const headers = new Headers();
     for (let i = 0; i < req.rawHeaders.length; i += 2) headers.append(req.rawHeaders[i], req.rawHeaders[i + 1]);

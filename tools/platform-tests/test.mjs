@@ -19,14 +19,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { createServer, request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import net from 'node:net';
 import tls from 'node:tls';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { deflateSync } from 'node:zlib';
+import { brotliDecompressSync, deflateSync, gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -101,6 +102,25 @@ async function call(method, path, { body, headers = {}, ip = freshIp(), token, s
   }
   return { status: res.status, headers: res.headers, data, cookies: set, setCookie: res.headers.getSetCookie() };
 }
+
+/**
+ * A request sent as it's written: fetch adds its own Accept-Encoding and
+ * decodes the answer. {status, headers (lowercase names), body: Buffer}.
+ */
+function raw(method, path, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const send = BASE.startsWith('https:') ? httpsRequest : httpRequest;
+    const req = send(`${BASE}${path}`, { method, headers: { 'X-Forwarded-For': freshIp(), ...headers } }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+const decode = (r) => (r.headers['content-encoding'] === 'br' ? brotliDecompressSync(r.body)
+  : r.headers['content-encoding'] === 'gzip' ? gunzipSync(r.body) : r.body);
 
 // ---------------------------------------------------------------------------
 // Accounts
@@ -803,6 +823,165 @@ async function main() {
     assert.equal((await call('GET', '/../package.json')).status, 404);
     assert.equal((await call('GET', '/%2e%2e/package.json')).status, 404);
   });
+  await test('static files are sent with Brotli or gzip when asked, and as they are otherwise', async () => {
+    const plain = await raw('GET', '/site.css');
+    assert.equal(plain.status, 200);
+    assert.equal(plain.headers['content-encoding'], undefined);
+    assert.equal(plain.headers.vary, 'Accept-Encoding');
+    assert.equal(Number(plain.headers['content-length']), plain.body.length);
+    assert.match(plain.body.toString(), /\{/);
+    for (const [accept, encoding] of [['gzip, deflate, br', 'br'], ['gzip', 'gzip'], ['br;q=0, gzip', 'gzip'], ['br', 'br']]) {
+      const r = await raw('GET', '/site.css', { 'Accept-Encoding': accept });
+      assert.equal(r.status, 200, accept);
+      assert.equal(r.headers['content-encoding'], encoding, accept);
+      assert.equal(r.headers.vary, 'Accept-Encoding');
+      assert.equal(Number(r.headers['content-length']), r.body.length, accept);
+      assert.ok(r.body.length < plain.body.length, accept);
+      assert.ok(decode(r).equals(plain.body), accept);
+      assert.notEqual(r.headers.etag, plain.headers.etag, 'each encoding has its own ETag');
+      assert.match(r.headers['content-security-policy'], /script-src 'self'/);
+      assert.equal(r.headers['x-content-type-options'], 'nosniff');
+      const again = await raw('GET', '/site.css', { 'Accept-Encoding': accept, 'If-None-Match': r.headers.etag });
+      assert.equal(again.status, 304, accept);
+      assert.equal(again.body.length, 0);
+    }
+    for (const accept of ['identity', 'deflate', 'gzip;q=0']) {
+      const r = await raw('GET', '/site.css', { 'Accept-Encoding': accept });
+      assert.equal(r.headers['content-encoding'], undefined, accept);
+      assert.ok(r.body.equals(plain.body), accept);
+    }
+    const ranged = await raw('GET', '/site.css', { 'Accept-Encoding': 'br', Range: 'bytes=0-9' });
+    assert.equal(ranged.headers['content-encoding'], undefined, 'a Range gets the file itself');
+  });
+  await test('HEAD has the headers of a compressed file and no body', async () => {
+    const get = await raw('GET', '/site.css', { 'Accept-Encoding': 'br' });
+    const head = await raw('HEAD', '/site.css', { 'Accept-Encoding': 'br' });
+    assert.equal(head.status, 200);
+    assert.equal(head.body.length, 0);
+    for (const name of ['content-encoding', 'content-length', 'content-type', 'etag', 'vary', 'cache-control']) {
+      assert.equal(head.headers[name], get.headers[name], name);
+    }
+  });
+  await test('pages and the docs are compressed too', async () => {
+    for (const path of ['/', '/docs/', '/account']) {
+      const plain = await raw('GET', path);
+      const r = await raw('GET', path, { 'Accept-Encoding': 'br, gzip' });
+      assert.equal(r.status, plain.status, path);
+      assert.equal(r.headers['content-encoding'], 'br', path);
+      assert.equal(r.headers.vary, 'Accept-Encoding', path);
+      assert.ok(decode(r).equals(plain.body), path);
+      assert.match(r.headers['content-security-policy'], /frame-ancestors 'none'/);
+    }
+    assert.equal((await raw('GET', '/docs/search.json', { 'Accept-Encoding': 'gzip' })).headers['content-encoding'], 'gzip');
+  });
+  await test('a ?v=<hash> URL is cached for good; other files and pages are checked every time', async () => {
+    const versioned = await raw('GET', '/site.js?v=0123abcd', { 'Accept-Encoding': 'br' });
+    assert.equal(versioned.status, 200);
+    assert.equal(versioned.headers['cache-control'], 'public, max-age=31536000, immutable');
+    assert.match(versioned.headers['content-security-policy'], /script-src 'self'/);
+    assert.equal((await raw('GET', '/site.js')).headers['cache-control'], 'no-cache');
+    assert.equal((await raw('GET', '/site.js?v=')).headers['cache-control'], 'no-cache');
+    assert.equal((await raw('GET', '/docs/?v=0123abcd')).headers['cache-control'], 'no-cache');
+    assert.equal((await raw('GET', '/?v=0123abcd')).headers['cache-control'], 'no-cache');
+  });
+  await test('big files get gzip first and Brotli once it\'s made; .br and .gz files next to a file are used', async () => {
+    const { encodedFile, backgroundIdle } = await import(new URL('../../platform/src/compress.js', import.meta.url));
+    const dir = mkdtempSync(join(tmpdir(), 'smitten-compress-test-'));
+    try {
+      const read = async (r) => Buffer.from(await new Response(r.body()).arrayBuffer());
+      const file = join(dir, 'big.wasm');
+      const data = Buffer.from(Array.from({ length: 60000 }, (_, i) => `line ${i % 977} of ${i}\n`).join(''));
+      assert.ok(data.length > 256 * 1024);
+      writeFileSync(file, data);
+      const info = statSync(file);
+      assert.equal(await encodedFile(file, info, ''), null);
+      assert.equal(await encodedFile(file, info, 'br'), null, 'nothing waits for Brotli of a big file');
+      const [first, second] = await Promise.all([encodedFile(file, info, 'gzip, br'), encodedFile(file, info, 'gzip, br')]);
+      assert.equal(first.encoding, 'gzip');
+      assert.equal(first.body(), second.body(), 'requests at the same time share one compression');
+      assert.equal(first.size, first.body().length);
+      assert.ok(gunzipSync(first.body()).equals(data));
+      await backgroundIdle();
+      const later = await encodedFile(file, info, 'gzip, br');
+      assert.equal(later.encoding, 'br');
+      assert.ok(brotliDecompressSync(await read(later)).equals(data));
+      assert.equal((await encodedFile(file, info, 'gzip')).encoding, 'gzip');
+
+      // A changed file isn't served from what was made of the old one.
+      const changed = Buffer.concat([data, Buffer.from('more\n')]);
+      writeFileSync(file, changed);
+      const newInfo = statSync(file);
+      const fresh = await encodedFile(file, newInfo, 'gzip, br');
+      assert.equal(fresh.encoding, 'gzip');
+      assert.ok(gunzipSync(fresh.body()).equals(changed));
+      await backgroundIdle();
+
+      // Precompressed files win when they're not older than the file. (These
+      // aren't real Brotli or gzip: the server sends them as they are.)
+      writeFileSync(`${file}.br`, 'precompressed br');
+      writeFileSync(`${file}.gz`, 'precompressed gz');
+      const now = new Date();
+      utimesSync(`${file}.br`, now, new Date(newInfo.mtimeMs + 1000));
+      utimesSync(`${file}.gz`, now, new Date(newInfo.mtimeMs + 1000));
+      const pre = await encodedFile(file, newInfo, 'gzip, br');
+      assert.equal(pre.encoding, 'br');
+      assert.equal(pre.size, 16);
+      assert.equal(String(await read(pre)), 'precompressed br');
+      assert.equal(String(await read(await encodedFile(file, newInfo, 'gzip'))), 'precompressed gz');
+      utimesSync(`${file}.br`, now, new Date(newInfo.mtimeMs - 5000));
+      const stale = await encodedFile(file, newInfo, 'br');
+      assert.equal(stale.encoding, 'br');
+      assert.ok(brotliDecompressSync(await read(stale)).equals(changed), 'an older .br is ignored');
+
+      // What doesn't shrink is sent as it is.
+      const noise = join(dir, 'noise.js');
+      writeFileSync(noise, randomBytes(4096));
+      assert.equal(await encodedFile(noise, statSync(noise), 'gzip, br'), null);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  await test('malformed percent-encoding is a 404, not an error', async () => {
+    for (const path of ['/%E0', '/%', '/player/%E0%A4%A', '/docs/%ZZ.css']) {
+      const r = await raw('GET', path);
+      assert.equal(r.status, 404, path);
+      assert.match(r.headers['content-type'], /^text\/html/, path);
+    }
+    const profile = await call('GET', '/api/users/%E0');
+    assert.equal(profile.status, 404);
+    assert.ok(profile.data.error);
+    if (ADMIN) {
+      const admin = await call('GET', '/api/admin/users/%E0', { token: ADMIN });
+      assert.equal(admin.status, 404);
+      assert.ok(admin.data.error);
+    }
+  });
+  await test('a malformed cookie is ignored', async () => {
+    const bad = 'smitten_session=%E0%A4%A; session=%E0%A4%A';
+    assert.equal((await raw('GET', '/', { Cookie: bad })).status, 200);
+    const r = await raw('GET', '/api/account', { Cookie: bad });
+    assert.equal(r.status, (await raw('GET', '/api/account')).status);
+    assert.notEqual(r.status, 500);
+    // A good cookie after a bad one of the same name still counts.
+    const p = await signUp();
+    const both = await raw('GET', '/api/account', { Cookie: `smitten_session=%E0; smitten_session=${p.session}`, Origin: BASE });
+    assert.equal(JSON.parse(both.body).user.username, p.username);
+  });
+  if (external) {
+    skip('a request target that isn\'t a URL gets 400', 'it needs a plain connection to the server');
+  } else {
+    await test('a request target that isn\'t a URL gets 400, and the server carries on', async () => {
+      const answer = await new Promise((resolve, reject) => {
+        let out = '';
+        const socket = net.connect(PORT, '127.0.0.1', () => socket.write('GET //[ HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
+        socket.on('data', (d) => { out += d; });
+        socket.on('close', () => resolve(out));
+        socket.on('error', reject);
+      });
+      assert.match(answer, /^HTTP\/1\.1 400 /);
+      assert.equal((await call('GET', '/api/config')).status, 200);
+    });
+  }
   await test('API responses are JSON with nosniff and a sandboxing CSP', async () => {
     const r = await call('GET', '/api/games');
     assert.match(r.headers.get('content-type'), /^application\/json/);
@@ -1194,6 +1373,15 @@ async function main() {
     const r = await call('GET', `/api/games/${game.id}/game.zip`, { headers: { 'If-None-Match': etag } });
     assert.equal(r.status, 304);
   });
+  await test('game zips and thumbnails are sent as they are, whatever the request accepts', async () => {
+    for (const [path, bytes] of [[`/api/games/${game.id}/game.zip`, love], [`/api/games/${game.id}/thumbnail.png`, thumb]]) {
+      const r = await raw('GET', path, { 'Accept-Encoding': 'gzip, deflate, br' });
+      assert.equal(r.status, 200, path);
+      assert.equal(r.headers['content-encoding'], undefined, path);
+      assert.equal(Number(r.headers['content-length']), bytes.length, path);
+      assert.ok(same(r.body, bytes), path);
+    }
+  });
   await test('the thumbnail is served as image/png', async () => {
     const r = await call('GET', `/api/games/${game.id}/thumbnail.png`);
     assert.equal(r.status, 200);
@@ -1213,6 +1401,30 @@ async function main() {
     const html = new TextDecoder().decode((await call('GET', `/play/${r.data.id}`)).data);
     assert.ok(!html.includes('<script>x'));
     assert.match(html, /&lt;script&gt;x&lt;\/script&gt; &quot;/);
+  });
+
+  await test('$ patterns in a title or description stay as they are in the play page', async () => {
+    // In a replacement string these would paste parts of the page into its head.
+    const title = `Cash $& money $1 $$ $' $\` x ${tag}`;
+    const description = `Costs $$5 $& $1 $2 $' $\` & "more" ${tag}`;
+    const odd = await publish({ title, description });
+    assert.equal(odd.status, 201, JSON.stringify(odd.data));
+    const usual = await publish({ title: `Usual ${tag}`, description: `Nothing odd ${tag}` });
+    const html = new TextDecoder().decode((await call('GET', `/play/${odd.data.id}`)).data);
+    const escTitle = title.replace(/&/g, '&amp;');
+    const escDescription = description.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    assert.ok(html.includes(`<title>${escTitle} · Smitten</title>`));
+    assert.ok(html.includes(`<meta property="og:title" content="${escTitle}">`));
+    assert.ok(html.includes(`<meta name="description" content="${escDescription}">`));
+    assert.ok(html.includes(`<meta property="og:description" content="${escDescription}">`));
+    // Apart from those, the page is the same as any other game's.
+    const usualHtml = new TextDecoder().decode((await call('GET', `/play/${usual.data.id}`)).data);
+    assert.equal(
+      html.split(escTitle).join('TITLE').split(escDescription).join('DESCRIPTION'),
+      usualHtml.split(`Usual ${tag}`).join('TITLE').split(`Nothing odd ${tag}`).join('DESCRIPTION'),
+    );
+    assert.equal(html.split('</head>').length, 2);
+    assert.match(html, /<meta name="smitten-editor-url" content="http[^"]*">/);
   });
 
   section('Listing, search and profiles');

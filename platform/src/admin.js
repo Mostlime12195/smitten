@@ -1,7 +1,7 @@
 // Moderation endpoints, behind ADMIN_TOKEN (Authorization: Bearer <ADMIN_TOKEN>).
 // Everything a moderator does is written to admin_log.
 
-import { HttpError, json, readJson } from './http.js';
+import { HttpError, decodePart, json, readJson } from './http.js';
 import { db } from './db.js';
 import { ipHashOf, isAdmin, publicUser } from './auth.js';
 import { DEFAULT_BAN_DAYS, addressesOf, banAddresses, listAddressBans, unbanAddresses } from './bans.js';
@@ -21,7 +21,8 @@ function requireGame(id) {
 }
 
 function requireAccount(username) {
-  const user = db.get('SELECT * FROM users WHERE username = ?', decodeURIComponent(username).toLowerCase());
+  const name = decodePart(username);
+  const user = name === null ? null : db.get('SELECT * FROM users WHERE username = ?', name.toLowerCase());
   if (!user) throw new HttpError(404, 'No account with that username.');
   return user;
 }

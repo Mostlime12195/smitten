@@ -109,11 +109,12 @@ platform/
   src/validate.js          titles, descriptions, usernames, passwords, the word filter, PNGs, modules
   src/zip.js               game zip checks
   src/http.js              JSON, cookies, security headers, CORS
+  src/compress.js          Brotli and gzip for static files and pages
   migrations/              the schema, applied in order on start
   config/blocked-words.json the word filter's list
   public/                  the pages and their scripts, site.css
   public/player/           Smitten's player (copied, not in git)
-  scripts/                 copy-player.sh, seed.mjs, admin.mjs, backup.mjs
+  scripts/                 copy-player.sh, precompress.mjs, seed.mjs, admin.mjs, backup.mjs
   deploy/                  env.example, systemd units, an optional Caddyfile
   dev/publish-harness.html stand-in for the editor
 ```
@@ -564,8 +565,14 @@ computer (`python3 build.py`, `sh platform/scripts/copy-player.sh`) and
 copy it up:
 
 ```bash
+node platform/scripts/precompress.mjs platform/public/player   # optional: .br and .gz next to each file
 rsync -a platform/public/player/ <you>@hackclub.app:/opt/smitten/platform/public/player/
 ```
+
+The server sends static files with Brotli or gzip. `precompress.mjs` makes
+the best versions ahead of time (`rsync -a` keeps their dates, which is how
+the server knows they're current); without them it compresses each file
+itself the first time it's asked for and keeps the result in memory.
 
 In the dashboard's **Domains** tab, add your domain (e.g.
 `games.<you>.hackclub.app`) with target port `8787` (the `PORT` in
