@@ -543,7 +543,11 @@ function instantiateEngine(imports, done) {
 
 const engineReady = createSmitten({
   canvas,
-  preRun: [(M) => { M.ENV.XDG_DATA_HOME = DATA_HOME; }],
+  preRun: [(M) => {
+    M.ENV.XDG_DATA_HOME = DATA_HOME;
+    // ?probe=frames,draws,parse,images: measurements for the engine's developers (engine/probe.lua).
+    if (params.get('probe')) M.ENV.SMITTEN_PROBE = params.get('probe');
+  }],
   locateFile: (path, prefix) => `${prefix}${path}?v=${BUILD}`,
   instantiateWasm: instantiateEngine,
   print: (t) => output('out', t),

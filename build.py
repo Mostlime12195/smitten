@@ -190,6 +190,116 @@ def write_if_changed(path: Path, text: str):
         path.write_text(text)
 
 
+def _long_bracket(src: str, i: int):
+    """The level of a long bracket ([[, [=[, ...) that starts at src[i], or -1."""
+    j = i + 1
+    while j < len(src) and src[j] == "=":
+        j += 1
+    return j - i - 1 if j < len(src) and src[j] == "[" else -1
+
+
+def strip_lua(src: str) -> str:
+    """Lua 5.1 source without comments, indentation and trailing spaces.
+
+    Every line stays on its line (a comment over several lines leaves its
+    line breaks), so error messages and tracebacks keep their line numbers,
+    and luac compiles the result to the same bytecode as the original
+    (tools/build-tests/strip_lua_test.py checks this for every engine file).
+    Strings, also long ones, stay as they are.
+    """
+    if "\r" in src:
+        return src  # Lua counts a lone CR as a line break: keep such files as they are
+    out = []
+    i, n = 0, len(src)
+    space = False      # whitespace was skipped since the last token
+    line_start = True  # nothing written on this line yet
+    if src.startswith("#"):  # a shebang line: Lua skips it
+        k = src.find("\n")
+        k = n if k < 0 else k
+        out.append(src[:k])
+        i = k
+        line_start = False
+    while i < n:
+        c = src[i]
+        if c == "\n":
+            out.append("\n")
+            i += 1
+            space, line_start = False, True
+            continue
+        if c in " \t\r\f\v":
+            space = True
+            i += 1
+            continue
+        if src.startswith("--", i):
+            level = _long_bracket(src, i + 2) if i + 2 < n and src[i + 2] == "[" else -1
+            if level >= 0:
+                close = "]" + "=" * level + "]"
+                end = src.find(close, i + 4 + level)
+                end = n if end < 0 else end + len(close)
+                breaks = src.count("\n", i, end)
+                out.append("\n" * breaks)
+                if breaks:
+                    line_start = True
+                    space = False
+                else:
+                    space = True
+                i = end
+            else:
+                k = src.find("\n", i)
+                i = n if k < 0 else k
+            continue
+        # A token: write the separator first.
+        if space and not line_start:
+            out.append(" ")
+        space, line_start = False, False
+        if c in "\"'":
+            j = i + 1
+            while j < n and src[j] != c:
+                if src[j] == "\\":
+                    j += 1
+                elif src[j] == "\n":
+                    break  # unfinished string: Lua reports it
+                j += 1
+            out.append(src[i:j + 1])
+            i = j + 1
+            continue
+        if c == "[":
+            level = _long_bracket(src, i)
+            if level >= 0:
+                close = "]" + "=" * level + "]"
+                end = src.find(close, i + 2 + level)
+                end = n if end < 0 else end + len(close)
+                out.append(src[i:end])
+                i = end
+                continue
+        # Anything else is written as it is: only whitespace between tokens changes.
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def strip_schema(schema):
+    """pieces.json for the engine: without the texts only the editor and the docs show."""
+    out = {k: v for k, v in schema.items() if k != "groups"}
+    types = {}
+    for name, t in schema["types"].items():
+        t = {k: v for k, v in t.items() if k not in ("description", "icon") and not (k == "group" and isinstance(v, str))}
+        if isinstance(t.get("properties"), dict):
+            t["properties"] = {pn: {k: v for k, v in p.items() if k not in ("description", "group")}
+                               for pn, p in t["properties"].items()}
+        for part in ("methods", "events"):
+            if isinstance(t.get(part), dict):
+                t[part] = {mn: ({k: v for k, v in m.items() if k != "doc"} if isinstance(m, dict) else m)
+                           for mn, m in t[part].items()}
+        types[name] = t
+    out["types"] = types
+    return out
+
+
+# Embedded Lua without comments (strip_lua); --debug builds keep the sources as they are.
+STRIP_EMBEDDED_LUA = True
+
+
 def embed_lua(header: str, entries):
     """Write build/gen/<header>: Lua sources as byte arrays plus a table of them.
 
@@ -206,9 +316,10 @@ def embed_lua(header: str, entries):
     names = []
     for i, (name, src) in enumerate(entries):
         if isinstance(src, tuple):
-            shown, data = src[0], src[1].encode()
+            shown, text = src[0], src[1]
         else:
-            shown, data = str(src.relative_to(MODULES)), src.read_bytes()
+            shown, text = str(src.relative_to(MODULES)), src.read_text()
+        data = (strip_lua(text) if STRIP_EMBEDDED_LUA else text).encode()
         names.append((name, shown))
         lines.append(f"static const unsigned char {prefix}_{i}[] = {{{','.join(str(b) for b in data)}}};")
     lines.append(f"static const EngineLuaFile {prefix}_files[] = {{")
@@ -231,7 +342,8 @@ def generate_engine_lua():
         entries += lua_entries(MODULES / d, f"love.{d}")
     schema = json.loads((MODULES / "scene" / "pieces.json").read_text())
     entries.append(("love.scene.schema", ("scene/pieces.json",
-                    "-- Generated from pieces.json by build.py.\nreturn " + lua_literal(schema) + "\n")))
+                    "-- Generated from pieces.json by build.py.\nreturn "
+                    + lua_literal(strip_schema(schema) if STRIP_EMBEDDED_LUA else schema) + "\n")))
     embed_lua("engine_lua.h", entries)
     # The synth module's Lua side (loaded by its luaopen).
     embed_lua("synth_lua.h", [("love.synth.sounds", SYNTH / "sounds.lua")])
@@ -426,6 +538,8 @@ def main():
     COMMON_FLAGS.extend(emscripten_includes())
     opt = ["-O0", "-g", "-sASSERTIONS=1"] if args.debug else ["-O3", "-flto"]
     if args.debug:
+        global STRIP_EMBEDDED_LUA
+        STRIP_EMBEDDED_LUA = False
         BUILD.joinpath("debug").mkdir(parents=True, exist_ok=True)
 
     generate_engine_lua()

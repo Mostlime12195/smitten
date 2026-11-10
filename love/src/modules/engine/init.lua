@@ -324,6 +324,10 @@ function engine.init(conf)
 		end
 	end
 	love._engine = engine
+	-- Measurements for the engine's developers (engine/probe.lua): off
+	-- unless the player page asks for them with ?probe=.
+	local what = os.getenv("SMITTEN_PROBE")
+	if what and what ~= "" then require("love.engine.probe").start(what) end
 end
 
 -- The scene to start with: the one the editor's "Play this scene" chose,
