@@ -180,8 +180,14 @@ local function typeText(str)
 	if not (ui.focused and ui.keyEvent("textinput", str)) then input._event("textinput", str) end
 end
 
-local function click(top, x, y)
+-- The pointer moves (a mousemoved event, as love.engine hands it on).
+local function point(x, y)
 	mouseX, mouseY = x, y
+	ui.input(nil, "moved", x, y)
+end
+
+local function click(top, x, y)
+	point(x, y)
 	ui.render(top)
 	ui.input(top, "pressed", x, y, 1)
 	frame(top)
@@ -278,17 +284,16 @@ do
 	local changes = heard(s, "changed")
 	frame(top)
 	-- The knob's middle runs from x = 110 to 290.
-	mouseX, mouseY = 155, 110
 	ui.input(top, "pressed", 155, 110, 1)
 	eq("slider: a press jumps to the pointer", s.value, 25)
-	mouseX = 200
+	point(200, 110)
 	frame(top)
 	eq("slider: a drag follows it", s.value, 50)
-	mouseX, mouseY = 900, 300
+	point(900, 300)
 	frame(top)
 	eq("slider: and stops at the end", s.value, 100)
 	ui.input(top, "released", 900, 300, 1)
-	mouseX = 100
+	point(100, 300)
 	frame(top)
 	eq("slider: let go, it stays", s.value, 100)
 	eq("slider: changed() for each change", #changes, 3)
@@ -362,7 +367,6 @@ do
 	eq("checkbox: toggled(true)", toggles[1] and toggles[1][1], true)
 	click(top, 20, 20)
 	check("checkbox: another unticks it", c.checked == false and toggles[2][1] == false)
-	mouseX, mouseY = 20, 20
 	ui.input(top, "pressed", 20, 20, 1)
 	ui.input(top, "released", 400, 300, 1)
 	check("checkbox: let go somewhere else, nothing happens", c.checked == false)
@@ -481,11 +485,10 @@ do
 	click(top, 20 + 8 + 31, 75)
 	typeText("x")
 	eq("text: a click puts the caret", t.text, "012x3456789")
-	mouseX, mouseY = 20 + 8 + 10, 75
-	ui.input(top, "pressed", mouseX, mouseY, 1)
-	mouseX = 20 + 8 + 40
+	ui.input(top, "pressed", 20 + 8 + 10, 75, 1)
+	point(20 + 8 + 40, 75)
 	frame(top)
-	ui.input(top, "released", mouseX, mouseY, 1)
+	ui.input(top, "released", 20 + 8 + 40, 75, 1)
 	typeText("-")
 	eq("text: a drag selects", t.text, "0-3456789")
 
@@ -675,12 +678,12 @@ do
 	frame(top)
 	local _, limit = list:scrollLimit()
 	eq("scroll: how far it goes", limit, 10 * 30 + 9 * 10 - 100)
-	mouseX, mouseY = 150, 150
+	point(150, 150)
 	frame(top)
 	check("scroll: the wheel scrolls it", ui.wheel(0, -1) and list.scrollY == 48 and #scrolls == 1)
 	frame(top)
 	eq("scroll: the pieces move up", byName(top, "Item1")._rect[2], 100 - 48)
-	mouseX, mouseY = 500, 300
+	point(500, 300)
 	frame(top)
 	check("scroll: not when the pointer is elsewhere", not ui.wheel(0, -1) and list.scrollY == 48)
 	-- Only what shows answers the pointer.
@@ -694,12 +697,11 @@ do
 	-- A drag scrolls instead of clicking.
 	list.scrollY = 0
 	frame(top)
-	mouseX, mouseY = 150, 190
 	ui.input(top, "pressed", 150, 190, 1)
 	frame(top)
-	mouseY = 150
+	point(150, 150)
 	frame(top)
-	mouseY = 140
+	point(150, 140)
 	frame(top)
 	eq("scroll: a drag moves it with the pointer", list.scrollY, 50)
 	ui.input(top, "released", 150, 140, 1)
@@ -742,7 +744,6 @@ do
 	check("button: a click presses it and takes the focus", #pa == 1 and a:isFocused())
 	click(top, 250, 150)
 	check("panel: a click on the panel is the panel's", #pp == 1 and #pa == 1)
-	mouseX, mouseY = 20, 20
 	ui.input(top, "pressed", 20, 20, 1)
 	check("button: held down", a:isDown())
 	ui.input(top, "released", 20, 70, 1)

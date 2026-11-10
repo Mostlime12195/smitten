@@ -1,5 +1,8 @@
 // Writes tools/scene-tests/ui/layout-cases.json: small trees of UI pieces
-// and the rectangle each piece must end up with, on a 640×360 screen.
+// and the rectangle each piece must end up with, on a 640×360 screen; and
+// tools/scene-tests/ui/art/skin.png, a 12×12 skin whose 4-pixel corners are
+// red, top and bottom edges green, left and right edges blue and middle
+// white, so a test can tell which part of it a pixel came from.
 //
 //   node tools/scene-tests/make-ui-fixture.mjs
 //
@@ -9,7 +12,8 @@
 // and web/editor/workspaces/scene/uilayout.test.mjs, which also works a few
 // of them out by hand.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { layoutTree } from '../../web/editor/workspaces/scene/uilayout.js';
@@ -174,4 +178,47 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const text = `{\n  "about": "Made by tools/scene-tests/make-ui-fixture.mjs: UI pieces and where each must be, as [x, y, width, height].",\n  "screen": ${JSON.stringify(screen)},\n  "cases": [\n${cases.map((c) => `    ${JSON.stringify(c)}`).join(',\n')}\n  ]\n}\n`;
   writeFileSync(out, text);
   console.log(`${out}: ${cases.length} cases`);
+
+  const SIZE = 12;
+  const EDGE = 4;
+  const pixels = Buffer.alloc(SIZE * SIZE * 4);
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const sideX = x < EDGE || x >= SIZE - EDGE;
+      const sideY = y < EDGE || y >= SIZE - EDGE;
+      const c = sideX && sideY ? [255, 0, 0] : sideY ? [0, 255, 0] : sideX ? [0, 0, 255] : [255, 255, 255];
+      pixels.set([...c, 255], (y * SIZE + x) * 4);
+    }
+  }
+  mkdirSync(join(here, 'ui', 'art'), { recursive: true });
+  writeFileSync(join(here, 'ui', 'art', 'skin.png'), png(SIZE, SIZE, pixels));
+}
+
+function png(width, height, rgba) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const out = Buffer.alloc(12 + data.length);
+    out.writeUInt32BE(data.length, 0);
+    out.write(type, 4, 'ascii');
+    data.copy(out, 8);
+    out.writeUInt32BE(crc(out.subarray(4, 8 + data.length)), 8 + data.length);
+    return out;
+  };
+  const head = Buffer.alloc(13);
+  head.writeUInt32BE(width, 0);
+  head.writeUInt32BE(height, 4);
+  head[8] = 8;
+  head[9] = 6;
+  const raw = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y++) rgba.copy(raw, y * (width * 4 + 1) + 1, y * width * 4, (y + 1) * width * 4);
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', head), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }

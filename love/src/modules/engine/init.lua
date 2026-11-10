@@ -170,9 +170,15 @@ local POINTER = {
 ---finger by scene/touch.lua. x, y are the window's.
 function engine._mouse(name, x, y, c, d, e)
 	require("love.input")._event(name, x, y, c, d, e)
-	if (name == "mousepressed" or name == "mousereleased") and scene() then
+	local s = scene()
+	if s then
 		local gx, gy = require("love.display").toGame(x, y)
-		scene()._uiInput(name == "mousepressed" and "pressed" or "released", gx, gy, c)
+		if name == "mousemoved" then
+			-- Where the pointer is, for drags (a Slider's knob, a Scroll).
+			s._uiInput("moved", gx, gy)
+		else
+			s._uiInput(name == "mousepressed" and "pressed" or "released", gx, gy, c)
+		end
 	end
 end
 
@@ -183,7 +189,7 @@ local function hookHandlers()
 	for _, name in ipairs(INPUT_EVENTS) do
 		local orig = handlers[name]
 		local pointer = POINTER[name]
-		local mouse = name == "mousepressed" or name == "mousereleased"
+		local mouse = name == "mousepressed" or name == "mousereleased" or name == "mousemoved"
 		local typing = name == "keypressed" or name == "textinput"
 		local wheel = name == "wheelmoved"
 		if orig then

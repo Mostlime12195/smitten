@@ -9,7 +9,7 @@
 //
 //   errors, lights,   print PASS or FAIL for each check, then DONE
 //   paths, levels,
-//   players
+//   players, text, ui
 //   rules3, rules2    the same checks in a project of version 3 (the new
 //                     rules: degrees, clicked(), undeclared names are
 //                     errors, gravityScale) and of version 2 (the old ones)
@@ -59,6 +59,10 @@ const CASES = {
     check: (lines) => selfChecking(lines) || rules(lines, 'old')
       || (lines.some((l) => /^Warning: /.test(l)) ? `an old project got a warning: ${lines.find((l) => /^Warning: /.test(l))}` : null),
   },
+  // The UI pieces that are worked and that lay others out: its own checks,
+  // then a real mouse and keyboard from the browser on a TextInput, a
+  // Slider and a Checkbox.
+  ui: { game: 'tools/scene-tests/ui.zip', until: /^DONE /, modules: '', check: selfChecking, after: realUI },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 
@@ -115,6 +119,57 @@ async function realTouches(page, lines) {
     || await step('all fingers up', 'touchEnd', [], 'axis=0.00 jump=false mouse=false')
     || await step('a tap on the game', 'touchStart', [at(200, 100, 4)], 'axis=0.00 jump=false mouse=true')
     || await step('the tap ends', 'touchEnd', [], 'mouse=false');
+}
+
+// A real mouse and keyboard, through the browser, on the ui test once its
+// own checks are done (it prints a LIVE line whenever its TextInput, Slider
+// or Checkbox changes): a click into the box, typing through the page's
+// hidden text field, Backspace, a paste, a drag of the slider and a click
+// on the checkbox.
+async function realUI(page, lines) {
+  const [left, top, w, h] = JSON.parse(await page.eval(`(() => { const r = document.querySelector('#canvas').getBoundingClientRect(); return JSON.stringify([r.left, r.top, r.width, r.height]); })()`));
+  // The test is 640×360, fitted into the canvas.
+  const s = Math.min(w / 640, h / 360);
+  const at = (x, y) => ({ x: Math.round(left + (w - 640 * s) / 2 + x * s), y: Math.round(top + (h - 360 * s) / 2 + y * s) });
+  const step = async (what, act, want) => {
+    const from = lines.length;
+    await act();
+    for (let i = 0; i < 50; i++) {
+      if (lines.slice(from).some((l) => l.startsWith('LIVE') && (typeof want === 'string' ? l.includes(want) : want.test(l)))) return null;
+      await sleep(100);
+    }
+    return `real input: ${what}: wanted ${want}, the last was "${lines.filter((l) => l.startsWith('LIVE')).pop()}"`;
+  };
+  const mouse = (type, p, buttons = 1) => page.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'none' : 'left', buttons, clickCount: 1 });
+  const click = async (p) => {
+    await mouse('mouseMoved', p, 0);
+    await mouse('mousePressed', p);
+    await sleep(60);
+    await mouse('mouseReleased', p, 0);
+  };
+  const keyTap = async (key, code, vk) => {
+    await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+    await sleep(60);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+  };
+  const field = () => page.eval(`document.activeElement && document.activeElement.className`);
+  const paste = (text) => page.eval(`(() => {
+    const data = new DataTransfer();
+    data.setData('text/plain', ${JSON.stringify(text)});
+    document.querySelector('.love-text-input').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  })()`);
+  const box = at(120, 38);
+  // The slider's knob runs from x = 32 to 208.
+  const half = at(120, 92);
+  const beyond = at(260, 120);
+  return await step('a click into the box', () => click(box), 'focus=LiveText')
+    || ((await field()) === 'love-text-input' ? null : `real input: typing goes to "${await field()}", not the page's hidden text field`)
+    || await step('typing', () => page.send('Input.insertText', { text: 'Cat' }), 'text=[Cat]')
+    || await step('Backspace', () => keyTap('Backspace', 'Backspace', 8), 'text=[Ca]')
+    || await step('a paste', () => paste('ts\r\nup'), 'text=[Catsup]')
+    || await step('a press on the slider', async () => { await mouse('mouseMoved', half, 0); await mouse('mousePressed', half); }, /slider=(49|50|51) .*focus=LiveSlider/)
+    || await step('a drag past its end', () => mouse('mouseMoved', beyond), 'slider=100')
+    || await step('a click on the checkbox', async () => { await mouse('mouseReleased', beyond, 0); await click(at(30, 144)); }, 'check=true');
 }
 
 function plainError(lines) {

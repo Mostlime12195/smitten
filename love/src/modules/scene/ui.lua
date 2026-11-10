@@ -873,10 +873,49 @@ end
 ---------------------------------------------------------------------------
 -- The pointer
 
+-- The pointer moved while held down: a Slider or a TextInput follows it,
+-- and a press inside a Scroll that goes far enough scrolls it instead of
+-- clicking.
+local function drag(mx, my)
+	local p = M.pressedOn
+	if p and p._dragTo then
+		if not p._dead then p:_dragTo(mx, my) end
+		return
+	end
+	local s = M.dragScroll
+	if not s or s._dead then return end
+	local horizontal = s.direction == "horizontal"
+	local d = horizontal and mx - M.dragX or my - M.dragY
+	if not M.dragging and abs(d) > 6 then
+		M.dragging = true
+		-- What was pressed isn't clicked after all.
+		if p then
+			p._down = false
+			M.pressedOn = nil
+		end
+	end
+	if M.dragging then
+		local at = horizontal and s.scrollX or s.scrollY
+		setScroll(s, M.dragFrom - d)
+		local to = horizontal and s.scrollX or s.scrollY
+		-- How fast it's going, for the glide when it's let go.
+		local now = love.timer.getTime()
+		local dt = max(1 / 240, now - (M.dragTime or now))
+		M.dragTime = now
+		s._vel = 0.6 * (to - at) / dt + 0.4 * (s._vel or 0)
+	end
+end
+
 ---Mouse and touch events from love.engine: (kind, x, y, button) with x, y
----in game coordinates; kind is "pressed" or "released".
+---in game coordinates; kind is "pressed", "released" or "moved".
 function M.input(root, kind, x, y, button)
+	if kind == "moved" then
+		M.pointerX, M.pointerY = x, y
+		if M.pointerDown then drag(x, y) end
+		return
+	end
 	if button ~= 1 then return end
+	M.pointerX, M.pointerY = x, y
 	local target = M.pick(x, y, false)
 	-- Touch pieces answer fingers themselves (scene/touch.lua).
 	if target and target._touchControl then target = nil end
@@ -911,6 +950,7 @@ function M.input(root, kind, x, y, button)
 		if s then
 			M.dragX, M.dragY = x, y
 			M.dragFrom = s.direction == "horizontal" and s.scrollX or s.scrollY
+			M.dragTime = love.timer.getTime()
 			s._vel = nil
 		end
 	elseif kind == "released" then
@@ -922,7 +962,9 @@ function M.input(root, kind, x, y, button)
 		if M.dragging then
 			-- Let go while moving: it glides on.
 			M.dragging = false
-			if s and not s._dead and abs(s._vel or 0) > 40 then M._glide = s end
+			if s and not s._dead and abs(s._vel or 0) > 40 and love.timer.getTime() - (M.dragTime or 0) < 0.1 then
+				M._glide = s
+			end
 			return
 		end
 		if down then
@@ -939,7 +981,9 @@ end
 
 ---The mouse wheel (from love.engine): scrolls the Scroll under the pointer.
 function M.wheel(dx, dy)
-	local mx, my = pointer()
+	-- Where the pointer was last heard of.
+	local mx, my = M.pointerX, M.pointerY
+	if not mx then mx, my = pointer() end
 	local over = M.pick(mx, my, false)
 	local s = over and scrollOf(over, true)
 	if not s then return false end
@@ -988,35 +1032,6 @@ function M.update(root)
 		M._hoverWas = h
 		if was and not was._dead then was:emit("unhovered") end
 		if h and not h._dead then h:emit("hovered") end
-	end
-	-- The pointer held down: a Slider or a TextInput follows it, and a
-	-- press inside a Scroll that moves far enough scrolls it instead.
-	if M.pointerDown then
-		local p = M.pressedOn
-		local mx, my = pointer()
-		if p and p._dragTo then
-			if not p._dead then p:_dragTo(mx, my) end
-		else
-			local s = M.dragScroll
-			if s and not s._dead then
-				local horizontal = s.direction == "horizontal"
-				local d = horizontal and mx - M.dragX or my - M.dragY
-				local at = horizontal and s.scrollX or s.scrollY
-				if not M.dragging and abs(d) > 6 then
-					M.dragging = true
-					-- What was pressed isn't clicked after all.
-					if p then
-						p._down = false
-						M.pressedOn = nil
-					end
-				end
-				if M.dragging then
-					setScroll(s, M.dragFrom - d)
-					local to = horizontal and s.scrollX or s.scrollY
-					if dt > 0 then s._vel = 0.6 * (to - at) / dt + 0.4 * (s._vel or 0) end
-				end
-			end
-		end
 	end
 	local glide = M._glide
 	if glide then
