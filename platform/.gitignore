@@ -9,3 +9,6 @@ public/player/
 # Local settings (copy deploy/env.example to .env)
 .env
 .dev.vars
+
+# Old local state of the Cloudflare prototype
+.wrangler/

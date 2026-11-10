@@ -5,3 +5,4 @@ node_modules/
 # Build output (python3 build.py)
 dist/
 .claude/worktrees/
+__pycache__/
