@@ -214,7 +214,8 @@ For example, `music/theme.song`.
       "attack": 0.01, "decay": 0.1, "sustain": 0.6, "release": 0.1,
       "duty": 0.5, "vibratoDepth": 0, "vibratoSpeed": 5, "lowpass": 1
     },
-    { "name": "Kick", "type": "sfx", "sfx": "../sfx/kick.sfx", "pitched": false }
+    { "name": "Kick", "type": "sfx", "sfx": "../sfx/kick.sfx", "pitched": false },
+    { "name": "Bap", "type": "sample", "sample": "../sounds/bap.wav", "baseNote": 60, "pitched": false }
   ],
   "patterns": [
     {
@@ -245,6 +246,20 @@ For example, `music/theme.song`.
   end (the `length` of a note does not stop it). With `pitched: true`,
   the engine moves its `frequency` (and `minFrequency`) by the distance of
   the note from 60. An optional `volume` (default 1) scales them.
+- Sample instruments (`"type": "sample"`) play a sound file of the
+  project (`.wav`, `.ogg`, `.mp3` or `.flac`) for each note. `sample` is
+  the path of the file, relative to the song. A note at `baseNote` (a MIDI
+  number, default 60) plays the file as it is. Each semitone above the
+  base note plays it faster and higher, and each semitone below plays it
+  slower and lower. With `pitched: false`, every note plays the file as it
+  is. With `playToEnd: true` (the default), each note plays all of the
+  file. With `playToEnd: false`, the note releases at the end of its
+  `length`. `pitched` is true if it is not in the file. The envelope,
+  `volume`, vibrato and `lowpass` are as for synth instruments. Only
+  the defaults are different: `volume` 1, `attack` 0, `decay` 0,
+  `sustain` 1 and `release` 0.05. If `sample` is `""`, the instrument is silent. If the
+  file does not exist, the song stops with an error that names the
+  instrument. The engine reads at most 60 seconds of a file.
 - `loop` tells whether the song plays again from `loopStart` when it gets
   to the end. `loopStart` is the index in `order` where the loop starts.
   When the song loops, notes that still sound at the end of the song
@@ -278,7 +293,7 @@ continue to play in background tabs.
 
 ```lua
 smitten.synth.renderSfx(params)            -- params: a decoded .sfx table -> SoundData
-smitten.synth.renderSong(song, basePath)   -- a decoded .song table; sfx paths are relative to basePath (the song's path or folder) -> SoundData
+smitten.synth.renderSong(song, basePath)   -- a decoded .song table; sfx and sample paths are relative to basePath (the song's path or folder) -> SoundData
 ```
 
 SoundData is 44100 Hz, 16-bit, mono. `renderSong` makes the samples for

@@ -106,6 +106,13 @@ jobs:
         env:
           CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
 
+      # The sound file editor in the built editor, with Chrome's fake
+      # microphone: record, trim, save, and a song with the recording.
+      - name: Recorder test
+        run: node tools/editor-tests/record.mjs
+        env:
+          CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

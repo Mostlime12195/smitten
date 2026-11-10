@@ -155,7 +155,7 @@ class WavEditor {
       const el = h('div', {
         class: `wav-handle wav-handle-${which}`, role: 'slider', tabindex: '0',
         'aria-label': which === 'start' ? 'Start of the sound' : 'End of the sound',
-        title: `Drag to trim the ${which}. Arrow keys move it by 10 ms (Shift: 100 ms).`,
+        title: `Drag to trim the ${which}. The arrow keys move it by 10 ms (Shift: 100 ms).`,
       });
       el.addEventListener('keydown', (e) => this.handleArrow(e, which));
       return el;
@@ -171,12 +171,12 @@ class WavEditor {
 
     // Trim, volume and speed.
     this.trimText = h('span', { class: 'snd-card-note' });
-    this.btnFit = h('button', { type: 'button', class: 'btn small', title: 'Put the handles around the sound, without the quiet parts at the start and end', onclick: () => this.fitToSound() }, 'Fit to the sound');
+    this.btnFit = h('button', { type: 'button', class: 'btn small', title: 'Put the markers around the sound, without the quiet parts at the start and end', onclick: () => this.fitToSound() }, 'Fit to the sound');
     this.btnAll = h('button', { type: 'button', class: 'btn small ghost', title: 'Use all of the sound', onclick: () => this.setTrim(0, this.length) }, 'Use all');
     const trimCard = h('section', { class: 'snd-card wav-card' },
       h('h3', { class: 'snd-card-title' }, 'Trim', this.trimText),
       h('div', { class: 'wav-buttons' }, this.btnFit, this.btnAll),
-      h('p', { class: 'wav-hint' }, 'Drag the handles on the waveform, or drag across it to pick a part.'));
+      h('p', { class: 'wav-hint' }, 'Drag the markers on the waveform, or drag across it to pick a part.'));
     this.volume = this.slider(VOLUME);
     this.speed = this.slider(SPEED);
     this.btnNormalize = h('button', { type: 'button', class: 'btn small', title: 'Make the loudest part as loud as it can be without clipping', onclick: () => this.normalize() }, 'Normalize');
@@ -270,7 +270,8 @@ class WavEditor {
     if (this.recorder) return;
     const why = recordingProblem();
     if (why) {
-      this.showMessage(why, 'error');
+      // With nothing recorded yet, the empty view already says why.
+      if (this.source) this.showMessage(why, 'error');
       this.sync();
       return;
     }

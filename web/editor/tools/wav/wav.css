@@ -74,7 +74,9 @@
   background: var(--fg);
   box-shadow: 0 0 0 2px var(--panel);
 }
+.wav-handle:focus, .wav-handle:focus-visible { outline: none; box-shadow: none; }
 .wav-handle:hover::after, .wav-handle:focus-visible::after { background: var(--accent); }
+.wav-wave .sfx-wave-info { top: 6px; bottom: auto; }
 .wav-handle:focus-visible::before { background: var(--accent); }
 
 .wav-cards {

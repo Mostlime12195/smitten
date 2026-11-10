@@ -315,6 +315,14 @@ Tests:
   uses the cases in `tools/scene-tests/animation/keyframe-cases.json`,
   which also check the copy in the engine (`keyframes.lua`).
   `node tools/scene-tests/make-anim-fixture.mjs` writes these cases.
+- `node web/editor/tools/wav/wav.test.mjs`: WAV files and the changes
+  that the sound file editor makes (trim, volume, normalize, speed), and
+  sample instruments in the song model.
+- `node tools/editor-tests/record.mjs`: the sound file editor in the built
+  editor, with a fake microphone in a headless Chrome. It records, trims
+  and saves a sound, and checks the WAV file. Then it uses the recording
+  in a song. It also checks the messages for a blocked microphone and for
+  a page that is not secure.
 - `tools/scene-tests/`: scenes that run in the engine.
   - `smoke`: pieces, bodies and zones, scripts and all of the script API.
     The script API includes input, tiles, camera, sprites, particles,
@@ -328,6 +336,9 @@ Tests:
     pixels back.
   - `text`: rich text, effects, revealing and measuring. It also checks
     that plain text draws the same as before. It reads pixels back.
+  - `sounds`: volume and pitch for `sfx()` and the Sound piece, and songs
+    with sample instruments. It measures the length and the pitch of each
+    note. Then it makes sure that the editor makes the same samples.
   - `rules3` and `rules2`: the same project at version 3 and at version 2.
     They test the rules of each version: degrees or radians, `clicked()`
     or `pressed()`, undeclared names, `gravityScale` or `gravity`.
@@ -388,8 +399,8 @@ The editor is `dist/index.html`. It keeps all files in the browser
 (IndexedDB). It does not upload anything, until you share or publish.
 
 - **Workspaces** across the top (Alt+1 to 5): **Scene**, **Script**,
-  **Paint** (images and sprite sheets), **Sound** (sound effects) and
-  **Music** (songs). Each workspace has its own tabs, and it opens ready
+  **Paint** (images and sprite sheets), **Sound** (sound effects and
+  recordings) and **Music** (songs). Each workspace has its own tabs, and it opens ready
   to use. For example, Paint starts on a new image, and Sound starts on
   a new sound effect. New work becomes a file the first time that you change it.
 - **Panels**: the Scene panel (the pieces), the Files panel, the Inspector

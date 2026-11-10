@@ -63,6 +63,8 @@
 <tr><td><code>host.synth()</code></td><td>A promise of the synthesizer (see below)</td></tr>
 <tr><td><code>host.toast(message, {type})</code></td><td>Shows a short message. <code>type</code>: <code>'info'</code>, <code>'success'</code>, <code>'error'</code></td></tr>
 <tr><td><code>host.openFile(path)</code></td><td>Opens a different file in a tab</td></tr>
+<tr><td><code>host.newDocument(toolId, {start})</code></td><td>Opens a new document of a different tool in the same workspace. With <code>start: true</code>, the editor calls <code>start()</code> of the new instance (the sound file editor then records)</td></tr>
+<tr><td><code>host.record()</code></td><td>Opens a new recording in the <strong>Sound</strong> workspace and starts to record</td></tr>
 <tr><td><code>host.ui</code></td><td>The helper functions of <code>ui.js</code> (<code>h</code>, <code>icon</code>, <code>showMenu</code>, <code>promptDialog</code>, ...)</td></tr></tbody>
 </table></div>
 <p><code>instance</code>:</p>
@@ -74,7 +76,8 @@
 <tr><td><code>show()</code> / <code>hide()</code></td><td>Optional. The editor calls them when you select the tab of the tool, and when you go to a different tab</td></tr>
 <tr><td><code>reload(path)</code></td><td>Optional. The editor calls it with the path of a project file that changed outside the tool</td></tr>
 <tr><td><code>destroy()</code></td><td>The editor calls it when the tab closes</td></tr>
-<tr><td><code>handleKey(event)</code></td><td>Optional. Return <code>true</code> if the tool used the key</td></tr></tbody>
+<tr><td><code>handleKey(event)</code></td><td>Optional. Return <code>true</code> if the tool used the key</td></tr>
+<tr><td><code>start()</code></td><td>Optional. See <code>host.newDocument</code></td></tr></tbody>
 </table></div>
 <p>The editor saves tools with changes that are not saved at these times:</p>
 <ul><li>when you press Ctrl+S.</li><li>before the game runs.</li><li>when you close the tab (after a question).</li></ul>
@@ -82,7 +85,10 @@
 <h3 id="synthesizer-in-the-editor"><a class="anchor" href="#synthesizer-in-the-editor" aria-hidden="true">#</a>Synthesizer in the editor</h3>
 <p><code>host.synth()</code> resolves to this object:</p>
 <pre><code class="lang-js">synth.renderSfx(params)          // -&gt; Float32Array, 44100 Hz mono
-synth.renderSong(song, readSfx)  // readSfx(the path as the song has it) -&gt; params or null; -&gt; Float32Array
+synth.renderSong(song, readSfx, readSample)
+                                 // readSfx(the path as the song has it) -&gt; params or null;
+                                 // readSample(the path) -&gt; {samples: Float32Array (mono), sampleRate} or null;
+                                 // -&gt; Float32Array
 synth.play(samples)              // plays through WebAudio; returns {stop()}
 synth.sampleRate                 // 44100</code></pre>
 <p>It is the same C++ code as the code in the engine, compiled to <code>synth.mjs</code>. Because of this, previews sound the same as the game.</p>

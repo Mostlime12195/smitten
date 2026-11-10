@@ -44,6 +44,8 @@ export default {
 | `host.synth()` | A promise of the synthesizer (see below) |
 | `host.toast(message, {type})` | Shows a short message. `type`: `'info'`, `'success'`, `'error'` |
 | `host.openFile(path)` | Opens a different file in a tab |
+| `host.newDocument(toolId, {start})` | Opens a new document of a different tool in the same workspace. With `start: true`, the editor calls `start()` of the new instance (the sound file editor then records) |
+| `host.record()` | Opens a new recording in the **Sound** workspace and starts to record |
 | `host.ui` | The helper functions of `ui.js` (`h`, `icon`, `showMenu`, `promptDialog`, ...) |
 
 `instance`:
@@ -57,6 +59,7 @@ export default {
 | `reload(path)` | Optional. The editor calls it with the path of a project file that changed outside the tool |
 | `destroy()` | The editor calls it when the tab closes |
 | `handleKey(event)` | Optional. Return `true` if the tool used the key |
+| `start()` | Optional. See `host.newDocument` |
 
 The editor saves tools with changes that are not saved at these times:
 
@@ -73,7 +76,10 @@ Because of this, light and dark themes work.
 
 ```js
 synth.renderSfx(params)          // -> Float32Array, 44100 Hz mono
-synth.renderSong(song, readSfx)  // readSfx(the path as the song has it) -> params or null; -> Float32Array
+synth.renderSong(song, readSfx, readSample)
+                                 // readSfx(the path as the song has it) -> params or null;
+                                 // readSample(the path) -> {samples: Float32Array (mono), sampleRate} or null;
+                                 // -> Float32Array
 synth.play(samples)              // plays through WebAudio; returns {stop()}
 synth.sampleRate                 // 44100
 ```

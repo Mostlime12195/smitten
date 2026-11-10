@@ -38,6 +38,109 @@ Some random pitch (`pitch = 0.9 + rnd(0.2)`) makes sounds that play many
 times sound more natural, for example footsteps or hits. A pitch of 2 is
 one octave higher.
 
+## Volume and pitch
+
+Each call of `sfx` can have its own volume and pitch. Give them as
+numbers, or in an options table:
+
+```lua
+sfx("ouch", 0.8)                                       -- volume 0.8
+sfx("ouch", 0.8, 1.2)                                  -- volume 0.8, pitch 1.2
+sfx("ouch", { pitch = 0.9 + rnd(0.3), volume = 0.8 })  -- options
+```
+
+- `volume` is from 0 to 1. The default is 1.
+- `pitch` is 1 for the normal pitch. 2 is one octave higher and two
+  times faster. 0.5 is one octave lower and two times slower. The default
+  is 1. If the pitch is 0 or less, the sound plays at a pitch of 0.01.
+- Volume and pitch work for all sound files and for `.sfx` files.
+- If a value is not a number, `sfx` stops with an error that tells you
+  which value is wrong.
+
+This example plays a recorded "ouch" each time the player gets hurt.
+Each "ouch" has a different pitch, so the sound does not become boring.
+
+```lua
+-- scripts/player.lua
+hp = 3
+
+function hurt(amount)
+  hp -= amount
+  sfx("ouch", { pitch = 0.9 + rnd(0.3), volume = 0.8 })
+end
+```
+
+## Record a sound
+
+You can record a sound with your microphone in the editor. The editor
+saves the recording as a WAV file in your project.
+
+1. Open the **Sound** workspace.
+2. Click **Record** in the list at the left.
+3. If the browser asks, let it use the microphone.
+4. Make the sound. The waveform shows the sound while you record.
+5. Click **Stop**, or press Space.
+
+You can also start a recording in two other ways:
+
+- Click **+** at the right of the tabs. Then click **Record a sound**.
+- In the **Files** panel, click **New**. Then click **Recording**.
+
+After you stop, the editor puts the start marker and the end marker
+around the loud part of the recording. The editor saves the recording as
+`sounds/recording.wav`. Rename the file in the **Files** panel, for
+example to `ouch.wav`. Then `sfx("ouch")` plays it.
+
+- A recording can be 10 seconds long at most. At 10 seconds, the
+  recording stops.
+- The editor saves recordings as mono WAV files at 22050 Hz. A recording
+  of 10 seconds is 441 KB. The engine keeps sound files of less than
+  512 KB in memory. Because of this, a recording can play many times at
+  the same time.
+
+If the recording does not start, the editor shows a message:
+
+- If the browser blocks the microphone, allow the microphone for the
+  site in the address bar of the browser. Then click **Record** again.
+- The browser lets only secure pages use the microphone: pages that
+  start with `https://`, and `localhost`. If you open the editor with
+  `http://` from a different computer, the **Record** button is off. Open
+  the editor at its `https://` address.
+
+## Change a sound file
+
+The sound file editor opens all the `.wav` files of the project, for
+example a file that you imported. Double-click the file in the **Files**
+panel.
+
+- **Trim**: drag the start marker and the end marker on the waveform. You
+  can also drag across the waveform to select a part. The arrow keys move
+  the selected marker by 0.01 seconds (with Shift, by 0.1 seconds).
+  **Fit to the sound** puts the markers around the loud part. **Use all**
+  selects all of the sound.
+- **Volume**: 100% is the sound as it is. **Normalize** makes the loudest
+  part as loud as possible, but not louder than full volume. If the volume
+  is too high, the parts that clip show in red on the waveform.
+- **Speed**: 2× makes the sound two times shorter and one octave higher.
+  0.5× makes the sound two times longer and one octave lower.
+- To play the result, click the waveform or press Space.
+
+The editor saves the result to the file automatically. While the file is
+open, the editor keeps all of the original sound. Because of this, you
+can make a trim wider again, or undo a change (Ctrl+Z). When you close the
+tab, the parts that you trimmed are not in the file any more.
+
+The editor saves WAV files with 16 bits for each sample. An imported file
+keeps its sample rate and its channels (mono or stereo).
+
+This example makes a short "bap" for a drum:
+
+1. Record yourself when you say "bap".
+2. Click **Fit to the sound**.
+3. Drag the end marker to the left until the sound is short.
+4. Click **Normalize**.
+5. Rename `sounds/recording.wav` to `sounds/bap.wav`.
+
 ## Music
 
 `music(name)` plays a sound again and again as background music. It
@@ -45,6 +148,50 @@ replaces the music that played before. If you ask for the music that
 plays now, nothing changes. Because of this, each level can safely call
 `music("theme")`. Music continues when the scene changes. Pausing the game
 does not stop the music, and `timeScale` does not make it slower.
+
+## Sample instruments
+
+In a song, an instrument can play a sound file of your project, for
+example a recording. This is a sample instrument. Each note plays the
+sound at the pitch of the note. A recorded "bap" can be a drum, and a
+recorded "la" can sing a melody.
+
+1. Record the sound (see [Record a sound](#record-a-sound)), or import a
+   sound file.
+2. Open the song in the **Music** workspace.
+3. Select a channel.
+4. Open **Edit instrument**.
+5. Click **Sound file**.
+6. Choose the file in the list.
+7. Set **Base note**. A note on this row plays the sound as it is.
+8. Draw notes on the rows. Each row higher plays the sound faster and one
+   semitone higher.
+
+The instrument has these controls:
+
+| Control | |
+| --- | --- |
+| **Base note** | The note that plays the sound as it is. |
+| **Pitched** | When this is off, every note plays the sound as it is. Use this for drums. |
+| **Play the whole sound** | When this is on, each note plays all of the sound. When this is off, the sound stops at the end of the note, after the release. |
+| **Volume**, **Attack**, **Decay**, **Sustain**, **Release** | The volume and the envelope, as for synth instruments. |
+| **Vibrato depth**, **Vibrato speed**, **Low-pass** | As for synth instruments. |
+
+In the `.song` file, a sample instrument looks like this example. It is a
+recorded "la" with the base note G4 (67):
+
+```json
+{ "name": "La", "type": "sample", "sample": "../sounds/la.wav", "baseNote": 67, "playToEnd": false, "release": 0.2 }
+```
+
+A note with `"note": 72` (C5) is 5 semitones higher than the base note.
+Because of this, it plays `la.wav` 1.33 times faster. The note stops at
+the end of its length, and then fades out in 0.2 seconds.
+
+Songs with sample instruments play in the game as they play in the
+editor. The engine makes the song from the same samples. For OGG and MP3
+files, the preview in the editor can sound a little different from the
+game, because the browser reads these files.
 
 ## The Sound piece
 

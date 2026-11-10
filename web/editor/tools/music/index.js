@@ -878,7 +878,8 @@ class MusicEditor {
     });
     if (current && !/\.wav$/i.test(current)) this.loadSample(current);
     return [
-      h('div', { class: 'mus-sfx-row' }, select, open, record),
+      h('div', { class: 'mus-sfx-row' }, select),
+      h('div', { class: 'mus-sfx-row' }, open, record),
       h('label', { class: 'mus-field mus-base-row', title: 'A note on this row plays the sound as it is. Higher notes play it faster and higher.' },
         h('span', {}, 'Base note'), base),
       toggle('pitched', 'Pitched', 'higher notes play it faster and higher', 'plays as it is for every note'),
