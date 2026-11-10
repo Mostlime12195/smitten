@@ -152,6 +152,20 @@ local function checks()
   grey("light scaled: not further down", d, 100, 105, 0.25, 0.01)
   light.scaleX = 1
 
+  -- A picture as the light's shape: two tiles side by side, green and brown,
+  -- stretched to the radius each side.
+  light.image = "art/tiles.png"
+  d = shot()
+  near("image light: its left half", d, 80, 60, 0.25 * (1 + 80 / 255), 0.25 * (1 + 190 / 255), 0.25 * (1 + 100 / 255), 0.04)
+  near("image light: its right half", d, 120, 60, 0.25 * (1 + 150 / 255), 0.25 * (1 + 100 / 255), 0.25 * (1 + 60 / 255), 0.04)
+  grey("image light: nothing past the picture", d, 100, 90, 0.25, 0.01)
+  light.rotation = math.pi / 2
+  d = shot()
+  near("image light: turns with the piece", d, 100, 90, 0.25 * (1 + 150 / 255), 0.25 * (1 + 100 / 255), 0.25 * (1 + 60 / 255), 0.04)
+  grey("image light: turned away", d, 130, 60, 0.25, 0.01)
+  light.rotation = 0
+  light.image = ""
+
   -- Lights add up, past white.
   local second = add("Light", { x = 100, y = 60, radius = 40, brightness = 3 })
   d = shot()
@@ -383,6 +397,16 @@ local function checks()
   d = shot()
   grey("sun shadowLength: shadow near", d, 100, 85, 0.25, 0.01)
   grey("sun shadowLength: none past it", d, 100, 110, 0.5)
+  -- A sun and Tiles, with soft shadows.
+  wall:remove()
+  light.rotation, light.shadowLength, light.shadowSoftness = 0, 0, 2
+  add("Tiles", { tileset = "art/tiles.tileset", x = 96, y = 36, castShadows = true,
+    cells = { x = 0, y = 0, w = 2, h = 3, data = "0*6" } })
+  d = shot()
+  grey("sun and tiles: shadow to the right", d, 160, 60, 0.25, 0.01)
+  grey("sun and tiles: none to the left", d, 50, 60, 0.5)
+  grey("sun and tiles: none below", d, 160, 100, 0.5)
+  check("sun and tiles: runs merged", lights._stats.edges == 1, lights._stats.edges .. " edges cast")
 
   -- Through a Camera: zoomed in 2x on 300, 200.
   clear()
