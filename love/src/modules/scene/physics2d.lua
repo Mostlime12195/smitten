@@ -284,6 +284,7 @@ local function visualBounds(n)
 	if count > 1 or lone.type ~= "Shape" then lone = nil end
 	return x0, y0, x1, y1, lone
 end
+M._visualBounds = visualBounds -- an Occluder's auto shape fits the same way
 
 -- Shape descriptions: {kind, ...numbers}, reused. Kinds: "box" cx cy hw hh
 -- angle, "circle" cx cy r, "capsule" x1 y1 x2 y2 r, "polygon" {points}.

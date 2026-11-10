@@ -723,6 +723,9 @@ end
 
 ---Draws the pieces of a tree (called by love.scene).
 function M.render(root)
+	-- A scene with a Light or a Tint is drawn by lights.lua; every other
+	-- scene pays for this one check.
+	if M._lights > 0 then return M._renderLit(root) end
 	count, order = 0, 0
 	local ca, cb, cc, cd, ctx, cty = cameraMatrix()
 	collect(root, ca, cb, cc, cd, ctx, cty, 1, 1, 1, 1, 0)
@@ -759,6 +762,13 @@ function M.render(root)
 	g.pop()
 end
 M._sorted = {}
+
+-- For lights.lua: how many Lights and Tints the running scene has, the
+-- renderer it brings, and the helpers it shares.
+M._lights = 0
+M._renderLit = nil
+M._sortItems = sortItems
+M._setMatrix = setMatrix
 
 ---Font scale for crisp text when the display is scaled (set by love.display).
 M.textScale = 1

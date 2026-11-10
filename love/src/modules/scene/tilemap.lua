@@ -79,6 +79,7 @@ local function chunkKey(kx, ky) return kx * 4194304 + ky end
 local function changedAll(self)
 	self._oldChunks = self._oldChunks or self._chunks
 	self._chunks = nil
+	self._occ = nil -- the edges that block light (lights.lua)
 	self._changes = (self._changes or 0) + 1
 end
 
@@ -159,6 +160,7 @@ function Tiles:setTile(cx, cy, tile)
 	end
 	self._changes = (self._changes or 0) + 1
 	physics2d.tileChanged(self, cx, cy)
+	if self._occ then require("love.scene.lights")._tileChanged(self, cx, cy) end
 	local chunks = self._chunks
 	if chunks then
 		local kx, ky = floor(cx / CHUNK), floor(cy / CHUNK)
