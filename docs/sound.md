@@ -57,8 +57,9 @@ sfx("ouch", { pitch = 0.9 + rnd(0.3), volume = 0.8 })  -- options
 - If a value is not a number, `sfx` stops with an error that tells you
   which value is wrong.
 
-This example plays a recorded "ouch" each time the player gets hurt.
-Each "ouch" has a different pitch, so the sound does not become boring.
+This example plays a recorded "ouch" each time that something hurts the
+player. Each "ouch" has a different pitch. Because of this, the sound
+does not become boring.
 
 ```lua
 -- scripts/player.lua
@@ -110,8 +111,8 @@ If the recording does not start, the editor shows a message:
 ## Change a sound file
 
 The sound file editor opens all the `.wav` files of the project, for
-example a file that you imported. Double-click the file in the **Files**
-panel.
+example a file that you imported. To open a file, click it in the
+**Files** panel.
 
 - **Trim**: drag the start marker and the end marker on the waveform. You
   can also drag across the waveform to select a part. The arrow keys move
