@@ -249,3 +249,7 @@ read it and change it.
 | `pickup.lua` | A Zone that the player collects. It tells the scene with the event `collected` |
 | `spin.lua`, `bob.lua` | `spin.lua` turns all the time. `bob.lua` moves slowly up and down |
 | `drag.lua` | You can pick it up with the mouse or a finger, and throw it |
+| `health.lua` | Hit points. Other scripts call `hurt()` and `heal()`. After a hit, more hits do nothing for a short time. At 0, the piece sends the event `died` |
+| `spawner.lua` | Makes a copy of a scene at its position at an interval, up to a maximum number of copies. It sends the event `spawned` with each copy |
+| `moving-platform.lua` | Moves along a route of points and stops at each point. The bodies that stand on it move with it |
+| `countdown.lua` | A Label or a Text that counts down. At 0, the root piece of the scene gets the event `timeUp` |

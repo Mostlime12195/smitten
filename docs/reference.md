@@ -6,7 +6,9 @@ behavior. The editor has tools to draw art and make sounds. When the game is
 ready, you can publish it, and anyone can play it.
 
 If you are new, start with [Getting started](getting-started.md). It shows
-all the steps of a small game, in approximately fifteen minutes.
+all the steps of a small game, in approximately fifteen minutes. Then try
+the [examples](getting-started.md#examples) on the home screen. Each
+example is a small project that shows one part of Smitten.
 
 ## Where to look
 

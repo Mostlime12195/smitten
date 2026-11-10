@@ -129,6 +129,32 @@ or to remix their own copy.
 To put the game on a different website, for example itch.io, use
 **Project › Export**.
 
+## Examples
+
+The home screen also has **Examples**. An example is a small project that
+shows how one part of Smitten works. When you click an example, the editor
+makes a copy of it for you. Then you can play it, read its scripts and
+change it. The comments in the scripts tell you what to look at. The
+examples make their own images and sounds, so they do not download files.
+
+| Example | What it shows | Read more |
+| --- | --- | --- |
+| **Lights** | A dark cave with a Tint. A torch (a Light with `shadows` on) moves with the player. The Occluders in the rocks make shadows | [Lights](lights.md) |
+| **Levels** | A Tiles piece with a terrain, an animated water tile, and three Backgrounds that scroll at different speeds. A click digs a hole with `setTerrain()` | [Tiles](tiles.md), [Backgrounds](backgrounds.md) |
+| **Pathfinding** | A ghost that finds its way to the player through a maze, with `newPathGrid()` and an agent | [Pathfinding](pathfinding.md) |
+| **Two players** | Two players on one keyboard or on two gamepads, from one player scene with a `player` variable. Touch pieces show on phones | [Input](input.md#more-than-one-player) |
+| **Text** | A dialogue box from a Panel, a Label and `reveal()`, with text tags and an effect of its own | [Text](text.md) |
+| **UI** | A settings screen from a Slider, Checkboxes, a TextInput, Rows and a Column. `save()` keeps the values | [UI](ui.md), [Saving](saving.md) |
+| **Forces** | Water, wind and a small planet: Zones with forces, and physics bodies to throw into them | [Physics](physics.md#forces-in-zones) |
+| **Random** | A cave that a script makes in a Tiles piece from a seed. The seed shows on the screen, and R makes a new cave | [Random and noise](random.md) |
+| **Animation** | A door with an Animator. Keys open the door, and a call key plays a sound. A script waits for the animation | [Animation](animation.md) |
+| **Sound** | A song with a sample instrument, and pads that play sounds with `sfx()` at a different pitch each time | [Sound and music](sound.md) |
+
+Some examples also use the [ready-made scripts](scripts.md#ready-made-scripts):
+**Two players** uses `moving-platform.lua` and `countdown.lua`, and
+**Forces** uses `spawner.lua`. There is no example for
+[leaderboards](leaderboards.md), because they work only on the games site.
+
 ## Next steps
 
 - [Scripts](scripts.md) tells more about how scripts work.
@@ -136,3 +162,4 @@ To put the game on a different website, for example itch.io, use
 - [Input](input.md), [Sound and music](sound.md) and [Camera](camera.md)
   each tell about one part of a game.
 - [Script API](api.md) shows each function that a script can use.
+- The [examples](#examples) show one part of Smitten each.

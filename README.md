@@ -296,8 +296,8 @@ Tests:
     each method in the schema, and the engine sends each event. The short
     script API is the same as in `script.lua`.
   - scene documents (reading, writing, undo, placed scenes).
-  - module detection, the templates, the ready-made scripts and script
-    variables.
+  - module detection, the templates, the examples, the ready-made scripts
+    and script variables.
   - "Update this project" (old scenes and scripts go in, new scenes and
     scripts and the report come out).
 - `node web/editor/workspaces/scene/cells.test.mjs`: the tile format.
@@ -361,6 +361,14 @@ Tests:
     colors, degrees, loops, `seek()`, `speed`, call keys, `animate()` in a
     task and an Animator in a placed scene. Then it checks that a scene
     with no Animator runs as before.
+  - `example-lights`, `example-levels` and the other `example-` tests: the
+    examples of the home screen (`web/editor/core/examples.js`). The test
+    makes each example as the editor makes it, and runs it with the checks
+    in `tools/scene-tests/examples/`. Each example must run with no error
+    and no warning. `SHOTS=dir` keeps a screenshot of each example.
+  - `ready-made`: the ready-made scripts `health.lua`, `spawner.lua`,
+    `moving-platform.lua` and `countdown.lua`, in a scene that the test
+    makes.
 
   You can open a scene test in the web player with the test server (see
   below). Each line that it prints tells what it checked.

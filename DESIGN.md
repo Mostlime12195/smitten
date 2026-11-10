@@ -212,10 +212,16 @@ end
 ## 5. Ready-made scripts
 
 Platformer player, top-down player, patrol, chase, fly straight, pickup,
-spin, bob and drag (`web/editor/scripts/*.lua`). Attaching one copies it
+spin, bob, drag, health, spawner, moving platform and countdown
+(`web/editor/scripts/*.lua`). Attaching one copies it
 into the project's `scripts/` folder, where it's an ordinary script: read
 it, change it, delete it. Templates use them the same way. They only use
 the public API, so they double as examples of how things are done.
+
+The home screen also has examples (`web/editor/core/examples.js`): one
+small project for each part of the engine (lights, levels, pathfinding,
+two players, text, UI, forces, random, animation, sound), not templates
+for a genre.
 
 ## 6. Editor
 

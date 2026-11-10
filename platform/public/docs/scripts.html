@@ -162,7 +162,11 @@ right here, if only this function uses it).</code></pre>
 <tr><td><code>fly.lua</code></td><td>Moves in the direction that it points to, for example a bullet or an arrow</td></tr>
 <tr><td><code>pickup.lua</code></td><td>A Zone that the player collects. It tells the scene with the event <code>collected</code></td></tr>
 <tr><td><code>spin.lua</code>, <code>bob.lua</code></td><td><code>spin.lua</code> turns all the time. <code>bob.lua</code> moves slowly up and down</td></tr>
-<tr><td><code>drag.lua</code></td><td>You can pick it up with the mouse or a finger, and throw it</td></tr></tbody>
+<tr><td><code>drag.lua</code></td><td>You can pick it up with the mouse or a finger, and throw it</td></tr>
+<tr><td><code>health.lua</code></td><td>Hit points. Other scripts call <code>hurt()</code> and <code>heal()</code>. After a hit, more hits do nothing for a short time. At 0, the piece sends the event <code>died</code></td></tr>
+<tr><td><code>spawner.lua</code></td><td>Makes a copy of a scene at its position at an interval, up to a maximum number of copies. It sends the event <code>spawned</code> with each copy</td></tr>
+<tr><td><code>moving-platform.lua</code></td><td>Moves along a route of points and stops at each point. The bodies that stand on it move with it</td></tr>
+<tr><td><code>countdown.lua</code></td><td>A Label or a Text that counts down. At 0, the root piece of the scene gets the event <code>timeUp</code></td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="getting-started"><span>Previous</span>Getting started</a><a class="next" href="scenes"><span>Next</span>Scenes and pieces</a></nav>
