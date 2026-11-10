@@ -1,8 +1,8 @@
 // The open project: its files in memory, saved to IndexedDB (fs-store.js)
 // shortly after each change, and its settings (smitten.json).
 //
-// Events: 'file' {path, kind: 'write' | 'delete' | 'rename', from?} and
-// 'settings'.
+// Events: 'file' {path, kind: 'write' | 'delete' | 'rename', from?},
+// 'settings' and 'save' {ok} after each try at saving.
 
 import * as store from '../fs-store.js';
 
@@ -20,14 +20,19 @@ const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
 export class Project extends EventTarget {
-  constructor(meta, files, dirs) {
+  /** storage: where it's saved (fs-store.js, or a stand-in for tests). */
+  constructor(meta, files, dirs, storage = store) {
     super();
+    this.store = storage;
     this.id = meta.id;
     this.meta = meta;
     this.files = new Map(Object.entries(files));
     this.dirs = new Set(dirs);
     this.pending = new Map(); // path -> data | null (delete)
     this.timer = null;
+    this.retryTimer = null;
+    this.retryDelay = 0;
+    this.saveFailed = false; // the last save didn't work (it's tried again)
     this.saving = Promise.resolve();
   }
 
@@ -105,8 +110,10 @@ export class Project extends EventTarget {
       }
     }
     for (const d of [...this.dirs]) if (d === path || d.startsWith(path + '/')) this.dirs.delete(d);
+    // A change that's still waiting must not bring a deleted file back.
+    for (const p of removed) this.pending.delete(p);
     this.flushSoon();
-    this.saving = this.saving.then(() => store.deleteEntry(this.id, path)).catch(reportError);
+    this.saving = this.saving.then(() => this.store.deleteEntry(this.id, path)).catch(reportError);
     for (const p of removed) this.dispatchEvent(new CustomEvent('file', { detail: { path: p, kind: 'delete' } }));
   }
 
@@ -114,6 +121,11 @@ export class Project extends EventTarget {
     from = store.normalizePath(from);
     to = store.normalizePath(to);
     if (from === to) return;
+    const leaf = to.split('/').pop();
+    if (to.startsWith(from + '/')) throw new Error('A folder can\'t be moved into itself.');
+    // Never onto something that's already there: it would be lost.
+    if (this.files.has(to)) throw new Error(`There's already a file called "${leaf}" here.`);
+    if (this.dirs.has(to) || this.paths().some((p) => p.startsWith(to + '/'))) throw new Error(`There's already a folder called "${leaf}" here.`);
     const moved = [];
     for (const [p, d] of [...this.files]) {
       if (p === from || p.startsWith(from + '/')) {
@@ -121,6 +133,11 @@ export class Project extends EventTarget {
         this.files.delete(p);
         this.files.set(np, d);
         moved.push([p, np]);
+        // A change that's still waiting is saved under the new name.
+        if (this.pending.has(p)) {
+          this.pending.set(np, this.pending.get(p));
+          this.pending.delete(p);
+        }
       }
     }
     for (const d of [...this.dirs]) {
@@ -133,14 +150,14 @@ export class Project extends EventTarget {
       // An empty folder.
     }
     this.flushSoon();
-    this.saving = this.saving.then(() => store.renameEntry(this.id, from, to)).catch(reportError);
+    this.saving = this.saving.then(() => this.store.renameEntry(this.id, from, to)).catch(reportError);
     for (const [p, np] of moved) this.dispatchEvent(new CustomEvent('file', { detail: { path: np, from: p, kind: 'rename' } }));
   }
 
   mkdir(path) {
     path = store.normalizePath(path);
     this.dirs.add(path);
-    this.saving = this.saving.then(() => store.createDir(this.id, path)).catch(reportError);
+    this.saving = this.saving.then(() => this.store.createDir(this.id, path)).catch(reportError);
     this.dispatchEvent(new CustomEvent('file', { detail: { path, kind: 'mkdir' } }));
   }
 
@@ -155,13 +172,29 @@ export class Project extends EventTarget {
     this.timer = setTimeout(() => this.flush(), 0);
   }
 
-  /** Saves every pending change now. */
+  /** Saves every pending change now. A save that fails is tried again. */
   flush() {
     clearTimeout(this.timer);
+    clearTimeout(this.retryTimer);
     if (!this.pending.size) return this.saving;
     const batch = Object.fromEntries(this.pending);
     this.pending.clear();
-    this.saving = this.saving.then(() => store.writeFiles(this.id, batch)).catch(reportError);
+    this.saving = this.saving.then(() => this.store.writeFiles(this.id, batch)).then(() => {
+      this.retryDelay = 0;
+      this.saveFailed = false;
+      this.dispatchEvent(new CustomEvent('save', { detail: { ok: true } }));
+    }, (e) => {
+      // Back in the queue, unless the file has changed again or is gone.
+      for (const [p, d] of Object.entries(batch)) {
+        if (!this.pending.has(p) && this.files.has(p)) this.pending.set(p, d);
+      }
+      this.saveFailed = true;
+      this.retryDelay = Math.min(30000, this.retryDelay ? this.retryDelay * 2 : 2000);
+      clearTimeout(this.retryTimer);
+      this.retryTimer = setTimeout(() => this.flush(), this.retryDelay);
+      this.dispatchEvent(new CustomEvent('save', { detail: { ok: false, error: e } }));
+      reportError(e);
+    });
     return this.saving;
   }
 
@@ -183,18 +216,19 @@ export class Project extends EventTarget {
     this.write('smitten.json', JSON.stringify(next, null, 2) + '\n');
     if (patch.name && patch.name !== this.meta.name) {
       this.meta.name = patch.name;
-      store.updateProject(this.id, { name: patch.name }).catch(reportError);
+      this.store.updateProject(this.id, { name: patch.name }).catch(reportError);
     }
   }
 
   /** Remembers editor state (open tabs, layout) with the project. */
   saveEditorState(state) {
     this.meta.editor = state;
-    store.updateProject(this.id, { editor: state }).catch(() => {});
+    this.store.updateProject(this.id, { editor: state }).catch(() => {});
   }
 }
 
 function reportError(e) {
   console.error('Saving failed:', e);
+  if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('smitten-save-error', { detail: e }));
 }

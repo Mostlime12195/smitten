@@ -238,5 +238,131 @@ check('script variables (a script that is the piece)', eq(newVars.map((v) => [v.
 check('script variable comment (new style)', newVars[0].description === 'how fast it runs' && newVars[0].value === 140);
 check('script variable color alpha', eq(vars[3].value, [1, 0.5, 0, 1]));
 
+// --- The project: renaming and saving -------------------------------------------------
+const { Project } = await import(editor('core/project.js'));
+const { uniqueName, shareId } = await import(editor('share.js'));
+const throws = (fn) => { try { fn(); return ''; } catch (e) { return e.message; } };
+// Stands in for fs-store.js: writeFiles fails `fail` times, then works.
+const fakeStore = () => {
+  const st = {
+    disk: {}, fail: 0,
+    async writeFiles(id, files) {
+      if (st.fail > 0) { st.fail--; throw new Error('disk full'); }
+      Object.assign(st.disk, files);
+    },
+    async deleteEntry(id, path) { for (const k of Object.keys(st.disk)) if (k === path || k.startsWith(`${path}/`)) delete st.disk[k]; },
+    async renameEntry(id, from, to) {
+      for (const k of Object.keys(st.disk)) {
+        if (k !== from && !k.startsWith(`${from}/`)) continue;
+        st.disk[to + k.slice(from.length)] = st.disk[k];
+        delete st.disk[k];
+      }
+    },
+    async createDir() {},
+    async updateProject() {},
+  };
+  return st;
+};
+const newProject = (files, dirs, st = fakeStore()) => new Project({ id: 'p', name: 'Test' }, files, dirs, st);
+{
+  const pr = newProject({ 'a.lua': 'A', 'b.lua': 'B', 'art/x.png': 'X', 'old/y.png': 'Y', 'old/deep/z.png': 'Z' }, ['art', 'old', 'old/deep', 'empty']);
+  const events = [];
+  pr.addEventListener('file', (e) => events.push(e.detail));
+  check('rename onto a file is refused', /already a file called "b\.lua"/.test(throws(() => pr.rename('a.lua', 'b.lua'))));
+  check('rename onto a file keeps both', pr.read('a.lua') === 'A' && pr.read('b.lua') === 'B' && events.length === 0);
+  check('move onto a file in a folder is refused', throws(() => pr.rename('a.lua', 'art/x.png')) !== '' && pr.read('art/x.png') === 'X');
+  check('folder onto a folder is refused', /already a folder called "art"/.test(throws(() => pr.rename('old', 'art'))));
+  check('folder onto a folder keeps both', pr.read('art/x.png') === 'X' && pr.read('old/y.png') === 'Y' && pr.dirs.has('old'));
+  check('folder onto an empty folder is refused', throws(() => pr.rename('old', 'empty')) !== '');
+  check('file onto a folder is refused', throws(() => pr.rename('a.lua', 'art')) !== '' && pr.has('a.lua'));
+  check('folder onto a file is refused', throws(() => pr.rename('old', 'a.lua')) !== '' && pr.read('a.lua') === 'A');
+  check('a folder into itself is refused', throws(() => pr.rename('old', 'old/deep/old')) !== '' && pr.has('old/y.png'));
+  check('rename to the same name does nothing', throws(() => pr.rename('a.lua', 'a.lua')) === '' && events.length === 0);
+  pr.rename('a.lua', 'c.lua');
+  check('rename a file', !pr.has('a.lua') && pr.read('c.lua') === 'A' && eq(events, [{ path: 'c.lua', from: 'a.lua', kind: 'rename' }]));
+  pr.rename('c.lua', 'art/c.lua');
+  check('move a file into a folder', pr.read('art/c.lua') === 'A' && !pr.has('c.lua'));
+  pr.rename('old', 'new');
+  check('rename a folder', pr.read('new/y.png') === 'Y' && pr.read('new/deep/z.png') === 'Z' && !pr.has('old/y.png')
+    && pr.dirs.has('new') && pr.dirs.has('new/deep') && !pr.dirs.has('old'));
+  clearTimeout(pr.timer);
+}
+{
+  // Timers by hand, so the retry can be run without waiting for it.
+  const real = [globalThis.setTimeout, globalThis.clearTimeout, console.error];
+  const timers = new Map();
+  let nextTimer = 1;
+  globalThis.setTimeout = (fn, ms) => { timers.set(nextTimer, { fn, ms }); return nextTimer++; };
+  globalThis.clearTimeout = (id) => { timers.delete(id); };
+  console.error = () => {};
+  try {
+    const st = fakeStore();
+    const pr = newProject({}, [], st);
+    const saves = [];
+    pr.addEventListener('save', (e) => saves.push(e.detail.ok));
+    pr.write('a.lua', '1');
+    pr.write('b.lua', 'b1');
+    st.fail = 1;
+    await pr.flush();
+    check('a failed save is flagged', pr.saveFailed === true && eq(saves, [false]));
+    check('a failed save writes nothing', eq(st.disk, {}));
+    check('a failed save is queued again', pr.pending.get('a.lua') === '1' && pr.pending.get('b.lua') === 'b1');
+    check('a failed save is retried in a few seconds', timers.get(pr.retryTimer)?.ms === 2000);
+    pr.write('a.lua', '2');
+    timers.get(pr.retryTimer).fn();
+    await pr.saving;
+    check('the retry saves, and the newer text wins', eq(st.disk, { 'a.lua': '2', 'b.lua': 'b1' }));
+    check('the failed flag clears after a save that works', pr.saveFailed === false && pr.retryDelay === 0 && eq(saves, [false, true]) && pr.pending.size === 0);
+
+    // A change made while the failing save is still on its way.
+    pr.write('a.lua', '3');
+    st.fail = 1;
+    const going = pr.flush();
+    pr.write('a.lua', '4');
+    pr.write('b.lua', 'b2');
+    await going;
+    check('a failed save does not replace newer changes', pr.pending.get('a.lua') === '4' && pr.pending.get('b.lua') === 'b2');
+    await pr.flush();
+    check('newer changes are saved', eq(st.disk, { 'a.lua': '4', 'b.lua': 'b2' }) && !pr.saveFailed);
+
+    // A file deleted, or renamed, while its save is failing.
+    pr.write('gone.lua', 'x');
+    pr.write('was.lua', 'w');
+    st.fail = 1;
+    const failing = pr.flush();
+    pr.remove('gone.lua');
+    await failing;
+    check('a deleted file is not queued again', !pr.pending.has('gone.lua') && pr.pending.get('was.lua') === 'w');
+    pr.rename('was.lua', 'now.lua');
+    check('a waiting change follows a rename', !pr.pending.has('was.lua') && pr.pending.get('now.lua') === 'w');
+    await pr.flush();
+    check('saved under the new name only', st.disk['now.lua'] === 'w' && !('was.lua' in st.disk) && !('gone.lua' in st.disk));
+
+    // Retries slow down, up to half a minute apart.
+    pr.write('a.lua', '5');
+    st.fail = 8;
+    const delays = [];
+    for (let i = 0; i < 7; i++) {
+      await pr.flush();
+      delays.push(pr.retryDelay);
+    }
+    check('retries back off to 30 s', eq(delays, [2000, 4000, 8000, 16000, 30000, 30000, 30000]), JSON.stringify(delays));
+    st.fail = 0;
+    await pr.flush();
+    check('saved in the end', st.disk['a.lua'] === '5' && !pr.saveFailed && !timers.has(pr.retryTimer));
+  } finally {
+    [globalThis.setTimeout, globalThis.clearTimeout, console.error] = real;
+  }
+}
+
+// --- Share links: names and fingerprints ----------------------------------------------
+check('a free name is kept', uniqueName('Pong', ['Snake', 'Pong 2']) === 'Pong');
+check('a taken name gets (2)', uniqueName('Pong', ['Pong']) === 'Pong (2)');
+check('...then (3)', uniqueName('Pong', ['Pong', 'Pong (2)']) === 'Pong (3)');
+check('the first free number is used', uniqueName('Pong', ['Pong', 'Pong (3)']) === 'Pong (2)');
+check('no names yet', uniqueName('Pong', []) === 'Pong');
+check('the same share link has the same id', shareId('abc-DEF_123') === shareId('abc-DEF_123'));
+check('different share links have different ids', new Set(['', 'a', 'b', 'ab', 'ba', 'abc-DEF_123', 'abc-DEF_124'].map(shareId)).size === 7);
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

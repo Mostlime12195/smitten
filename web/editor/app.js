@@ -31,7 +31,7 @@ import { Runner } from './runner.js';
 import { classifyBytes, kindOf } from './file-types.js';
 import { unzipToProjectFiles } from './exporter.js';
 import { createCompletions } from './completions.js';
-import { createShareLink, readShareHash } from './share.js';
+import { createShareLink, readShareHash, uniqueName } from './share.js';
 import { publishDialog, fetchRemix, rememberRemix } from './publish.js';
 import { account, signIn, signOut, onChange as onAccountChange } from './account.js';
 import { startHackatime, hackatimeKey } from './hackatime.js';
@@ -79,9 +79,17 @@ async function route() {
   if (location.hash.startsWith('#share=')) {
     try {
       const shared = await readShareHash();
-      const p = await store.createProject(shared.name, shared.files);
+      // The same link opened again goes to the project it made the first time.
+      const before = (await store.listProjects()).find((x) => x.share === shared.id);
+      if (before) {
+        location.replace(`#project=${before.id}`);
+        toast(`You already opened this link, so here's your "${before.name}".`);
+        return;
+      }
+      const p = await createSharedProject(shared.name, shared.files);
+      await store.updateProject(p.id, { share: shared.id });
       location.replace(`#project=${p.id}`);
-      toast(`Opened "${shared.name}" as a new project. It's yours to change.`);
+      toast(`Opened "${p.name}" as a new project. It's yours to change.`);
     } catch (e) {
       toast(`That share link couldn't be opened: ${e.message}`, { type: 'error' });
       location.hash = '';
@@ -92,7 +100,7 @@ async function route() {
   if (location.hash.startsWith('#remix=')) {
     try {
       const remix = await fetchRemix(settings.get('platformUrl'), location.hash.slice('#remix='.length));
-      const p = await store.createProject(remix.name, remix.files);
+      const p = await createSharedProject(remix.name, remix.files);
       rememberRemix(p.id, remix.remixOf);
       location.replace(`#project=${p.id}`);
       toast(`Opened a copy of "${remix.title}". It's yours to change, and publishing it credits the original.`, { timeout: 6000 });
@@ -107,6 +115,17 @@ async function route() {
   if (ed) closeEditor();
   if (id) openProject(id);
   else showHome();
+}
+
+/** A new project from someone else's files, under a name no other project has. */
+async function createSharedProject(name, files) {
+  const unique = uniqueName(name, (await store.listProjects()).map((p) => p.name));
+  if (unique !== name && typeof files['smitten.json'] === 'string') {
+    try {
+      files = { ...files, 'smitten.json': `${JSON.stringify({ ...JSON.parse(files['smitten.json']), name: unique }, null, 2)}\n` };
+    } catch { /* a broken smitten.json: the project still gets the name */ }
+  }
+  return store.createProject(unique, files);
 }
 
 function showHome() {
@@ -165,12 +184,12 @@ async function openProject(id) {
   const switcher = h('nav', { class: 'workspace-switch', 'aria-label': 'Workspaces' }, ed.wsIndicator = h('span', { class: 'ws-indicator' }));
   WORKSPACES.forEach((w, i) => {
     const b = h('button', { type: 'button', 'aria-pressed': 'false', 'data-ws': w.id, title: `${w.label} (Alt+${i + 1})` }, icon(w.icon, 15), h('span', { class: 'ws-label' }, w.label));
-    b.addEventListener('click', () => switchWorkspace(w.id));
+    b.addEventListener('click', () => goToWorkspace(w.id));
     switcher.append(b);
   });
-  ed.playBtn = h('button', { type: 'button', class: 'play-btn primary', title: 'Play the game from its main scene (F5)' }, icon('play', 14), 'Play');
+  ed.playBtn = h('button', { type: 'button', class: 'play-btn primary', title: `Play the game from its main scene (F5 or ${modKey}+Enter)` }, icon('play', 14), 'Play');
   ed.playBtn.addEventListener('click', () => play());
-  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: 'Stop (F8)', disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
+  ed.stopBtn = h('button', { type: 'button', class: 'play-btn stop', title: `Stop (F8 or ${modKey}+.)`, disabled: true }, icon('stop', 13), 'Stop', h('span', { class: 'run-dot' }));
   ed.stopBtn.addEventListener('click', () => stop());
   // Publish is the main way to share; its arrow holds the other ways out.
   const publishBtn = h('button', { type: 'button', class: 'btn ghost publish-btn', title: 'Put the game on the sharing site' }, icon('publish', 15), h('span', { class: 'label' }, 'Publish'));
@@ -180,7 +199,7 @@ async function openProject(id) {
     shareMore.setAttribute('aria-expanded', 'true');
     showMenu(publishBtn, [
       { label: 'Publish…', icon: 'publish', action: () => publish() },
-      { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+      { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportGame() },
       { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     ], { onClose: () => shareMore.setAttribute('aria-expanded', 'false') });
   });
@@ -277,9 +296,9 @@ async function openProject(id) {
   // The game view sits over the workspaces while a game runs.
   ed.gameTitle = h('span', { class: 'game-title' }, 'Game');
   const gameHost = h('div', { class: 'game-host' });
-  const restart = h('button', { type: 'button', class: 'tool-btn', title: 'Restart (F5)' }, icon('restart', 14), 'Restart');
+  const restart = h('button', { type: 'button', class: 'tool-btn', title: `Restart (F5 or ${modKey}+Enter)` }, icon('restart', 14), 'Restart');
   restart.addEventListener('click', () => play(ed.lastRun));
-  const back = h('button', { type: 'button', class: 'tool-btn', title: 'Stop and go back to editing (F8)' }, icon('stop', 13), 'Stop');
+  const back = h('button', { type: 'button', class: 'tool-btn', title: `Stop and go back to editing (F8 or ${modKey}+.)` }, icon('stop', 13), 'Stop');
   back.addEventListener('click', () => stop());
   ed.liveOn = true;
   ed.liveBtn = h('button', { type: 'button', class: 'tool-btn', 'aria-pressed': 'true', title: 'Live: the Scene panel and Inspector show the running game, and changes go to it (only until you stop). Off: they show the saved scene.' }, icon('live', 14), 'Live');
@@ -323,7 +342,11 @@ async function openProject(id) {
     document.title = `${project.name} · Smitten`;
     updateModulesStatus();
   });
-  window.addEventListener('smitten-save-error', () => toast('Saving failed: your browser may be out of storage space.', { type: 'error', timeout: 8000 }));
+  project.addEventListener('save', (e) => {
+    if (ed?.project !== project) return;
+    if (e.detail.ok) saveErrorShown = false;
+    if (!e.detail.ok || ed.status.left.textContent === NOT_SAVED) showSaved();
+  });
   updateModulesStatus();
 
   // Where we left off: the open scenes and scripts, else the main scene.
@@ -497,6 +520,16 @@ function saveLayout() {
   localStorage.setItem(LAYOUT_KEY, JSON.stringify(ed.layouts));
 }
 
+/** Switching by hand: an empty Script workspace opens the selected piece's script. */
+function goToWorkspace(id) {
+  switchWorkspace(id);
+  if (id !== 'script' || ed.workspaces.script.active) return;
+  const doc = sceneWs().doc;
+  const sel = doc?.selected() || [];
+  const path = sel.length === 1 ? doc.scriptOf(sel[0]) : null;
+  if (path && ed.project.has(path)) ed.workspaces.script.open(path).then(saveEditorState);
+}
+
 function resetLayout() {
   ed.layouts = { ...DEFAULT_LAYOUTS };
   localStorage.removeItem(LAYOUT_KEY);
@@ -512,19 +545,45 @@ function saveEditorState() {
   });
 }
 
+/**
+ * Saves everything. What can be saved at once is (enough for closing the
+ * tab); the promise waits for the tools that take a moment (images, sounds,
+ * songs), so await it before running or sharing the files.
+ */
 function saveAll() {
-  if (!ed) return;
-  for (const ws of Object.values(ed.workspaces)) ws.saveAll?.();
+  if (!ed) return Promise.resolve();
+  const project = ed.project;
+  const slow = Object.values(ed.workspaces).map((ws) => ws.saveAll?.()).filter((w) => w?.then);
   saveEditorState();
-  return ed.project.flush();
+  const flushed = project.flush();
+  if (!slow.length) return flushed;
+  return Promise.all(slow).catch((e) => console.error('Saving failed:', e)).then(() => project.flush());
+}
+
+async function exportGame() {
+  await saveAll();
+  if (ed) exportDialog(ed.project);
+}
+
+const NOT_SAVED = 'Not saved, trying again…';
+function showSaved() {
+  if (ed) ed.status.left.textContent = ed.project.saveFailed ? NOT_SAVED : 'Saved';
 }
 
 let savingTimer = 0;
 function saving() {
   ed.status.left.textContent = 'Saving…';
   clearTimeout(savingTimer);
-  savingTimer = setTimeout(() => ed.project.saving.then(() => { if (ed) ed.status.left.textContent = 'Saved'; }), 700);
+  savingTimer = setTimeout(() => ed?.project.saving.then(showSaved), 700);
 }
+
+// Said once, not at every retry, until a save works again.
+let saveErrorShown = false;
+window.addEventListener('smitten-save-error', () => {
+  if (saveErrorShown) return;
+  saveErrorShown = true;
+  toast('Saving failed: your browser may be out of storage space. Smitten will keep trying.', { type: 'error', timeout: 8000 });
+});
 
 function updateModulesStatus() {
   const det = detectModules(ed.project);
@@ -557,9 +616,10 @@ function buildFilesPanel(el) {
   ed.files = new FileTree(treeEl, {
     onOpen: (path) => openFile(path),
     onContextMenu: (path, kind, at) => fileMenu(path, kind, at),
-    onMove: (from, toDir) => {
-      const to = toDir ? `${toDir}/${from.split('/').pop()}` : from.split('/').pop();
-      if (to !== from) ed.project.rename(from, to);
+    onMove: (from, toDir) => moveFile(from, toDir ? `${toDir}/${from.split('/').pop()}` : from.split('/').pop()),
+    onKeyAction: (action, path, kind) => {
+      if (action === 'rename') renameFile(path);
+      else if (action === 'delete') deleteFile(path, kind);
     },
     onDropFiles: async (dropped, toDir) => {
       // Dropped folders keep their names, so dropping scripts/ onto the top
@@ -615,10 +675,7 @@ function fileMenu(path, kind, at) {
   }
   if (kind === 'dir' || kind === 'root') items.push({ label: 'New', icon: 'plus', action: () => showMenu(at, newMenuItems(kind === 'dir' ? path : '')) });
   if (path) {
-    items.push('-', { label: 'Rename…', icon: 'pencil', action: async () => {
-      const name = await promptDialog({ title: 'Rename', label: 'Name', value: path.split('/').pop(), okLabel: 'Rename', selectBase: true });
-      if (name) ed.project.rename(path, path.includes('/') ? `${path.slice(0, path.lastIndexOf('/'))}/${name}` : name);
-    } });
+    items.push('-', { label: 'Rename…', icon: 'pencil', action: () => renameFile(path) });
     if (kind === 'file') items.push({ label: 'Duplicate', icon: 'copy', action: () => {
       const dot = path.lastIndexOf('.');
       let copy = `${path.slice(0, dot)} copy${path.slice(dot)}`;
@@ -626,11 +683,30 @@ function fileMenu(path, kind, at) {
       ed.project.write(copy, ed.project.read(path));
     } });
     items.push({ label: 'Copy path', action: () => navigator.clipboard?.writeText(path) });
-    items.push('-', { label: 'Delete…', icon: 'trash', danger: true, action: async () => {
-      if (await confirmDialog({ title: `Delete ${path.split('/').pop()}?`, message: kind === 'dir' ? 'The folder and everything in it will be deleted.' : 'The file will be deleted.', okLabel: 'Delete', danger: true })) ed.project.remove(path);
-    } });
+    items.push('-', { label: 'Delete…', icon: 'trash', danger: true, action: () => deleteFile(path, kind) });
   }
   showMenu(at, items);
+}
+
+/** Moves or renames a file or folder, unless something is already there. */
+function moveFile(from, to) {
+  if (to === from) return;
+  try {
+    ed.project.rename(from, to);
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+  }
+}
+
+async function renameFile(path) {
+  if (!path) return;
+  const name = await promptDialog({ title: 'Rename', label: 'Name', value: path.split('/').pop(), okLabel: 'Rename', selectBase: true });
+  if (name) moveFile(path, path.includes('/') ? `${path.slice(0, path.lastIndexOf('/'))}/${name}` : name);
+}
+
+async function deleteFile(path, kind) {
+  if (!path) return;
+  if (await confirmDialog({ title: `Delete ${path.split('/').pop()}?`, message: kind === 'dir' ? 'The folder and everything in it will be deleted.' : 'The file will be deleted.', okLabel: 'Delete', danger: true })) ed.project.remove(path);
 }
 
 /** Opens a file in the workspace that edits it. */
@@ -895,6 +971,7 @@ function dropFileOnNode(path, target) {
 async function play(scenePath = null) {
   if (!ed) return;
   await saveAll();
+  if (!ed) return;
   const project = ed.project;
   const files = project.snapshot();
   const main = project.settings().main;
@@ -977,7 +1054,7 @@ function mainMenu() {
     '-',
     { label: 'Project settings…', icon: 'sliders', shortcut: `${modKey}+,`, action: () => openProjectSettings() },
     { label: 'Publish…', icon: 'publish', action: () => publish() },
-    { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportDialog(ed.project) },
+    { label: 'Export…', icon: 'download', shortcut: `${modKey}+E`, action: () => exportGame() },
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     '-',
     { heading: 'Panels' },
@@ -1025,12 +1102,14 @@ function renderAccount() {
 // Puts the game on the sharing site, with only the engine modules it uses.
 async function publish() {
   await saveAll();
+  if (!ed) return;
   const modules = Object.values(detectModules(ed.project)).filter((m) => m.included).map((m) => m.id);
   await publishDialog(ed.project, { modules, platformUrl: settings.get('platformUrl') });
 }
 
 async function shareLink() {
   await saveAll();
+  if (!ed) return;
   try {
     const { url } = await createShareLink(ed.project.name, ed.project.snapshot());
     await navigator.clipboard.writeText(url);
@@ -1103,7 +1182,7 @@ function openDocs(page = '', anchor = '') {
 }
 
 const SHORTCUTS = [
-  ['Play the game', 'F5'], ['Play this scene', 'F6'], ['Stop', 'F8'], ['Docs', 'F1'],
+  ['Play the game', `F5 or ${modKey}+Enter`], ['Play this scene', `F6 or ${modKey}+Shift+Enter`], ['Stop', `F8 or ${modKey}+.`], ['Docs', 'F1'],
   ['Command palette', `${modKey}+K`], ['Open a file', `${modKey}+P`], ['Save everything now', `${modKey}+S`],
   ['Undo / redo', `${modKey}+Z / ${modKey}+Shift+Z`], ['Add a piece', `${modKey}+A`], ['Duplicate', `${modKey}+D`], ['Rename a piece', 'F2'],
   ['Select / move / rotate / scale', 'Q / W / E / R'], ['Frame the selection', 'F'],
@@ -1124,9 +1203,9 @@ function shortcutsDialog() {
 function commands() {
   const doc = sceneWs()?.doc;
   const list = [
-    { label: 'Play the game', hint: 'F5', run: () => play() },
-    { label: 'Play this scene', hint: 'F6', run: () => doc && play(doc.path) },
-    { label: 'Stop the game', hint: 'F8', run: () => stop() },
+    { label: 'Play the game', hint: `F5 or ${modKey}+Enter`, run: () => play() },
+    { label: 'Play this scene', hint: `F6 or ${modKey}+Shift+Enter`, run: () => doc && play(doc.path) },
+    { label: 'Stop the game', hint: `F8 or ${modKey}+.`, run: () => stop() },
     { label: 'Add a piece…', hint: `${modKey}+A`, run: () => addNodeTo(ed.panels.tree.targetParent()) },
     { label: 'New scene…', run: () => newScene() },
     { label: 'New script…', run: () => newScript() },
@@ -1134,7 +1213,7 @@ function commands() {
     { label: 'Input actions', run: () => openProjectSettings('input') },
     { label: 'Engine modules', run: () => openProjectSettings('modules') },
     { label: 'Publish…', run: () => publish() },
-    { label: 'Export…', run: () => exportDialog(ed.project) },
+    { label: 'Export…', run: () => exportGame() },
     { label: 'Reset layout', run: () => resetLayout() },
     { label: 'Piece reference', run: () => openDocs('pieces') },
     { label: 'Documentation', run: () => openDocs() },
@@ -1142,7 +1221,7 @@ function commands() {
     { label: 'Editor settings', run: () => openSettings({}) },
     { label: 'All games', run: () => { location.hash = ''; } },
   ];
-  for (const w of WORKSPACES) list.push({ label: `Go to ${w.label}`, run: () => switchWorkspace(w.id) });
+  for (const w of WORKSPACES) list.push({ label: `Go to ${w.label}`, run: () => goToWorkspace(w.id) });
   for (const id of ['scene', 'files', 'inspector', 'output']) list.push({ label: `Show or hide the ${id} panel`, run: () => ed.dock.toggle(id) });
   return list;
 }
@@ -1199,13 +1278,21 @@ function handleGlobalKey(e) {
   if (e.key === 'F5') { play(e.shiftKey ? null : ed.lastRun ?? null); return true; }
   if (e.key === 'F6') { const d = sceneWs().doc; if (d) play(d.path); return true; }
   if (e.key === 'F8') { stop(); return true; }
+  // The same without F-keys (Chromebooks have none). Enter in a dialog is the dialog's.
+  if (mod && !e.altKey && e.key === 'Enter' && !document.querySelector('dialog[open]')) {
+    const d = sceneWs().doc;
+    if (!e.shiftKey) play(ed.lastRun ?? null);
+    else if (d) play(d.path);
+    return true;
+  }
+  if (mod && !e.altKey && e.key === '.') { stop(); return true; }
   if (e.key === 'F1') { openDocs(); return true; }
   if (mod && (k === 'k' || (e.shiftKey && k === 'p'))) { commandPalette(); return true; }
   if (mod && k === 'p') { commandPalette(true); return true; }
-  if (mod && k === 's') { saveAll(); toast('Saved.'); return true; }
+  if (mod && k === 's') { saveAll().then(() => toast(ed?.project.saveFailed ? 'Not saved yet. Smitten will keep trying.' : 'Saved.')); return true; }
   if (mod && k === ',') { openProjectSettings(); return true; }
-  if (mod && k === 'e') { exportDialog(ed.project); return true; }
-  if (e.altKey && /^[1-5]$/.test(e.key)) { switchWorkspace(WORKSPACES[Number(e.key) - 1].id); return true; }
+  if (mod && k === 'e') { exportGame(); return true; }
+  if (e.altKey && /^[1-5]$/.test(e.key)) { goToWorkspace(WORKSPACES[Number(e.key) - 1].id); return true; }
   return false;
 }
 

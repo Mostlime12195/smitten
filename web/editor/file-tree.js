@@ -240,10 +240,13 @@ export class FileTree {
         break;
       case 'F2':
         e.preventDefault();
+        e.stopPropagation(); // it's about this file, not the scene's selection
         this.opts.onKeyAction?.('rename', path, row.dataset.kind);
         break;
       case 'Delete':
       case 'Backspace':
+        // Never on to the scene, which would delete its selected pieces.
+        e.stopPropagation();
         if (e.key === 'Backspace' && !e.metaKey) break;
         e.preventDefault();
         this.opts.onKeyAction?.('delete', path, row.dataset.kind);

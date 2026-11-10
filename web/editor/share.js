@@ -50,7 +50,7 @@ export async function createShareLink(name, files) {
   return { url: url.toString(), size: packed.length };
 }
 
-/** Parse location.hash; returns {name, files} or null. Throws on corrupt data. */
+/** Parse location.hash; returns {name, files, id} or null. Throws on corrupt data. */
 export async function readShareHash(hash = location.hash) {
   const m = /^#share=([\w-]+)$/.exec(hash);
   if (!m) return null;
@@ -60,5 +60,28 @@ export async function readShareHash(hash = location.hash) {
   const files = {};
   for (const [p, t] of Object.entries(data.files)) if (typeof t === 'string') files[p] = t;
   for (const [p, b] of Object.entries(data.binary || {})) if (typeof b === 'string') files[p] = fromBase64Url(b.replace(/=+$/, ''));
-  return { name: String(data.name || 'Shared project').slice(0, 80), files };
+  return { name: String(data.name || 'Shared project').slice(0, 80), files, id: shareId(m[1]) };
+}
+
+/** A short fingerprint of a share link's payload, to spot the same link opened twice. */
+export function shareId(payload) {
+  // Two 32-bit FNV-1a hashes (crypto.subtle needs https, and this needs no secrecy).
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let i = 0; i < payload.length; i++) {
+    const c = payload.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x85ebca6b) + a | 0;
+  }
+  const hex = (n) => (n >>> 0).toString(16).padStart(8, '0');
+  return `${hex(a)}${hex(b)}-${payload.length.toString(16)}`;
+}
+
+/** name, or "name (2)", "name (3)"... if a project is already called that. */
+export function uniqueName(name, taken) {
+  const used = new Set(taken);
+  if (!used.has(name)) return name;
+  let i = 2;
+  while (used.has(`${name} (${i})`)) i++;
+  return `${name} (${i})`;
 }

@@ -95,8 +95,9 @@ export class ToolWorkspace extends EventTarget {
     this.timers.set(path, setTimeout(() => this.host.save(path), 900));
   }
 
+  /** Saving takes a moment (images are encoded): the promise says when it's done. */
   saveAll() {
-    for (const p of this.order) if (this.host.isDirty(p)) this.host.save(p);
+    return Promise.all(this.order.filter((p) => this.host.isDirty(p)).map((p) => this.host.save(p)));
   }
 
   close(path) {

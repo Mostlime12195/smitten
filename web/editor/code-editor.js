@@ -236,6 +236,9 @@ class CMEditor {
       Se.highlightSelectionMatches(),
       Se.search({ top: true }),
       V.keymap.of([
+        // Play and play this scene (app.js): no blank line as well.
+        { key: 'Mod-Enter', run: () => true },
+        { key: 'Shift-Mod-Enter', run: () => true },
         ...A.closeBracketsKeymap,
         ...C.defaultKeymap,
         ...Se.searchKeymap,

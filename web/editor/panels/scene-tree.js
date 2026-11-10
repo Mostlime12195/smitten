@@ -47,7 +47,10 @@ export class SceneTreePanel {
       if (this.doc) this.menu(null, { x: e.clientX, y: e.clientY });
     });
     this.onChange = () => this.render();
-    this.onSelect = () => this.updateSelection();
+    this.onSelect = () => {
+      this.updateSelection();
+      if (!this.clicking) this.reveal();
+    };
   }
 
   setDoc(doc) {
@@ -122,6 +125,20 @@ export class SceneTreePanel {
       const on = !!sel?.has(id);
       if (r.el.classList.contains('selected') !== on) r.el.classList.toggle('selected', on);
     }
+  }
+
+  /** Shows the first selected piece: opens what it's inside of and scrolls to it. */
+  reveal() {
+    const n = this.doc?.selected?.()[0];
+    if (!n) return;
+    let opened = false;
+    for (let p = n.parent; p; p = p.parent) {
+      if (this.isOpen(p)) continue;
+      if (p.instance) this.openInstances.add(p.id); else this.collapsed.delete(p.id);
+      opened = true;
+    }
+    if (opened) this.render();
+    this.rows.get(n.id)?.el.scrollIntoView({ block: 'nearest' });
   }
 
   isOpen(n) {
@@ -211,6 +228,17 @@ export class SceneTreePanel {
   click(n, e) {
     const doc = this.doc;
     if (n.readonly) n = this.instanceOwner(n) || n;
+    this.clicking = true; // the row is in view already: no scrolling
+    try {
+      this.select(n, e);
+    } finally {
+      this.clicking = false;
+    }
+    this.list.focus({ preventScroll: true });
+  }
+
+  select(n, e) {
+    const doc = this.doc;
     if (e.shiftKey && this.anchor) {
       const ids = [...this.list.querySelectorAll('.node-row')].map((r) => r.dataset.id);
       const a = ids.indexOf(this.anchor);
@@ -224,7 +252,6 @@ export class SceneTreePanel {
       doc.select([n]);
       this.anchor = n.id;
     }
-    this.list.focus({ preventScroll: true });
   }
 
   rename(n) {
