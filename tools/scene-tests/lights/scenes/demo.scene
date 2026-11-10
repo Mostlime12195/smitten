@@ -1,0 +1,33 @@
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Demo", "type": "Group", "script": "scenes/demo.lua",
+    "children": [
+      { "name": "Sky", "type": "Tint", "properties": { "color": [0.16, 0.18, 0.34, 1] } },
+      { "name": "Floor", "type": "Shape", "properties": { "x": 100, "y": 60, "width": 200, "height": 120, "color": [0.5, 0.55, 0.45, 1] } },
+      { "name": "Wall", "type": "Tiles", "properties": { "x": 128, "y": 8, "tileset": "art/tiles.tileset", "castShadows": true,
+        "cells": { "x": 0, "y": 0, "w": 2, "h": 4, "data": "0,-1,0,-1,0,-1,0,0" } } },
+      { "name": "Crate", "type": "Group", "properties": { "x": 60, "y": 40 },
+        "children": [
+          { "name": "Look", "type": "Shape", "properties": { "width": 14, "height": 14, "color": [0.7, 0.5, 0.3, 1] } },
+          { "name": "Shadow", "type": "Occluder" }
+        ] },
+      { "name": "Crate2", "type": "Group", "properties": { "x": 92, "y": 88, "rotation": 0.5 },
+        "children": [
+          { "name": "Look", "type": "Shape", "properties": { "width": 18, "height": 10, "color": [0.7, 0.5, 0.3, 1] } },
+          { "name": "Shadow", "type": "Occluder" }
+        ] },
+      { "name": "Pillar", "type": "Occluder", "properties": { "x": 38, "y": 88 },
+        "children": [
+          { "name": "Look", "type": "Shape", "properties": { "shape": "circle", "radius": 7, "color": [0.6, 0.6, 0.7, 1] } }
+        ] },
+      { "name": "Lamp", "type": "Light", "properties": { "x": 172, "y": 96, "radius": 48, "color": [1, 0.8, 0.5, 1], "shadows": true },
+        "children": [
+          { "name": "Glow", "type": "Shape", "properties": { "shape": "circle", "radius": 3, "color": [1, 0.95, 0.7, 1], "lit": false } }
+        ] },
+      { "name": "Sign", "type": "Text", "properties": { "x": 60, "y": 10, "text": "lit = false", "size": 9, "color": [0.5, 1, 0.8, 1], "lit": false } },
+      { "name": "Torch", "type": "Light", "properties": { "x": 100, "y": 60, "radius": 70, "color": [1, 0.75, 0.45, 1], "shadows": true, "shadowSoftness": 1.5 } }
+    ]
+  }
+}

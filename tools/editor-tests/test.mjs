@@ -61,6 +61,35 @@ for (const [name, def] of Object.entries(types)) {
     if (!LIFECYCLE.has(e)) check(`${name} event ${e} is emitted`, engineLua.includes(`emit("${e}"`));
   }
 }
+// Every piece is in a group of the Add a piece dialog and has an icon, and no
+// property hides a method the piece has (a property called "on" would hide
+// on(), which is why Light, Occluder and Tint have "off").
+{
+  const { ICONS } = await import(editor('icons.js'));
+  const groupIds = new Set(schemaLib.getSchema().groups.map((g) => g.id));
+  for (const [name, def] of Object.entries(types)) {
+    check(`${name} is in a group`, groupIds.has(def.group), String(def.group));
+    check(`${name} has an icon`, typeof ICONS[def.icon] === 'string', String(def.icon));
+    const methods = new Set(schemaLib.lineage(name).flatMap((t) => Object.keys(types[t].methods || {})));
+    for (const p of schemaLib.lineage(name).flatMap((t) => Object.keys(types[t].properties || {}))) {
+      check(`${name}.${p} doesn't hide a method`, !methods.has(p));
+    }
+  }
+}
+// Lights: the renderer reads every property the catalogue gives the pieces.
+{
+  const lightsLua = readFileSync(join(sceneDir, 'lights.lua'), 'utf8');
+  for (const name of ['Light', 'Occluder', 'Tint']) {
+    check(`${name} is a piece`, !!types[name] && types[name].group === 'light');
+    for (const p of Object.keys(types[name]?.properties || {})) {
+      check(`lights.lua reads ${name}.${p}`, new RegExp(`\\.${p}\\b`).test(lightsLua));
+    }
+  }
+  check('every piece with a position has lit', schemaLib.propertyDef('Sprite', 'lit')?.default === true && /\.lit\b/.test(lightsLua));
+  check('Tiles has castShadows', schemaLib.propertyDef('Tiles', 'castShadows')?.default === false && /\.castShadows\b/.test(lightsLua));
+  check('a scene without lights never reaches lights.lua', /if M\._lights > 0 then return M\._renderLit\(root\) end/.test(
+    readFileSync(join(sceneDir, 'nodes2d.lua'), 'utf8')));
+}
 const scriptLua = readFileSync(join(sceneDir, 'script.lua'), 'utf8');
 const { SCRIPT_API } = await import(editor('core/script-api.js'));
 for (const [name] of SCRIPT_API) {

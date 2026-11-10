@@ -2,11 +2,12 @@
 //
 //   node tools/scene-tests/run.mjs              # all of them
 //   node tools/scene-tests/run.mjs errors smoke
+//   VERBOSE=1 node tools/scene-tests/run.mjs lights   # every line it printed
 //
 // Needs a built dist/ (python3 build.py). It starts tools/test_server.py
 // itself; CHROME and CHROME_FLAGS are as in tools/stress/run.mjs.
 //
-//   errors            prints PASS or FAIL for each check, then DONE
+//   errors, lights    print PASS or FAIL for each check, then DONE
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
 //   errorscreen       errors on purpose: the error must come out in plain
@@ -24,6 +25,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 const CASES = {
   errors: { game: 'tools/scene-tests/errors.zip', until: /^DONE /, check: selfChecking },
+  lights: { game: 'tools/scene-tests/lights.zip', until: /^DONE /, check: selfChecking },
   smoke: { game: 'tools/scene-tests/smoke.zip', seconds: 6, check: (lines) => noErrors(lines) || (lines.some((l) => /^ready/.test(l)) ? null : 'it never printed "ready"') },
   rigid: { game: 'tools/scene-tests/rigid.zip', seconds: 5, check: noErrors },
   physics: { game: 'tools/scene-tests/physics.zip', seconds: 5, check: noErrors },
@@ -97,6 +99,7 @@ async function main() {
       } else {
         const passes = lines.filter((l) => /^PASS /.test(l)).length;
         console.log(`ok   ${name}${passes ? ` (${passes} checks)` : ''}`);
+        if (process.env.VERBOSE) console.log(lines.filter((l) => !l.startsWith('\x01')).map((l) => `    ${l}`).join('\n'));
       }
     }
   } finally {
