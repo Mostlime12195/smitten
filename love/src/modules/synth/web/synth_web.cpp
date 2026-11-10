@@ -13,8 +13,10 @@
  *   bpm, stepsPerBeat, patternLength, loop (0/1), loopStart,
  *   channelCount, instrumentCount, patternCount, orderCount,
  *   per channel: instrument, volume
- *   per instrument (INSTRUMENT_SIZE doubles): type (0 synth, 1 sfx), wave,
- *     INSTRUMENT_FIELDS in order, pitched (0/1), hasSfx (0/1), a sound effect
+ *   per instrument (INSTRUMENT_SIZE doubles): type (0 synth, 1 sfx,
+ *     2 sample), wave, INSTRUMENT_FIELDS in order, pitched (0/1), hasSfx
+ *     (0/1), a sound effect, baseNote, playToEnd (0/1), sampleRate,
+ *     sampleCount; then sampleCount samples (mono, -1 to 1)
  *   per pattern: noteCount, then per note: channel, step, length, note, volume
  *   order entries
  *
@@ -25,7 +27,9 @@
 
 #include <emscripten.h>
 
+#include <algorithm>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 using namespace love::smitten::synth;
@@ -101,7 +105,7 @@ EMSCRIPTEN_KEEPALIVE int synth_sfx_size()
 
 EMSCRIPTEN_KEEPALIVE int synth_instrument_size()
 {
-	return 2 + INSTRUMENT_FIELD_COUNT + 2 + 1 + SFX_FIELD_COUNT;
+	return 2 + INSTRUMENT_FIELD_COUNT + 2 + 1 + SFX_FIELD_COUNT + 4;
 }
 
 // Render a sound effect; returns the number of samples (see synth_samples),
@@ -146,13 +150,31 @@ EMSCRIPTEN_KEEPALIVE int synth_render_song(const double *data, int count, int lo
 	for (int i = 0; i < instruments && r.ok(); i++)
 	{
 		Instrument inst;
-		inst.type = r.nextInt(0) == 1 ? INSTRUMENT_SFX : INSTRUMENT_SYNTH;
+		int type = r.nextInt(0);
+		inst.type = type == 1 ? INSTRUMENT_SFX : type == 2 ? INSTRUMENT_SAMPLE : INSTRUMENT_SYNTH;
 		inst.wave = r.nextWave(inst.wave);
 		for (int f = 0; f < INSTRUMENT_FIELD_COUNT; f++)
 			inst.*INSTRUMENT_FIELDS[f].member = r.next();
-		inst.pitched = r.nextBool(false);
+		inst.pitched = r.nextBool(inst.type == INSTRUMENT_SAMPLE);
 		inst.hasSfx = r.nextBool(false);
 		inst.sfx = r.sfx();
+		inst.baseNote = r.next();
+		inst.playToEnd = r.nextBool(true);
+		double rate = r.next();
+		int count = r.nextInt(0);
+		if (count < 0 || count > r.count - r.pos)
+			return -1;
+		if (inst.type == INSTRUMENT_SAMPLE && rate > 0.0 && count > 0)
+		{
+			auto sample = std::make_shared<Sample>();
+			sample->rate = rate;
+			size_t keep = std::min((size_t) count, (size_t) (rate * MAX_SAMPLE_SECONDS));
+			sample->samples.resize(keep);
+			for (size_t k = 0; k < keep; k++)
+				sample->samples[k] = (float) r.data[r.pos + k];
+			inst.sample = sample;
+		}
+		r.pos += count;
 		song.instruments.push_back(inst);
 	}
 

@@ -1,0 +1,13 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Main",
+    "type": "Group",
+    "script": "scenes/main.lua",
+    "children": [
+      { "name": "Voice", "type": "Sound", "properties": { "sound": "sounds/tone.wav", "volume": 0.5, "pitch": 1.5 } },
+      { "name": "Tune", "type": "Sound", "properties": { "sound": "music/samples.song" } }
+    ]
+  }
+}

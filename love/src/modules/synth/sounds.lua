@@ -44,15 +44,36 @@ local function checkFile(data, format, version, path)
 	end
 end
 
--- A copy of a song table with each sound-effect instrument's file loaded:
--- inst.sfx becomes the decoded .sfx table, as the native renderer
--- expects.
+local SAMPLE_EXTENSIONS = { "", ".wav", ".ogg", ".mp3", ".flac" }
+
+-- The SoundData of a sample instrument's sound file (decoded once), or an
+-- error that names the instrument.
+local function loadSample(basePath, i, inst)
+	local file = assets.join(basePath, inst.sample)
+	for _, ext in ipairs(SAMPLE_EXTENSIONS) do
+		if love.filesystem.getInfo(file .. ext, "file") then
+			return assets.cached("sample", file .. ext, function(p) return love.sound.newSoundData(p) end)
+		end
+	end
+	error(("%s: instrument %d (%s) uses the sound file %s, which doesn't exist")
+		:format(basePath, i, tostring(inst.name or "unnamed"), file), 0)
+end
+
+-- A copy of a song table with each instrument's file loaded, as the native
+-- renderer expects: a sound-effect instrument's inst.sfx becomes the decoded
+-- .sfx table, and a sample instrument's inst.sample the SoundData of its
+-- sound file. A sample instrument with no file ("") is silent.
 local function resolveSongSfx(song, basePath)
 	local copy = {}
 	for k, v in pairs(song) do copy[k] = v end
 	local instruments = {}
 	for i, inst in ipairs(type(song.instruments) == "table" and song.instruments or {}) do
-		if type(inst) == "table" and inst.type == "sfx" and type(inst.sfx) == "string" then
+		if type(inst) == "table" and inst.type == "sample" and type(inst.sample) == "string" then
+			local resolved = {}
+			for k, v in pairs(inst) do resolved[k] = v end
+			resolved.sample = inst.sample ~= "" and loadSample(basePath, i, inst) or nil
+			instruments[i] = resolved
+		elseif type(inst) == "table" and inst.type == "sfx" and type(inst.sfx) == "string" then
 			local resolved = {}
 			for k, v in pairs(inst) do resolved[k] = v end
 			local file = assets.join(basePath, inst.sfx)
@@ -242,7 +263,8 @@ end
 
 ---Render a song (a decoded .song table) to a SoundData: one pass through
 ---its `order`, followed by whatever still rings. basePath (the song file's
----path, or its folder) resolves the paths of sound-effect instruments.
+---path, or its folder) resolves the paths of sound-effect and sample
+---instruments.
 ---@param song table
 ---@param basePath? string
 ---@return love.SoundData

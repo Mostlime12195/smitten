@@ -286,7 +286,7 @@ SfxParams sanitize(const SfxParams &in)
 
 Instrument sanitize(const Instrument &in)
 {
-	const Instrument defaults;
+	const Instrument defaults = in.type == INSTRUMENT_SAMPLE ? sampleDefaults() : Instrument();
 	Instrument inst = in;
 	for (int i = 0; i < INSTRUMENT_FIELD_COUNT; i++)
 	{
@@ -302,6 +302,7 @@ Instrument sanitize(const Instrument &in)
 	inst.release = std::max(inst.release, 0.0);
 	inst.duty = clampd(inst.duty, 0.0, 1.0);
 	inst.lowpass = clampd(inst.lowpass, 0.0, 1.0);
+	inst.baseNote = clampd(finiteOr(inst.baseNote, 60.0), 0.0, 127.0);
 	return inst;
 }
 
@@ -381,13 +382,85 @@ void renderSynthNote(const Instrument &inst, double frequency, double gain,
 	}
 }
 
+// A note of a sample instrument, added into `mix` (which has room for
+// `total` samples). `step` is how far the read position moves in the sound
+// file for each output sample (before vibrato); `held` is the length of the
+// note in samples (without playToEnd, the release starts there).
+void renderSampleNote(const Instrument &inst, double step, double gain,
+                      int64_t held, int64_t total, float *mix)
+{
+	const std::vector<float> &src = inst.sample->samples;
+	const double count = (double) src.size();
+
+	int64_t attackN = std::max<int64_t>(secondsToSamples(inst.attack), FADE_IN_SAMPLES);
+	int64_t decayN = secondsToSamples(inst.decay);
+	int64_t releaseN = std::max<int64_t>(secondsToSamples(inst.release), FADE_OUT_SAMPLES);
+
+	auto heldLevel = [&](int64_t i) -> double
+	{
+		if (i < attackN)
+			return (double) i / (double) attackN;
+		if (i < attackN + decayN)
+			return 1.0 + (inst.sustain - 1.0) * (double) (i - attackN) / (double) decayN;
+		return inst.sustain;
+	};
+	double releaseLevel = heldLevel(held);
+
+	LowPass lp;
+	if (inst.lowpass < 1.0)
+		lp.setCutoff(lowpassCutoff(inst.lowpass));
+
+	bool vibrato = inst.vibratoDepth != 0.0 && inst.vibratoSpeed > 0.0;
+	double vibPhase = 0.0;
+	double vibDt = inst.vibratoSpeed / SR;
+	constexpr int CONTROL_RATE = 16;
+	double dt = step;
+
+	double pos = 0.0;
+	for (int64_t i = 0; i < total; i++)
+	{
+		if (pos >= count)
+			break;
+		if (vibrato && (i % CONTROL_RATE) == 0)
+		{
+			double semis = inst.vibratoDepth * sinCycle(vibPhase);
+			dt = step * std::exp2(semis / 12.0);
+			vibPhase += vibDt * CONTROL_RATE;
+			vibPhase -= std::floor(vibPhase);
+		}
+
+		// Linear interpolation between the two nearest samples of the file.
+		size_t k = (size_t) pos;
+		double frac = pos - (double) k;
+		double a = src[k];
+		double b = k + 1 < src.size() ? src[k + 1] : 0.0;
+		double v = a + (b - a) * frac;
+
+		double env;
+		if (inst.playToEnd || i < held)
+			env = heldLevel(i);
+		else
+			env = releaseLevel * (1.0 - (double) (i - held) / (double) releaseN);
+
+		// A short fade at the end of the file, so a cut sound doesn't click.
+		double left = (count - pos) / dt;
+		if (left < FADE_OUT_SAMPLES)
+			env *= left / FADE_OUT_SAMPLES;
+
+		if (lp.enabled)
+			v = lp.process(v);
+		mix[i] += (float) (v * env * gain);
+		pos += dt;
+	}
+}
+
 struct Voice
 {
 	int64_t start;
 	int64_t end;
 	int instrument;
-	double frequency; // synth notes
-	int64_t length;   // synth notes: held samples
+	double frequency; // synth notes; sample notes: the read step
+	int64_t length;   // synth and sample notes: held samples
 	double gain;
 	const std::vector<float> *sfx; // sfx notes
 };
@@ -431,6 +504,19 @@ const InstrumentField INSTRUMENT_FIELDS[] =
 	{ "lowpass", &Instrument::lowpass },
 };
 const int INSTRUMENT_FIELD_COUNT = (int) (sizeof(INSTRUMENT_FIELDS) / sizeof(INSTRUMENT_FIELDS[0]));
+
+Instrument sampleDefaults()
+{
+	Instrument d;
+	d.type = INSTRUMENT_SAMPLE;
+	d.volume = 1.0;
+	d.attack = 0.0;
+	d.decay = 0.0;
+	d.sustain = 1.0;
+	d.release = 0.05;
+	d.pitched = true;
+	return d;
+}
 
 bool getWave(const char *name, Wave &wave)
 {
@@ -657,6 +743,23 @@ SongRender renderSong(const Song &song, bool loopLayout)
 				v.sfx = &it->second;
 				v.end = v.start + (int64_t) v.sfx->size();
 			}
+			else if (inst.type == INSTRUMENT_SAMPLE)
+			{
+				if (!inst.sample || inst.sample->samples.empty())
+					continue;
+				double semis = inst.pitched ? pitch - inst.baseNote : 0.0;
+				double readStep = inst.sample->rate / SR * std::exp2(semis / 12.0);
+				if (!(readStep > 1e-4) || readStep > 256.0)
+					continue;
+				// The slowest the file can be read (vibrato lowers the pitch by up
+				// to its depth) gives the longest the note can last.
+				double slowest = readStep * std::exp2(-std::fabs(inst.vibratoDepth) / 12.0);
+				int64_t whole = (int64_t) std::ceil((double) inst.sample->samples.size() / slowest) + 1;
+				v.frequency = readStep;
+				v.length = std::max<int64_t>(stepToSample(patternStart + step + length) - v.start, 1);
+				int64_t releaseN = std::max<int64_t>(secondsToSamples(inst.release), FADE_OUT_SAMPLES);
+				v.end = v.start + (inst.playToEnd ? whole : std::min(whole, v.length + releaseN));
+			}
 			else
 			{
 				v.frequency = 440.0 * std::exp2((pitch - 69.0) / 12.0);
@@ -683,6 +786,8 @@ SongRender renderSong(const Song &song, bool loopLayout)
 			for (size_t i = 0; i < n; i++)
 				dst[i] += src[i] * g;
 		}
+		else if (instruments[v.instrument].type == INSTRUMENT_SAMPLE)
+			renderSampleNote(instruments[v.instrument], v.frequency, v.gain, v.length, v.end - v.start, dst);
 		else
 			renderSynthNote(instruments[v.instrument], v.frequency, v.gain, v.length, dst);
 	}

@@ -16,15 +16,18 @@
 //                     errors, gravityScale) and of version 2 (the old ones)
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
+//   sounds            sfx() and the Sound piece with a volume and a pitch,
+//                     songs with sample instruments (PASS, FAIL, DONE), and
+//                     the same song from the editor's synthesizer
 //   boards,           smitten.boards without the games site, and inside
 //   boards-site       boards-site.html, which stands in for it (PASS, FAIL, DONE)
 //   errorscreen       errors on purpose: the error must come out in plain
 //                     form, without the engine's own frames
 
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { launch, sleep } from '../stress/run.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -68,7 +71,28 @@ const CASES = {
   // Slider and a Checkbox.
   ui: { game: 'tools/scene-tests/ui.zip', until: /^DONE /, modules: '', check: selfChecking, after: realUI },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
+  // Volume and pitch for sfx() and the Sound piece, and songs with sample
+  // instruments: its own checks, then its song's checksum against the
+  // editor's synthesizer (dist/synth.js), so previews sound like the game.
+  sounds: { game: 'tools/scene-tests/sounds.zip', until: /^DONE /, modules: 'synth', check: selfChecking, after: sameAsEditor },
 };
+
+// The editor renders the sounds test's song (with its WAV file read by the
+// editor's own decoder) to the same samples as the engine did.
+async function sameAsEditor(page, lines) {
+  const line = lines.find((l) => /^CHECKSUM /.test(l));
+  if (!line) return 'the game printed no CHECKSUM line';
+  const engine = Number(line.split(' ')[1]);
+  const dir = join(root, 'tools', 'scene-tests', 'sounds');
+  const { loadSynth } = await import(pathToFileURL(join(root, 'dist', 'synth.js')).href);
+  const { decodeWav, toMono } = await import(pathToFileURL(join(root, 'web', 'editor', 'tools', 'wav', 'wav.js')).href);
+  const synth = await loadSynth();
+  const song = JSON.parse(readFileSync(join(dir, 'music', 'samples.song'), 'utf8'));
+  const wav = decodeWav(readFileSync(join(dir, 'sounds', 'tone.wav')));
+  const samples = synth.renderSong(song, () => undefined, () => ({ samples: toMono(wav.channels), sampleRate: wav.sampleRate }));
+  const editor = synth.checksum(samples);
+  return editor === engine ? null : `the editor renders the song differently: checksum ${editor} (${samples.length} samples), the game ${engine}`;
+}
 
 function noErrors(lines) {
   const bad = lines.find((l) => /^Error: |^exception: /.test(l));

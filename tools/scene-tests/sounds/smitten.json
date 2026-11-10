@@ -1,0 +1,7 @@
+{
+  "format": "smitten.project",
+  "version": 3,
+  "name": "Sound test",
+  "main": "scenes/main.scene",
+  "display": { "width": 640, "height": 360, "stretch": "fit" }
+}

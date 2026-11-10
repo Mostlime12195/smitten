@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace love
@@ -28,6 +29,10 @@ constexpr int SAMPLE_RATE = 44100;
 
 // The longest sound effect rendered, in seconds. Longer envelopes are cut.
 constexpr double MAX_SFX_SECONDS = 60.0;
+
+// The longest sound file a sample instrument reads, in seconds. Longer
+// files are cut.
+constexpr double MAX_SAMPLE_SECONDS = 60.0;
 
 // The longest song rendered (one pass through `order`), in seconds.
 constexpr double MAX_SONG_SECONDS = 30.0 * 60.0;
@@ -86,7 +91,16 @@ enum InstrumentType
 {
 	INSTRUMENT_SYNTH,
 	INSTRUMENT_SFX,
+	INSTRUMENT_SAMPLE,
 	INSTRUMENT_MAX_ENUM
+};
+
+// The sound of a sample instrument: a sound file's samples, mixed to mono,
+// at `rate` samples per second (any rate; notes are resampled from it).
+struct Sample
+{
+	std::vector<float> samples;
+	double rate = SAMPLE_RATE;
 };
 
 struct Instrument
@@ -111,7 +125,23 @@ struct Instrument
 	bool hasSfx = false;
 	SfxParams sfx;
 	bool pitched = false;
+
+	// Sample instruments play a sound file (`sample`; null when it couldn't
+	// be found: the instrument is then silent). A note at `baseNote` plays it
+	// as recorded; each semitone above or below plays it faster or slower
+	// (higher or lower), when `pitched`. With playToEnd, every note plays the
+	// whole sound; without it, a note stops after its length and release.
+	// The envelope, volume, vibrato and lowpass apply as for synth
+	// instruments, with other defaults (sampleDefaults()).
+	std::shared_ptr<const Sample> sample;
+	double baseNote = 60.0;
+	bool playToEnd = true;
 };
+
+// The defaults of a sample instrument's numeric fields (INSTRUMENT_FIELDS):
+// full volume, no attack or decay, full sustain and a short release, so a
+// sound file plays as it is.
+Instrument sampleDefaults();
 
 // Numeric fields of a synth Instrument, as SFX_FIELDS.
 struct InstrumentField

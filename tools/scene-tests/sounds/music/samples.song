@@ -1,0 +1,31 @@
+{
+  "format": "smitten.song",
+  "version": 1,
+  "bpm": 60,
+  "stepsPerBeat": 1,
+  "patternLength": 4,
+  "loop": true,
+  "loopStart": 0,
+  "channels": [
+    { "name": "Voice", "instrument": 0, "volume": 1 },
+    { "name": "Short", "instrument": 1, "volume": 1 },
+    { "name": "Flat", "instrument": 2, "volume": 1 }
+  ],
+  "instruments": [
+    { "name": "Tone", "type": "sample", "sample": "../sounds/tone.wav", "baseNote": 60 },
+    { "name": "Short tone", "type": "sample", "sample": "../sounds/tone", "baseNote": 60, "playToEnd": false, "release": 0 },
+    { "name": "Unpitched", "type": "sample", "sample": "../sounds/tone.wav", "baseNote": 60, "pitched": false, "volume": 0.5 }
+  ],
+  "patterns": [
+    {
+      "name": "Test",
+      "notes": [
+        { "channel": 0, "step": 0, "length": 1, "note": 60 },
+        { "channel": 1, "step": 1, "length": 0.05, "note": 48 },
+        { "channel": 0, "step": 2, "length": 1, "note": 72 },
+        { "channel": 2, "step": 3, "length": 1, "note": 84 }
+      ]
+    }
+  ],
+  "order": [0]
+}

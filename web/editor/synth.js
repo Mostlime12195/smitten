@@ -40,7 +40,7 @@ function encodeSfx(out, params) {
   for (const f of SFX_FIELDS) out.push(num(p[f]));
 }
 
-function encodeSong(song, readSfx) {
+function encodeSong(song, readSfx, readSample) {
   const s = obj(song);
   const channels = list(s.channels).map(obj);
   const instruments = list(s.instruments).map(obj);
@@ -53,7 +53,8 @@ function encodeSong(song, readSfx) {
   for (const c of channels) out.push(num(c.instrument), num(c.volume));
   for (const inst of instruments) {
     const isSfx = inst.type === 'sfx';
-    out.push(isSfx ? 1 : 0, wave(inst.wave));
+    const isSample = inst.type === 'sample';
+    out.push(isSfx ? 1 : isSample ? 2 : 0, wave(inst.wave));
     for (const f of INSTRUMENT_FIELDS) out.push(num(inst[f]));
     let params;
     if (isSfx) {
@@ -65,6 +66,16 @@ function encodeSong(song, readSfx) {
     }
     out.push(bool(inst.pitched), params ? 1 : 0);
     encodeSfx(out, params);
+    let sample = null;
+    if (isSample && typeof inst.sample === 'string' && inst.sample) {
+      sample = readSample?.(inst.sample) ?? null;
+      if (!sample || !(sample.sampleRate > 0) || !sample.samples?.length) sample = null;
+    }
+    out.push(num(inst.baseNote), bool(inst.playToEnd), sample ? sample.sampleRate : NaN, sample ? sample.samples.length : 0);
+    if (sample) {
+      const { samples } = sample;
+      for (let i = 0; i < samples.length; i++) out.push(samples[i]);
+    }
   }
   for (const pattern of patterns) {
     const notes = list(pattern.notes).map(obj);
@@ -112,7 +123,7 @@ export async function loadSynth() {
   const m = await createSynth();
 
   if (m._synth_sfx_size() !== 1 + SFX_FIELDS.length
-      || m._synth_instrument_size() !== 4 + INSTRUMENT_FIELDS.length + 1 + SFX_FIELDS.length) {
+      || m._synth_instrument_size() !== 4 + INSTRUMENT_FIELDS.length + 1 + SFX_FIELDS.length + 4) {
     throw new Error('synth.mjs doesn\'t match synth.js; rebuild with build.py');
   }
 
@@ -143,10 +154,12 @@ export async function loadSynth() {
 
     // song: a decoded .song; readSfx(path) returns the params of a
     // sound-effect instrument's file (path as written in the song), or
-    // undefined (the instrument is then silent). -> Float32Array: one pass
+    // undefined (the instrument is then silent). readSample(path) returns a
+    // sample instrument's sound file as {samples: Float32Array (mono, -1 to
+    // 1), sampleRate}, or undefined (silent). -> Float32Array: one pass
     // through `order`, then whatever still rings.
-    renderSong(song, readSfx) {
-      const values = encodeSong(song, readSfx);
+    renderSong(song, readSfx, readSample) {
+      const values = encodeSong(song, readSfx, readSample);
       return call(values, (ptr, n) => m._synth_render_song(ptr, n, 0));
     },
 

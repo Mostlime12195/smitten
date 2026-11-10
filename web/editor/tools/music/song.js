@@ -37,10 +37,19 @@ export const SYNTH_PARAMS = [
     format: formatLowpass, fromHz: (hz) => Math.log(hz / 100) / Math.log(200), help: 'Low-pass cutoff (100 Hz to 20 kHz); lower is darker' },
 ];
 
+/** Sample instruments (a sound file played at each note's pitch): their sliders and defaults (Synth.cpp, sampleDefaults). */
+export const SAMPLE_DEFAULTS = Object.freeze({
+  volume: 1, attack: 0, decay: 0, sustain: 1, release: 0.05, vibratoDepth: 0, vibratoSpeed: 5, lowpass: 1,
+});
+export const SAMPLE_PARAMS = SYNTH_PARAMS.filter((p) => p.key in SAMPLE_DEFAULTS);
+/** The sound files a sample instrument can use. */
+export const SAMPLE_FILE = /\.(wav|ogg|mp3|flac)$/i;
+
 const SONG_KEYS = ['format', 'version', 'bpm', 'stepsPerBeat', 'patternLength', 'loop', 'loopStart', 'channels', 'instruments', 'patterns', 'order'];
 const CHANNEL_KEYS = ['name', 'instrument', 'volume'];
 const SYNTH_KEYS = ['name', 'type', ...Object.keys(SYNTH_DEFAULTS)];
 const SFX_INSTRUMENT_KEYS = ['name', 'type', 'sfx', 'pitched', 'volume'];
+const SAMPLE_KEYS = ['name', 'type', 'sample', 'baseNote', 'pitched', 'playToEnd', ...Object.keys(SAMPLE_DEFAULTS)];
 const PATTERN_KEYS = ['name', 'notes'];
 const NOTE_KEYS = ['channel', 'step', 'length', 'note', 'volume'];
 
@@ -71,6 +80,14 @@ export function normalizeInstrument(src, i = 0) {
     // volume is optional for sound effect instruments (default 1).
     if (ins.volume !== undefined) ins.volume = num(ins.volume, 1, 0, 1);
     return ordered(ins, SFX_INSTRUMENT_KEYS);
+  }
+  if (ins.type === 'sample') {
+    ins.sample = typeof ins.sample === 'string' ? ins.sample : '';
+    ins.baseNote = int(ins.baseNote, 60, 0, 127);
+    ins.pitched = ins.pitched === undefined ? true : !!ins.pitched;
+    ins.playToEnd = ins.playToEnd === undefined ? true : !!ins.playToEnd;
+    for (const p of SAMPLE_PARAMS) ins[p.key] = num(ins[p.key], SAMPLE_DEFAULTS[p.key], p.min, p.max);
+    return ordered(ins, SAMPLE_KEYS);
   }
   ins.type = 'synth';
   ins.wave = WAVES.includes(ins.wave) ? ins.wave : SYNTH_DEFAULTS.wave;

@@ -197,13 +197,26 @@ local function options(o, pitch)
 	return { volume = o, pitch = pitch }
 end
 
----Plays a sound once; returns its Source.
+local function checkNumber(v, what)
+	if v ~= nil and type(v) ~= "number" then
+		error(("sfx(): %s must be a number, not %s"):format(what, type(v)), 4)
+	end
+	return v
+end
+
+---Plays a sound once; returns its Source. The volume and pitch come as
+---numbers or as an options table ({ volume = 0.5, pitch = 1.2 }); reading
+---them makes no table, so sounds played every frame make no garbage.
 function M.sfx(path, opts, pitch)
-	opts = options(opts, pitch)
+	local volume = opts
+	if type(opts) == "table" then volume, pitch = opts.volume, opts.pitch end
+	volume = checkNumber(volume, "volume") or 1
+	pitch = checkNumber(pitch, "pitch") or 1
 	local snd = assets.audio(path)
 	local src = newSource(snd)
-	src:setVolume(opts.volume or 1)
-	src:setPitch(opts.pitch or 1)
+	src:setVolume(math.max(0, volume))
+	-- The engine cannot play at pitch 0 or less (random pitches can get there).
+	src:setPitch(math.max(0.01, pitch))
 	src:play()
 	return src
 end
