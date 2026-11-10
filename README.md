@@ -82,7 +82,7 @@ end
 | `build.py` | The build script. It reads the lists of source files from `love/CMakeLists.txt` |
 | `serve.py` | A local development server |
 | `package.py` | A command-line web export for a project folder or a zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `clip-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -327,6 +327,10 @@ Tests:
   editor, in a headless Chrome. It finds the **Sprites** workspace and
   **New** > **Sprite**. It draws two strokes while the editor saves, and
   checks that the saved PNG has all of each stroke.
+- `node tools/clip-tests/test.mjs`: clips (`web/player/clips.js`). It
+  tests the GIF encoder (it decodes each GIF again), the reading, joining,
+  cutting and writing of WebM files, and the ring of recordings, with a
+  clock and a recorder that the test makes.
 - `tools/scene-tests/`: scenes that run in the engine.
   - `smoke`: pieces, bodies and zones, scripts and all of the script API.
     The script API includes input, tiles, camera, sprites, particles,
@@ -372,7 +376,8 @@ Tests:
   themselves. `errors` checks what the engine tells you when a script has
   a mistake. `lights` checks what lights and shadows draw. `boards`
   and `boards-site` check `smitten.boards` without the games site, and in
-  a page that acts as the games site.
+  a page that acts as the games site. `clips` clicks **Record** in the web
+  player, saves a video and a GIF, and checks the downloaded files.
 - `python3 tools/serve_test.py` tests `serve.py`. CI
   (`.github/workflows/ci.yml`) runs all of these tests on each push, and
   keeps the built `dist/` as an artifact.

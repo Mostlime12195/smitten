@@ -23,7 +23,8 @@ all the steps of a small game, in approximately fifteen minutes.
   [Random and noise](random.md), [Saving](saving.md) and
   [Drawing](drawing.md).
 - [Sharing and publishing](sharing.md) tells how to put a game on the games
-  site. [Leaderboards](leaderboards.md) tells how to add shared high scores
+  site. [Clips](clips.md) tells how to save the last seconds of a game as a
+  video or a GIF. [Leaderboards](leaderboards.md) tells how to add shared high scores
   to a game on the games site.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference.
   They show each function that a script can call, and each property of each

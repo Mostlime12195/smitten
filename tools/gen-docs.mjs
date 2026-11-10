@@ -42,7 +42,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'], ['sprite-editor', 'Sprite editor'],
       ['camera', 'Camera'], ['backgrounds', 'Backgrounds'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['text', 'Text'], ['ui', 'UI'], ['animation', 'Animation'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['random', 'Random and noise'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['leaderboards', 'Leaderboards'], ['older-projects', 'Older projects']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['clips', 'Clips'], ['leaderboards', 'Leaderboards'], ['older-projects', 'Older projects']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],

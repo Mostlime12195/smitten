@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clips · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Clips.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor">Sprite editor</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="clips" aria-current="page">Clips</a><ul class="nav-sub"><li><a href="#recording-and-saving-a-clip">Recording and saving a clip</a></li><li><a href="#where-you-can-record">Where you can record</a></li><li><a href="#video-or-gif">Video or GIF</a></li><li><a href="#limits">Limits</a></li></ul></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Clips</h1>
+<p>A <strong>clip</strong> is the last seconds of a running game, saved as a file. You can save a clip as a video (with sound) or as a GIF. Then you can show your game to other people, for example in a chat or on a page about your game.</p>
+<p>Smitten does not record until you tell it to. When you click <strong>Record</strong>, Smitten keeps the last 10 seconds of the game. When you save a clip, the browser downloads these seconds as a file. Smitten does not upload the clip.</p>
+<h2 id="recording-and-saving-a-clip"><a class="anchor" href="#recording-and-saving-a-clip" aria-hidden="true">#</a>Recording and saving a clip</h2>
+<ol><li>Start the game.</li><li>Click <strong>Record</strong>. Smitten starts to keep the last seconds.</li><li>Play the game.</li><li>Click <strong>Clip</strong>.</li><li>Select <strong>Video (WebM, with sound)</strong> or <strong>GIF</strong>.</li></ol>
+<p>You can also press a key while Smitten records:</p>
+<div class="table"><table>
+<thead><tr><th>Key</th><th>What it saves</th></tr></thead>
+<tbody><tr><td>F9</td><td>A video</td></tr>
+<tr><td>Shift+F9</td><td>A GIF</td></tr></tbody>
+</table></div>
+<p>To stop the recording, click <strong>Record</strong> again.</p>
+<p>The file name is the title of the game and the time, for example <code>Lamplight 2026-11-10 14-03-05.webm</code>. A GIF takes some seconds to make. The web player shows the progress at the bottom right.</p>
+<h2 id="where-you-can-record"><a class="anchor" href="#where-you-can-record" aria-hidden="true">#</a>Where you can record</h2>
+<div class="table"><table>
+<thead><tr><th>Where</th><th>Buttons</th></tr></thead>
+<tbody><tr><td>The editor</td><td><strong>Record</strong> and <strong>Clip</strong> in the bar above the game</td></tr>
+<tr><td>The web player (an exported game, or the page of a game on the games site)</td><td>The record button and the save button at the bottom right of the game. Move the mouse pointer over the game to show them</td></tr></tbody>
+</table></div>
+<p>In the web player, a small red dot at the bottom right shows that Smitten records.</p>
+<p>In the editor, <strong>Record</strong> stays on for the next runs of the game, until you click it again. To change this, open <strong>Editor settings › Running</strong>:</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><strong>Record clips</strong></td><td>When this is on, Smitten records each run from the start</td></tr>
+<tr><td><strong>Clip length</strong></td><td>How many seconds a clip keeps: 3 to 60. The default is 10</td></tr></tbody>
+</table></div>
+<p>A web player can also record from the start. Add <code>record=1</code> to the address of <code>player.html</code> (or of the <code>index.html</code> of an exported game). Add <code>clipSeconds=5</code> to change the length, for example <code>index.html?record=1&amp;clipSeconds=5</code>.</p>
+<h2 id="video-or-gif"><a class="anchor" href="#video-or-gif" aria-hidden="true">#</a>Video or GIF</h2>
+<div class="table"><table>
+<thead><tr><th></th><th>Video (WebM)</th><th>GIF</th></tr></thead>
+<tbody><tr><td>Sound</td><td>Yes, if the browser plays the sound of the game</td><td>No</td></tr>
+<tr><td>Frames per second</td><td>30 at most</td><td>15 at most</td></tr>
+<tr><td>Size</td><td>960 pixels wide or high at most, and at most 960 × 540 pixels in all</td><td>480 pixels wide or high at most (640 for pixel art)</td></tr>
+<tr><td>Colors</td><td>All</td><td>255 at most</td></tr>
+<tr><td>Where it plays</td><td>Browsers, VLC, Discord and most video programs</td><td>Everywhere</td></tr></tbody>
+</table></div>
+<p>If a game uses the <code>pixel</code> stretch (see <a href="settings">Project settings</a>), the clip shows the game without the bars around it. Each pixel of the game is a square of the same size in the clip, so the pixel art stays sharp.</p>
+<h2 id="limits"><a class="anchor" href="#limits" aria-hidden="true">#</a>Limits</h2>
+<ul><li>Clips work in Chrome, Edge and Firefox. We did not test Safari. If a browser cannot record a WebM video, Smitten does not show the record button.</li><li>On phones and tablets, the web player does not show its buttons, because there is no mouse pointer. Because of this, you cannot record there.</li><li>If the browser has not started the sound of the game, the video has no sound. Browsers start the sound after a click or a key press in the game.</li><li>While Smitten records, the browser encodes the video. On a slow computer, this can make the game slower. When you do not need a clip, stop the recording.</li><li>A clip shows only the game. It does not show the page around the game or the mouse pointer.</li><li>While Smitten records, the game does not get F9.</li><li>A GIF has a maximum of 255 colors. Smooth color gradients can show steps.</li><li>Scripts cannot start a recording or save a clip. Only the person who plays can do this.</li></ul>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="sharing"><span>Previous</span>Sharing and publishing</a><a class="next" href="leaderboards"><span>Next</span>Leaderboards</a></nav>
+  </main>
+</div>
+</body>
+</html>
