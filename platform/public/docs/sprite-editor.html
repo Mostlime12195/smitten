@@ -25,7 +25,7 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor" aria-current="page">Sprite editor</a><ul class="nav-sub"><li><a href="#open-the-sprite-editor">Open the sprite editor</a></li><li><a href="#the-parts-of-the-sprite-editor">The parts of the sprite editor</a></li></ul></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="clips">Clips</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor" aria-current="page">Sprite editor</a><ul class="nav-sub"><li><a href="#open-the-sprite-editor">Open the sprite editor</a></li><li><a href="#the-parts-of-the-sprite-editor">The parts of the sprite editor</a></li><li><a href="#keys-and-mouse">Keys and mouse</a></li></ul></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="clips">Clips</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Sprite editor</h1>
@@ -45,6 +45,38 @@
 <tr><td>Frames</td><td>The bar at the bottom</td><td>The animation frames of the image. Drag a frame to move it</td></tr></tbody>
 </table></div>
 <p>The editor saves your changes automatically, a short time after each change. To save immediately, press Ctrl+S.</p>
+<h2 id="keys-and-mouse"><a class="anchor" href="#keys-and-mouse" aria-hidden="true">#</a>Keys and mouse</h2>
+<p>The keys work while the sprite editor has the keyboard focus. Click the canvas to give it the keyboard focus. On a Mac, use Cmd for Ctrl.</p>
+<div class="table"><table>
+<thead><tr><th>Key or mouse</th><th>What it does</th></tr></thead>
+<tbody><tr><td>B, E, G, I, L, M, O</td><td>The brush, the eraser, fill, the color picker, the line, select and the origin</td></tr>
+<tr><td>U</td><td>The rectangle. Press U again for the ellipse. Shift+U selects the ellipse</td></tr>
+<tr><td>Left mouse button</td><td>Paints with the first color</td></tr>
+<tr><td>Right mouse button</td><td>Paints with the second color</td></tr>
+<tr><td>Alt+click</td><td>Picks the color under the mouse pointer, with all tools</td></tr>
+<tr><td>Shift+click</td><td>Draws a straight line from the last point (brush and eraser)</td></tr>
+<tr><td>Shift while you drag</td><td>Lines snap to 45 degrees. Rectangles become squares, and ellipses become circles</td></tr>
+<tr><td>[ and ]</td><td>Makes the brush smaller or bigger</td></tr>
+<tr><td>Shift+[ and Shift+]</td><td>Makes the edge of a smooth brush softer or harder</td></tr>
+<tr><td>X</td><td>Swaps the two colors</td></tr>
+<tr><td>Scroll</td><td>Zooms in or out at the mouse pointer. Ctrl+scroll and a pinch on a touchpad also zoom</td></tr>
+<tr><td>Drag while you hold Space, or drag with the middle mouse button</td><td>Moves the view</td></tr>
+<tr><td>+ and -</td><td>Zooms in or out</td></tr>
+<tr><td>0</td><td>Fits the image in the view</td></tr>
+<tr><td>1</td><td>Zooms to 100%</td></tr>
+<tr><td>, and .</td><td>Goes to the frame before or the frame after</td></tr>
+<tr><td>Ctrl+Z</td><td>Undo</td></tr>
+<tr><td>Ctrl+Shift+Z or Ctrl+Y</td><td>Redo</td></tr>
+<tr><td>Ctrl+A and Ctrl+D</td><td>Selects all of the image, and removes the selection</td></tr>
+<tr><td>Ctrl+C, Ctrl+X and Ctrl+V</td><td>Copy, cut and paste. You can paste on a different frame or a different image</td></tr>
+<tr><td>Arrow keys</td><td>Move the selected pixels by 1 pixel (with Shift, by 8 pixels). With no selection, Left and Right go to the frame before or after</td></tr>
+<tr><td>Delete</td><td>Deletes the selected pixels</td></tr>
+<tr><td>Enter</td><td>Puts down the selected pixels that you move</td></tr>
+<tr><td>Escape</td><td>Puts down the selected pixels and removes the selection</td></tr>
+<tr><td>Shift+H and Shift+V</td><td>Flips the selection (or all of the image) left to right, or top to bottom</td></tr>
+<tr><td>Ctrl+S</td><td>Saves now</td></tr></tbody>
+</table></div>
+<p>When the mouse pointer goes out of the canvas during a stroke, the stroke continues. Each stroke is one step for undo.</p>
 <p>To use an image in a scene, drag the file from the <strong>Files</strong> panel into the scene view. The editor makes a <code>Sprite</code> piece that shows it.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sound"><span>Previous</span>Sound and music</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>

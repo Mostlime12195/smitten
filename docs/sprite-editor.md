@@ -35,5 +35,42 @@ new sprite, click **+** at the right of the tabs.
 The editor saves your changes automatically, a short time after each
 change. To save immediately, press Ctrl+S.
 
+## Keys and mouse
+
+The keys work while the sprite editor has the keyboard focus. Click the
+canvas to give it the keyboard focus. On a Mac, use Cmd for Ctrl.
+
+| Key or mouse | What it does |
+| --- | --- |
+| B, E, G, I, L, M, O | The brush, the eraser, fill, the color picker, the line, select and the origin |
+| U | The rectangle. Press U again for the ellipse. Shift+U selects the ellipse |
+| Left mouse button | Paints with the first color |
+| Right mouse button | Paints with the second color |
+| Alt+click | Picks the color under the mouse pointer, with all tools |
+| Shift+click | Draws a straight line from the last point (brush and eraser) |
+| Shift while you drag | Lines snap to 45 degrees. Rectangles become squares, and ellipses become circles |
+| [ and ] | Makes the brush smaller or bigger |
+| Shift+[ and Shift+] | Makes the edge of a smooth brush softer or harder |
+| X | Swaps the two colors |
+| Scroll | Zooms in or out at the mouse pointer. Ctrl+scroll and a pinch on a touchpad also zoom |
+| Drag while you hold Space, or drag with the middle mouse button | Moves the view |
+| + and - | Zooms in or out |
+| 0 | Fits the image in the view |
+| 1 | Zooms to 100% |
+| , and . | Goes to the frame before or the frame after |
+| Ctrl+Z | Undo |
+| Ctrl+Shift+Z or Ctrl+Y | Redo |
+| Ctrl+A and Ctrl+D | Selects all of the image, and removes the selection |
+| Ctrl+C, Ctrl+X and Ctrl+V | Copy, cut and paste. You can paste on a different frame or a different image |
+| Arrow keys | Move the selected pixels by 1 pixel (with Shift, by 8 pixels). With no selection, Left and Right go to the frame before or after |
+| Delete | Deletes the selected pixels |
+| Enter | Puts down the selected pixels that you move |
+| Escape | Puts down the selected pixels and removes the selection |
+| Shift+H and Shift+V | Flips the selection (or all of the image) left to right, or top to bottom |
+| Ctrl+S | Saves now |
+
+When the mouse pointer goes out of the canvas during a stroke, the stroke
+continues. Each stroke is one step for undo.
+
 To use an image in a scene, drag the file from the **Files** panel into the
 scene view. The editor makes a `Sprite` piece that shows it.
