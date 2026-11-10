@@ -1,6 +1,7 @@
 # Script API
 
-Names a script can use without `smitten.`. How names resolve: [Scripts](scripts.md#names).
+A script can use these names without `smitten.`. [Scripts](scripts.md#how-names-are-found) tells
+how the engine finds a name.
 
 ## Input
 
@@ -137,7 +138,7 @@ See [Drawing](drawing.md).
 
 ## Script functions
 
-Called by the engine when a script defines them.
+The engine calls these functions when a script has them.
 
 | Function | Pieces | |
 | --- | --- | --- |

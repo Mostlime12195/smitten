@@ -114,9 +114,10 @@ function piecesPage() {
   const out = [
     '# Pieces',
     '',
-    'Each piece has its own properties plus its base type\'s. In its own script:',
-    '`x = 10`, `move()`, `function clicked() end`. On another piece: `other.x`,',
-    '`other:move()`, `other:on("clicked", fn)`. Angles are degrees, in code and',
+    'Each piece has its own properties and the properties of its base type. In the',
+    'script of the piece, use the names directly: `x = 10`, `move()`,',
+    '`function clicked() end`. For a different piece, use the piece: `other.x`,',
+    '`other:move()`, `other:on("clicked", fn)`. Angles are in degrees, in code and',
     'in the Inspector.',
     '',
   ];
@@ -126,8 +127,8 @@ function piecesPage() {
       out.push(`### ${name}`, '', def.description, '');
       const notes = [];
       if (def.extends) notes.push(`Extends [${def.extends}](#${def.extends.toLowerCase()}).`);
-      if (def.abstract) notes.push('A base for other types; not added itself.');
-      if (def.parent) notes.push(`Goes inside a ${def.parent.join(' or ')}.`);
+      if (def.abstract) notes.push('A base for other piece types. You do not add it to a scene yourself.');
+      if (def.parent) notes.push(`Put it inside a ${def.parent.join(' or ')}.`);
       if (def.module) notes.push(`Uses the ${MODULE_NOTES[def.module] || def.module} module.`);
       if (notes.length) out.push(notes.join(' '), '');
       out.push(...pieceTables(name));
@@ -140,13 +141,14 @@ function apiPage() {
   const out = [
     '# Script API',
     '',
-    'Names a script can use without `smitten.`. How names resolve: [Scripts](scripts.md#names).',
+    'A script can use these names without `smitten.`. [Scripts](scripts.md#how-names-are-found) tells',
+    'how the engine finds a name.',
     '',
   ];
   for (const g of SCRIPT_API_GROUPS) {
     out.push(`## ${g.name}`, '', `See [${TITLES[g.page]}](${g.page}.md).`, '', ...apiTable(g.name));
   }
-  out.push('## Script functions', '', 'Called by the engine when a script defines them.', '');
+  out.push('## Script functions', '', 'The engine calls these functions when a script has them.', '');
   const events = new Map();
   for (const [type, def] of Object.entries(schema.types)) {
     for (const [e, d] of Object.entries(def.events || {})) {
@@ -168,11 +170,12 @@ function enginePage() {
   const out = [
     '# The engine table',
     '',
-    '`smitten` holds the engine: drawing (`smitten.graphics`), sound (`smitten.audio`,',
-    '`smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`, `smitten.joystick`,',
-    '`smitten.touch`), files (`smitten.filesystem`), `smitten.math`, `smitten.timer`,',
-    '`smitten.window` and the rest, and Smitten\'s own modules. This page lists Smitten\'s',
-    'modules and the helpers it adds to the others.',
+    '`smitten` holds the engine. It has drawing (`smitten.graphics`), sound',
+    '(`smitten.audio`, `smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`,',
+    '`smitten.joystick`, `smitten.touch`) and files (`smitten.filesystem`). It also has',
+    '`smitten.math`, `smitten.timer`, `smitten.window`, the other modules, and Smitten\'s own',
+    'modules. This page gives Smitten\'s own modules, and the helpers that Smitten adds to',
+    'the other modules.',
     '',
     '## Smitten\'s modules',
     '',
@@ -180,15 +183,15 @@ function enginePage() {
   const intro = {
     scene: 'See [Scenes and pieces](scenes.md).',
     input: 'See [Input](input.md).',
-    tween: '`smitten.tween(target, seconds, values, easing)`. Easings: [Scripts](scripts.md#waiting).',
-    assets: 'Loads and caches files. Paths are relative to the project folder.',
+    tween: '`smitten.tween(target, seconds, values, easing)`. The easings are in [Scripts](scripts.md#waiting).',
+    assets: 'Loads files and keeps them in memory. Paths are relative to the project folder.',
     storage: 'See [Saving](saving.md).',
     display: 'See [Project settings](settings.md).',
     boards: 'Leaderboards on the games site. See [Leaderboards](leaderboards.md).',
-    json: 'JSON text to Lua values and back.',
-    physics: 'Queries on the running scene\'s physics. See [Physics](physics.md).',
-    paths: 'Finding a way from one place to another. See [Pathfinding](pathfinding.md).',
-    text: 'Rich text, measuring and effects. See [Text](text.md).',
+    json: 'Changes JSON text to Lua values, and Lua values to JSON text.',
+    physics: 'Queries about the physics of the scene that runs. See [Physics](physics.md).',
+    paths: 'Finds a way from one place to another. See [Pathfinding](pathfinding.md).',
+    text: 'Rich text, text measurement and text effects. See [Text](text.md).',
     synth: 'See [Sound and music](sound.md).',
   };
   for (const mod of Object.keys(SMITTEN_MODULES)) {

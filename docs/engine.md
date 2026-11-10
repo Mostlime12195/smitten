@@ -1,10 +1,11 @@
 # The engine table
 
-`smitten` holds the engine: drawing (`smitten.graphics`), sound (`smitten.audio`,
-`smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`, `smitten.joystick`,
-`smitten.touch`), files (`smitten.filesystem`), `smitten.math`, `smitten.timer`,
-`smitten.window` and the rest, and Smitten's own modules. This page lists Smitten's
-modules and the helpers it adds to the others.
+`smitten` holds the engine. It has drawing (`smitten.graphics`), sound
+(`smitten.audio`, `smitten.sound`), input devices (`smitten.keyboard`, `smitten.mouse`,
+`smitten.joystick`, `smitten.touch`) and files (`smitten.filesystem`). It also has
+`smitten.math`, `smitten.timer`, `smitten.window`, the other modules, and Smitten's own
+modules. This page gives Smitten's own modules, and the helpers that Smitten adds to
+the other modules.
 
 ## Smitten's modules
 
@@ -70,7 +71,7 @@ See [Input](input.md).
 
 ### smitten.tween
 
-`smitten.tween(target, seconds, values, easing)`. Easings: [Scripts](scripts.md#waiting).
+`smitten.tween(target, seconds, values, easing)`. The easings are in [Scripts](scripts.md#waiting).
 
 | Function | |
 | --- | --- |
@@ -81,7 +82,7 @@ See [Input](input.md).
 
 ### smitten.assets
 
-Loads and caches files. Paths are relative to the project folder.
+Loads files and keeps them in memory. Paths are relative to the project folder.
 
 | Function | |
 | --- | --- |
@@ -133,7 +134,7 @@ Leaderboards on the games site. See [Leaderboards](leaderboards.md).
 
 ### smitten.json
 
-JSON text to Lua values and back.
+Changes JSON text to Lua values, and Lua values to JSON text.
 
 | Function | |
 | --- | --- |
@@ -144,7 +145,7 @@ Fields: `null`.
 
 ### smitten.physics
 
-Queries on the running scene's physics. See [Physics](physics.md).
+Queries about the physics of the scene that runs. See [Physics](physics.md).
 
 | Function | |
 | --- | --- |
@@ -157,7 +158,7 @@ Queries on the running scene's physics. See [Physics](physics.md).
 
 ### smitten.paths
 
-Finding a way from one place to another. See [Pathfinding](pathfinding.md).
+Finds a way from one place to another. See [Pathfinding](pathfinding.md).
 
 | Function | |
 | --- | --- |
@@ -176,7 +177,7 @@ Finding a way from one place to another. See [Pathfinding](pathfinding.md).
 
 ### smitten.text
 
-Rich text, measuring and effects. See [Text](text.md).
+Rich text, text measurement and text effects. See [Text](text.md).
 
 | Function | |
 | --- | --- |
