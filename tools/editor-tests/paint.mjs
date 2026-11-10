@@ -253,7 +253,7 @@ try {
   await key('0', 'Digit0', 48);
   await frame();
   const z2 = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`)) / 100;
-  check('pen: a smooth brush has pressure on size by default', await page.eval(`${spr}.querySelector('select[aria-label="Pen pressure"]').value`) === 'size');
+  check('pen: a smooth brush has pressure on size by default', await page.eval(`${spr}.querySelector('.spr-pen-btn').dataset.mode`) === 'size');
   const pen = (type, x, y, force, button = 'left', buttons = 1) => page.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' && !buttons ? 'none' : button, buttons, clickCount: 1, pointerType: 'pen', force, tiltX: 10, tiltY: -5 });
   const penStroke = async (y, force) => {
     await pen('mouseMoved', cx - 80 * z2, y, 0, 'none', 0);
@@ -331,7 +331,7 @@ try {
   await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
   // Pixel brushes keep no pressure by default.
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Pixel')`);
-  check('pen: a pixel brush has no pressure by default', await page.eval(`${spr}.querySelector('select[aria-label="Pen pressure"]').value`) === 'off');
+  check('pen: a pixel brush has no pressure by default', await page.eval(`${spr}.querySelector('.spr-pen-btn').dataset.mode`) === 'off');
   await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Smooth')`);
   await shot('pen');
 

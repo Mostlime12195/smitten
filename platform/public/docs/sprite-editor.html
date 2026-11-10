@@ -37,12 +37,12 @@
 <h2 id="the-parts-of-the-sprite-editor"><a class="anchor" href="#the-parts-of-the-sprite-editor" aria-hidden="true">#</a>The parts of the sprite editor</h2>
 <div class="table"><table>
 <thead><tr><th>Part</th><th>Where</th><th>What it does</th></tr></thead>
-<tbody><tr><td>Tools</td><td>The column at the left</td><td>Brush, eraser, fill, color picker, line, rectangle, ellipse and select</td></tr>
-<tr><td>Tool options</td><td>The bar at the top</td><td>The size, the opacity and the other options of the tool. At the right: the mirror buttons, the image size, undo, redo and <strong>More</strong> (the menu with the other commands)</td></tr>
-<tr><td>Canvas</td><td>The middle</td><td>The image. Scroll to zoom. To move the view, drag while you hold Space</td></tr>
+<tbody><tr><td>Tools</td><td>The column at the left</td><td>Brush, eraser, fill, color picker, line, rectangle, ellipse and select. Under them: the two mirror buttons</td></tr>
+<tr><td>Tool options</td><td>The bar at the top</td><td>The size, the opacity and the other options of the tool. At the right: undo, redo and <strong>More</strong> (the menu with the other commands)</td></tr>
+<tr><td>Canvas</td><td>The middle</td><td>The image. Scroll to zoom. To move the view, drag while you hold Space. At the bottom right: the image size, the pixel grid and the zoom</td></tr>
 <tr><td>Color</td><td>The panel at the right</td><td>The color of the left mouse button, the color of the right mouse button, the recent colors and a palette</td></tr>
 <tr><td>Preview and animations</td><td>The panel at the right</td><td>The animation as the game plays it, and the list of animations</td></tr>
-<tr><td>Frames</td><td>The bar at the bottom</td><td>The animation frames of the image. Drag a frame to move it</td></tr></tbody>
+<tr><td>Frames</td><td>The bar at the bottom</td><td>The animation frames of the image. Drag a frame to move it. The onion skin button shows the frames before and after the current frame</td></tr></tbody>
 </table></div>
 <p>The editor saves your changes automatically, a short time after each change. To save immediately, press Ctrl+S.</p>
 <h2 id="keys-and-mouse"><a class="anchor" href="#keys-and-mouse" aria-hidden="true">#</a>Keys and mouse</h2>
@@ -80,16 +80,16 @@
 <h2 id="pen-and-touch"><a class="anchor" href="#pen-and-touch" aria-hidden="true">#</a>Pen and touch</h2>
 <p>You can draw with a pen on a tablet or on a touch screen.</p>
 <ul><li>The pen paints the same as the left mouse button.</li><li>The eraser end of the pen erases, with all tools.</li><li>The side button of the pen picks the color under the pen.</li><li>While the pen is on or near the screen, the editor ignores fingers. Because of this, your hand can lie on the screen while you draw.</li><li>With two fingers, drag to move the view, and pinch to zoom.</li></ul>
-<p>The pressure of the pen can change the brush and the eraser. Set <strong>Pen</strong> in the tool options:</p>
+<p>The pressure of the pen can change the brush and the eraser. Click the <strong>Pen</strong> button in the tool options. Then select what the pressure changes:</p>
 <div class="table"><table>
-<thead><tr><th>Pen</th><th>What the pressure changes</th></tr></thead>
-<tbody><tr><td><strong>No pressure</strong></td><td>Nothing. Each stroke has the full size and opacity</td></tr>
-<tr><td><strong>Pressure: size</strong></td><td>The size of the brush. A light touch makes a thin line</td></tr>
-<tr><td><strong>Pressure: opacity</strong></td><td>The opacity of the stroke. A light touch makes a faint line</td></tr>
-<tr><td><strong>Pressure: both</strong></td><td>The size and the opacity</td></tr></tbody>
+<thead><tr><th>Pressure changes</th><th>What a light touch does</th></tr></thead>
+<tbody><tr><td><strong>Nothing</strong></td><td>Each stroke has the full size and opacity</td></tr>
+<tr><td><strong>Size</strong></td><td>A light touch makes a thin line</td></tr>
+<tr><td><strong>Opacity</strong></td><td>A light touch makes a faint line</td></tr>
+<tr><td><strong>Size and opacity</strong></td><td>A light touch makes a thin, faint line</td></tr></tbody>
 </table></div>
-<p><strong>Lightest</strong> sets how much of the size or the opacity the lightest touch gives. At 100%, the pressure changes nothing.</p>
-<p>The brush and the eraser each keep their own <strong>Pen</strong> setting, for smooth brushes and for pixel brushes. For smooth brushes, the default is <strong>Pressure: size</strong>. For pixel brushes, the default is <strong>No pressure</strong>, so pixel art keeps hard, even lines. The pressure does not change strokes that you make with a mouse.</p>
+<p><strong>Lightest touch gives</strong> in the same menu sets how much of the size or the opacity the lightest touch gives. At 0%, the lightest touch paints almost nothing.</p>
+<p>The brush and the eraser each keep their own <strong>Pen</strong> setting, for smooth brushes and for pixel brushes. For smooth brushes, the default is <strong>Size</strong>. For pixel brushes, the default is <strong>Nothing</strong>, so pixel art keeps hard, even lines. The pressure does not change strokes that you make with a mouse.</p>
 <p>To use an image in a scene, drag the file from the <strong>Files</strong> panel into the scene view. The editor makes a <code>Sprite</code> piece that shows it.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sound"><span>Previous</span>Sound and music</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>

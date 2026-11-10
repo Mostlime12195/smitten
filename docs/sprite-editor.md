@@ -25,12 +25,12 @@ new sprite, click **+** at the right of the tabs.
 
 | Part | Where | What it does |
 | --- | --- | --- |
-| Tools | The column at the left | Brush, eraser, fill, color picker, line, rectangle, ellipse and select |
-| Tool options | The bar at the top | The size, the opacity and the other options of the tool. At the right: the mirror buttons, the image size, undo, redo and **More** (the menu with the other commands) |
-| Canvas | The middle | The image. Scroll to zoom. To move the view, drag while you hold Space |
+| Tools | The column at the left | Brush, eraser, fill, color picker, line, rectangle, ellipse and select. Under them: the two mirror buttons |
+| Tool options | The bar at the top | The size, the opacity and the other options of the tool. At the right: undo, redo and **More** (the menu with the other commands) |
+| Canvas | The middle | The image. Scroll to zoom. To move the view, drag while you hold Space. At the bottom right: the image size, the pixel grid and the zoom |
 | Color | The panel at the right | The color of the left mouse button, the color of the right mouse button, the recent colors and a palette |
 | Preview and animations | The panel at the right | The animation as the game plays it, and the list of animations |
-| Frames | The bar at the bottom | The animation frames of the image. Drag a frame to move it |
+| Frames | The bar at the bottom | The animation frames of the image. Drag a frame to move it. The onion skin button shows the frames before and after the current frame |
 
 The editor saves your changes automatically, a short time after each
 change. To save immediately, press Ctrl+S.
@@ -83,24 +83,25 @@ You can draw with a pen on a tablet or on a touch screen.
   Because of this, your hand can lie on the screen while you draw.
 - With two fingers, drag to move the view, and pinch to zoom.
 
-The pressure of the pen can change the brush and the eraser. Set **Pen**
-in the tool options:
+The pressure of the pen can change the brush and the eraser. Click the
+**Pen** button in the tool options. Then select what the pressure changes:
 
-| Pen | What the pressure changes |
+| Pressure changes | What a light touch does |
 | --- | --- |
-| **No pressure** | Nothing. Each stroke has the full size and opacity |
-| **Pressure: size** | The size of the brush. A light touch makes a thin line |
-| **Pressure: opacity** | The opacity of the stroke. A light touch makes a faint line |
-| **Pressure: both** | The size and the opacity |
+| **Nothing** | Each stroke has the full size and opacity |
+| **Size** | A light touch makes a thin line |
+| **Opacity** | A light touch makes a faint line |
+| **Size and opacity** | A light touch makes a thin, faint line |
 
-**Lightest** sets how much of the size or the opacity the lightest touch
-gives. At 100%, the pressure changes nothing.
+**Lightest touch gives** in the same menu sets how much of the size or the
+opacity the lightest touch gives. At 0%, the lightest touch paints almost
+nothing.
 
 The brush and the eraser each keep their own **Pen** setting, for smooth
 brushes and for pixel brushes. For smooth brushes, the default is
-**Pressure: size**. For pixel brushes, the default is **No pressure**, so
-pixel art keeps hard, even lines. The pressure does not change strokes
-that you make with a mouse.
+**Size**. For pixel brushes, the default is **Nothing**, so pixel art
+keeps hard, even lines. The pressure does not change strokes that you make
+with a mouse.
 
 To use an image in a scene, drag the file from the **Files** panel into the
 scene view. The editor makes a `Sprite` piece that shows it.

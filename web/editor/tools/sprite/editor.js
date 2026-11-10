@@ -33,6 +33,8 @@ const MAX_RECENT = 16;
 // copies it to the screen. Zoomed in, drawing the pixels that show is cheap.
 const CACHE_MAX_PIXELS = 6 * 1024 * 1024;
 const ZOOM_SETTLE_MS = 160; // while you zoom, the kept image is stretched; it is drawn sharp this long after the last step
+const PRESSURE_LABELS = { off: 'Nothing', size: 'Size', opacity: 'Opacity', both: 'Size and opacity' };
+const PRESSURE_SHORT = { off: 'Pen: off', size: 'Pen: size', opacity: 'Pen: opacity', both: 'Pen: both' };
 const PEN_GRACE_MS = 1000; // fingers are ignored this long after the pen was last seen
 
 const TOOLS = [
@@ -226,6 +228,20 @@ export class SpriteEditor {
   }
 
   get size() { return this.sizes[this.mode]; }
+
+  /** The Pen menu: what pressure changes, and how much the lightest touch gives. */
+  pressureMenu() {
+    const key = `${this.tool === 'eraser' ? 'eraser' : 'brush'}:${this.mode}`;
+    const now = this.pressureMode();
+    const set = (fn) => () => { fn(); this.persist(); this.renderOptions(); this.element.focus({ preventScroll: true }); };
+    this.ui.showMenu(this.optPressure, [
+      { heading: 'Pen pressure changes' },
+      ...Object.entries(PRESSURE_LABELS).map(([mode, label]) => ({ label, checked: mode === now, action: set(() => { this.pressure[key] = mode; }) })),
+      '-',
+      { heading: 'Lightest touch gives' },
+      ...[0, 10, 25, 50, 75].map((v) => ({ label: `${v}%`, checked: this.pressureMin === v, disabled: now === 'off', action: set(() => { this.pressureMin = v; }) })),
+    ]);
+  }
 
   /** What pen pressure changes for the brush or the eraser in the current mode (off for pixel brushes unless you turn it on). */
   pressureMode(tool = this.tool) {
@@ -438,18 +454,10 @@ export class SpriteEditor {
     this.optSize = this.slider({ label: 'Size', min: 1, max: MAX_BRUSH, unit: 'px', curve: 2.2, title: 'Brush size ([ and ])', onInput: (v) => this.setSize(v) });
     this.optHardness = this.slider({ label: 'Hardness', min: 0, max: 100, unit: '%', title: 'How sharp the brush edge is (Shift+[ and Shift+])', onInput: (v) => this.setHardness(v) });
     this.optOpacity = this.slider({ label: 'Opacity', min: 1, max: 100, unit: '%', title: 'Opacity of each stroke', onInput: (v) => this.setOpacity(v) });
-    this.optPressure = h('label', { class: 'spr-check', title: 'What the pressure of a pen changes. A mouse always paints at the full size and opacity.' },
-      h('span', {}, 'Pen'),
-      this.pressureSelect = h('select', { class: 'spr-select', 'aria-label': 'Pen pressure' },
-        h('option', { value: 'off' }, 'No pressure'), h('option', { value: 'size' }, 'Pressure: size'),
-        h('option', { value: 'opacity' }, 'Pressure: opacity'), h('option', { value: 'both' }, 'Pressure: both')));
-    this.pressureSelect.addEventListener('change', () => {
-      this.pressure[`${this.tool === 'eraser' ? 'eraser' : 'brush'}:${this.mode}`] = this.pressureSelect.value;
-      this.persist();
-      this.renderOptions();
-      this.element.focus({ preventScroll: true });
-    });
-    this.optPressureMin = this.slider({ label: 'Lightest', min: 0, max: 100, unit: '%', title: 'How much of the size or opacity the lightest touch of the pen gives', onInput: (v) => { this.pressureMin = v; this.persist(); this.renderOptions(); } });
+    // Pen pressure: a small button with a menu (it is set once, so it takes little room).
+    this.optPressure = h('button', { type: 'button', class: 'spr-btn spr-pen-btn', 'aria-haspopup': 'menu',
+      title: 'Pen pressure: what the pressure of a pen changes. A mouse always paints at the full size and opacity.',
+      onclick: () => this.pressureMenu() });
     this.optShape = this.segmented([['outline', 'Outline'], ['filled', 'Filled']], (v) => { this.filled = v === 'filled'; this.persist(); this.renderOptions(); }, 'Shape style');
     this.optTolerance = this.slider({ label: 'Tolerance', min: 0, max: 100, unit: '%', title: 'How different a color can be and still be filled', onInput: (v) => { this.tolerance = v; this.persist(); this.renderOptions(); } });
     this.optContiguous = h('label', { class: 'spr-check', title: 'Fill only the area touching the click. Shift+click does the opposite.' },
@@ -457,7 +465,7 @@ export class SpriteEditor {
     this.contiguousInput.addEventListener('change', () => { this.contiguous = this.contiguousInput.checked; this.persist(); });
     this.optHint = h('span', { class: 'spr-hint' });
     this.options = h('div', { class: 'spr-options' }, this.optTitle, this.optMode.el, this.optSize.el, this.optHardness.el,
-      this.optShape.el, this.optOpacity.el, this.optPressure, this.optPressureMin.el, this.optTolerance.el, this.optContiguous, this.optHint);
+      this.optShape.el, this.optOpacity.el, this.optPressure, this.optTolerance.el, this.optContiguous, this.optHint);
 
     this.btnMirrorX = this.iconButton('mirrorX', 'Mirror left and right: paint on both sides', () => { this.mirrorX = !this.mirrorX; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
     this.btnMirrorY = this.iconButton('mirrorY', 'Mirror top and bottom: paint on both halves', () => { this.mirrorY = !this.mirrorY; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
@@ -466,14 +474,14 @@ export class SpriteEditor {
     this.btnUndo = this.iconButton('undo', `Undo (${this.ui.modKey}+Z)`, () => this.undo());
     this.btnRedo = this.iconButton('redo', `Redo (${this.ui.modKey}+Shift+Z)`, () => this.redo());
     const moreBtn = this.iconButton('more', 'More: new image, resize, frames, grid, flip, copy and paste', () => this.showMoreMenu(moreBtn));
+    // The top bar has the options of the tool and undo, redo and More. The
+    // mirror buttons are under the tools, the image size is next to the
+    // zoom, and onion skin is with the frames: one row at 1280 pixels.
     this.top = h('div', { class: 'spr-top' },
       this.options,
       h('div', { class: 'spr-spacer' }),
-      h('div', { class: 'spr-group' }, this.btnMirrorX, this.btnMirrorY, this.btnOnion),
-      h('div', { class: 'spr-sep' }),
-      this.btnSize,
-      h('div', { class: 'spr-sep' }),
       h('div', { class: 'spr-group' }, this.btnUndo, this.btnRedo, moreBtn));
+    rail.append(h('div', { class: 'spr-rail-sep' }), this.btnMirrorX, this.btnMirrorY);
 
     // Canvas
     // The image (drawn again only where it changes) and, over it, the marks
@@ -495,6 +503,8 @@ export class SpriteEditor {
     this.btnGrid = this.iconButton('pixelGrid', `Pixel grid (shows from ${GRID_ZOOM}× zoom)`, () => { this.pixelGrid = !this.pixelGrid; this.persist(); this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
     this.zoomLabel = h('button', { type: 'button', class: 'spr-btn spr-zoom-label', title: 'Zoom: click to fit the image in the view (0)', onclick: () => this.fit() });
     this.viewBar = h('div', { class: 'spr-viewbar' },
+      this.btnSize,
+      h('div', { class: 'spr-sep' }),
       this.btnGrid,
       h('div', { class: 'spr-sep' }),
       this.iconButton('zoomOut', 'Zoom out (-)', () => this.zoomStep(-1)),
@@ -550,7 +560,8 @@ export class SpriteEditor {
         h('div', { class: 'spr-group' },
           this.iconButton('plus', 'New empty frame after this one (, and . move between frames)', () => this.addFrame(false)),
           this.iconButton('copy', 'Duplicate this frame', () => this.addFrame(true)),
-          this.btnDeleteFrame = this.iconButton('trash', 'Delete this frame', () => this.deleteFrame(this.current)))),
+          this.btnDeleteFrame = this.iconButton('trash', 'Delete this frame', () => this.deleteFrame(this.current)),
+          this.btnOnion)),
       this.frameList);
 
     this.element = h('div', { class: 'spr', tabindex: '-1' },
@@ -794,9 +805,10 @@ export class SpriteEditor {
     this.optOpacity.el.hidden = !(paint || t === 'fill');
     this.optOpacity.set(this.opacity);
     this.optPressure.hidden = !brush;
-    this.pressureSelect.value = this.pressureMode();
-    this.optPressureMin.el.hidden = !brush || this.pressureMode() === 'off';
-    this.optPressureMin.set(this.pressureMin);
+    const pm = this.pressureMode();
+    this.optPressure.dataset.mode = pm;
+    this.optPressure.setAttribute('aria-label', `Pen pressure: ${PRESSURE_LABELS[pm]}`);
+    this.optPressure.replaceChildren(sicon('pen', 14), PRESSURE_SHORT[pm]);
     this.optTolerance.el.hidden = t !== 'fill';
     this.optTolerance.set(this.tolerance);
     this.optContiguous.hidden = t !== 'fill';
