@@ -529,9 +529,10 @@ def copy_web():
         src = WEB / sub
         if src.exists():
             shutil.copytree(src, DIST, dirs_exist_ok=True)
-    player = DIST / "player.js"
-    if player.exists():
-        player.write_text(player.read_text().replace("__SMITTEN_BUILD__", build_id()))
+    for name in ("player.js", "player.html"):
+        player = DIST / name
+        if player.exists():
+            player.write_text(player.read_text().replace("__SMITTEN_BUILD__", build_id()))
     # The piece schema, for the editor (web/editor/core/schema.js).
     shutil.copy(MODULES / "scene" / "pieces.json", DIST / "pieces.json")
     # The docs, for the editor's Docs panel (tools/gen-docs.mjs --local).

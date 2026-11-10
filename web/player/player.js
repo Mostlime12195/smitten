@@ -17,6 +17,24 @@
 // build.py replaces this with a hash of the engine files, so browsers never
 // combine a cached smitten.wasm with a newer smitten.mjs (or vice versa).
 const BUILD = '__SMITTEN_BUILD__';
+
+// The engine and the modules the page names start downloading now, alongside
+// the engine's JavaScript, instead of after that has loaded and run.
+const engineResponse = fetch(new URL(`smitten.wasm?v=${BUILD}`, import.meta.url));
+engineResponse.catch(() => {});  // reported by instantiateEngine
+const moduleResponses = new Map();
+function fetchModule(name) {
+  if (!moduleResponses.has(name)) {
+    const res = fetch(new URL(`modules/${name}.wasm?v=${BUILD}`, import.meta.url));
+    res.catch(() => {});  // reported by loadModules
+    moduleResponses.set(name, res);
+  }
+  return moduleResponses.get(name);
+}
+for (const name of (new URLSearchParams(location.search).get('modules') ?? document.querySelector('meta[name="smitten-modules"]')?.content ?? '').split(',')) {
+  if (/^[a-z0-9]+$/.test(name.trim())) fetchModule(name.trim());
+}
+
 const { default: createSmitten } = await import(`./smitten.mjs?v=${BUILD}`);
 
 // Save files live under Smitten's own data folder (XDG_DATA_HOME, set in
@@ -274,20 +292,28 @@ function bodySize(res) {
   return res.headers.get('content-encoding') ? 0 : Number(res.headers.get('content-length')) || 0;
 }
 
-// Downloads the engine with progress, compiling it while it streams in.
+// Counts a response's bytes as they arrive, for the progress bar.
+async function countDownload(res) {
+  try {
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      downloads.engine[0] += value.length;
+      showDownloadProgress();
+    }
+  } catch { /* the engine's own read reports the failure */ }
+}
+
+// Compiles the engine while it streams in. The browser gets the response
+// from the network itself (progress is counted on a copy): browsers only
+// keep compiled code for next time when it comes from such a response.
 function instantiateEngine(imports, done) {
-  fetch(new URL(`smitten.wasm?v=${BUILD}`, import.meta.url)).then((res) => {
+  engineResponse.then((res) => {
     if (!res.ok) throw new Error(`smitten.wasm: ${res.status} ${res.statusText}`);
     downloads.engine[1] = bodySize(res);
-    const counted = res.body.pipeThrough(new TransformStream({
-      transform(chunk, controller) {
-        downloads.engine[0] += chunk.length;
-        showDownloadProgress();
-        controller.enqueue(chunk);
-      },
-    }));
-    const wasm = new Response(counted, { headers: { 'Content-Type': 'application/wasm' } });
-    return WebAssembly.instantiateStreaming(wasm, imports);
+    if (res.body) countDownload(res.clone());
+    return WebAssembly.instantiateStreaming(res, imports);
   }).then(({ instance, module }) => done(instance, module))
     .catch((e) => fail(`Could not load the Smitten engine.\n${e?.message || e}`));
   return {};
@@ -317,9 +343,10 @@ const engineReady = createSmitten({
 const loadedModules = new Set();
 
 async function loadModules(M, names) {
+  names = names.filter((name) => !loadedModules.has(name) && /^[a-z0-9]+$/.test(name));
+  for (const name of names) fetchModule(name);  // all at once; loaded in order below
   for (const name of names) {
-    if (loadedModules.has(name) || !/^[a-z0-9]+$/.test(name)) continue;
-    const res = await fetch(new URL(`modules/${name}.wasm?v=${BUILD}`, import.meta.url));
+    const res = await fetchModule(name);
     if (!res.ok) throw new Error(`modules/${name}.wasm: ${res.status} ${res.statusText}`);
     const path = `/modules/${name}.wasm`;
     mkdirp(M.FS, '/modules');
