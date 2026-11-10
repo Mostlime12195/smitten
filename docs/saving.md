@@ -26,7 +26,7 @@ end
 | Call | |
 | --- | --- |
 | `save(key, value)` | Keeps a value between plays: save("best", score). |
-| `load(key, default)` | A saved value, or default: load("best", 0). |
+| `load(key, default)` | Returns a saved value, or default: load("best", 0). |
 <!-- end -->
 
 A saved value can be a number, text, true or false, or a table of these.
@@ -53,7 +53,7 @@ the saves of two games do not mix.
 | Function | |
 | --- | --- |
 | `smitten.storage.save(key, value)` | Saves a value between plays: smitten.storage.save("best", score). |
-| `smitten.storage.load(key, default?)` | A saved value, or default. |
-| `smitten.storage.remove(key)` | Forgets a saved value. |
-| `smitten.storage.keys()` | Every saved value's name. |
+| `smitten.storage.load(key, default?)` | Returns a saved value, or default. |
+| `smitten.storage.remove(key)` | Deletes a saved value. |
+| `smitten.storage.keys()` | Returns the names of all saved values. |
 <!-- end -->

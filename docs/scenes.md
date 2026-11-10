@@ -59,20 +59,20 @@ Then you can use `add` to put it in a different place.
 <!-- api:Scenes -->
 | Call | |
 | --- | --- |
-| `go(scene, ...)` | Goes to another scene; extra values go to its root's ready(...). |
+| `go(scene, ...)` | Goes to another scene. The extra values go to ready(...) of its root piece. |
 | `reload()` | Starts this scene again. |
-| `transition(kind, seconds, color)` | How go() changes scenes: transition("fade", 0.4) or transition("none"). |
+| `transition(kind, seconds, color)` | Sets how go() changes scenes: transition("fade", 0.4) or transition("none"). |
 | `spawn(sceneOrType, properties, parent)` | Makes a piece and adds it to the scene (self:spawn adds it inside this piece). |
-| `make(sceneOrType, properties)` | Makes a piece without adding it anywhere. |
-| `tagged(tag)` | Every piece with a tag. |
-| `first(tag)` | The first piece with a tag, or nil. |
-| `root()` | The scene's root piece. |
-| `camera()` | The camera in use, or nil. |
-| `game` | A table for the whole game, kept when the scene changes: game.score += 1. |
+| `make(sceneOrType, properties)` | Makes a piece but does not add it to the scene. |
+| `tagged(tag)` | Returns every piece with a tag. |
+| `first(tag)` | Returns the first piece with a tag, or nil. |
+| `root()` | Returns the root piece of the scene. |
+| `camera()` | Returns the camera in use, or nil. |
+| `game` | A table for the whole game. It stays when the scene changes: game.score += 1. |
 | `pauseGame()` | Pauses pieces and physics (pieces with pausable off keep running). |
-| `resumeGame()` | Unpauses. |
-| `isPaused()` | True while the game is paused. |
-| `timeScale(scale)` | How fast time goes: timeScale(0.5) is slow motion; timeScale() reads it. |
+| `resumeGame()` | Ends the pause: pieces and physics continue. |
+| `isPaused()` | Returns true while the game is paused. |
+| `timeScale(scale)` | Sets how fast time goes: timeScale(0.5) is slow motion. timeScale() returns the current value. |
 <!-- end -->
 
 ## Changing scenes
@@ -142,35 +142,35 @@ speed at all time scales.
 <!-- piece:Piece -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `pausable` | bool | true | Stops while the game is paused. Off: this piece and its children keep running (pause menus). |
+| `pausable` | bool | true | When this is on, the piece stops while the game is paused. When it is off, this piece and its children keep running (for pause menus). |
 
 | Method | |
 | --- | --- |
-| `find(path)` | A child by name, or a deeper piece by path ("UI/Score"); nil if there isn't one. |
-| `findDeep(name)` | The first piece with this name anywhere inside this one. |
-| `findChildOfType(type)` | The first child of a type ("Sprite"), or nil. |
-| `isA(type)` | True if the piece is of a type, or a type made from it. |
-| `add(piece)` | Adds a piece as the last child; returns it. |
-| `remove()` | Takes the piece out of its parent now, without destroying it. |
-| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or type and adds it as a child. |
+| `find(path)` | Returns a child by name, or a piece deeper inside by path ("UI/Score"). Returns nil if there is no such piece. |
+| `findDeep(name)` | Returns the first piece with this name at any depth inside this piece. |
+| `findChildOfType(type)` | Returns the first child of a piece type ("Sprite"), or nil. |
+| `isA(type)` | Returns true if the piece is of a piece type, or of a type that extends it. |
+| `add(piece)` | Adds a piece as the last child and returns it. |
+| `remove()` | Takes the piece out of its parent now, but does not destroy it. |
+| `spawn(sceneOrType, properties?)` | Makes a piece from a scene file or a piece type and adds it as a child. |
 | `destroy()` | Removes the piece and everything inside it at the end of the frame. |
 | `tag(name)` | Adds a tag. |
-| `untag(name)` | Takes a tag away. |
-| `hasTag(name)` | True if the piece has the tag. |
-| `hasAnyTag(tags)` | True if the piece has any of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
-| `is(tagOrType)` | True if the piece has the tag or is of the type: other:is("enemy"), other:is("Body"). |
-| `on(event, fn)` | Calls fn(...) on an event. Returns a handle with :off(). |
-| `emit(event, ...)` | Fires an event: calls the script's function of that name and every listener. |
-| `getPath()` | The piece's path from the scene's root, like "Level/Player". |
-| `isAlive()` | True while the piece is in the running scene and not destroyed. |
+| `untag(name)` | Removes a tag. |
+| `hasTag(name)` | Returns true if the piece has the tag. |
+| `hasAnyTag(tags)` | Returns true if the piece has one or more of the tags in a comma-separated list: hasAnyTag("enemy, spikes"). |
+| `is(tagOrType)` | Returns true if the piece has the tag or is of the piece type: other:is("enemy"), other:is("Body"). |
+| `on(event, fn)` | Calls fn(...) when the piece sends the event. Returns a handle with :off(). |
+| `emit(event, ...)` | Sends an event: it calls the script function with that name and every function that on() added. |
+| `getPath()` | Returns the path of the piece from the root piece of the scene, for example "Level/Player". |
+| `isAlive()` | Returns true while the piece is in the running scene and destroy() has not removed it. |
 
 | Event (a function in its script) | |
 | --- | --- |
-| `function ready(...)` | The piece and its children joined the scene. The scene root gets go()'s extra values. |
-| `function update(dt)` | Every frame. dt is the time since the last frame, in seconds. |
-| `function physicsUpdate(dt)` | 60 times a second, before bodies move. Use it for movement. |
-| `function draw()` | Draw extra things on top of the piece, in its own coordinates. |
-| `function removed()` | The piece is leaving the scene. |
+| `function ready(...)` | The engine calls it when the piece and its children join the scene. The root piece of the scene gets the extra values of go(). |
+| `function update(dt)` | The engine calls it every frame. dt is the time since the last frame, in seconds. |
+| `function physicsUpdate(dt)` | The engine calls it 60 times a second, before bodies move. Use it for movement. |
+| `function draw()` | The engine calls it every frame. Draw extra things on top of the piece here, in the piece's own coordinates. |
+| `function removed()` | The engine calls it when the piece leaves the scene. |
 <!-- end -->
 
 All pieces also have `name`, `type`, `parent`, `children` and `script`.
@@ -215,26 +215,26 @@ radians.
 <!-- piece:Group -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `x` | number (px) | 0 | Position, measured from the parent. |
-| `y` | number (px) | 0 | Position, measured from the parent. y grows downwards. |
-| `rotation` | angle (°) | 0° | Turn, clockwise, in degrees: 90 is a quarter turn. |
-| `scaleX` | number | 1 | Width multiplier. Negative mirrors it. |
-| `scaleY` | number | 1 | Height multiplier. Negative flips it. |
-| `visible` | bool | true | Show this piece and everything inside it. |
+| `x` | number (px) | 0 | The horizontal position, measured from the parent. |
+| `y` | number (px) | 0 | The vertical position, measured from the parent. y increases downwards. |
+| `rotation` | angle (°) | 0° | The rotation, clockwise, in degrees: 90 is a quarter turn. |
+| `scaleX` | number | 1 | Multiplies the width. A negative value mirrors the piece left to right. |
+| `scaleY` | number | 1 | Multiplies the height. A negative value mirrors the piece top to bottom. |
+| `visible` | bool | true | When this is on, this piece and everything inside it are visible. |
 | `tint` | color | {1, 1, 1, 1} | Multiplies the colors of this piece and everything inside it. |
-| `layer` | int | 0 | Higher layers are drawn on top. Pieces on the same layer draw in scene order. |
-| `lit` | bool | true | Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs). |
+| `layer` | int | 0 | The engine draws higher layers on top. It draws pieces on the same layer in scene order. |
+| `lit` | bool | true | When this is on, Lights and the Tint change how this piece and everything inside it look. When it is off, they always have full brightness (glows, lasers, signs). |
 
 | Method | |
 | --- | --- |
-| `worldPosition()` | Where the piece is in the scene (not measured from its parent): x, y. |
-| `setWorldPosition(x, y)` | Moves the piece to a place in the scene. |
-| `toWorld(x, y)` | A point measured from this piece, as a point in the scene. |
-| `fromWorld(x, y)` | A point in the scene, measured from this piece. |
+| `worldPosition()` | Returns the position of the piece in the scene (not measured from its parent): x, y. |
+| `setWorldPosition(x, y)` | Moves the piece to a position in the scene. |
+| `toWorld(x, y)` | Takes a point measured from this piece and returns it as a point in the scene. |
+| `fromWorld(x, y)` | Takes a point in the scene and returns it measured from this piece. |
 | `lookAt(x, y)` | Turns the piece to face a point in the scene. |
-| `distanceTo(pieceOrX, y?)` | Distance in pixels to another piece or a point. |
-| `angleTo(pieceOrX, y?)` | The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it. |
-| `moveToward(x, y, distance)` | Moves at most distance pixels towards a point; true once it's there. |
+| `distanceTo(pieceOrX, y?)` | Returns the distance in pixels to another piece or a point. |
+| `angleTo(pieceOrX, y?)` | Returns the angle towards another piece or a point, in degrees. rotation = angleTo(target) turns the piece to face it. |
+| `moveToward(x, y, distance)` | Moves at most distance pixels towards a point. Returns true when the piece is at the point. |
 | `translate(dx, dy)` | Moves the piece by an offset. |
 <!-- end -->
 
@@ -245,18 +245,18 @@ radians.
 | --- | --- |
 | `smitten.scene.go(path, ...)` | Goes to another scene at the end of the frame: smitten.scene.go("scenes/level2.scene"). |
 | `smitten.scene.reload()` | Starts the running scene again from its file. |
-| `smitten.scene.make(sceneOrType, properties?, script?)` | Makes a piece without adding it: make("scenes/coin.scene") or make("Sprite", { image = "art/coin.png" }). |
+| `smitten.scene.make(sceneOrType, properties?, script?)` | Makes a piece but does not add it to the scene: make("scenes/coin.scene") or make("Sprite", { image = "art/coin.png" }). |
 | `smitten.scene.spawn(sceneOrType, properties?, parent?)` | Makes a piece and adds it to the scene (or to parent): spawn("scenes/bullet.scene", { x = 10 }). |
-| `smitten.scene.tagged(tag)` | Every piece with a tag, as a list. |
-| `smitten.scene.first(tag)` | The first piece with a tag, or nil. |
-| `smitten.scene.find(path)` | A piece of the running scene by its path from the root. |
-| `smitten.scene.screenToWorld(x, y)` | A point on the screen as a point in the scene (through the camera). |
-| `smitten.scene.worldToScreen(x, y)` | A point in the scene as a point on the screen. |
-| `smitten.scene.setCurrent(root)` | Makes a piece built in code the running scene. |
-| `smitten.scene.getDelta()` | The current step's length: the frame time in update(), the fixed step in physicsUpdate(). |
-| `smitten.scene.transition(kind, seconds?, color?)` | How go() and reload() change scenes: transition("fade", 0.4) or transition("none"). |
-| `smitten.scene.isChanging()` | True while the scene is about to change or a transition is running. |
-| `smitten.scene.runsWhilePaused(piece)` | True if a piece keeps running while the game is paused (pausable off on it or a piece it's inside). |
+| `smitten.scene.tagged(tag)` | Returns every piece with a tag, as a list. |
+| `smitten.scene.first(tag)` | Returns the first piece with a tag, or nil. |
+| `smitten.scene.find(path)` | Returns a piece of the running scene by its path from the root piece. |
+| `smitten.scene.screenToWorld(x, y)` | Takes a point on the screen and returns it as a point in the scene (through the camera). |
+| `smitten.scene.worldToScreen(x, y)` | Takes a point in the scene and returns it as a point on the screen. |
+| `smitten.scene.setCurrent(root)` | Makes a piece that a script builds the running scene. |
+| `smitten.scene.getDelta()` | Returns the length of the current step: the frame time in update(), the fixed step in physicsUpdate(). |
+| `smitten.scene.transition(kind, seconds?, color?)` | Sets how go() and reload() change scenes: transition("fade", 0.4) or transition("none"). |
+| `smitten.scene.isChanging()` | Returns true while the scene is about to change or a transition runs. |
+| `smitten.scene.runsWhilePaused(piece)` | Returns true if a piece keeps running while the game is paused (pausable is off on it, or on a piece that it is inside). |
 
 Fields: `current`, `path`, `args`, `paused`, `timeScale`, `showShapes`.
 <!-- end -->

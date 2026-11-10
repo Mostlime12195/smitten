@@ -284,30 +284,30 @@ The file format of tilesets is in [File formats](formats.md#tilesets).
 <!-- piece:Tiles -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |
-| `tileset` | resource | "" | The .tileset file: a picture cut into tiles, with settings such as solid. |
-| `solid` | bool | true | Tiles marked solid block bodies. Off makes every tile just decoration. |
-| `castShadows` | bool | false | Tiles marked solid block Lights that have shadows on. |
-| `animate` | bool | true | Animated tiles play. Off freezes them on the frame they show. |
+| `tileset` | resource | "" | The .tileset file: an image cut into tiles, with tile properties such as solid. |
+| `solid` | bool | true | When this is on, tiles that the tileset marks as solid block bodies. When it is off, every tile is only decoration. |
+| `castShadows` | bool | false | When this is on, tiles that the tileset marks as solid block the Lights that have shadows on. |
+| `animate` | bool | true | When this is on, animated tiles play. When it is off, they stop on the animation frame that they show. |
 
 | Method | |
 | --- | --- |
-| `getTile(column, row)` | The tile number in a cell, or -1 if it's empty. |
-| `setTile(column, row, tile)` | Changes a cell (-1 empties it). |
-| `tileInfo(tile)` | The settings of a tile in the tileset (solid, name, ...). |
-| `cellAt(x, y)` | The cell under a point in the scene: column, row. |
-| `cellPosition(column, row)` | The scene position of a cell's top-left corner. |
-| `cellsWith(tile?)` | A list of {column, row, tile} for every painted cell (or every cell with that tile). |
+| `getTile(column, row)` | Returns the tile number in a cell, or -1 if the cell is empty. |
+| `setTile(column, row, tile)` | Changes the tile in a cell (-1 empties the cell). |
+| `tileInfo(tile)` | Returns the tile properties of a tile in the tileset (solid, name, ...). |
+| `cellAt(x, y)` | Returns the cell under a point in the scene: column, row. |
+| `cellPosition(column, row)` | Returns the scene position of the top-left corner of a cell. |
+| `cellsWith(tile?)` | Returns a list of {column, row, tile} for every painted cell (or every cell with that tile). |
 | `fill(column, row, columns, rows, tile)` | Sets a rectangle of cells to one tile (-1 empties them). |
 | `clear()` | Empties every cell. |
-| `tileAt(x, y)` | The tile number under a point in the scene, or -1. |
-| `isSolid(column, row)` | True if the cell's tile is marked solid (and solid is on). |
-| `neighbors(column, row, diagonal?)` | Adjacent cells as {column, row, tile}: 4, or 8 with diagonal. |
-| `cellCenter(column, row)` | The scene position of a cell's center. |
-| `getTileSize()` | The size of one cell in the scene: width, height. |
-| `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
-| `newPathGrid(options?)` | A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile(). |
-| `setTerrain(column, row, terrain)` | Paints a terrain of the tileset (by name; nil erases) in a cell and re-picks the tiles of the 8 cells around it so the edges fit. |
-| `getTerrain(column, row)` | The name of the terrain the cell's tile belongs to, or nil. |
-| `fillTerrain(column, row, columns, rows, terrain)` | Paints a terrain (nil erases) in a rectangle of cells and fits the edges, also of the cells around it. |
-| `terrains()` | The names of the tileset's terrains. |
+| `tileAt(x, y)` | Returns the tile number under a point in the scene, or -1. |
+| `isSolid(column, row)` | Returns true if the tileset marks the tile in the cell as solid (and solid is on). |
+| `neighbors(column, row, diagonal?)` | Returns the adjacent cells as {column, row, tile}: 4 cells, or 8 with diagonal. |
+| `cellCenter(column, row)` | Returns the scene position of the center of a cell. |
+| `getTileSize()` | Returns the size of one cell in the scene: width, height. |
+| `getBounds()` | Returns the painted area in the scene: x, y, width, height (all 0 if no cell has a tile). |
+| `newPathGrid(options?)` | Returns a grid to find paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). The grid changes when setTile() changes a tile. |
+| `setTerrain(column, row, terrain)` | Paints a terrain of the tileset (by name; nil erases) in a cell. It also changes the tiles of the 8 cells around it so that the edges fit. |
+| `getTerrain(column, row)` | Returns the name of the terrain of the tile in the cell, or nil. |
+| `fillTerrain(column, row, columns, rows, terrain)` | Paints a terrain (nil erases) in a rectangle of cells. It makes the edges fit, also at the cells around the rectangle. |
+| `terrains()` | Returns the names of the terrains in the tileset. |
 <!-- end -->

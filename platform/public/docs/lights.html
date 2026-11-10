@@ -109,37 +109,37 @@ Flash.brightness = <span class="tk-n">3</span>
 <ul><li>The engine draws each Light as one picture over the area that it lights. A school laptop can draw many small lights (tens of them). The cost comes from the area, so a few very large lights cost more than many small ones. Lights that are off, hidden, or outside the view cost no time.</li><li>Shadows cost more. For each Light with <code>shadows</code> on, the engine draws the far edges of the Occluders that the Light reaches. Turn on shadows only for the lights where they are important (the torch of the player), not for all candles. A <code>shadowSoftness</code> of more than 0 adds two blur passes for each light.</li><li>The engine calculates the outline of an Occluder again only when the Occluder moves or changes. A Tiles piece joins lines of solid tiles into single edges.</li><li>The engine draws Lights that use <code>lights</code> tags or a range of layers into their own light map. It makes one light map for each different combination of these lights in view. At one time, it can use up to 8 combinations and 24 of these lights. If there are more, the engine shows a warning, and some pieces get the wrong lights.</li><li>Shadows are shapes with hard edges behind each Occluder. <code>shadowSoftness</code> blurs them by the same quantity at all distances. It does not blur them more when they are farther away.</li><li>The shadows of a sun have no end. They use the tiles that make shadows up to two screens away from the view. For exact shadows that are shorter, set <code>shadowLength</code>.</li><li>Lights blend in the sequence in which they came into the scene. This is important only for <code>mix</code>.</li><li>The engine lights the <code>draw()</code> of a script in the same way as the piece, if the script does not set its own shader.</li></ul>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light reaches.</td></tr>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from the position of the piece, as far as radius. sun lights the whole view from one side, in the direction that the piece points.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light goes.</td></tr>
 <tr><td><code>brightness</code></td><td>number</td><td>1</td><td>How strong the light is: 0 is dark, 2 is twice as bright.</td></tr>
-<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The light's color.</td></tr>
-<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow.</td></tr>
-<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this light off.</td></tr>
-<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>Only lights pieces with one of these tags, and what's inside them (empty: every piece).</td></tr>
-<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and higher (empty: no limit).</td></tr>
-<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and lower (empty: no limit).</td></tr>
-<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>Occluders, and Tiles with castShadows on, block this light.</td></tr>
-<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows.</td></tr>
-<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest.</td></tr>
-<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>How long a sun's shadows are; 0 for shadows that never end.</td></tr>
-<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside.</td></tr></tbody>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the light.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>An image of the shape of the light, white where it shines: a beam, a window. If it is empty, the light is a soft round glow.</td></tr>
+<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes the pieces that it shines on brighter. subtract makes them darker (a dark patch). mix replaces the light that is there with the color of this light.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, the light is off.</td></tr>
+<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>The light shines only on pieces with one of these tags, and on what is inside them. If it is empty, it shines on every piece.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>The light shines only on pieces on this layer and higher. If it is empty, there is no limit.</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>The light shines only on pieces on this layer and lower. If it is empty, there is no limit.</td></tr>
+<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>When this is on, Occluders, and Tiles with castShadows on, block this light.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>The part of the light that stays in a shadow: black is none. A transparent color makes weaker shadows.</td></tr>
+<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows by this distance. 0 keeps them sharp and is the fastest.</td></tr>
+<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>The length of the shadows of a sun. 0 makes shadows that never end.</td></tr>
+<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block the light. If it is empty, all of them block it. The tag can be on the piece that holds the Occluder.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... of the outline.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Let light through.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. If it has none, it fits the ones in the piece that it is inside.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... of the outline.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, light goes through it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches.</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn the tint off.</td></tr>
-<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and higher (empty: no limit).</td></tr>
-<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and lower (empty: no limit).</td></tr></tbody>
+<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>The engine multiplies the colors of every piece by this color. White changes nothing. Black hides everything that no light reaches.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, the tint is off.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>The Tint colors only pieces on this layer and higher. If it is empty, there is no limit.</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>The Tint colors only pieces on this layer and lower. If it is empty, there is no limit.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="tiles"><span>Previous</span>Tiles</a><a class="next" href="text"><span>Next</span>Text</a></nav>

@@ -23,17 +23,17 @@ end
 <!-- api:Drawing -->
 | Call | |
 | --- | --- |
-| `pen(r, g, b, a)` | The color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen("#ff8800"). |
-| `penSize(width)` | How thick lines and outlines are. |
-| `clearScreen(color)` | Fills the whole screen with a color (the pen's if none). |
-| `rect(x, y, w, h, fill)` | A rectangle (fill = false for an outline). |
-| `circle(x, y, radius, fill)` | A circle (fill = false for an outline). |
-| `oval(x, y, rx, ry, fill)` | An ellipse. |
-| `poly(points, fill)` | A polygon: poly({x1, y1, x2, y2, x3, y3}). |
-| `line(x1, y1, x2, y2, ...)` | A line through points. |
-| `dot(x, y)` | One pixel. |
-| `write(text, x, y, options)` | Text; options: a size, or { size, font, align, width }. With rich = true it reads tags like [b]bold[/b]; visible = 5 shows the first 5 characters. Returns the width and height. |
-| `sprite(image, x, y, options)` | An image, or a frame of a sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
+| `pen(r, g, b, a)` | Sets the color to draw with: pen(1, 0, 0), pen({1, 0, 0}), pen("#ff8800"). |
+| `penSize(width)` | Sets the thickness of lines and outlines. |
+| `clearScreen(color)` | Fills the whole screen with a color (with the pen color if you give none). |
+| `rect(x, y, w, h, fill)` | Draws a rectangle (fill = false for an outline). |
+| `circle(x, y, radius, fill)` | Draws a circle (fill = false for an outline). |
+| `oval(x, y, rx, ry, fill)` | Draws an ellipse. |
+| `poly(points, fill)` | Draws a polygon: poly({x1, y1, x2, y2, x3, y3}). |
+| `line(x1, y1, x2, y2, ...)` | Draws a line through points. |
+| `dot(x, y)` | Draws one pixel. |
+| `write(text, x, y, options)` | Draws text. options is a size, or { size, font, align, width }. With rich = true, it reads markup like [b]bold[/b]. visible = 5 shows the first 5 characters. Returns the width and height. |
+| `sprite(image, x, y, options)` | Draws an image, or an animation frame of a sprite sheet: sprite("art/hero.sprite", x, y, { frame = 2, rotation = 90 }). rotation is in degrees. |
 <!-- end -->
 
 ## Colors

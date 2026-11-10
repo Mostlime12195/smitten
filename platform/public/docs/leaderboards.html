@@ -71,11 +71,11 @@ score = <span class="tk-n">0</span>
 <p><code>smitten.boards.around(key, count)</code> gives the rows around the score of the player. This is good when the player is in position 250, for example. <code>smitten.boards.list()</code> gives the leaderboards of the game.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.boards.available()</code></td><td>True while the game runs on its page on the games site and has leaderboards there. False in the editor and in exported games.</td></tr>
-<tr><td><code>smitten.boards.submit(key, value, options?, callback?)</code></td><td>Sends a score to a leaderboard: smitten.boards.submit(&quot;best&quot;, score). options: { name = &quot;Ada&quot; } for someone not signed in. Answers { rank, value, improved }, or nil and why.</td></tr>
-<tr><td><code>smitten.boards.top(key, count?, callback?)</code></td><td>The best scores, best first: a list of { rank, name, value, me, guest } (10 unless count says, 100 at most), or nil and why.</td></tr>
-<tr><td><code>smitten.boards.around(key, count?, callback?)</code></td><td>The scores around the player's own (the top, if they have none).</td></tr>
-<tr><td><code>smitten.boards.list(callback?)</code></td><td>The game's leaderboards: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
+<tbody><tr><td><code>smitten.boards.available()</code></td><td>Returns true while the game runs on its page on the games site and has leaderboards there. Returns false in the editor and in exported games.</td></tr>
+<tr><td><code>smitten.boards.submit(key, value, options?, callback?)</code></td><td>Sends a score to a leaderboard: smitten.boards.submit(&quot;best&quot;, score). options: { name = &quot;Ada&quot; } for a player who is not signed in. The result is { rank, value, improved }, or nil and the reason.</td></tr>
+<tr><td><code>smitten.boards.top(key, count?, callback?)</code></td><td>Returns the best scores, best first: a list of { rank, name, value, me, guest }, or nil and the reason. count is 10 if you leave it out, and 100 at most.</td></tr>
+<tr><td><code>smitten.boards.around(key, count?, callback?)</code></td><td>Returns the scores around the score of the player (the top scores, if the player has no score).</td></tr>
+<tr><td><code>smitten.boards.list(callback?)</code></td><td>Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }.</td></tr></tbody>
 </table></div>
 <h3 id="from-update"><a class="anchor" href="#from-update" aria-hidden="true">#</a>From update()</h3>
 <p><code>update()</code> and <code>draw()</code> cannot wait. In these functions, give a function as the last argument. The engine calls that function when the answer comes:</p>

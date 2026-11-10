@@ -60,28 +60,28 @@
 <p>For layers that scroll slower or faster than the camera (for example, far hills, or a sky that does not move), see <a href="backgrounds">Backgrounds</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>Use this camera. When several are active, the first in the scene wins.</td></tr>
-<tr><td><code>zoom</code></td><td>number</td><td>1</td><td>2 shows everything twice as big.</td></tr>
-<tr><td><code>smoothing</code></td><td>number</td><td>0</td><td>How gently it catches up: 0 sticks exactly, 5 glides.</td></tr>
-<tr><td><code>target</code></td><td>piecepath</td><td>&quot;&quot;</td><td>A piece to follow, wherever the camera is in the scene (empty: the camera's own position).</td></tr>
-<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Looks this far right of what it follows.</td></tr>
-<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Looks this far below what it follows.</td></tr>
-<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>Don't show anything left of this (empty for no edge).</td></tr>
-<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>Don't show anything above this.</td></tr>
-<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>Don't show anything right of this.</td></tr>
-<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>Don't show anything below this.</td></tr></tbody>
+<tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, the game uses this camera. If more than one camera is active, the first in the scene has priority.</td></tr>
+<tr><td><code>zoom</code></td><td>number</td><td>1</td><td>The zoom: 2 shows everything twice as big.</td></tr>
+<tr><td><code>smoothing</code></td><td>number</td><td>0</td><td>How gently the camera catches up: 0 follows exactly, 5 glides.</td></tr>
+<tr><td><code>target</code></td><td>piecepath</td><td>&quot;&quot;</td><td>A piece to follow, anywhere in the scene. If it is empty, the camera stays at its own position.</td></tr>
+<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>The camera looks this far to the right of what it follows.</td></tr>
+<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>The camera looks this far below what it follows.</td></tr>
+<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything to the left of this edge. If it is empty, there is no edge.</td></tr>
+<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything above this edge.</td></tr>
+<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything to the right of this edge.</td></tr>
+<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>The camera does not show anything below this edge.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
 <tbody><tr><td><code>shake(strength?, seconds?)</code></td><td>Shakes the view: shake(6, 0.3).</td></tr>
-<tr><td><code>follow(piece)</code></td><td>Follows a piece (nil: back to target, or the camera's own position).</td></tr>
-<tr><td><code>snap()</code></td><td>Jumps straight to what it follows, without smoothing (after a teleport).</td></tr>
-<tr><td><code>setLimits(left, top, right, bottom)</code></td><td>Sets the edges it doesn't show past (nil for no edge).</td></tr>
+<tr><td><code>follow(piece)</code></td><td>Follows a piece. With nil, the camera goes back to target, or to its own position.</td></tr>
+<tr><td><code>snap()</code></td><td>Moves directly to what it follows, without smoothing (for example, after a teleport).</td></tr>
+<tr><td><code>setLimits(left, top, right, bottom)</code></td><td>Sets the edges that the camera does not show past (nil for no edge).</td></tr>
 <tr><td><code>limitTo(piece)</code></td><td>Keeps the view inside the painted part of a Tiles piece.</td></tr>
-<tr><td><code>makeCurrent()</code></td><td>Makes this the camera in use, turning the others off.</td></tr>
-<tr><td><code>getView()</code></td><td>The part of the scene on screen: x, y, width, height.</td></tr>
-<tr><td><code>screenToWorld(sx, sy)</code></td><td>A point on the screen, as a point in the scene.</td></tr>
-<tr><td><code>worldToScreen(x, y)</code></td><td>A point in the scene, as a point on the screen.</td></tr></tbody>
+<tr><td><code>makeCurrent()</code></td><td>Makes this the camera in use and turns the other cameras off.</td></tr>
+<tr><td><code>getView()</code></td><td>Returns the part of the scene that is on the screen: x, y, width, height.</td></tr>
+<tr><td><code>screenToWorld(sx, sy)</code></td><td>Takes a point on the screen and returns it as a point in the scene.</td></tr>
+<tr><td><code>worldToScreen(x, y)</code></td><td>Takes a point in the scene and returns it as a point on the screen.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="sound"><span>Previous</span>Sound and music</a><a class="next" href="backgrounds"><span>Next</span>Backgrounds</a></nav>

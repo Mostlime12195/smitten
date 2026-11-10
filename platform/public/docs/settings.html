@@ -69,16 +69,16 @@
 <p><code>screenWidth()</code> and <code>screenHeight()</code> are always your resolution.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
-<tr><td><code>screenHeight()</code></td><td>The game's height, in game pixels.</td></tr>
-<tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen; fullscreen() is true while it does.</td></tr></tbody>
+<tbody><tr><td><code>screenWidth()</code></td><td>Returns the width of the game, in game pixels.</td></tr>
+<tr><td><code>screenHeight()</code></td><td>Returns the height of the game, in game pixels.</td></tr>
+<tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen. fullscreen() returns true while the game fills the screen.</td></tr></tbody>
 </table></div>
 <p>Browsers allow fullscreen only immediately after a click or a key press. Because of this, call <code>fullscreen(true)</code> from the <code>clicked()</code> function of a button, or after <code>pressed(&quot;f&quot;)</code>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
-<tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Window coordinates to game coordinates.</td></tr>
-<tr><td><code>smitten.display.toWindow(x, y)</code></td><td>Game coordinates to window coordinates.</td></tr>
-<tr><td><code>smitten.display.getWindowRect()</code></td><td>The game's area in the window: x, y, width, height.</td></tr></tbody>
+<tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Takes window coordinates and returns game coordinates.</td></tr>
+<tr><td><code>smitten.display.toWindow(x, y)</code></td><td>Takes game coordinates and returns window coordinates.</td></tr>
+<tr><td><code>smitten.display.getWindowRect()</code></td><td>Returns the area of the game in the window: x, y, width, height.</td></tr></tbody>
 </table></div>
 <p>Fields: <code>width</code>, <code>height</code>, <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code>, <code>viewHeight</code>, <code>scale</code>, <code>stretch</code>, <code>filter</code>, <code>antialias</code>, <code>background</code>.</p>
 <h2 id="the-splash-screen"><a class="anchor" href="#the-splash-screen" aria-hidden="true">#</a>The splash screen</h2>

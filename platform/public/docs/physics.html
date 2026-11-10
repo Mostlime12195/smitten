@@ -130,12 +130,12 @@
 <p>These functions get data about the scene from the physics world. You can use them in all scripts, and on <code>smitten.physics</code>:</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
-<tbody><tr><td><code>raycast(x1, y1, x2, y2, tags)</code></td><td>The first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. tags (optional) only counts pieces with one of them.</td></tr>
-<tr><td><code>raycastAll(x1, y1, x2, y2, tags)</code></td><td>Everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }.</td></tr>
-<tr><td><code>piecesAt(x, y, tags)</code></td><td>The bodies and zones whose shapes contain a point.</td></tr>
-<tr><td><code>overlap(kind, x, y, ...)</code></td><td>The bodies and zones touching a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, width, height).</td></tr>
-<tr><td><code>getGravity()</code></td><td>The scene's gravity: x, y in pixels per second per second.</td></tr>
-<tr><td><code>setGravity(x, y)</code></td><td>Changes the scene's gravity: setGravity(0, 0) floats everything.</td></tr></tbody>
+<tbody><tr><td><code>raycast(x1, y1, x2, y2, tags)</code></td><td>Returns the first body or solid tiles on a line: { piece, x, y, nx, ny, fraction }, or nil. If you give tags, it counts only pieces with one of them.</td></tr>
+<tr><td><code>raycastAll(x1, y1, x2, y2, tags)</code></td><td>Returns everything on a line, nearest first: a list of { piece, x, y, nx, ny, fraction }.</td></tr>
+<tr><td><code>piecesAt(x, y, tags)</code></td><td>Returns the bodies and zones whose shapes contain a point.</td></tr>
+<tr><td><code>overlap(kind, x, y, ...)</code></td><td>Returns the bodies and zones that touch a shape: overlap(&quot;circle&quot;, x, y, radius) or overlap(&quot;rect&quot;, x, y, width, height).</td></tr>
+<tr><td><code>getGravity()</code></td><td>Returns the gravity of the scene: x, y in pixels per second per second.</td></tr>
+<tr><td><code>setGravity(x, y)</code></td><td>Changes the gravity of the scene: setGravity(0, 0) makes everything float.</td></tr></tbody>
 </table></div>
 <pre><code class="lang-lua"><span class="tk-c">-- Can this enemy see the player, with nothing solid between them?</span>
 <span class="tk-k">local</span> hit = <span class="tk-f">raycast</span>(x, y, player.x, player.y)
@@ -160,119 +160,119 @@
 <h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>motion</code></td><td>enum</td><td>&quot;scripted&quot;</td><td>still: moves only when a script sets x/y. scripted: moved by move(). physics: simulated.</td></tr>
-<tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside. capsule has round ends. none: Hitboxes only.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).</td></tr>
-<tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>Horizontal speed (px/s).</td></tr>
-<tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.</td></tr>
-<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast.</td></tr>
-<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back.</td></tr>
-<tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>Kilograms. A scripted body pushes physics bodies by its mass against theirs.</td></tr>
+<tbody><tr><td><code>motion</code></td><td>enum</td><td>&quot;scripted&quot;</td><td>still: it moves only when a script sets x or y. scripted: move() moves it. physics: the physics engine moves it.</td></tr>
+<tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. capsule has round ends. none means that only Hitboxes give it a shape.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most; the engine fills in dents).</td></tr>
+<tr><td><code>vx</code></td><td>number (px/s)</td><td>0</td><td>The horizontal speed, in pixels per second.</td></tr>
+<tr><td><code>vy</code></td><td>number (px/s)</td><td>0</td><td>The speed down (a negative value is up). For scripted motion, move() uses it. For physics motion, it is the current speed.</td></tr>
+<tr><td><code>spin</code></td><td>angle (°/s)</td><td>0°</td><td>How fast it turns, in degrees per second (clockwise is positive): 360 is a full turn every second. For scripted motion, move() turns it at this speed.</td></tr>
+<tr><td><code>slope</code></td><td>angle (°)</td><td>2578.31°</td><td>The steepest surface that is still ground, in degrees. move() walks up it and does not slide back.</td></tr>
+<tr><td><code>mass</code></td><td>number (kg)</td><td>1</td><td>The mass, in kilograms. A scripted body pushes physics bodies by its mass against their mass.</td></tr>
 <tr><td><code>friction</code></td><td>number</td><td>0.3</td><td>How much it grips what it touches: 0 is ice.</td></tr>
-<tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 none, 1 forever.</td></tr>
+<tr><td><code>bounce</code></td><td>number</td><td>0</td><td>How much it bounces: 0 is no bounce, 1 bounces forever.</td></tr>
 <tr><td><code>gravityScale</code></td><td>number</td><td>1</td><td>How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up.</td></tr>
-<tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: slows its movement down.</td></tr>
-<tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows its turning down.</td></tr>
-<tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>Never tip over or spin.</td></tr>
-<tr><td><code>bullet</code></td><td>bool</td><td>false</td><td>Continuous collision against moving bodies, for small fast objects.</td></tr>
-<tr><td><code>asleep</code></td><td>bool</td><td>false</td><td>At rest until touched. Physics bodies sleep when they stop.</td></tr>
-<tr><td><code>passThrough</code></td><td>tags</td><td>&quot;&quot;</td><td>Tags of things it doesn't bump into, like &quot;ghost, pickup&quot; (&quot;tiles&quot; for solid tiles).</td></tr></tbody>
+<tr><td><code>drag</code></td><td>number</td><td>0</td><td>Air resistance: it slows the movement down.</td></tr>
+<tr><td><code>spinDrag</code></td><td>number</td><td>0</td><td>Slows the turning down.</td></tr>
+<tr><td><code>fixedRotation</code></td><td>bool</td><td>false</td><td>When this is on, the body never tips over or turns.</td></tr>
+<tr><td><code>bullet</code></td><td>bool</td><td>false</td><td>When this is on, the physics engine checks collisions continuously against moving bodies. Use it for small, fast bodies.</td></tr>
+<tr><td><code>asleep</code></td><td>bool</td><td>false</td><td>When this is on, the body stays at rest until something touches it. Physics bodies go to sleep when they stop.</td></tr>
+<tr><td><code>passThrough</code></td><td>tags</td><td>&quot;&quot;</td><td>The tags of things that it does not bump into, for example &quot;ghost, pickup&quot; (&quot;tiles&quot; for solid tiles).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>move()</code></td><td>Moves by vx, vy for this step: slides along walls, climbs slopes, rides platforms, pushes physics bodies.</td></tr>
-<tr><td><code>moveBy(dx, dy)</code></td><td>Moves by an offset and stops at the first thing in the way; returns what it hit, or nil.</td></tr>
-<tr><td><code>onGround()</code></td><td>True if the last move ended standing on something.</td></tr>
-<tr><td><code>onWall()</code></td><td>True if the last move ran into a wall.</td></tr>
-<tr><td><code>onCeiling()</code></td><td>True if the last move ran into a ceiling.</td></tr>
-<tr><td><code>applyImpulse(ix, iy, x?, y?)</code></td><td>Instant change of velocity by impulse / mass. At a point, also spins.</td></tr>
-<tr><td><code>applyForce(fx, fy, x?, y?)</code></td><td>Force for this step; call every physicsUpdate. At its center or a point.</td></tr>
-<tr><td><code>applyTorque(torque)</code></td><td>Turns it steadily for this step (physics bodies).</td></tr>
-<tr><td><code>applyAngularImpulse(impulse)</code></td><td>A sudden twist (physics bodies).</td></tr>
-<tr><td><code>push(ix, iy)</code></td><td>The same as applyImpulse(ix, iy).</td></tr>
-<tr><td><code>wake()</code></td><td>Wakes a sleeping physics body.</td></tr>
-<tr><td><code>grab(x, y, strength?)</code></td><td>Holds it by a scene point for dragTo(); drop() releases with momentum.</td></tr>
-<tr><td><code>dragTo(x, y)</code></td><td>Moves the grabbed point towards x, y.</td></tr>
-<tr><td><code>drop()</code></td><td>Lets go after grab(); a physics body keeps its speed.</td></tr>
-<tr><td><code>touching(tagOrPiece)</code></td><td>The first body or zone with a tag (or that piece) touching this one, or nil.</td></tr>
-<tr><td><code>isTouching(other)</code></td><td>True if it touches a piece (a body, zone or Tiles) or anything with a tag.</td></tr>
-<tr><td><code>contacts()</code></td><td>Current contacts: {piece, x, y, nx, ny, impulse}.</td></tr>
-<tr><td><code>touchingTile(setting)</code></td><td>The settings of a touching tile that has this setting (like &quot;damage&quot;), or nil.</td></tr>
-<tr><td><code>getSize()</code></td><td>The size of the box around its shapes: width, height.</td></tr></tbody>
+<tbody><tr><td><code>move()</code></td><td>Moves by vx, vy for this physics step. It slides along walls, climbs slopes, rides on platforms and pushes physics bodies.</td></tr>
+<tr><td><code>moveBy(dx, dy)</code></td><td>Moves by an offset and stops at the first thing in the way. Returns what it hit, or nil.</td></tr>
+<tr><td><code>onGround()</code></td><td>Returns true if the last move ended on top of something.</td></tr>
+<tr><td><code>onWall()</code></td><td>Returns true if the last move ran into a wall.</td></tr>
+<tr><td><code>onCeiling()</code></td><td>Returns true if the last move ran into a ceiling.</td></tr>
+<tr><td><code>applyImpulse(ix, iy, x?, y?)</code></td><td>Changes the speed immediately by impulse / mass. At a point, it also makes the body spin.</td></tr>
+<tr><td><code>applyForce(fx, fy, x?, y?)</code></td><td>Pushes with a force for this physics step, at the center or at a point. Call it in every physicsUpdate.</td></tr>
+<tr><td><code>applyTorque(torque)</code></td><td>Turns a physics body steadily for this physics step.</td></tr>
+<tr><td><code>applyAngularImpulse(impulse)</code></td><td>Gives a physics body a sudden twist.</td></tr>
+<tr><td><code>push(ix, iy)</code></td><td>Does the same as applyImpulse(ix, iy).</td></tr>
+<tr><td><code>wake()</code></td><td>Wakes up a physics body that sleeps.</td></tr>
+<tr><td><code>grab(x, y, strength?)</code></td><td>Holds the body at a point in the scene for dragTo(). drop() lets it go with its momentum.</td></tr>
+<tr><td><code>dragTo(x, y)</code></td><td>Moves the point that grab() holds towards x, y.</td></tr>
+<tr><td><code>drop()</code></td><td>Lets go after grab(). A physics body keeps its speed.</td></tr>
+<tr><td><code>touching(tagOrPiece)</code></td><td>Returns the first body or zone with a tag (or that piece) that touches this one, or nil.</td></tr>
+<tr><td><code>isTouching(other)</code></td><td>Returns true if it touches a piece (a body, zone or Tiles) or anything with a tag.</td></tr>
+<tr><td><code>contacts()</code></td><td>Returns the current contacts: {piece, x, y, nx, ny, impulse}.</td></tr>
+<tr><td><code>touchingTile(setting)</code></td><td>Returns the tile properties of a touching tile that has this tile property (for example &quot;damage&quot;), or nil.</td></tr>
+<tr><td><code>getSize()</code></td><td>Returns the size of the box around its shapes: width, height.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function hit(other, contact)</code></td><td>Started touching a body or solid tiles. contact: x, y, nx, ny (from other to this body), impulse.</td></tr>
-<tr><td><code>function entered(zone)</code></td><td>It went into a zone.</td></tr>
-<tr><td><code>function exited(zone)</code></td><td>It left a zone.</td></tr></tbody>
+<tbody><tr><td><code>function hit(other, contact)</code></td><td>The engine calls it when the body starts to touch a body or solid tiles. contact has x, y, nx, ny (from other to this body) and impulse.</td></tr>
+<tr><td><code>function entered(zone)</code></td><td>The engine calls it when the body goes into a zone.</td></tr>
+<tr><td><code>function exited(zone)</code></td><td>The engine calls it when the body leaves a zone.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>Auto fits the Sprites and Shapes inside it. Shapes turn and scale with the Zone.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners).</td></tr>
-<tr><td><code>detects</code></td><td>tags</td><td>&quot;&quot;</td><td>Only notices things with one of these tags (empty: everything).</td></tr>
-<tr><td><code>active</code></td><td>bool</td><td>true</td><td>Notice things going in and out.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it. The shapes turn and scale with the Zone.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most).</td></tr>
+<tr><td><code>detects</code></td><td>tags</td><td>&quot;&quot;</td><td>The Zone notices only things with one of these tags. If it is empty, it notices everything.</td></tr>
+<tr><td><code>active</code></td><td>bool</td><td>true</td><td>When this is on, the Zone notices things that go in and out.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>inside()</code></td><td>A list of the bodies and zones inside it now.</td></tr>
-<tr><td><code>touching(tagOrPiece)</code></td><td>The first body or zone with a tag (or that piece) inside it, or nil.</td></tr>
-<tr><td><code>isTouching(other)</code></td><td>True if a piece (or anything with a tag) is inside it.</td></tr></tbody>
+<tbody><tr><td><code>inside()</code></td><td>Returns a list of the bodies and zones that are inside it now.</td></tr>
+<tr><td><code>touching(tagOrPiece)</code></td><td>Returns the first body or zone with a tag (or that piece) that is inside it, or nil.</td></tr>
+<tr><td><code>isTouching(other)</code></td><td>Returns true if a piece (or anything with a tag) is inside it.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function entered(other)</code></td><td>A body or zone came in.</td></tr>
-<tr><td><code>function exited(other)</code></td><td>A body or zone left.</td></tr></tbody>
+<tbody><tr><td><code>function entered(other)</code></td><td>The engine calls it when a body or zone comes in.</td></tr>
+<tr><td><code>function exited(other)</code></td><td>The engine calls it when a body or zone leaves.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape, placed and turned by the Hitbox's position and rotation.</td></tr>
-<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule width.</td></tr>
-<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle or capsule height.</td></tr>
-<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
-<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... (up to 8 corners).</td></tr>
-<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this shape off.</td></tr></tbody>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;rectangle&quot;</td><td>The shape. The position and rotation of the Hitbox put it in place and turn it.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>The width of the rectangle or capsule.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>The height of the rectangle or capsule.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>The radius of the circle.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>The corner points x1, y1, x2, y2, ... (8 corners at most).</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>When this is on, this shape is off.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;pin&quot;</td><td>pin, weld, rope, spring, distance, slider (x axis), wheel (y axis spring) or mouse.</td></tr>
-<tr><td><code>a</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body it holds.</td></tr>
-<tr><td><code>b</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body it connects a to (empty: the place where the Joint is).</td></tr>
-<tr><td><code>length</code></td><td>number (px)</td><td>0</td><td>How far apart; 0 uses the distance when the joint is made.</td></tr>
-<tr><td><code>spring</code></td><td>bool</td><td>false</td><td>Springy: a pin or slider pulls back to where it started, a weld wobbles.</td></tr>
-<tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is: wobbles per second.</td></tr>
-<tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How quickly the spring stops wobbling: 1 doesn't overshoot.</td></tr>
-<tr><td><code>motor</code></td><td>bool</td><td>false</td><td>Drive it: turn a pin or wheel, or move a slider, at motorSpeed.</td></tr>
-<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>Degrees a second (pin, wheel) or pixels a second (slider, distance).</td></tr>
-<tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The most torque (pin, wheel) or force (slider, distance) the motor uses.</td></tr>
-<tr><td><code>limit</code></td><td>bool</td><td>false</td><td>Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.</td></tr>
-<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The furthest a pin turns anticlockwise, in degrees.</td></tr>
-<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The furthest a pin turns clockwise, in degrees.</td></tr>
-<tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The furthest a slider or wheel goes back.</td></tr>
-<tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The furthest a slider or wheel goes forward.</td></tr>
-<tr><td><code>strength</code></td><td>number</td><td>0</td><td>The most force a mouse joint pulls with; 0 is plenty for the body's mass.</td></tr>
-<tr><td><code>collide</code></td><td>bool</td><td>false</td><td>The two bodies still bump into each other.</td></tr>
-<tr><td><code>breakForce</code></td><td>number</td><td>0</td><td>Breaks (and sends broke) when pulled harder than this; 0 never breaks.</td></tr></tbody>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;pin&quot;</td><td>pin, weld, rope, spring, distance, slider (on the x axis), wheel (a spring on the y axis) or mouse.</td></tr>
+<tr><td><code>a</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body that the joint holds.</td></tr>
+<tr><td><code>b</code></td><td>piecepath</td><td>&quot;&quot;</td><td>The body that the joint connects a to. If it is empty, the joint connects a to the position of the Joint.</td></tr>
+<tr><td><code>length</code></td><td>number (px)</td><td>0</td><td>The distance between the bodies. 0 uses the distance at the time when the engine makes the joint.</td></tr>
+<tr><td><code>spring</code></td><td>bool</td><td>false</td><td>When this is on, the joint is springy: a pin or slider pulls back to where it started, and a weld wobbles.</td></tr>
+<tr><td><code>stiffness</code></td><td>number (Hz)</td><td>4</td><td>How stiff the spring is, in wobbles per second.</td></tr>
+<tr><td><code>damping</code></td><td>number</td><td>0.5</td><td>How fast the spring stops wobbling: 1 does not overshoot.</td></tr>
+<tr><td><code>motor</code></td><td>bool</td><td>false</td><td>When this is on, the joint drives the bodies: it turns a pin or wheel, or moves a slider, at motorSpeed.</td></tr>
+<tr><td><code>motorSpeed</code></td><td>number</td><td>90</td><td>The speed of the motor, in degrees per second (pin, wheel) or pixels per second (slider, distance).</td></tr>
+<tr><td><code>motorStrength</code></td><td>number</td><td>100000</td><td>The maximum torque (pin, wheel) or force (slider, distance) that the motor uses.</td></tr>
+<tr><td><code>limit</code></td><td>bool</td><td>false</td><td>When this is on, a pin stays between minAngle and maxAngle, and a slider or wheel stays between lower and upper.</td></tr>
+<tr><td><code>minAngle</code></td><td>angle (°)</td><td>-2578.31°</td><td>The maximum angle that a pin turns anticlockwise, in degrees.</td></tr>
+<tr><td><code>maxAngle</code></td><td>angle (°)</td><td>2578.31°</td><td>The maximum angle that a pin turns clockwise, in degrees.</td></tr>
+<tr><td><code>lower</code></td><td>number (px)</td><td>-50</td><td>The maximum distance that a slider or wheel moves back.</td></tr>
+<tr><td><code>upper</code></td><td>number (px)</td><td>50</td><td>The maximum distance that a slider or wheel moves forward.</td></tr>
+<tr><td><code>strength</code></td><td>number</td><td>0</td><td>The maximum force of the pull of a mouse joint. 0 gives enough force for the mass of the body.</td></tr>
+<tr><td><code>collide</code></td><td>bool</td><td>false</td><td>When this is on, the two bodies still bump into each other.</td></tr>
+<tr><td><code>breakForce</code></td><td>number</td><td>0</td><td>The joint breaks (and sends broke) when a pull is stronger than this. 0 means that it never breaks.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getAngle()</code></td><td>How far a pin has turned, in degrees.</td></tr>
-<tr><td><code>getTranslation()</code></td><td>How far a slider has slid (pixels).</td></tr>
-<tr><td><code>getLength()</code></td><td>How far apart a rope, spring or distance joint's ends are.</td></tr>
-<tr><td><code>getSpeed()</code></td><td>How fast a pin turns (degrees a second) or a slider slides (pixels a second).</td></tr>
-<tr><td><code>getForce()</code></td><td>How hard the joint pulls now.</td></tr>
-<tr><td><code>getTorque()</code></td><td>How hard the joint twists now.</td></tr>
-<tr><td><code>isBroken()</code></td><td>True once breakForce broke it.</td></tr></tbody>
+<tbody><tr><td><code>getAngle()</code></td><td>Returns how far a pin has turned, in degrees.</td></tr>
+<tr><td><code>getTranslation()</code></td><td>Returns how far a slider has moved, in pixels.</td></tr>
+<tr><td><code>getLength()</code></td><td>Returns the distance between the ends of a rope, spring or distance joint.</td></tr>
+<tr><td><code>getSpeed()</code></td><td>Returns how fast a pin turns (degrees per second) or a slider moves (pixels per second).</td></tr>
+<tr><td><code>getForce()</code></td><td>Returns how hard the joint pulls now.</td></tr>
+<tr><td><code>getTorque()</code></td><td>Returns how hard the joint twists now.</td></tr>
+<tr><td><code>isBroken()</code></td><td>Returns true after breakForce has broken the joint.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
-<tbody><tr><td><code>function broke()</code></td><td>It was pulled harder than breakForce and let go.</td></tr></tbody>
+<tbody><tr><td><code>function broke()</code></td><td>The engine calls it when a pull is stronger than breakForce and the joint lets go.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="ui"><span>Previous</span>UI</a><a class="next" href="pathfinding"><span>Next</span>Pathfinding</a></nav>

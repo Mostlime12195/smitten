@@ -177,32 +177,32 @@
 <p>The file format of tilesets is in <a href="formats#tilesets">File formats</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: a picture cut into tiles, with settings such as solid.</td></tr>
-<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>Tiles marked solid block bodies. Off makes every tile just decoration.</td></tr>
-<tr><td><code>castShadows</code></td><td>bool</td><td>false</td><td>Tiles marked solid block Lights that have shadows on.</td></tr>
-<tr><td><code>animate</code></td><td>bool</td><td>true</td><td>Animated tiles play. Off freezes them on the frame they show.</td></tr></tbody>
+<tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: an image cut into tiles, with tile properties such as solid.</td></tr>
+<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>When this is on, tiles that the tileset marks as solid block bodies. When it is off, every tile is only decoration.</td></tr>
+<tr><td><code>castShadows</code></td><td>bool</td><td>false</td><td>When this is on, tiles that the tileset marks as solid block the Lights that have shadows on.</td></tr>
+<tr><td><code>animate</code></td><td>bool</td><td>true</td><td>When this is on, animated tiles play. When it is off, they stop on the animation frame that they show.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
-<tbody><tr><td><code>getTile(column, row)</code></td><td>The tile number in a cell, or -1 if it's empty.</td></tr>
-<tr><td><code>setTile(column, row, tile)</code></td><td>Changes a cell (-1 empties it).</td></tr>
-<tr><td><code>tileInfo(tile)</code></td><td>The settings of a tile in the tileset (solid, name, ...).</td></tr>
-<tr><td><code>cellAt(x, y)</code></td><td>The cell under a point in the scene: column, row.</td></tr>
-<tr><td><code>cellPosition(column, row)</code></td><td>The scene position of a cell's top-left corner.</td></tr>
-<tr><td><code>cellsWith(tile?)</code></td><td>A list of {column, row, tile} for every painted cell (or every cell with that tile).</td></tr>
+<tbody><tr><td><code>getTile(column, row)</code></td><td>Returns the tile number in a cell, or -1 if the cell is empty.</td></tr>
+<tr><td><code>setTile(column, row, tile)</code></td><td>Changes the tile in a cell (-1 empties the cell).</td></tr>
+<tr><td><code>tileInfo(tile)</code></td><td>Returns the tile properties of a tile in the tileset (solid, name, ...).</td></tr>
+<tr><td><code>cellAt(x, y)</code></td><td>Returns the cell under a point in the scene: column, row.</td></tr>
+<tr><td><code>cellPosition(column, row)</code></td><td>Returns the scene position of the top-left corner of a cell.</td></tr>
+<tr><td><code>cellsWith(tile?)</code></td><td>Returns a list of {column, row, tile} for every painted cell (or every cell with that tile).</td></tr>
 <tr><td><code>fill(column, row, columns, rows, tile)</code></td><td>Sets a rectangle of cells to one tile (-1 empties them).</td></tr>
 <tr><td><code>clear()</code></td><td>Empties every cell.</td></tr>
-<tr><td><code>tileAt(x, y)</code></td><td>The tile number under a point in the scene, or -1.</td></tr>
-<tr><td><code>isSolid(column, row)</code></td><td>True if the cell's tile is marked solid (and solid is on).</td></tr>
-<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Adjacent cells as {column, row, tile}: 4, or 8 with diagonal.</td></tr>
-<tr><td><code>cellCenter(column, row)</code></td><td>The scene position of a cell's center.</td></tr>
-<tr><td><code>getTileSize()</code></td><td>The size of one cell in the scene: width, height.</td></tr>
-<tr><td><code>getBounds()</code></td><td>The painted area in the scene: x, y, width, height (all 0 when empty).</td></tr>
-<tr><td><code>newPathGrid(options?)</code></td><td>A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile().</td></tr>
-<tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain of the tileset (by name; nil erases) in a cell and re-picks the tiles of the 8 cells around it so the edges fit.</td></tr>
-<tr><td><code>getTerrain(column, row)</code></td><td>The name of the terrain the cell's tile belongs to, or nil.</td></tr>
-<tr><td><code>fillTerrain(column, row, columns, rows, terrain)</code></td><td>Paints a terrain (nil erases) in a rectangle of cells and fits the edges, also of the cells around it.</td></tr>
-<tr><td><code>terrains()</code></td><td>The names of the tileset's terrains.</td></tr></tbody>
+<tr><td><code>tileAt(x, y)</code></td><td>Returns the tile number under a point in the scene, or -1.</td></tr>
+<tr><td><code>isSolid(column, row)</code></td><td>Returns true if the tileset marks the tile in the cell as solid (and solid is on).</td></tr>
+<tr><td><code>neighbors(column, row, diagonal?)</code></td><td>Returns the adjacent cells as {column, row, tile}: 4 cells, or 8 with diagonal.</td></tr>
+<tr><td><code>cellCenter(column, row)</code></td><td>Returns the scene position of the center of a cell.</td></tr>
+<tr><td><code>getTileSize()</code></td><td>Returns the size of one cell in the scene: width, height.</td></tr>
+<tr><td><code>getBounds()</code></td><td>Returns the painted area in the scene: x, y, width, height (all 0 if no cell has a tile).</td></tr>
+<tr><td><code>newPathGrid(options?)</code></td><td>Returns a grid to find paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). The grid changes when setTile() changes a tile.</td></tr>
+<tr><td><code>setTerrain(column, row, terrain)</code></td><td>Paints a terrain of the tileset (by name; nil erases) in a cell. It also changes the tiles of the 8 cells around it so that the edges fit.</td></tr>
+<tr><td><code>getTerrain(column, row)</code></td><td>Returns the name of the terrain of the tile in the cell, or nil.</td></tr>
+<tr><td><code>fillTerrain(column, row, columns, rows, terrain)</code></td><td>Paints a terrain (nil erases) in a rectangle of cells. It makes the edges fit, also at the cells around the rectangle.</td></tr>
+<tr><td><code>terrains()</code></td><td>Returns the names of the terrains in the tileset.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="backgrounds"><span>Previous</span>Backgrounds</a><a class="next" href="lights"><span>Next</span>Lights</a></nav>

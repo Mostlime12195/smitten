@@ -228,18 +228,18 @@ incorrect place also gets a path.
 <!-- module:paths -->
 | Function | |
 | --- | --- |
-| `smitten.paths.newGrid(columns, rows, options?)` | A grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = "noCorners" }). A Tiles piece makes one of itself with newPathGrid(). |
-| `smitten.paths.newGraph()` | An empty graph: points you add and connect by hand, and paths along the connections. |
-| `smitten.paths.newArea(areas, holes?)` | A walkable area from polygons and holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }). |
-| `smitten.paths.newAgent(options?)` | Something that follows paths: it remembers a target and says which point to head for next. options: finder (a grid, graph or area; the scene's Walkable pieces if left out), reach, replan, partial, tags. |
-| `smitten.paths.findPath(x1, y1, x2, y2, options?)` | The short way between two points through the scene's Walkable pieces: {x, y, x, y, ...}, or nil. options: tags, partial. |
-| `smitten.paths.closestPoint(x, y, options?)` | The walkable point nearest a point: x, y. |
-| `smitten.paths.isWalkable(x, y, options?)` | True if a point is inside a Walkable piece and not in a hole. |
-| `smitten.paths.getArea(options?)` | The area built from the scene's Walkable pieces. |
-| `smitten.paths.refresh()` | Builds the scene's walkable area again; only needed after changing a Walkable's points in place. |
-| `smitten.paths.length(path)` | How long a path is, in pixels. |
-| `smitten.paths.pointAt(path, distance)` | The point a distance along a path from its start: x, y, and true once it's the end. |
-| `smitten.paths.debugDraw(what?, options?)` | Draws a path, an agent's path or an area (with nothing: the scene's Walkable pieces) from a script's draw(). options: color, width. |
+| `smitten.paths.newGrid(columns, rows, options?)` | Makes a grid of open and solid cells to find paths through: newGrid(40, 30, { cellSize = 16, diagonals = "noCorners" }). A Tiles piece makes its own grid with newPathGrid(). |
+| `smitten.paths.newGraph()` | Makes an empty graph: you add points and connect them, and it finds paths along the connections. |
+| `smitten.paths.newArea(areas, holes?)` | Makes a walkable area from polygons, with holes cut out of them: newArea({ { 0, 0, 400, 0, 400, 300, 0, 300 } }, { hole }). |
+| `smitten.paths.newAgent(options?)` | Makes an agent that follows paths: it keeps a target and tells you the next point to go to. options: finder, reach, replan, partial, tags. finder is a grid, graph or area (the Walkable pieces of the scene if you leave it out). |
+| `smitten.paths.findPath(x1, y1, x2, y2, options?)` | Returns a short path between two points through the Walkable pieces of the scene: {x, y, x, y, ...}, or nil. options: tags, partial. |
+| `smitten.paths.closestPoint(x, y, options?)` | Returns the walkable point that is nearest to a point: x, y. |
+| `smitten.paths.isWalkable(x, y, options?)` | Returns true if a point is inside a Walkable piece and not in a hole. |
+| `smitten.paths.getArea(options?)` | Returns the area that the engine makes from the Walkable pieces of the scene. |
+| `smitten.paths.refresh()` | Makes the walkable area of the scene again. You need it only after you change the points of a Walkable in place. |
+| `smitten.paths.length(path)` | Returns the length of a path, in pixels. |
+| `smitten.paths.pointAt(path, distance)` | Returns the point at a distance along a path from its start: x, y, and true if it is the end. |
+| `smitten.paths.debugDraw(what?, options?)` | Draws a path, the path of an agent or an area, from the draw() function of a script. With no argument, it draws the Walkable pieces of the scene. options: color, width. |
 <!-- end -->
 
 `options` is a table:

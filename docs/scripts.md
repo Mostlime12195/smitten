@@ -178,12 +178,12 @@ they cannot wait. In these functions, start a `task` or use `after`.
 <!-- api:Time -->
 | Call | |
 | --- | --- |
-| `wait(seconds)` | Pauses ready(), an event or a task for some seconds. |
+| `wait(seconds)` | Pauses ready(), an event function or a task for some seconds. |
 | `task(function)` | Runs a function that can wait(). |
 | `after(seconds, function)` | Calls a function once, after some seconds. |
-| `every(seconds, function)` | Calls a function every so many seconds, until it returns false. |
+| `every(seconds, function)` | Calls a function each time the given seconds pass, until it returns false. |
 | `tween(target, seconds, values, easing)` | Changes numbers smoothly: tween(self, 0.3, { y = 100 }). |
-| `time()` | Seconds since the game started. |
+| `time()` | Returns the seconds since the game started. |
 <!-- end -->
 
 The waits, timers and tweens of a piece stop when you destroy the piece or
@@ -207,15 +207,15 @@ Easings: `linear`, `outQuad` (the default), `inQuad`, `inOutQuad`,
 <!-- api:Math -->
 | Call | |
 | --- | --- |
-| `approach(value, target, step)` | Moves a value towards a target by at most step. |
-| `lerp(a, b, t)` | Between a and b: t = 0 is a, 1 is b. |
-| `clamp(value, min, max)` | The value, kept between min and max. |
-| `sign(value)` | -1, 0 or 1. |
-| `round(value, step)` | Rounded to the nearest step (default 1). |
-| `rnd(n)` | rnd(): 0 to 1. rnd(n): 0 to n. rnd(list): one of its items. |
-| `choose(...)` | One of its arguments, at random. |
-| `dist(a, b)` | The distance between two pieces, or dist(x1, y1, x2, y2). |
-| `jumpSpeed(height, gravity)` | How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither). |
+| `approach(value, target, step)` | Returns value, moved towards target by at most step. |
+| `lerp(a, b, t)` | Returns a value between a and b: t = 0 gives a, 1 gives b. |
+| `clamp(value, min, max)` | Returns value, kept between min and max. |
+| `sign(value)` | Returns -1, 0 or 1. |
+| `round(value, step)` | Returns value, rounded to the nearest step (1 if you leave it out). |
+| `rnd(n)` | rnd() returns 0 to 1. rnd(n) returns 0 to n. rnd(list) returns one of its items. |
+| `choose(...)` | Returns one of its arguments, at random. |
+| `dist(a, b)` | Returns the distance between two pieces, or between two points: dist(x1, y1, x2, y2). |
+| `jumpSpeed(height, gravity)` | Returns the upward speed for a jump of this height. It uses the gravity variable of the script, or the gravity that you give, or 1800 if there is neither. |
 <!-- end -->
 
 [`smitten.math`](engine.md) has more math functions.
