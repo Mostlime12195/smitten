@@ -23,12 +23,19 @@
 //   boards-site       boards-site.html, which stands in for it (PASS, FAIL, DONE)
 //   errorscreen       errors on purpose: the error must come out in plain
 //                     form, without the engine's own frames
+//   clips             Record in the player's toolbar, then F9 (a video) and
+//                     Shift+F9 (a GIF): the downloaded files are checked
+//                     (SHOTS=dir also keeps screenshots and the files)
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { launch, sleep } from '../stress/run.mjs';
+import { readWebm, webmDuration } from '../../web/player/webm.js';
+import { gifRegion, segmentMs } from '../../web/player/clips.js';
+import { decodeGif } from '../clip-tests/gif-decode.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = Number(process.env.PORT) || 8772;
@@ -75,6 +82,14 @@ const CASES = {
   // instruments: its own checks, then its song's checksum against the
   // editor's synthesizer (dist/synth.js), so previews sound like the game.
   sounds: { game: 'tools/scene-tests/sounds.zip', until: /^DONE /, modules: 'synth', check: selfChecking, after: sameAsEditor },
+  // Clips (web/player/clips.js): a pixel-art game with a tone, recorded
+  // through the toolbar, saved as a video and a GIF of the last 3 seconds.
+  // Headless Chrome says it has no mouse (hover: none), which hides the
+  // player's toolbar as on a phone: the flag gives it one.
+  clips: {
+    game: 'tools/scene-tests/clips.zip', query: '&clipSeconds=3', until: /^ready/, modules: '', check: noErrors, after: realClips,
+    flags: ['--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4'],
+  },
 };
 
 // The editor renders the sounds test's song (with its WAV file read by the
@@ -200,6 +215,168 @@ async function realUI(page, lines) {
     || await step('a click on the checkbox', async () => { await mouse('mouseReleased', beyond, 0); await click(at(30, 144)); }, 'check=true');
 }
 
+// The clips test: a real click on Record, real F9 and Shift+F9 presses,
+// and the files the browser downloads, checked here and in the page.
+async function realClips(page) {
+  const dir = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'smitten-clips-'));
+  try {
+    await page.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dir })
+      .catch(() => page.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir }));
+    const center = async (sel) => JSON.parse(await page.eval(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return JSON.stringify([Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]); })()`));
+    const mouse = (type, x, y) => page.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1 });
+    const click = async (sel) => {
+      const [x, y] = await center(sel);
+      await mouse('mouseMoved', x, y);
+      await mouse('mousePressed', x, y);
+      await sleep(50);
+      await mouse('mouseReleased', x, y);
+    };
+    const key = async (shift) => {
+      const k = { key: 'F9', code: 'F9', windowsVirtualKeyCode: 120, nativeVirtualKeyCode: 120, modifiers: shift ? 8 : 0 };
+      await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...k });
+      await sleep(50);
+      await page.send('Input.dispatchKeyEvent', { type: 'keyUp', ...k });
+    };
+    const shot = async (name) => {
+      if (!process.env.SHOTS) return;
+      const { data } = await page.send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(join(process.env.SHOTS, name), Buffer.from(data, 'base64'));
+    };
+    const download = async (ext, seconds) => {
+      for (let i = 0; i < seconds * 10; i++) {
+        const name = readdirSync(dir).find((f) => f.endsWith(`.${ext}`));
+        if (name) {
+          await sleep(300);
+          return { name, bytes: new Uint8Array(readFileSync(join(dir, name))) };
+        }
+        await sleep(100);
+      }
+      return null;
+    };
+    const status = () => page.eval(`document.querySelector('#clip-status').textContent`);
+
+    if (await page.eval(`document.querySelector('#btn-record').hidden`)) return 'clips: the Record button is hidden (the browser cannot record?)';
+    if (!(await page.eval(`document.querySelector('#btn-clip').hidden`))) return 'clips: Save clip shows before Record is pressed';
+    const pressed = async (want) => {
+      for (let i = 0; i < 50; i++) {
+        if (await page.eval(`document.querySelector('#btn-record').getAttribute('aria-pressed')`) === want) return true;
+        await sleep(100);
+      }
+      return false;
+    };
+    await click('#btn-record');
+    // The first press loads clips.js.
+    if (!(await pressed('true'))) return `clips: Record did not start: ${await status()}`;
+    if (await page.eval(`document.querySelector('#btn-clip').hidden`)) return 'clips: no Save clip button while recording';
+    await shot('clips-toolbar.png');
+    // More than 3 seconds, so the clip is cut to the last 3.
+    await sleep(5500);
+    await click('#btn-clip');
+    await sleep(200);
+    await shot('clips-menu.png');
+    await click('#btn-clip');
+    await key(false);
+    const video = await download('webm', 30);
+    if (!video) return `clips: F9 saved no video: ${await status()}`;
+    await key(true);
+    const gif = await download('gif', 90);
+    if (!gif) return `clips: Shift+F9 saved no GIF: ${await status()}`;
+    await shot('clips-saved.png');
+    if (process.env.SHOTS) {
+      writeFileSync(join(process.env.SHOTS, 'clips.webm'), video.bytes);
+      writeFileSync(join(process.env.SHOTS, 'clips.gif'), gif.bytes);
+    }
+
+    // The video: about the last 3 seconds, VP8 and Opus, from a keyframe.
+    if (!/^Clips test \d{4}-\d\d-\d\d \d\d-\d\d-\d\d\.webm$/.test(video.name)) return `clips: the video's name is "${video.name}"`;
+    const webm = readWebm(video.bytes);
+    const duration = webmDuration(video.bytes);
+    const frames = webm.blocks.filter((b) => b.track === webm.tracks.find((t) => t.codecId === 'V_VP8')?.number);
+    const sound = webm.tracks.find((t) => t.codecId === 'A_OPUS');
+    const fps = frames.length / (duration / 1000);
+    console.log(`clips: video ${video.bytes.length} bytes, ${(duration / 1000).toFixed(2)} s, ${frames.length} frames (${fps.toFixed(1)} per second), ${sound ? 'with' : 'without'} sound`);
+    if (!(duration >= 2900 && duration <= 3000 + segmentMs(3) + 300)) return `clips: the video is ${duration} ms long, not about 3 seconds`;
+    if (!frames.length || !frames[0].keyframe) return 'clips: the video does not start on a keyframe';
+    if (fps < 5) return `clips: only ${fps.toFixed(1)} frames per second in the video`;
+    if (!sound || !webm.blocks.some((b) => b.track === sound.number)) return 'clips: the video has no sound';
+    // The browser plays it, knows its length and can seek in it.
+    const b64 = Buffer.from(video.bytes).toString('base64');
+    const played = JSON.parse(await page.eval(`(async () => {
+      const bytes = Uint8Array.from(atob(${JSON.stringify(b64)}), (c) => c.charCodeAt(0));
+      const v = document.createElement('video');
+      v.muted = true;
+      v.src = URL.createObjectURL(new Blob([bytes], { type: 'video/webm' }));
+      await new Promise((ok, no) => {
+        v.onloadedmetadata = ok;
+        v.onerror = () => no(new Error('the video does not load'));
+        setTimeout(() => no(new Error('the video did not load in 10 seconds')), 10000);
+      });
+      const duration = v.duration;
+      v.currentTime = duration / 2;
+      await new Promise((ok) => { v.onseeked = ok; setTimeout(ok, 5000); });
+      return JSON.stringify({ duration, at: v.currentTime, width: v.videoWidth, height: v.videoHeight });
+    })()`));
+    if (!(Math.abs(played.duration * 1000 - duration) < 150)) return `clips: the browser says the video is ${played.duration} s, the file ${duration} ms`;
+    if (!(Math.abs(played.at - played.duration / 2) < 0.3)) return `clips: seeking to the middle went to ${played.at} s`;
+
+    // The GIF: the game's pixels, each a 4x4 square, about 3 seconds long.
+    const [cw, ch] = JSON.parse(await page.eval(`JSON.stringify([document.querySelector('#canvas').width, document.querySelector('#canvas').height])`));
+    const want = gifRegion(played.width || cw, played.height || ch, { width: 160, height: 90, stretch: 'pixel' });
+    const g = decodeGif(gif.bytes);
+    const gifMs = g.frames.reduce((s, f) => s + f.delay * 10, 0);
+    console.log(`clips: GIF ${gif.bytes.length} bytes, ${g.width}x${g.height}, ${g.frames.length} frames, ${(gifMs / 1000).toFixed(2)} s`);
+    if (g.sig !== 'GIF89a' || g.width !== want.width || g.height !== want.height) return `clips: the GIF is ${g.sig} ${g.width}x${g.height}, not ${want.width}x${want.height}`;
+    if (!(gifMs >= 2800 && gifMs <= 3000 + segmentMs(3) + 400)) return `clips: the GIF is ${gifMs} ms long`;
+    if (g.frames.length > Math.ceil(gifMs / 1000 * 15) + 2) return `clips: ${g.frames.length} frames is more than 15 per second`;
+    if (g.frames.length < Math.min(15, fps) * gifMs / 1000 * 0.5) return `clips: only ${g.frames.length} frames in the GIF`;
+    const times = want.width / 160;
+    // Near the game's own colors (not darker: the video is full range).
+    const near = (c, ref) => c && Math.abs(c[0] - ref[0]) + Math.abs(c[1] - ref[1]) + Math.abs(c[2] - ref[2]) < 24;
+    const bg = [26, 28, 43], box = [255, 204, 77];
+    for (const [i, f] of g.frames.entries()) {
+      let other = 0, boxes = 0, mixed = 0;
+      for (const c of f.pixels) {
+        if (near(c, box)) boxes++;
+        else if (!near(c, bg)) other++;
+      }
+      // Each game pixel is a square of the same GIF pixels.
+      for (let y = 0; y < g.height; y += times) {
+        for (let x = 0; x < g.width; x += times) {
+          const first = f.pixels[y * g.width + x];
+          for (let k = 0; k < times * times; k++) {
+            if (f.pixels[(y + Math.floor(k / times)) * g.width + x + (k % times)] !== first) { mixed++; break; }
+          }
+        }
+      }
+      if (other > f.pixels.length * 0.002) return `clips: GIF frame ${i}: ${other} pixels are neither the background nor the box`;
+      if (boxes < 144 * times * times * 0.8) return `clips: GIF frame ${i}: the box has ${boxes} pixels, not about ${144 * times * times}`;
+      if (mixed > 160 * 90 * 0.002) return `clips: GIF frame ${i}: ${mixed} game pixels are not sharp squares`;
+    }
+    // The browser's own GIF decoder agrees.
+    const decoded = await page.eval(`(async () => {
+      if (typeof ImageDecoder === 'undefined') return -1;
+      const bytes = Uint8Array.from(atob(${JSON.stringify(Buffer.from(gif.bytes).toString('base64'))}), (c) => c.charCodeAt(0));
+      const d = new ImageDecoder({ data: bytes, type: 'image/gif' });
+      const late = new Promise((ok) => setTimeout(() => ok(-2), 10000));
+      return Promise.race([late, (async () => {
+        await d.tracks.ready;
+        const n = d.tracks.selectedTrack.frameCount;
+        await d.decode({ frameIndex: n - 1 });
+        return n;
+      })()]);
+    })()`);
+    if (decoded === -2) return 'clips: the browser did not decode the GIF in 10 seconds';
+    if (decoded !== -1 && decoded !== g.frames.length) return `clips: the browser finds ${decoded} frames in the GIF, not ${g.frames.length}`;
+    // Record again: it stops, and Save clip goes away.
+    await click('#btn-record');
+    if (!(await pressed('false'))) return 'clips: pressing Record again did not stop it';
+    if (!(await page.eval(`document.querySelector('#btn-clip').hidden`))) return 'clips: Save clip stays after recording stops';
+    return null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function plainError(lines) {
   const at = lines.findIndex((l) => /^Error: /.test(l));
   if (at < 0) return 'the deliberate error never came';
@@ -210,7 +387,7 @@ function plainError(lines) {
 
 async function runCase(name) {
   const c = CASES[name];
-  const page = await launch();
+  const page = await launch({ flags: c.flags || [] });
   const lines = [];
   page.on((m) => {
     if (m.method === 'Runtime.consoleAPICalled') {
@@ -222,7 +399,7 @@ async function runCase(name) {
   const modules = c.modules ?? 'physics2d';
   // A touch screen for the page, so the browser sends touch events.
   if (c.touch) await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await page.goto(c.url ? `${BASE}${c.url}` : `${BASE}/player.html?game=${c.game}&autoplay=1${modules ? `&modules=${modules}` : ''}`);
+  await page.goto(c.url ? `${BASE}${c.url}` : `${BASE}/player.html?game=${c.game}&autoplay=1${modules ? `&modules=${modules}` : ''}${c.query || ''}`);
   const t0 = Date.now();
   if (c.until) {
     while (!lines.some((l) => c.until.test(l)) && Date.now() - t0 < 40000) await sleep(100);

@@ -42,14 +42,14 @@ function findChrome() {
   return mac;
 }
 
-export async function launch({ headless = true } = {}, attempt = 1) {
+export async function launch({ headless = true, flags = [] } = {}, attempt = 1) {
   const port = 9300 + Math.floor(Math.random() * 500);
   const proc = spawn(findChrome(), [
     ...(headless ? ['--headless=new'] : []), `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'smitten-stress-'))}`,
     '--no-first-run', '--enable-precise-memory-info', '--autoplay-policy=no-user-gesture-required', '--window-size=1400,900',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
     // CHROME_FLAGS: extra flags, e.g. "--no-sandbox --enable-unsafe-swiftshader" on a CI machine with no GPU.
-    ...(process.env.CHROME_FLAGS || '').split(' ').filter(Boolean), 'about:blank',
+    ...(process.env.CHROME_FLAGS || '').split(' ').filter(Boolean), ...flags, 'about:blank',
   ], { stdio: 'ignore' });
   // A busy machine (a CI runner) can take a while to bring the browser up.
   let list = [];
@@ -63,7 +63,7 @@ export async function launch({ headless = true } = {}, attempt = 1) {
   const target = list.find((t) => t.type === 'page');
   if (!target) {
     proc.kill();
-    if (attempt < 2) return launch({ headless }, attempt + 1);
+    if (attempt < 2) return launch({ headless, flags }, attempt + 1);
     throw new Error('the browser did not start (set CHROME to its path)');
   }
   const ws = new WebSocket(target.webSocketDebuggerUrl);

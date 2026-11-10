@@ -1,0 +1,7 @@
+{
+  "format": "smitten.project",
+  "version": 3,
+  "name": "Clips test",
+  "main": "scenes/main.scene",
+  "display": { "width": 160, "height": 90, "stretch": "pixel", "background": [0.1, 0.11, 0.17, 1] }
+}

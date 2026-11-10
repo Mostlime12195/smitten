@@ -1,0 +1,16 @@
+{
+  "format": "smitten.scene",
+  "version": 3,
+  "root": {
+    "name": "Main",
+    "type": "Group",
+    "script": "scenes/main.lua",
+    "children": [
+      {
+        "name": "Box",
+        "type": "Shape",
+        "properties": { "x": 80, "y": 45, "width": 12, "height": 12, "color": [1, 0.8, 0.3, 1] }
+      }
+    ]
+  }
+}
