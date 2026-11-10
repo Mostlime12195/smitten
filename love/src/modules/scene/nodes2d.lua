@@ -617,6 +617,149 @@ function Particles:_drawWorld(tr, tg, tb, ta)
 end
 
 ---------------------------------------------------------------------------
+-- Background: a Group whose pieces scroll at their own speed under the
+-- camera (parallax), and can repeat to fill the view (docs/backgrounds.md).
+--
+-- The renderers move a Background while they walk the tree (collect below,
+-- and the one in lights.lua): its place in the scene is shifted by how far
+-- the camera has gone from the scene's first screen, times (1 - scroll), so
+-- it's where it was placed while the camera shows that first screen. With a
+-- repeat size its children are listed once for every copy the view needs.
+-- A scene without one pays for one comparison per piece with a position.
+
+local Background = nodeLib.classes.Background
+local backgrounds = 0   -- how many the running scene has
+Background._bg = true
+
+function Background:_enter()
+	backgrounds = backgrounds + 1
+	self._dx, self._dy = 0, 0
+end
+
+function Background:_exit()
+	backgrounds = backgrounds - 1
+end
+
+-- Drifting: how far it has slid so far, in its own pixels.
+function Background:_process(dt)
+	local vx, vy = self.driftX, self.driftY
+	if vx ~= 0 then
+		local dx = (self._dx or 0) + vx * dt
+		local rw = self.repeatWidth
+		if rw > 0 then dx = dx % rw end
+		self._dx = dx
+	end
+	if vy ~= 0 then
+		local dy = (self._dy or 0) + vy * dt
+		local rh = self.repeatHeight
+		if rh > 0 then dy = dy % rh end
+		self._dy = dy
+	end
+end
+
+-- The view this frame: the scene point in the middle of the screen, half
+-- the view's size in the scene, and the middle of the game's own screen.
+local bgX, bgY, bgHalfW, bgHalfH, bgMidX, bgMidY = 0, 0, 0, 0, 0, 0
+local bgDisplay = nil
+
+-- Called by a renderer before it collects, with the camera's matrix.
+local function backgroundView(ca, cb, cc, cd, ctx, cty)
+	local display = bgDisplay
+	if not display then
+		display = require("love.display")
+		bgDisplay = display
+	end
+	local gx, gy = display.viewX + display.viewWidth / 2, display.viewY + display.viewHeight / 2
+	bgMidX, bgMidY = gx, gy
+	local det = ca * cd - cb * cc
+	if det == 0 then
+		bgX, bgY, bgHalfW, bgHalfH = gx, gy, 0, 0
+		return
+	end
+	local x, y = gx - ctx, gy - cty
+	bgX, bgY = (cd * x - cc * y) / det, (ca * y - cb * x) / det
+	local zoom = sqrt(math.abs(det))
+	bgHalfW, bgHalfH = display.viewWidth / 2 / zoom, display.viewHeight / 2 / zoom
+end
+
+-- Where a Background goes: a, b, c, d, tx, ty is its matrix as the tree
+-- gives it, and ka, kb, kc, kd turns a step in the scene into a step in the
+-- matrix's space (the camera's matrix when it's already in, else 1, 0, 0, 1).
+-- Returns the new tx, ty.
+local function backgroundPlace(n, a, b, c, d, tx, ty, ka, kb, kc, kd)
+	local cx, cy = bgX, bgY
+	-- Past an edge it stops scrolling (it stays where it is in the scene).
+	local l, r, t, bt = n.left, n.right, n.top, n.bottom
+	if l or r then
+		local hw = bgHalfW
+		if l and r and r - l < hw * 2 then cx = (l + r) / 2
+		else
+			if l and cx - hw < l then cx = l + hw end
+			if r and cx + hw > r then cx = r - hw end
+		end
+	end
+	if t or bt then
+		local hh = bgHalfH
+		if t and bt and bt - t < hh * 2 then cy = (t + bt) / 2
+		else
+			if t and cy - hh < t then cy = t + hh end
+			if bt and cy + hh > bt then cy = bt - hh end
+		end
+	end
+	local sx, sy = (cx - bgMidX) * (1 - n.scrollX), (cy - bgMidY) * (1 - n.scrollY)
+	local lx, ly = n.offsetX + (n._dx or 0), n.offsetY + (n._dy or 0)
+	return tx + ka * sx + kc * sy + a * lx + c * ly, ty + kb * sx + kd * sy + b * lx + d * ly
+end
+
+-- Which copies of a repeating Background the view needs: from column i0 to
+-- i1 and row j0 to j1 (copy 0, 0 is the Background itself). a .. ty is its
+-- matrix into game coordinates. What's inside is taken to sit between 0 and
+-- the repeat size; one more copy on each side covers pieces that stick out
+-- (a centered sprite at 0, 0 does).
+local MAX_COPIES = 64 -- along one direction
+
+local function backgroundCopies(n, a, b, c, d, tx, ty)
+	local det = a * d - b * c
+	if det == 0 then return 0, 0, 0, 0 end
+	local display = bgDisplay
+	local vx, vy, vw, vh = display.viewX, display.viewY, display.viewWidth, display.viewHeight
+	local u0, v0, u1, v1 = math.huge, math.huge, -math.huge, -math.huge
+	for corner = 0, 3 do
+		local x, y = vx + (corner % 2) * vw - tx, vy + floor(corner / 2) * vh - ty
+		local u, v = (d * x - c * y) / det, (a * y - b * x) / det
+		if u < u0 then u0 = u end
+		if u > u1 then u1 = u end
+		if v < v0 then v0 = v end
+		if v > v1 then v1 = v end
+	end
+	local i0, i1, j0, j1 = 0, 0, 0, 0
+	local rw, rh = n.repeatWidth, n.repeatHeight
+	if rw > 0 then
+		i0, i1 = floor(u0 / rw) - 1, floor(u1 / rw) + 1
+		if i1 - i0 >= MAX_COPIES then i1 = i0 + MAX_COPIES - 1 end
+	end
+	if rh > 0 then
+		j0, j1 = floor(v0 / rh) - 1, floor(v1 / rh) + 1
+		if j1 - j0 >= MAX_COPIES then j1 = j0 + MAX_COPIES - 1 end
+	end
+	return i0, i1, j0, j1
+end
+
+M._backgroundView = backgroundView
+M._backgroundPlace = backgroundPlace
+M._backgroundCopies = backgroundCopies
+
+---Where the Background is drawn right now, as an offset in the scene from
+---where it was placed: x, y. (Its pieces' own positions never change.)
+function Background:getScroll()
+	local ca, cb, cc, cd, ctx, cty = M.cameraMatrix()
+	backgroundView(ca, cb, cc, cd, ctx, cty)
+	local a, b, c, d, tx, ty = globalMatrix(self)
+	local x, y = backgroundPlace(self, a, b, c, d, tx, ty, 1, 0, 0, 1)
+	return x - tx, y - ty
+end
+
+---------------------------------------------------------------------------
 -- The 2D renderer
 
 local items = {}   -- reused draw items
@@ -633,9 +776,13 @@ local function setMatrix(t, a, b, c, d, tx, ty)
 	t:setMatrix(a, c, 0, tx, b, d, 0, ty, 0, 0, 1, 0, 0, 0, 0, 1)
 end
 
+-- The camera's matrix while collecting (a Background needs it).
+local camA, camB, camC, camD = 1, 0, 0, 1
+
 local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 	if n._dead then return end
 	local is2d = hasPosition(n)
+	local copies = false
 	if is2d then
 		if not n.visible then return end
 		local r = n.rotation
@@ -647,6 +794,10 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 		local t = n.tint
 		tr, tg, tb, ta = tr * t[1], tg * t[2], tb * t[3], ta * (t[4] or 1)
 		z = z + n.layer
+		if backgrounds > 0 and n._bg then
+			tx, ty = backgroundPlace(n, a, b, c, d, tx, ty, camA, camB, camC, camD)
+			copies = n.repeatWidth > 0 or n.repeatHeight > 0
+		end
 		if n._draw or n.draw or n._drawWorld then
 			count = count + 1
 			order = order + 1
@@ -662,6 +813,22 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 		return -- UI is drawn separately, on top
 	end
 	local ch = n.children
+	if copies then
+		-- A repeating Background: its pieces once for every copy in view.
+		local i0, i1, j0, j1 = backgroundCopies(n, a, b, c, d, tx, ty)
+		local rw, rh = n.repeatWidth, n.repeatHeight
+		for j = j0, j1 do
+			for i = i0, i1 do
+				local ox, oy = i * rw, j * rh
+				local cx, cy = tx + a * ox + c * oy, ty + b * ox + d * oy
+				for k = 1, #ch do
+					local child = ch[k]
+					if child then collect(child, a, b, c, d, cx, cy, tr, tg, tb, ta, z) end
+				end
+			end
+		end
+		return
+	end
 	for i = 1, #ch do
 		local child = ch[i]
 		if child then collect(child, a, b, c, d, tx, ty, tr, tg, tb, ta, z) end
@@ -732,6 +899,10 @@ function M.render(root)
 	if M._lights > 0 then return M._renderLit(root) end
 	count, order = 0, 0
 	local ca, cb, cc, cd, ctx, cty = cameraMatrix()
+	if backgrounds > 0 then
+		camA, camB, camC, camD = ca, cb, cc, cd
+		backgroundView(ca, cb, cc, cd, ctx, cty)
+	end
 	collect(root, ca, cb, cc, cd, ctx, cty, 1, 1, 1, 1, 0)
 	for i = count + 1, #items do items[i].node = nil end
 	if count == 0 then return end
@@ -775,6 +946,8 @@ M._lights = 0
 M._renderLit = nil
 M._sortItems = sortItems
 M._setMatrix = setMatrix
+---How many Backgrounds the running scene has (lights.lua asks).
+function M._backgrounds() return backgrounds end
 
 ---Font scale for crisp text when the display is scaled (set by love.display).
 M.textScale = 1

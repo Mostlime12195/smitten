@@ -263,10 +263,25 @@ local frame = 0
 local tagLights, nTagLights = {}, 0   -- lights with a `lights` tag list
 local occluders, nOccluders = {}, 0
 local tintPiece = nil
+-- Backgrounds (nodes2d.lua): whether the scene has any, and the camera's
+-- matrix for working out which copies of a repeating one are in view.
+local anyBackgrounds = false
+local camA, camB, camC, camD, camX, camY = 1, 0, 0, 1, 0, 0
+local backgroundPlace, backgroundCopies = nodes2d._backgroundPlace, nodes2d._backgroundCopies
+
+-- Called before collecting, with the camera's matrix.
+local function backgroundsFor(ca, cb, cc, cd, ctx, cty)
+	anyBackgrounds = nodes2d._backgrounds() > 0
+	if anyBackgrounds then
+		camA, camB, camC, camD, camX, camY = ca, cb, cc, cd, ctx, cty
+		nodes2d._backgroundView(ca, cb, cc, cd, ctx, cty)
+	end
+end
 
 local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z, lit, tags)
 	if n._dead then return end
 	local kind = n._lk
+	local copies = false
 	if hasPosition(n) then
 		if not n.visible then return end
 		local pa, pb, pc, pd, px, py = a, b, c, d, tx, ty
@@ -279,6 +294,12 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z, lit, tags)
 		local t = n.tint
 		tr, tg, tb, ta = tr * t[1], tg * t[2], tb * t[3], ta * (t[4] or 1)
 		z = z + n.layer
+		if anyBackgrounds and n._bg then
+			-- A Background: moved as nodes2d's renderer moves it (here the
+			-- matrix is in scene coordinates, without the camera).
+			tx, ty = backgroundPlace(n, a, b, c, d, tx, ty, 1, 0, 0, 1)
+			copies = n.repeatWidth > 0 or n.repeatHeight > 0
+		end
 		if lit and n.lit == false then lit = false end
 		if nTagLights > 0 and n._tags then
 			for j = 1, nTagLights do
@@ -325,6 +346,24 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z, lit, tags)
 		if tintPiece == nil and not n.off then tintPiece = n end
 	end
 	local ch = n.children
+	if copies then
+		-- A repeating Background: its pieces once for every copy in view
+		-- (a Light or an Occluder inside shines or blocks in one copy only).
+		local i0, i1, j0, j1 = backgroundCopies(n, camA * a + camC * b, camB * a + camD * b, camA * c + camC * d,
+			camB * c + camD * d, camA * tx + camC * ty + camX, camB * tx + camD * ty + camY)
+		local rw, rh = n.repeatWidth, n.repeatHeight
+		for j = j0, j1 do
+			for i = i0, i1 do
+				local ox, oy = i * rw, j * rh
+				local cx, cy = tx + a * ox + c * oy, ty + b * ox + d * oy
+				for k = 1, #ch do
+					local child = ch[k]
+					if child then collect(child, a, b, c, d, cx, cy, tr, tg, tb, ta, z, lit, tags) end
+				end
+			end
+		end
+		return
+	end
 	for i = 1, #ch do
 		local child = ch[i]
 		if child then collect(child, a, b, c, d, tx, ty, tr, tg, tb, ta, z, lit, tags) end
@@ -840,6 +879,9 @@ function L.render(root)
 	end
 	for i = nTagLights + 1, #tagLights do tagLights[i] = nil end
 
+	local ca, cb, cc, cd, ctx, cty = nodes2d.cameraMatrix()
+	backgroundsFor(ca, cb, cc, cd, ctx, cty)
+
 	count, order, nOccluders, tintPiece = 0, 0, 0, nil
 	collect(root, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, true, 0)
 	for i = count + 1, #items do items[i].node = nil end
@@ -849,7 +891,6 @@ function L.render(root)
 	for i = count + 1, #sorted do sorted[i] = nil end
 	nodes2d._sortItems(sorted, count)
 
-	local ca, cb, cc, cd, ctx, cty = nodes2d.cameraMatrix()
 	local display = require("love.display")
 
 	-- What the game is drawing to, and how game coordinates land on its pixels.

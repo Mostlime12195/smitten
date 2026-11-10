@@ -123,6 +123,8 @@ function assets.image(path)
 	end)
 end
 
+local tilesetAnimations
+
 local function makeQuads(image, fw, fh, columns, rows, count)
 	local quads = {}
 	local iw, ih = image:getDimensions()
@@ -178,6 +180,41 @@ function assets.sprite(path)
 	end)
 end
 
+-- The animated tiles of a .tileset file:
+--   "animations": { "8": { "frames": [8, 9, 10], "fps": 6 },
+--                   "12": { "frames": [12, 13], "durations": [0.8, 0.2], "randomStart": true } }
+-- A cell holding tile 8 shows the frames in turn. Returns tile -> animation
+-- and the list of them; an animation is { frames, ends (when each frame
+-- ends, in seconds from the start), total, phases }.
+function tilesetAnimations(data, count)
+	local byTile, list = {}, {}
+	if type(data) ~= "table" then return byTile, list end
+	for k, v in pairs(data) do
+		local tile = tonumber(k)
+		if tile and tile >= 0 and tile < count and type(v) == "table" and type(v.frames) == "table" then
+			local fps = tonumber(v.fps) or 8
+			if fps <= 0 then fps = 8 end
+			local durations = type(v.durations) == "table" and v.durations or nil
+			local frames, ends, total = {}, {}, 0
+			for i = 1, #v.frames do
+				local f = tonumber(v.frames[i])
+				local d = durations and tonumber(durations[i]) or 1 / fps
+				if f and f >= 0 and f < count and f == math.floor(f) and d > 0 then
+					total = total + d
+					frames[#frames + 1], ends[#ends + 1] = f, total
+				end
+			end
+			if #frames > 1 or (#frames == 1 and frames[1] ~= tile) then
+				local a = { tile = tile, frames = frames, ends = ends, total = total, phases = v.randomStart == true and 8 or 1 }
+				byTile[tile] = a
+				list[#list + 1] = a
+			end
+		end
+	end
+	table.sort(list, function(p, q) return p.tile < q.tile end)
+	return byTile, list
+end
+
 ---A .tileset file: an image cut into tiles, with per-tile properties.
 function assets.tileset(path)
 	path = assets.normalize(path)
@@ -191,9 +228,16 @@ function assets.tileset(path)
 		local columns, rows = math.max(1, math.floor(iw / tw)), math.max(1, math.floor(ih / th))
 		local tiles = {}
 		for k, v in pairs(data.tiles or {}) do tiles[tonumber(k)] = v end
+		local count = columns * rows
+		local terrains, terrainByName, terrainOf = require("love.scene.terrain").compileAll(data.terrains)
+		local animations, animated = tilesetAnimations(data.animations, count)
 		return {
 			image = image, tileWidth = tw, tileHeight = th, columns = columns, rows = rows,
-			count = columns * rows, quads = makeQuads(image, tw, th, columns, rows, columns * rows), tiles = tiles,
+			count = count, quads = makeQuads(image, tw, th, columns, rows, count), tiles = tiles,
+			-- Terrains (love.scene.terrain): the list, name -> terrain, tile -> terrain.
+			terrains = terrains, terrainByName = terrainByName, terrainOf = terrainOf,
+			-- Animated tiles: tile -> animation, and the list of them.
+			animations = animations, animated = animated,
 		}
 	end)
 end

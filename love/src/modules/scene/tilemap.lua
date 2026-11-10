@@ -5,11 +5,21 @@
 -- data lists tile numbers row by row (-1 is empty); "n*k" repeats n k times.
 -- Drawing uses a SpriteBatch for each 32x32 cells, drawn only when it's on
 -- screen and rebuilt only when one of its cells changes.
+--
+-- Animated tiles (the tileset's "animations") sit in the same batches. Each
+-- chunk remembers where its animated cells are; when an animation moves on
+-- to its next frame, only those cells' quads are changed, in the chunks on
+-- screen. Between frame changes nothing is done: one comparison of the clock
+-- against the time of the next change.
+--
+-- Terrains (the tileset's "terrains") are in love.scene.terrain: setTerrain
+-- and fillTerrain pick the tiles that fit their neighbours.
 
 local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
 local physics2d = require("love.scene.physics2d")
 local nodes2d = require("love.scene.nodes2d")
+local terrainLib = require("love.scene.terrain")
 
 local floor = math.floor
 
@@ -89,7 +99,9 @@ local function changedAll(self)
 end
 
 local function ensure(self)
-	if self._cellsSource ~= self.cells then
+	-- (A piece with no painted cells has cells = nil: its grid still has to
+	-- be made the first time.)
+	if self._cellsSource ~= self.cells or self._grid == nil then
 		self._grid = decodeCells(self.cells)
 		self._cellsSource = self.cells
 		changedAll(self)
@@ -105,6 +117,12 @@ end
 function Tiles:_enter()
 	ensure(self)
 	physics2d.addTiles(self)
+end
+
+-- The clock of the animated tiles: it follows the game's speed and stops
+-- while the game is paused (or animate is off).
+function Tiles:_process(dt)
+	if self.animate then self._time = (self._time or 0) + dt end
 end
 
 function Tiles:_exit()
@@ -305,6 +323,135 @@ function Tiles:newPathGrid(options)
 	return grid
 end
 
+---------------------------------------------------------------------------
+-- Terrains
+
+local function terrainNamed(self, ts, name, level)
+	local t = ts.terrainByName[name]
+	if t then return t end
+	local names = {}
+	for i = 1, #ts.terrains do names[i] = ts.terrains[i].name end
+	if type(name) ~= "string" then
+		error(("a terrain's name is text like \"grass\", not %s"):format(type(name) == "number" and tostring(name) or ("a " .. type(name))), level + 1)
+	end
+	if #names == 0 then
+		error(("%s has no terrains yet: make one in the Tiles panel (Terrains)"):format(tostring(self.tileset)), level + 1)
+	end
+	error(("%s has no terrain called %q%s"):format(tostring(self.tileset), name,
+		require("love.engine.util").didYouMean(name, names)), level + 1)
+end
+
+-- get(column, row) and set(column, row, tile) for love.scene.terrain, made
+-- once for each Tiles piece.
+local function access(self)
+	local get = self._tget
+	if not get then
+		get = function(cx, cy)
+			local row = self._grid[cy]
+			return row and row[cx]
+		end
+		self._tget = get
+		self._tset = function(cx, cy, tile) self:setTile(cx, cy, tile) end
+	end
+	return get, self._tset
+end
+
+local function needsTileset(self, what)
+	local ts = ensure(self)
+	if not ts then error(what .. "() needs a tileset: this Tiles piece has none", 3) end
+	return ts
+end
+
+---Puts a terrain in a cell (nil: empties it) and picks the tiles of the
+---cell and its eight neighbours again so they fit together.
+function Tiles:setTerrain(cx, cy, name)
+	local ts = needsTileset(self, "setTerrain")
+	local t = nil
+	if name ~= nil then t = terrainNamed(self, ts, name, 2) end
+	local get, set = access(self)
+	terrainLib.place(get, set, ts.terrainOf, cx, cy, t)
+end
+
+---The name of the terrain the cell's tile belongs to, or nil.
+function Tiles:getTerrain(cx, cy)
+	local ts = ensure(self)
+	if not ts then return nil end
+	local row = self._grid[cy]
+	local t = row and ts.terrainOf[row[cx]]
+	return t and t.name or nil
+end
+
+---Puts a terrain in a rectangle of cells (nil: empties them) and fits them
+---and the cells around the rectangle.
+function Tiles:fillTerrain(cx, cy, columns, rows, name)
+	local ts = needsTileset(self, "fillTerrain")
+	local t = nil
+	if name ~= nil then t = terrainNamed(self, ts, name, 2) end
+	if t and t.first == nil then return end
+	columns, rows = columns or 1, rows or 1
+	self:fill(cx, cy, columns, rows, t and t.first or -1)
+	local get, set = access(self)
+	local of = ts.terrainOf
+	local x1, y1 = cx + columns - 1, cy + rows - 1
+	for y = cy - 1, y1 + 1 do
+		for x = cx - 1, x1 + 1 do
+			terrainLib.refresh(get, set, of, x, y, x >= cx and x <= x1 and y >= cy and y <= y1)
+		end
+	end
+end
+
+---The names of the tileset's terrains, in the tileset's order.
+function Tiles:terrains()
+	local ts = ensure(self)
+	local out = {}
+	if ts then
+		for i = 1, #ts.terrains do out[i] = ts.terrains[i].name end
+	end
+	return out
+end
+
+---------------------------------------------------------------------------
+-- Animated tiles
+
+-- Works out which frame every animation shows at the Tiles piece's time, and
+-- when the next one changes. cur[animation][phase] is the tile to draw.
+local function animationFrames(self, ts, time)
+	local cur = self._animCur
+	if not cur or self._animTs ~= ts then
+		cur = {}
+		self._animCur, self._animTs = cur, ts
+	end
+	local soonest = math.huge
+	local list = ts.animated
+	for i = 1, #list do
+		local a = list[i]
+		local c = cur[a]
+		if not c then
+			c = {}
+			cur[a] = c
+		end
+		local ends, frames, total, phases = a.ends, a.frames, a.total, a.phases
+		local n = #ends
+		for p = 1, phases do
+			local t = (time + (p - 1) / phases * total) % total
+			local k = 1
+			while k < n and t >= ends[k] do k = k + 1 end
+			c[p] = frames[k]
+			local left = ends[k] - t
+			if left < soonest then soonest = left end
+		end
+	end
+	self._animAt = time
+	self._animNext = time + math.max(soonest, 1e-6)
+	self._animVersion = (self._animVersion or 0) + 1
+end
+
+-- Which of an animation's starting points a cell uses (randomStart).
+local function phaseOf(a, cx, cy)
+	if a.phases == 1 then return 1 end
+	return terrainLib.hash(cx, cy) % a.phases + 1
+end
+
 -- The chunks that have tiles: key -> {kx, ky, dirty = true}.
 local function listChunks(self)
 	local chunks = {}
@@ -343,17 +490,52 @@ local function buildChunk(self, chunk, ts)
 	elseif n > 0 then
 		batch = love.graphics.newSpriteBatch(ts.image, n, "static")
 	end
+	-- The chunk's animated cells: id in the batch, x, y, animation, phase.
+	local animations, cur = ts.animations, self._animCur
+	local anim, na = chunk.anim, 0
+	local quads = ts.quads
 	for cy = y0, y0 + CHUNK - 1 do
 		local row = grid[cy]
 		if row then
 			for cx = x0, x0 + CHUNK - 1 do
 				local tile = row[cx]
-				local q = tile and ts.quads[tile + 1]
-				if q then batch:add(q, cx * tw, cy * th) end
+				if tile then
+					local a = cur and animations[tile]
+					if a then
+						local phase = phaseOf(a, cx, cy)
+						local q = quads[cur[a][phase] + 1]
+						if q then
+							if not anim then
+								anim = {}
+								chunk.anim = anim
+							end
+							anim[na + 1], anim[na + 2], anim[na + 3] = batch:add(q, cx * tw, cy * th), cx * tw, cy * th
+							anim[na + 4], anim[na + 5] = a, phase
+							na = na + 5
+						end
+					else
+						local q = quads[tile + 1]
+						if q then batch:add(q, cx * tw, cy * th) end
+					end
+				end
 			end
 		end
 	end
+	if anim then
+		for i = #anim, na + 1, -1 do anim[i] = nil end
+	end
+	chunk.animCount, chunk.animVersion = na, self._animVersion
 	chunk.batch, chunk.image, chunk.dirty = n > 0 and batch or nil, ts.image, false
+end
+
+-- Shows the current frame in a chunk's animated cells.
+local function animateChunk(self, chunk, ts)
+	local anim, cur, quads, batch = chunk.anim, self._animCur, ts.quads, chunk.batch
+	for i = 1, chunk.animCount, 5 do
+		local q = quads[cur[anim[i + 3]][anim[i + 4]] + 1]
+		if q then batch:set(anim[i], q, anim[i + 1], anim[i + 2]) end
+	end
+	chunk.animVersion = self._animVersion
 end
 
 function Tiles:_draw()
@@ -375,9 +557,20 @@ function Tiles:_draw()
 	end
 	local cw, ch = CHUNK * ts.tileWidth, CHUNK * ts.tileHeight
 	local kx0, ky0, kx1, ky1 = floor(x0 / cw), floor(y0 / ch), floor(x1 / cw), floor(y1 / ch)
+	-- Animated tiles: has a frame ended since the last look?
+	local version = nil
+	if ts.animated[1] then
+		local time = self._time or 0
+		if self._animTs ~= ts or time >= self._animNext or time < self._animAt then animationFrames(self, ts, time) end
+		version = self._animVersion
+	end
 	for _, chunk in pairs(self._chunks) do
 		if chunk.kx >= kx0 and chunk.kx <= kx1 and chunk.ky >= ky0 and chunk.ky <= ky1 then
-			if chunk.dirty or chunk.image ~= ts.image then buildChunk(self, chunk, ts) end
+			if chunk.dirty or chunk.image ~= ts.image then
+				buildChunk(self, chunk, ts)
+			elseif version and chunk.animCount > 0 and chunk.animVersion ~= version then
+				animateChunk(self, chunk, ts)
+			end
 			if chunk.batch then g.draw(chunk.batch) end
 		end
 	end

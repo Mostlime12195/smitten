@@ -148,7 +148,8 @@
         "tileset": { "type": "resource", "kinds": ["tileset"], "default": "", "group": "Tiles", "description": "The .tileset file: a picture cut into tiles, with settings such as solid." },
         "cells": { "type": "cells", "default": null, "hidden": true, "description": "The painted tiles." },
         "solid": { "type": "bool", "default": true, "group": "Tiles", "description": "Tiles marked solid block bodies. Off makes every tile just decoration." },
-        "castShadows": { "type": "bool", "default": false, "group": "Tiles", "description": "Tiles marked solid block Lights that have shadows on." }
+        "castShadows": { "type": "bool", "default": false, "group": "Tiles", "description": "Tiles marked solid block Lights that have shadows on." },
+        "animate": { "type": "bool", "default": true, "group": "Tiles", "description": "Animated tiles play. Off freezes them on the frame they show." }
       },
       "methods": {
         "getTile": { "args": "column, row", "doc": "The tile number in a cell, or -1 if it's empty." },
@@ -165,7 +166,32 @@
         "cellCenter": { "args": "column, row", "doc": "The scene position of a cell's center." },
         "getTileSize": { "args": "", "doc": "The size of one cell in the scene: width, height." },
         "getBounds": { "args": "", "doc": "The painted area in the scene: x, y, width, height (all 0 when empty)." },
-        "newPathGrid": { "args": "options?", "doc": "A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile()." }
+        "newPathGrid": { "args": "options?", "doc": "A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile()." },
+        "setTerrain": { "args": "column, row, terrain", "doc": "Paints a terrain of the tileset (by name; nil erases) in a cell and re-picks the tiles of the 8 cells around it so the edges fit." },
+        "getTerrain": { "args": "column, row", "doc": "The name of the terrain the cell's tile belongs to, or nil." },
+        "fillTerrain": { "args": "column, row, columns, rows, terrain", "doc": "Paints a terrain (nil erases) in a rectangle of cells and fits the edges, also of the cells around it." },
+        "terrains": { "args": "", "doc": "The names of the tileset's terrains." }
+      }
+    },
+    "Background": {
+      "extends": "Group", "group": "visual", "icon": "background",
+      "description": "Scrolls the pieces inside it slower or faster than the camera, for far hills, clouds and skies (parallax). It can repeat them endlessly.",
+      "properties": {
+        "scrollX": { "type": "number", "default": 0.5, "step": 0.1, "group": "Background", "description": "How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front." },
+        "scrollY": { "type": "number", "default": 0.5, "step": 0.1, "group": "Background", "description": "The same, up and down." },
+        "repeatWidth": { "type": "number", "default": 0, "min": 0, "unit": "px", "group": "Background", "description": "Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture." },
+        "repeatHeight": { "type": "number", "default": 0, "min": 0, "unit": "px", "group": "Background", "description": "Draws what's inside again every this many pixels up and down (0: once)." },
+        "driftX": { "type": "number", "default": 0, "unit": "px/s", "group": "Background", "description": "Slides sideways by itself at this speed, like clouds. Negative goes left." },
+        "driftY": { "type": "number", "default": 0, "unit": "px/s", "group": "Background", "description": "Slides down by itself at this speed. Negative goes up." },
+        "offsetX": { "type": "number", "default": 0, "unit": "px", "group": "Background", "description": "Shifts what's inside sideways. Change it from a script to scroll by hand." },
+        "offsetY": { "type": "number", "default": 0, "unit": "px", "group": "Background", "description": "Shifts what's inside up or down." },
+        "left": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge)." },
+        "top": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Stops scrolling its own way while the view is above this." },
+        "right": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Stops scrolling its own way while the view is right of this." },
+        "bottom": { "type": "number", "default": null, "group": "Edges", "unit": "px", "description": "Stops scrolling its own way while the view is below this." }
+      },
+      "methods": {
+        "getScroll": { "args": "", "doc": "How far it is drawn from where it was placed, right now: x, y." }
       }
     },
     "Camera": {
