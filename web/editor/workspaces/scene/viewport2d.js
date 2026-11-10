@@ -20,6 +20,8 @@ const TOOLS = ['select', 'move', 'rotate', 'scale', 'paint'];
 const DEFAULT_FAMILY = '"Noto Sans", "Helvetica Neue", Arial, sans-serif';
 const COLLISION_FILL = 'rgba(77, 179, 255, 0.35)';
 const COLLISION_LINE = 'rgba(77, 179, 255, 0.85)';
+const OCCLUDER_FILL = 'rgba(20, 20, 30, 0.35)';
+const OCCLUDER_LINE = 'rgba(255, 196, 77, 0.9)';
 const ANCHORS = {
   topLeft: [0, 0], top: [0.5, 0], topRight: [1, 0],
   left: [0, 0.5], center: [0.5, 0.5], right: [1, 0.5],
@@ -212,6 +214,8 @@ function kindOf(type) {
   if (isA(type, 'Zone')) return 'area';
   if (isA(type, 'Body')) return 'body';
   if (isA(type, 'Joint')) return 'joint';
+  if (isA(type, 'Light')) return 'light';
+  if (isA(type, 'Occluder')) return 'occluder';
   return 'node2d';
 }
 
@@ -1228,6 +1232,16 @@ export class Viewport2D {
         if (ts && b) r = [b.x0 * ts.tileWidth, b.y0 * ts.tileHeight, (b.x1 - b.x0 + 1) * ts.tileWidth, (b.y1 - b.y0 + 1) * ts.tileHeight];
         break;
       }
+      case 'occluder': {
+        const o = this.occluderShape(e);
+        if (o && o.m === e.m) {
+          const s = o.s;
+          if (s.circle) r = [s.circle[0] - s.circle[2], s.circle[1] - s.circle[2], s.circle[2] * 2, s.circle[2] * 2];
+          else if (s.points) r = pointsBounds(s.points);
+          else r = s.rect.slice(0, 4);
+        }
+        break;
+      }
       case 'collision': {
         const shape = this.get(n, 'shape');
         if (shape === 'circle') {
@@ -1454,6 +1468,9 @@ export class Viewport2D {
       case 'body': case 'area':
         if (!this.settings.showCollisions) return undefined;
         return this.drawOwnShape(g, e);
+      case 'occluder':
+        if (!this.settings.showCollisions) return undefined;
+        return this.drawOccluder(g, e);
       default:
         return undefined;
     }
@@ -1730,6 +1747,51 @@ export class Viewport2D {
     g.stroke();
   }
 
+  /**
+   * An Occluder's outline, as lights.lua works it out: its own rectangle,
+   * circle or polygon; or (auto) fitted like a Body's shape to the Sprites
+   * and Shapes inside it, else to the ones in the piece it is inside.
+   * Returns { s: the shape, m: the matrix it is in }, or null.
+   */
+  occluderShape(e) {
+    let s = this.ownShape(e);
+    if (s) return { s, m: e.m };
+    if (this.get(e.node, 'shape') !== 'auto' || !e.parent?.is2d) return null;
+    s = this.ownShape({ node: e.node, children: e.parent.children });
+    return s ? { s, m: e.parent.m } : null;
+  }
+
+  drawOccluder(g, e) {
+    const o = this.occluderShape(e);
+    if (!o) return;
+    const { s, m } = o;
+    this.setWorld(g, m);
+    const k = Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) * this.view.zoom || 1;
+    g.beginPath();
+    if (s.circle) {
+      g.arc(s.circle[0], s.circle[1], Math.max(0, s.circle[2]), 0, Math.PI * 2);
+    } else if (s.points) {
+      // The outline as given (an Occluder may have dents, unlike a Body).
+      for (let i = 0; i + 1 < s.points.length; i += 2) {
+        if (i) g.lineTo(s.points[i], s.points[i + 1]);
+        else g.moveTo(s.points[i], s.points[i + 1]);
+      }
+      g.closePath();
+    } else {
+      g.rect(...s.rect);
+    }
+    const off = !!this.get(e.node, 'off');
+    g.globalAlpha = off ? 0.4 : 1;
+    g.fillStyle = OCCLUDER_FILL;
+    g.fill();
+    g.lineWidth = 1.5 / k;
+    g.strokeStyle = OCCLUDER_LINE;
+    g.setLineDash(off ? [2 / k, 4 / k] : [5 / k, 3 / k]);
+    g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+  }
+
   // UI ----------------------------------------------------------------------
 
   drawControl(g, e) {
@@ -1861,8 +1923,12 @@ export class Viewport2D {
           icon = motion === 'still' ? 'static' : motion === 'physics' ? 'rigid' : 'character';
           break;
         }
-        case 'area': case 'joint': case 'particles': case 'camera':
+        case 'area': case 'joint': case 'particles': case 'camera': case 'light':
           icon = e.kind;
+          break;
+        case 'occluder':
+          // Its own outline is the mark, when it has one and Shapes is on.
+          if (!this.settings.showCollisions || this.occluderShape(e)?.m !== e.m) icon = 'occluder';
           break;
         case 'sprite':
           if (!this.get(n, 'image')) icon = 'sprite';
@@ -1923,9 +1989,86 @@ export class Viewport2D {
         g.setLineDash([3, 3]);
         g.stroke();
         g.setLineDash([]);
+      } else if (e.kind === 'light' && !e.node.readonly) {
+        this.drawLightGizmo(g, e);
       }
     }
+    this.drawTintSwatch(g, sc, disp);
     for (const gz of this.gizmos()) drawIcon(g, gz.icon, gz.sx, gz.sy, rgba(ink, 0.75), rgba(halo, 0.45));
+  }
+
+  /** A Light: how far a point light reaches, or which way a sun shines. */
+  drawLightGizmo(g, e) {
+    const n = e.node;
+    const c = colorOf(this.get(n, 'color'));
+    const alpha = this.get(n, 'off') ? 0.3 : 0.85;
+    const [sx, sy] = this.toScreen(e.m[4], e.m[5]);
+    g.lineWidth = 1;
+    g.strokeStyle = rgba(c, alpha);
+    if (this.get(n, 'kind') === 'sun') {
+      // Three arrows the way the light travels.
+      const a = Math.atan2(e.m[1], e.m[0]);
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      g.beginPath();
+      for (const off of [-12, 0, 12]) {
+        const x0 = sx - sin * off + cos * 14;
+        const y0 = sy + cos * off + sin * 14;
+        const x1 = x0 + cos * 34;
+        const y1 = y0 + sin * 34;
+        g.moveTo(x0, y0);
+        g.lineTo(x1, y1);
+        g.moveTo(x1 - cos * 7 + sin * 4, y1 - sin * 7 - cos * 4);
+        g.lineTo(x1, y1);
+        g.lineTo(x1 - cos * 7 - sin * 4, y1 - sin * 7 + cos * 4);
+      }
+      g.stroke();
+      return;
+    }
+    // The reach: a circle of the radius, through the piece's turn and scale.
+    const r = Math.max(0, num(this.get(n, 'radius'), 200));
+    const z = this.view.zoom;
+    g.save();
+    g.translate(sx, sy);
+    g.transform(e.m[0] * z, e.m[1] * z, e.m[2] * z, e.m[3] * z, 0, 0);
+    g.beginPath();
+    g.arc(0, 0, r, 0, Math.PI * 2);
+    g.restore();
+    g.fillStyle = rgba(c, alpha * 0.06);
+    g.fill();
+    g.setLineDash([6, 4]);
+    g.stroke();
+    g.setLineDash([]);
+  }
+
+  /** The scene's Tint (the first one that's on): a swatch at the game's top left corner. */
+  drawTintSwatch(g, sc, disp) {
+    let tint = null;
+    const find = (e) => {
+      if (tint) return;
+      if (e.type === 'Tint' && !this.get(e.node, 'off')) {
+        tint = e;
+        return;
+      }
+      if ((e.is2d || e.isUI) && this.get(e.node, 'visible') === false) return;
+      for (const c of e.children) find(c);
+    };
+    find(sc.root);
+    if (!tint) return;
+    const [x, y] = this.toScreen(0, 0);
+    const c = colorOf(this.get(tint.node, 'color'));
+    const bx = Math.round(x) + 6.5;
+    const by = Math.round(y) + 6.5;
+    g.fillStyle = rgba([c[0], c[1], c[2]], 1);
+    g.fillRect(bx, by, 14, 14);
+    g.lineWidth = 1;
+    g.strokeStyle = rgba(disp.ink, 0.7);
+    g.strokeRect(bx, by, 14, 14);
+    g.font = '11px system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    g.textAlign = 'left';
+    g.fillStyle = rgba(disp.ink, 0.75);
+    g.fillText('Tint', bx + 19, by + 7.5);
   }
 
   // Selection, hover and handles ---------------------------------------------
@@ -3026,6 +3169,19 @@ function drawIcon(g, icon, x, y, color, halo) {
         g.arc(0, -6, 1.4, 0, Math.PI * 2);
         g.moveTo(5.4, -3);
         g.arc(4, -3, 1.4, 0, Math.PI * 2);
+        break;
+      case 'light':
+        g.arc(0, 0, 3, 0, Math.PI * 2);
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          g.moveTo(Math.cos(a) * 5, Math.sin(a) * 5);
+          g.lineTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5);
+        }
+        break;
+      case 'occluder':
+        g.rect(-6, -6, 12, 12);
+        g.moveTo(-6, 6);
+        g.lineTo(6, -6);
         break;
       case 'camera':
         g.rect(-7, -4, 10, 8);
