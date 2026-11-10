@@ -11,6 +11,11 @@ local assets = require("love.assets")
 
 local cos, sin, atan2, sqrt, floor = math.cos, math.sin, math.atan2, math.sqrt, math.floor
 
+-- Angle fields (rotation, direction, spread) hold the unit scripts use:
+-- RAD turns one into radians, DEG turns radians into one (engine/compat.lua).
+local compat = require("love.engine.compat")
+local RAD, DEG = compat.rad, compat.deg
+
 local M = {}
 
 -- Groups and everything made from them (not UI, timers or sounds).
@@ -37,7 +42,7 @@ local function globalMatrix(n)
 	for i = depth, 1, -1 do
 		local q = stack[i]
 		stack[i] = nil
-		local r = q.rotation
+		local r = q.rotation * RAD
 		local cr, sr = cos(r), sin(r)
 		local la, lb, lc, ld = cr * q.scaleX, sr * q.scaleX, -sr * q.scaleY, cr * q.scaleY
 		local x, y = q.x, q.y
@@ -96,7 +101,7 @@ end
 function Group:angleTo(a, b)
 	local x, y = self:worldPosition()
 	local px, py = point(a, b)
-	return atan2(py - y, px - x)
+	return atan2(py - y, px - x) * DEG
 end
 
 function Group:lookAt(x, y)
@@ -107,7 +112,7 @@ function Group:lookAt(x, y)
 		if hasPosition(p) then parentRot = parentRot + p.rotation end
 		p = p.parent
 	end
-	self.rotation = atan2(y - gy, x - gx) - parentRot
+	self.rotation = atan2(y - gy, x - gx) * DEG - parentRot
 end
 
 function Group:moveToward(x, y, distance)
@@ -565,8 +570,8 @@ local function configure(self)
 	ps:setParticleLifetime(life * 0.8, life)
 	local spr = self.speedRandom
 	ps:setSpeed(self.speed * (1 - spr), self.speed * (1 + spr))
-	ps:setDirection(self.direction)
-	ps:setSpread(self.spread * 2)
+	ps:setDirection(self.direction * RAD)
+	ps:setSpread(self.spread * 2 * RAD)
 	ps:setLinearAcceleration(self.gravityX, self.gravityY, self.gravityX, self.gravityY)
 	ps:setSizes(self.sizeStart / iw, self.sizeEnd / iw)
 	local a, b = self.colorStart, self.colorEnd
@@ -813,7 +818,7 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z)
 	local copies = false
 	if is2d then
 		if not n.visible then return end
-		local r = n.rotation
+		local r = n.rotation * RAD
 		local cr, sr = cos(r), sin(r)
 		local la, lb, lc, ld = cr * n.scaleX, sr * n.scaleX, -sr * n.scaleY, cr * n.scaleY
 		local x, y = n.x, n.y

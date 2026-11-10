@@ -13,6 +13,9 @@
 
 local json = require("love.json")
 local schema = require("love.scene.schema")
+-- The editor shows and sets properties in the new rules, whichever the
+-- game plays by.
+local compat = require("love.engine.compat")
 
 local live = {}
 
@@ -60,7 +63,10 @@ local function props(n)
 		local def = schema.types[name]
 		for k in pairs(def.properties or {}) do
 			local v = n[k]
-			if v ~= nil and simple(v) then out[k] = v end
+			if v ~= nil and simple(v) then
+				local key, value = compat.toEditor(n, k, v)
+				out[key] = value
+			end
 		end
 		name = def.extends
 	end
@@ -96,7 +102,8 @@ local function handle(msg)
 		if n and not n._dead and type(msg.key) == "string" then
 			local v = msg.value
 			if v == json.null then v = nil end
-			n[msg.key] = v
+			local key, value = compat.fromEditor(n, msg.key, v)
+			n[key] = value
 		end
 	elseif msg.op == "destroy" then
 		local n = byId[msg.id]

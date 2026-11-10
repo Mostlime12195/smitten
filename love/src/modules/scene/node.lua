@@ -20,6 +20,8 @@
 -- the type's class, so `self:foo()` finds the script's function first, then
 -- the type's method.
 
+-- Before the schema is used: an old project gets its old names and defaults.
+require("love.engine.compat")
 local schema = require("love.scene.schema")
 
 local node = {}
@@ -371,8 +373,16 @@ function Listener:off()
 	end
 end
 
+-- on("pressed") on a Button, whose event is "clicked" now: said once.
+local warnedEvents = {}
+
 function Node:on(event, fn)
 	if type(fn) ~= "function" then error("on() needs an event name and a function", 2) end
+	local now = (event == "pressed" or event == "released") and require("love.engine.compat").renamedEvent(self.type, event)
+	if now and not warnedEvents[self.type .. event] then
+		warnedEvents[self.type .. event] = true
+		print(("Warning: a %s's event is \"%s\" (it was \"%s\" in older projects): use on(\"%s\", ...)."):format(self.type, now, event, now))
+	end
 	self._listeners = self._listeners or {}
 	local list = self._listeners[event]
 	if not list then

@@ -20,12 +20,17 @@
 --   5. the globals (math, string, print, smitten, ...; not love, the
 --      engine's internal name for smitten)
 --
--- Assigning a name that isn't a local sets it on the piece. A few calls are
--- decided the other way: spawn() adds to the scene (self:spawn() adds inside
+-- Assigning a name that isn't a local sets it on the piece. The name has to
+-- be there already: a variable from the script's top level (score = 0, or
+-- target = nil for one with no value yet), one of the piece's properties, or
+-- something set on the piece before (in the Inspector, by spawn(), with
+-- self.name = ...). Anything else is a typing mistake, and an error that
+-- says so (not in projects from before version 3: engine/compat.lua).
+-- A few calls are decided the other way: spawn() adds to the scene (self:spawn() adds inside
 -- this piece), and type() is Lua's (the piece's type is self.type). find() is
 -- the piece's (relative), root() is the scene's root.
 --
--- ready() and every event function (hit, entered, pressed, tick, a custom
+-- ready() and every event function (hit, entered, clicked, tick, a custom
 -- emit("name")...) run as tasks, so they can wait(seconds); task(fn) runs
 -- anything as one. update(), physicsUpdate() and draw() run straight through.
 --
@@ -35,6 +40,7 @@
 -- node.lua.
 
 local node = require("love.scene.node")
+local compat = require("love.engine.compat")
 
 local M = {}
 
@@ -454,14 +460,14 @@ end
 
 ---An image, or one frame of a sprite sheet: sprite("art/star.png", x, y),
 ---sprite("art/hero.sprite", x, y, { frame = 2, scale = 2, flipX = true }).
----Options: frame, rotation, scale, scaleX, scaleY, flipX, flipY, centered,
----columns and rows (to cut a plain picture into frames).
+---Options: frame, rotation (degrees), scale, scaleX, scaleY, flipX, flipY,
+---centered, columns and rows (to cut a plain picture into frames).
 function api.sprite(path, x, y, r, sx, sy)
 	local assets = require("love.assets")
 	x, y = x or 0, y or 0
 	if type(r) ~= "table" then
 		local img = assets.image(path)
-		love.graphics.draw(img, x, y, r or 0, sx or 1, sy or sx or 1)
+		love.graphics.draw(img, x, y, (r or 0) * compat.rad, sx or 1, sy or sx or 1)
 		return
 	end
 	local o = r
@@ -474,7 +480,7 @@ function api.sprite(path, x, y, r, sx, sy)
 	local scx, scy = o.scaleX or o.scale or 1, o.scaleY or o.scale or 1
 	if o.flipX then scx = -scx end
 	if o.flipY then scy = -scy end
-	love.graphics.draw(sheet.image, quad, x, y, o.rotation or 0, scx, scy, ox, oy)
+	love.graphics.draw(sheet.image, quad, x, y, (o.rotation or 0) * compat.rad, scx, scy, ox, oy)
 end
 
 ---------------------------------------------------------------------------
@@ -521,12 +527,18 @@ function pieceApi.every(n, seconds, fn)
 	return require("love.tween").every(seconds, fn, n)
 end
 
----How fast to go up to jump this high, with the piece's fallGravity (or g).
+---How fast to go up to jump this high, with the piece's gravity (or g).
 function pieceApi.jumpSpeed(n, height, g)
-	-- Scripts used to call their variable gravity, which is also a Body's
-	-- property (a multiplier around 1): a big one is such a script's.
-	g = g or (type(n.fallGravity) == "number" and n.fallGravity)
-		or (type(n.gravity) == "number" and n.gravity > 50 and n.gravity) or 1800
+	if not g then
+		local own, fall = n.gravity, n.fallGravity
+		if compat.old then
+			-- gravity was also a Body's property (a multiplier around 1), so
+			-- scripts called theirs fallGravity; a big gravity is a script's.
+			g = (type(fall) == "number" and fall) or (type(own) == "number" and own > 50 and own) or 1800
+		else
+			g = (type(own) == "number" and own) or (type(fall) == "number" and fall) or 1800
+		end
+	end
 	return math.sqrt(2 * g * height)
 end
 
@@ -671,6 +683,80 @@ local function checkMethod(n, k)
 	end
 end
 
+-- pressed() and released() are the input calls. A Button's event was
+-- called pressed() once; a script that still has that function gets nothing
+-- from the button, and loses the input call. Said once for each script.
+local function checkEvent(n, k)
+	if k ~= "pressed" and k ~= "released" then return end
+	local now = compat.renamedEvent(n.type, k)
+	if not now then return end
+	local info = debug.getinfo(3, "Sl")
+	local where = info and (info.short_src .. ":" .. info.currentline) or "?"
+	if warned[where .. k] then return end
+	warned[where .. k] = true
+	print(("Warning: %s: a %s's event is %s() (it was %s() in older projects). Rename this function to %s: "
+		.. "%s() is the input call, and this function takes its place in this script."):format(where, n.type, now, k, now, k))
+end
+
+-- What to write to make a variable like this value.
+local function starter(v)
+	local t = type(v)
+	if t == "string" then return "\"\"" end
+	if t == "boolean" then return "false" end
+	if t == "table" then return "{}" end
+	return "0"
+end
+
+-- A script assigned a name it never declared (see the top of this file).
+-- Properties with no default (nil until set) are declared too.
+local STRICT = compat.strict
+local function undeclared(n, k, v, vars)
+	local props = propertiesOf[n.type]
+	if not props then
+		props = node.properties(n.type)
+		propertiesOf[n.type] = props
+	end
+	if props[k] then
+		vars[k] = true
+		return
+	end
+	-- Names it could have meant: the script's variables, the piece's
+	-- properties and fields, and the locals where it happened.
+	local names, seen = {}, { [k] = true }
+	local function add(name)
+		if type(name) == "string" and not seen[name] and name:find("^[%a][%w_]*$") then
+			seen[name] = true
+			names[#names + 1] = name
+		end
+	end
+	for name in pairs(vars) do add(name) end
+	for name, value in pairs(n) do
+		if type(value) ~= "function" then add(name) end
+	end
+	for name in pairs(props) do add(name) end
+	local info = debug.getinfo(3, "f")
+	if info then
+		local i = 1
+		while true do
+			local name = debug.getlocal(3, i)
+			if not name then break end
+			add(name)
+			i = i + 1
+		end
+		i = 1
+		while info.func do
+			local name = debug.getupvalue(info.func, i)
+			if not name then break end
+			add(name)
+			i = i + 1
+		end
+	end
+	table.sort(names)
+	local hint = require("love.engine.util").didYouMean(k, names)
+	error(("there's no variable called \"%s\" here%s. To make a new one, write %s = %s at the top of the script "
+		.. "(or local %s = %s right here, if only this function uses it)."):format(k, hint, k, starter(v), k, starter(v)), 3)
+end
+
 ---Gives a piece its script: runs the file in the piece's own environment.
 function M.instantiate(n, s)
 	local info = s.__smitten
@@ -724,7 +810,10 @@ function M.instantiate(n, s)
 		end,
 		__newindex = function(_, k, v)
 			if type(v) == "function" then
-				if defining then checkMethod(n, k) end
+				if defining then
+					checkMethod(n, k)
+					checkEvent(n, k)
+				end
 				fns[k] = v
 				if DIRECT[k] or (type(k) == "string" and k:sub(1, 1) == "_") then
 					n[k] = function(_, ...) return v(...) end
@@ -732,9 +821,20 @@ function M.instantiate(n, s)
 					n[k] = function(_, ...) return runTask(n, v, ...) end
 				end
 			else
-				if defining then checkTopLevel(n, k, v) end
+				if defining then
+					checkTopLevel(n, k, v)
+					vars[k] = true
+				elseif STRICT then
+					-- A name with a value is the piece's already. One without
+					-- is fine if it was declared; setting one to nil keeps it
+					-- declared.
+					if n[k] == nil then
+						if not vars[k] then undeclared(n, k, v, vars) end
+					elseif v == nil then
+						vars[k] = true
+					end
+				end
 				n[k] = v
-				if defining then vars[k] = true end
 			end
 		end,
 	})

@@ -326,11 +326,13 @@ function assets.scene(path)
 		if not exists(p) then missing(p, "scene", 5) end
 		local data = assets.readJSON(p)
 		if data.format ~= "smitten.scene" then error(("%s isn't a scene file"):format(p), 0) end
-		if type(data.version) == "number" and data.version > 2 then
+		if type(data.version) == "number" and data.version > 3 then
 			error(("%s was saved by a newer Smitten (scene version %d)"):format(p, data.version), 0)
 		end
 		if type(data.root) ~= "table" then error(("%s has no root node"):format(p), 0) end
-		return data
+		-- A scene saved with other rules than the project's (version 3 stores
+		-- degrees; older ones radians) is turned into the project's.
+		return require("love.engine.compat").scene(data)
 	end)
 end
 

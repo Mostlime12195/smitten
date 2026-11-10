@@ -190,6 +190,9 @@ function text.effects()
 end
 
 local TAU = math.pi * 2
+-- Radians for one of the unit scripts turn things by (engine/compat.lua);
+-- found when text is first drawn, so the rest works without the engine.
+local RAD = nil
 
 effects.wave = function(c)
 	local a = c.args
@@ -1299,6 +1302,7 @@ function text._draw(st, lay, x, y, color, tr, tg, tb, ta, visible, d, hook, piec
 	build(st, lay, visible, color, d, hook ~= nil)
 
 	local s = lay.s
+	RAD = RAD or require("love.engine.compat").rad
 	g.push()
 	g.translate(x, y)
 	g.scale(s, s)
@@ -1347,7 +1351,8 @@ function text._draw(st, lay, x, y, color, tr, tg, tb, ta, visible, d, hook, piec
 					count = count + 1
 					fx.i[count], fx.run[count] = i, run
 					fx.x[count], fx.y[count] = (tonumber(c.x) or 0) * baseSc, (tonumber(c.y) or 0) * baseSc
-					fx.rot[count], fx.scale[count] = tonumber(c.rotation) or 0, tonumber(c.scale) or 1
+					-- c.rotation is in the unit scripts use (engine/compat.lua).
+					fx.rot[count], fx.scale[count] = (tonumber(c.rotation) or 0) * RAD, tonumber(c.scale) or 1
 					cc = type(c.color) == "table" and c.color or col
 					fx.r[count], fx.g[count], fx.b[count] = cc[1] or 1, cc[2] or 1, cc[3] or 1
 					fx.a[count] = (cc[4] or 1) * (tonumber(c.alpha) or 1)

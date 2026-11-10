@@ -17,6 +17,11 @@ local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
 local ui = require("love.scene.ui")
 
+-- What a touch piece tells its script: touched() and untouched(), or
+-- pressed() and released() in a project from before that (engine/compat.lua).
+local compat = require("love.engine.compat")
+local TOUCHED, UNTOUCHED = compat.event("touched"), compat.event("untouched")
+
 local M = {}
 
 M.count = 0              -- touch pieces in the running scene
@@ -168,7 +173,7 @@ function Stick:_touchDown(id, x, y)
 		up = actionOf(self.upAction), down = actionOf(self.downAction), player = playerOf(self),
 	}
 	self:_touchMove(x, y)
-	self:emit("pressed")
+	self:emit(TOUCHED)
 end
 
 function Stick:_touchMove(x, y)
@@ -201,7 +206,7 @@ function Stick:_touchUp()
 	self._kx, self._ky, self._vx, self._vy = 0, 0, 0, 0
 	feedStick(self)
 	self._fed = nil
-	if not self._dead and not self._leaving then self:emit("released") end
+	if not self._dead and not self._leaving then self:emit(UNTOUCHED) end
 end
 
 ---Where the stick is pushed: x, y from -1 to 1 (0, 0 when it isn't touched).
@@ -276,7 +281,7 @@ local function buttonDown(n)
 		n._held = { action, playerOf(n) }
 		hold(n, action, n._held[2])
 	end
-	n:emit("pressed")
+	n:emit(TOUCHED)
 end
 
 local function buttonUp(n)
@@ -287,7 +292,7 @@ local function buttonUp(n)
 		n._held = nil
 		letGo(n, was[1], was[2])
 	end
-	if not n._dead and not n._leaving then n:emit("released") end
+	if not n._dead and not n._leaving then n:emit(UNTOUCHED) end
 end
 
 function TButton:_touchDown(id, x, y)

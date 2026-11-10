@@ -18,6 +18,12 @@ local nodeLib = require("love.scene.node")
 local scene = require("love.scene")
 local physics2d = require("love.scene.physics2d")
 
+-- A Joint's angles (minAngle, maxAngle, a pin's or wheel's motorSpeed) are
+-- in the unit scripts use; Box2D takes radians (engine/compat.lua).
+local compat = require("love.engine.compat")
+local RAD, DEG = compat.rad, compat.deg
+local TURNS = { pin = true, wheel = true }
+
 local M = {}
 
 local joints = {}
@@ -61,16 +67,20 @@ local function options(self)
 	local angles = kind == "pin"
 	-- Length 0: as far apart as they were when the joint was made.
 	local length = self.length > 0 and self.length or self._autoLength or 0
+	-- As the piece has them (to see a change), then as Box2D takes them.
+	local speed, lower, upper = self.motorSpeed, angles and self.minAngle or self.lower, angles and self.maxAngle or self.upper
 	local changed = o.kind ~= kind or o.spring ~= spring or o.hertz ~= self.stiffness or o.damping ~= self.damping
-		or o.motor ~= self.motor or o.motorSpeed ~= self.motorSpeed or o.maxMotor ~= self.motorStrength
+		or o.motor ~= self.motor or o.ownSpeed ~= speed or o.maxMotor ~= self.motorStrength
 		or o.limit ~= self.limit or o.length ~= length or o.strength ~= self.strength
-		or o.lower ~= (angles and self.minAngle or self.lower) or o.upper ~= (angles and self.maxAngle or self.upper)
+		or o.ownLower ~= lower or o.ownUpper ~= upper
 	if not changed then return o, false end
 	o.kind, o.spring, o.hertz, o.damping = kind, spring, self.stiffness, self.damping
-	o.motor, o.motorSpeed, o.maxMotor = self.motor, self.motorSpeed, self.motorStrength
+	o.ownSpeed, o.ownLower, o.ownUpper = speed, lower, upper
+	o.motor, o.maxMotor = self.motor, self.motorStrength
+	o.motorSpeed = TURNS[kind] and speed * RAD or speed
 	o.limit, o.length, o.strength = self.limit, length, self.strength
-	o.lower = angles and self.minAngle or self.lower
-	o.upper = angles and self.maxAngle or self.upper
+	o.lower = angles and lower * RAD or lower
+	o.upper = angles and upper * RAD or upper
 	-- Rope: free up to its length. Spring: pulls towards it.
 	o.minLength, o.maxLength = nil, nil
 	if kind == "rope" then
@@ -195,11 +205,14 @@ local function state(self)
 	return physics2d.box2d().jointState(self._joint)
 end
 
----The angle a pin has turned (radians), a slider's or wheel's travel, a distance joint's length.
-function Joint:getAngle() return (state(self)) end
+---The angle a pin has turned, a slider's or wheel's travel, a distance joint's length.
+function Joint:getAngle() return (state(self)) * DEG end
 function Joint:getTranslation() return (state(self)) end
 function Joint:getLength() return (state(self)) end
-function Joint:getSpeed() return select(2, state(self)) end
+function Joint:getSpeed()
+	local _, speed = state(self)
+	return TURNS[self.kind] and speed * DEG or speed
+end
 function Joint:getForce() return select(3, state(self)) end
 function Joint:getTorque() return select(4, state(self)) end
 function Joint:isBroken() return self._broken == true end

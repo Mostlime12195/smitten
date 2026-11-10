@@ -9,6 +9,10 @@
 local nodeLib = require("love.scene.node")
 local assets = require("love.assets")
 
+-- What a Button, Panel or Picture tells its script when it's clicked:
+-- clicked(), or pressed() in a project from before that (engine/compat.lua).
+local CLICKED = require("love.engine.compat").event("clicked")
+
 local M = {}
 
 local ANCHORS = {
@@ -364,8 +368,8 @@ function M.input(root, kind, x, y, button)
 		M.pressedOn = nil
 		if down then
 			down._down = false
-			-- Buttons, Pictures and Panels: pressed() when let go over the same one.
-			if down == target and not down.disabled and not down._dead then down:emit("pressed") end
+			-- Buttons, Pictures and Panels: clicked() when let go over the same one.
+			if down == target and not down.disabled and not down._dead then down:emit(CLICKED) end
 		end
 	end
 end
@@ -439,7 +443,7 @@ function M.update(root)
 			break
 		end
 	end
-	if actionPressed(input, "accept") and usable(f) then f:emit("pressed") end
+	if actionPressed(input, "accept") and usable(f) then f:emit(CLICKED) end
 end
 
 return M

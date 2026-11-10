@@ -72,6 +72,10 @@ local nodeLib = require("love.scene.node")
 local nodes2d = require("love.scene.nodes2d")
 
 local cos, sin, sqrt, floor, abs = math.cos, math.sin, math.sqrt, math.floor, math.abs
+
+-- A piece's rotation is in the unit scripts use: RAD makes it radians
+-- (engine/compat.lua).
+local RAD = require("love.engine.compat").rad
 local min, max, huge = math.min, math.max, math.huge
 
 local classes = nodeLib.classes
@@ -285,7 +289,7 @@ local function collect(n, a, b, c, d, tx, ty, tr, tg, tb, ta, z, lit, tags)
 	if hasPosition(n) then
 		if not n.visible then return end
 		local pa, pb, pc, pd, px, py = a, b, c, d, tx, ty
-		local r = n.rotation
+		local r = n.rotation * RAD
 		local cr, sr = cos(r), sin(r)
 		local la, lb, lc, ld = cr * n.scaleX, sr * n.scaleX, -sr * n.scaleY, cr * n.scaleY
 		local x, y = n.x, n.y
@@ -422,7 +426,7 @@ local function outline(n)
 	if not x0 then return 0, false end
 	if lone and lone.shape == "circle" then
 		local rx, ry = lone.radius * lone.scaleX, lone.radius * lone.scaleY
-		local cr, sr = cos(lone.rotation), sin(lone.rotation)
+		local cr, sr = cos(lone.rotation * RAD), sin(lone.rotation * RAD)
 		for i = 1, CIRCLE_SIDES * 2, 2 do
 			local ux, uy = unitCircle[i] * rx, unitCircle[i + 1] * ry
 			pts[i], pts[i + 1] = lone.x + ux * cr - uy * sr, lone.y + ux * sr + uy * cr
@@ -430,7 +434,7 @@ local function outline(n)
 		return CIRCLE_SIDES * 2, inParent
 	elseif lone and lone.shape == "polygon" and type(lone.points) == "table" and #lone.points >= 6 then
 		local p = lone.points
-		local cr, sr = cos(lone.rotation), sin(lone.rotation)
+		local cr, sr = cos(lone.rotation * RAD), sin(lone.rotation * RAD)
 		local k = #p - #p % 2
 		for i = 1, k, 2 do
 			local ux, uy = p[i] * lone.scaleX, p[i + 1] * lone.scaleY

@@ -32,6 +32,14 @@ local nodes2d = require("love.scene.nodes2d")
 local abs, max, min, sqrt, floor, atan2, cos, sin = math.abs, math.max, math.min, math.sqrt, math.floor, math.atan2, math.cos, math.sin
 local globalMatrix, hasPosition = nodes2d.globalMatrix, nodes2d.hasPosition
 
+-- Box2D works in radians. A piece's angle fields (rotation, spin, slope)
+-- hold the unit scripts use: RAD turns one into radians and DEG turns
+-- radians into one, here where the two meet (worldPose, setWorldPose, the
+-- velocities, move()). GRAVITY_SCALE is the field with a Body's gravity
+-- multiplier. See engine/compat.lua.
+local compat = require("love.engine.compat")
+local RAD, DEG, SLOPE_MARGIN, GRAVITY_SCALE = compat.rad, compat.deg, compat.slopeMargin, compat.gravityScale
+
 local M = {}
 
 local b2 = nil     -- love.box2d
@@ -223,7 +231,7 @@ function M.slotPiece(s) return slots[s] end
 local function worldPose(n)
 	local p = n.parent
 	if p and p.parent == nil and p.x == 0 and p.y == 0 and p.rotation == 0 and p.scaleX == 1 and p.scaleY == 1 then
-		return n.x, n.y, n.rotation, n.scaleX, n.scaleY
+		return n.x, n.y, n.rotation * RAD, n.scaleX, n.scaleY
 	end
 	local a, b, c, d, tx, ty = globalMatrix(n)
 	local sy = sqrt(c * c + d * d)
@@ -237,13 +245,13 @@ local function setWorldPose(n, x, y, angle)
 	local p = n.parent
 	if p and p.parent == nil and p.x == 0 and p.y == 0 and p.rotation == 0 and p.scaleX == 1 and p.scaleY == 1 then
 		n.x, n.y = x, y
-		if angle then n.rotation = angle end
+		if angle then n.rotation = angle * DEG end
 		return
 	end
 	while p and not hasPosition(p) do p = p.parent end
 	if not p then
 		n.x, n.y = x, y
-		if angle then n.rotation = angle end
+		if angle then n.rotation = angle * DEG end
 		return
 	end
 	local a, b, c, d, tx, ty = globalMatrix(p)
@@ -252,7 +260,7 @@ local function setWorldPose(n, x, y, angle)
 		local px, py = x - tx, y - ty
 		n.x, n.y = (d * px - c * py) / det, (a * py - b * px) / det
 	end
-	if angle then n.rotation = angle - atan2(-c, d) end
+	if angle then n.rotation = (angle - atan2(-c, d)) * DEG end
 end
 
 ---------------------------------------------------------------------------
@@ -354,7 +362,7 @@ local function describe(n, sx, sy)
 					lone.x * sx, lone.y * sy, 0, sx, sy)
 			elseif lone and lone.shape == "polygon" and type(lone.points) == "table" then
 				local pts = {}
-				local c, s = cos(lone.rotation), sin(lone.rotation)
+				local c, s = cos(lone.rotation * RAD), sin(lone.rotation * RAD)
 				for i = 1, #lone.points - 1, 2 do
 					local px, py = lone.points[i] * lone.scaleX, lone.points[i + 1] * lone.scaleY
 					pts[#pts + 1] = lone.x + px * c - py * s
@@ -375,7 +383,7 @@ local function describe(n, sx, sy)
 			hitboxes[#hitboxes + 1] = h
 			if not h.off then
 				k = addOwnShape(out, k, h.shape, h.width * abs(h.scaleX), h.height * abs(h.scaleY), h.radius * abs(h.scaleX),
-					h.points, h.x * sx, h.y * sy, h.rotation, sx, sy)
+					h.points, h.x * sx, h.y * sy, h.rotation * RAD, sx, sy)
 			end
 		end
 	end
@@ -500,9 +508,9 @@ local function create(n)
 	n._pt, n._det, n._tagsDirty = n.passThrough, n.detects, false
 	n._active = n.active
 	if t == BODY_DYNAMIC then
-		b2.setBodyProps(n._body, n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-		n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet
-		b2.setVelocity(n._body, n.vx, n.vy, n.spin)
+		b2.setBodyProps(n._body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
+		n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
+		b2.setVelocity(n._body, n.vx, n.vy, n.spin * RAD)
 		n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 		n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
 		n._lastAsleep = n.asleep
@@ -577,9 +585,9 @@ local function syncBody(n, h)
 		b2.setTransform(body, x, y, angle, true)
 		n._bx, n._by, n._ba, n._bmoving = x, y, angle, false
 		if t == BODY_DYNAMIC then
-			b2.setBodyProps(body, n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet
-			b2.setVelocity(body, n.vx, n.vy, n.spin)
+			b2.setBodyProps(body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
+			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
+			b2.setVelocity(body, n.vx, n.vy, n.spin * RAD)
 			n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 			n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
 		elseif wasDynamic then
@@ -596,17 +604,17 @@ local function syncBody(n, h)
 			n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 		end
 		if n.vx ~= n._lastVx or n.vy ~= n._lastVy or n.spin ~= n._lastSpin then
-			b2.setVelocity(body, n.vx, n.vy, n.spin)
+			b2.setVelocity(body, n.vx, n.vy, n.spin * RAD)
 			n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
 		end
 		if n.mass ~= n._mass then
 			b2.setMass(body, n.mass)
 			n._mass = n.mass
 		end
-		if n.gravity ~= n._gravity or n.drag ~= n._drag or n.spinDrag ~= n._spinDrag or n.fixedRotation ~= n._fixed
+		if n[GRAVITY_SCALE] ~= n._gravity or n.drag ~= n._drag or n.spinDrag ~= n._spinDrag or n.fixedRotation ~= n._fixed
 			or n.bullet ~= n._bullet then
-			b2.setBodyProps(body, n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet)
-			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n.gravity, n.drag, n.spinDrag, n.fixedRotation, n.bullet
+			b2.setBodyProps(body, n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet)
+			n._gravity, n._drag, n._spinDrag, n._fixed, n._bullet = n[GRAVITY_SCALE], n.drag, n.spinDrag, n.fixedRotation, n.bullet
 		end
 		if n.asleep ~= n._lastAsleep then
 			b2.setAwake(body, not n.asleep)
@@ -821,7 +829,7 @@ local function readMoves()
 		local n = slots[buf[j + 1]]
 		if n and not n._dead and n._btype == BODY_DYNAMIC then
 			setWorldPose(n, buf[j + 2], buf[j + 3], buf[j + 4])
-			n.vx, n.vy, n.spin = buf[j + 5], buf[j + 6], buf[j + 7]
+			n.vx, n.vy, n.spin = buf[j + 5], buf[j + 6], buf[j + 7] * DEG
 			n.asleep = buf[j + 8] == 1
 			n._lastX, n._lastY, n._lastR = n.x, n.y, n.rotation
 			n._lastVx, n._lastVy, n._lastSpin = n.vx, n.vy, n.spin
@@ -1027,9 +1035,9 @@ function Body:move()
 	local dt = scene.getDelta()
 	local x, y, angle = worldPose(self)
 	local spin = self.spin
-	if spin ~= 0 then angle = angle + spin * dt end
+	if spin ~= 0 then angle = angle + spin * RAD * dt end
 	local nx, ny, vx, vy, flags, ground, count = b2.move(body, x, y, angle, self.vx * dt, self.vy * dt, self.vx, self.vy,
-		self.slope, self._onGround, self._ground or 0, self.mass, dt, hitBuf)
+		self.slope * RAD + SLOPE_MARGIN, self._onGround, self._ground or 0, self.mass, dt, hitBuf)
 	setWorldPose(self, nx, ny, spin ~= 0 and angle or nil)
 	self.vx, self.vy = vx, vy
 	self._onGround = flags % 2 == 1
@@ -1051,7 +1059,7 @@ function Body:moveBy(dx, dy)
 	b2.setTransform(body, nx, ny, angle)
 	if fraction < 1 then
 		-- What's in the way: whatever it touches now on that side.
-		local _, _, _, _, _, _, count = b2.move(body, nx, ny, angle, 0, 0, 0, 0, self.slope, false, 0, self.mass, 1, hitBuf)
+		local _, _, _, _, _, _, count = b2.move(body, nx, ny, angle, 0, 0, 0, 0, self.slope * RAD + SLOPE_MARGIN, false, 0, self.mass, 1, hitBuf)
 		b2.setTransform(body, nx, ny, angle)
 		for i = 0, count - 1 do
 			local j = i * 6
@@ -1098,7 +1106,8 @@ function Body:applyImpulse(ix, iy, x, y)
 	if not body then return end
 	if self._btype == BODY_DYNAMIC then
 		b2.applyImpulse(body, ix, iy, x, y)
-		self.vx, self.vy, self.spin = b2.getVelocity(body)
+		local vx, vy, spin = b2.getVelocity(body)
+		self.vx, self.vy, self.spin = vx, vy, spin * DEG
 		self._lastVx, self._lastVy, self._lastSpin = self.vx, self.vy, self.spin
 		self.asleep, self._lastAsleep = false, false
 	elseif self.motion == "scripted" then
@@ -1133,7 +1142,8 @@ function Body:applyAngularImpulse(i)
 	local body = ensure(self)
 	if body and self._btype == BODY_DYNAMIC then
 		b2.applyAngularImpulse(body, i)
-		self.vx, self.vy, self.spin = b2.getVelocity(body)
+		local vx, vy, spin = b2.getVelocity(body)
+		self.vx, self.vy, self.spin = vx, vy, spin * DEG
 		self._lastVx, self._lastVy, self._lastSpin = self.vx, self.vy, self.spin
 		self.asleep, self._lastAsleep = false, false
 	end

@@ -48,7 +48,7 @@
       "properties": {
         "x": { "type": "number", "default": 0, "group": "Position", "unit": "px", "description": "Position, measured from the parent." },
         "y": { "type": "number", "default": 0, "group": "Position", "unit": "px", "description": "Position, measured from the parent. y grows downwards." },
-        "rotation": { "type": "angle", "default": 0, "group": "Position", "description": "Turn, clockwise: radians in code, degrees in the inspector." },
+        "rotation": { "type": "angle", "default": 0, "group": "Position", "unit": "°", "description": "Turn, clockwise, in degrees: 90 is a quarter turn." },
         "scaleX": { "type": "number", "default": 1, "group": "Position", "step": 0.1, "description": "Width multiplier. Negative mirrors it." },
         "scaleY": { "type": "number", "default": 1, "group": "Position", "step": 0.1, "description": "Height multiplier. Negative flips it." },
         "visible": { "type": "bool", "default": true, "group": "Look", "description": "Show this piece and everything inside it." },
@@ -63,7 +63,7 @@
         "fromWorld": { "args": "x, y", "doc": "A point in the scene, measured from this piece." },
         "lookAt": { "args": "x, y", "doc": "Turns the piece to face a point in the scene." },
         "distanceTo": { "args": "pieceOrX, y?", "doc": "Distance in pixels to another piece or a point." },
-        "angleTo": { "args": "pieceOrX, y?", "doc": "Angle in radians towards another piece or a point." },
+        "angleTo": { "args": "pieceOrX, y?", "doc": "The angle towards another piece or a point, in degrees: rotation = angleTo(target) faces it." },
         "moveToward": { "args": "x, y, distance", "doc": "Moves at most distance pixels towards a point; true once it's there." },
         "translate": { "args": "dx, dy", "doc": "Moves the piece by an offset." }
       }
@@ -262,8 +262,8 @@
         "image": { "type": "resource", "kinds": ["image"], "default": "", "group": "Look", "description": "The particle picture; empty draws soft dots." },
         "speed": { "type": "number", "default": 100, "group": "Motion", "unit": "px/s", "description": "Starting speed." },
         "speedRandom": { "type": "number", "default": 0.5, "min": 0, "max": 1, "step": 0.05, "group": "Motion", "description": "How much the speed varies (0 to 1)." },
-        "direction": { "type": "angle", "default": -1.5708, "group": "Motion", "description": "Direction particles fly in." },
-        "spread": { "type": "angle", "default": 0.5, "group": "Motion", "description": "How far directions vary either side." },
+        "direction": { "type": "angle", "default": -90, "group": "Motion", "unit": "°", "description": "Direction particles fly in, in degrees: 0 is right, 90 is down, -90 is up." },
+        "spread": { "type": "angle", "default": 30, "group": "Motion", "unit": "°", "description": "How far directions vary either side, in degrees." },
         "gravityX": { "type": "number", "default": 0, "group": "Motion", "unit": "px/s²", "description": "Constant pull, sideways." },
         "gravityY": { "type": "number", "default": 0, "group": "Motion", "unit": "px/s²", "description": "Constant pull, down." },
         "sizeStart": { "type": "number", "default": 8, "min": 0, "group": "Look", "unit": "px", "description": "Size when born." },
@@ -339,12 +339,12 @@
         "points": { "type": "points", "default": [0, -16, 16, 16, -16, 16], "group": "Body", "description": "Corner points x1, y1, x2, y2, ... (up to 8 corners; a dent is filled in).", "when": { "shape": ["polygon"] } },
         "vx": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Horizontal speed (px/s).", "when": { "motion": ["scripted", "physics"] } },
         "vy": { "type": "number", "default": 0, "group": "Movement", "unit": "px/s", "description": "Speed down (negative is up). Scripted: what move() goes by. Physics: its speed now.", "when": { "motion": ["scripted", "physics"] } },
-        "spin": { "type": "number", "default": 0, "step": 0.1, "group": "Movement", "unit": "rad/s", "description": "How fast it turns (clockwise is positive). Scripted: move() turns it this fast.", "when": { "motion": ["scripted", "physics"] } },
-        "slope": { "type": "angle", "default": 0.7854, "group": "Movement", "description": "The steepest surface that still counts as ground: move() walks up it without sliding back.", "when": { "motion": ["scripted"] } },
+        "spin": { "type": "angle", "default": 0, "step": 5, "group": "Movement", "unit": "°/s", "description": "How fast it turns, in degrees a second (clockwise is positive): 360 is a whole turn every second. Scripted: move() turns it this fast.", "when": { "motion": ["scripted", "physics"] } },
+        "slope": { "type": "angle", "default": 45, "group": "Movement", "unit": "°", "description": "The steepest surface that still counts as ground, in degrees: move() walks up it without sliding back.", "when": { "motion": ["scripted"] } },
         "mass": { "type": "number", "default": 1, "min": 0.001, "step": 0.1, "group": "Physics", "unit": "kg", "description": "Kilograms. A scripted body pushes physics bodies by its mass against theirs.", "when": { "motion": ["physics", "scripted"] } },
         "friction": { "type": "number", "default": 0.3, "min": 0, "step": 0.05, "group": "Physics", "description": "How much it grips what it touches: 0 is ice.", "when": { "motion": ["physics", "still", "scripted"] } },
         "bounce": { "type": "number", "default": 0, "min": 0, "max": 1, "step": 0.05, "group": "Physics", "description": "How much it bounces: 0 none, 1 forever.", "when": { "motion": ["physics", "still", "scripted"] } },
-        "gravity": { "type": "number", "default": 1, "step": 0.1, "group": "Physics", "description": "How strongly gravity pulls it; 0 floats, -1 falls up.", "when": { "motion": ["physics"] } },
+        "gravityScale": { "type": "number", "default": 1, "step": 0.1, "group": "Physics", "description": "How strongly gravity pulls it: 1 is normal, 0 floats, -1 falls up.", "when": { "motion": ["physics"] } },
         "drag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Air resistance: slows its movement down.", "when": { "motion": ["physics"] } },
         "spinDrag": { "type": "number", "default": 0, "min": 0, "step": 0.1, "group": "Physics", "description": "Slows its turning down.", "when": { "motion": ["physics"] } },
         "fixedRotation": { "type": "bool", "default": false, "group": "Physics", "description": "Never tip over or spin.", "when": { "motion": ["physics"] } },
@@ -426,11 +426,11 @@
         "stiffness": { "type": "number", "default": 4, "min": 0, "step": 0.5, "group": "Joint", "unit": "Hz", "description": "How stiff the spring is: wobbles per second.", "when": { "kind": ["pin", "weld", "spring", "slider", "wheel", "mouse"] } },
         "damping": { "type": "number", "default": 0.5, "min": 0, "step": 0.1, "group": "Joint", "description": "How quickly the spring stops wobbling: 1 doesn't overshoot.", "when": { "kind": ["pin", "weld", "spring", "slider", "wheel", "mouse"] } },
         "motor": { "type": "bool", "default": false, "group": "Joint", "description": "Drive it: turn a pin or wheel, or move a slider, at motorSpeed.", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
-        "motorSpeed": { "type": "number", "default": 2, "step": 0.1, "group": "Joint", "description": "Radians per second (pin, wheel) or pixels per second (slider, distance).", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
+        "motorSpeed": { "type": "number", "default": 90, "step": 5, "group": "Joint", "description": "Degrees a second (pin, wheel) or pixels a second (slider, distance).", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
         "motorStrength": { "type": "number", "default": 100000, "min": 0, "step": 1000, "group": "Joint", "description": "The most torque (pin, wheel) or force (slider, distance) the motor uses.", "when": { "kind": ["pin", "slider", "wheel", "distance"] } },
         "limit": { "type": "bool", "default": false, "group": "Joint", "description": "Keep a pin between minAngle and maxAngle, or a slider or wheel between lower and upper.", "when": { "kind": ["pin", "slider", "wheel"] } },
-        "minAngle": { "type": "angle", "default": -0.7854, "group": "Joint", "description": "The furthest a pin turns anticlockwise.", "when": { "kind": ["pin"] } },
-        "maxAngle": { "type": "angle", "default": 0.7854, "group": "Joint", "description": "The furthest a pin turns clockwise.", "when": { "kind": ["pin"] } },
+        "minAngle": { "type": "angle", "default": -45, "group": "Joint", "unit": "°", "description": "The furthest a pin turns anticlockwise, in degrees.", "when": { "kind": ["pin"] } },
+        "maxAngle": { "type": "angle", "default": 45, "group": "Joint", "unit": "°", "description": "The furthest a pin turns clockwise, in degrees.", "when": { "kind": ["pin"] } },
         "lower": { "type": "number", "default": -50, "group": "Joint", "unit": "px", "description": "The furthest a slider or wheel goes back.", "when": { "kind": ["slider", "wheel"] } },
         "upper": { "type": "number", "default": 50, "group": "Joint", "unit": "px", "description": "The furthest a slider or wheel goes forward.", "when": { "kind": ["slider", "wheel"] } },
         "strength": { "type": "number", "default": 0, "min": 0, "group": "Joint", "description": "The most force a mouse joint pulls with; 0 is plenty for the body's mass.", "when": { "kind": ["mouse"] } },
@@ -438,10 +438,10 @@
         "breakForce": { "type": "number", "default": 0, "min": 0, "group": "Joint", "description": "Breaks (and sends broke) when pulled harder than this; 0 never breaks." }
       },
       "methods": {
-        "getAngle": { "args": "", "doc": "How far a pin has turned (radians)." },
+        "getAngle": { "args": "", "doc": "How far a pin has turned, in degrees." },
         "getTranslation": { "args": "", "doc": "How far a slider has slid (pixels)." },
         "getLength": { "args": "", "doc": "How far apart a rope, spring or distance joint's ends are." },
-        "getSpeed": { "args": "", "doc": "How fast a pin turns or a slider slides." },
+        "getSpeed": { "args": "", "doc": "How fast a pin turns (degrees a second) or a slider slides (pixels a second)." },
         "getForce": { "args": "", "doc": "How hard the joint pulls now." },
         "getTorque": { "args": "", "doc": "How hard the joint twists now." },
         "isBroken": { "args": "", "doc": "True once breakForce broke it." }
@@ -527,7 +527,7 @@
     },
     "Button": {
       "extends": "UI", "group": "ui", "icon": "button",
-      "description": "A button to click or tap. Its script gets pressed().",
+      "description": "A button to click or tap. Its script gets clicked().",
       "properties": {
         "text": { "type": "text", "default": "Button", "group": "Button", "description": "The button's words." },
         "font": { "type": "resource", "kinds": ["font"], "default": "", "group": "Button", "description": "A font, or empty for the default." },
@@ -545,7 +545,7 @@
         "isFocused": { "args": "", "doc": "True while it has the keyboard focus." },
         "isDown": { "args": "", "doc": "True while it's held down." }
       },
-      "events": { "pressed": { "args": "", "doc": "The button was clicked, tapped, or pressed with accept while focused." } }
+      "events": { "clicked": { "args": "", "doc": "The button was clicked, tapped, or pressed with accept while focused." } }
     },
     "Panel": {
       "extends": "UI", "group": "ui", "icon": "panel",
@@ -556,7 +556,7 @@
         "borderColor": { "type": "color", "default": [1, 1, 1, 0.15], "group": "Panel", "description": "Outline color." },
         "borderWidth": { "type": "number", "default": 1, "min": 0, "group": "Panel", "unit": "px", "description": "Outline thickness; 0 for none." }
       },
-      "events": { "pressed": { "args": "", "doc": "The panel was clicked or tapped (not on a button inside it)." } }
+      "events": { "clicked": { "args": "", "doc": "The panel was clicked or tapped (not on a button inside it)." } }
     },
     "Picture": {
       "extends": "UI", "group": "ui", "icon": "picture",
@@ -566,7 +566,7 @@
         "fit": { "type": "enum", "options": ["stretch", "contain", "cover", "center", "tile"], "default": "contain", "group": "Picture", "description": "How the picture fills the rectangle." },
         "color": { "type": "color", "default": [1, 1, 1, 1], "group": "Picture", "description": "Tint." }
       },
-      "events": { "pressed": { "args": "", "doc": "The picture was clicked or tapped." } }
+      "events": { "clicked": { "args": "", "doc": "The picture was clicked or tapped." } }
     },
     "Bar": {
       "extends": "UI", "group": "ui", "icon": "bar",
@@ -605,8 +605,8 @@
         "isActive": { "args": "", "doc": "True while a finger is on the stick." }
       },
       "events": {
-        "pressed": { "args": "", "doc": "A finger landed on the stick." },
-        "released": { "args": "", "doc": "The finger let go of the stick." }
+        "touched": { "args": "", "doc": "A finger landed on the stick." },
+        "untouched": { "args": "", "doc": "The finger let go of the stick." }
       }
     },
 
@@ -614,7 +614,7 @@
       "extends": "UI", "group": "ui", "icon": "touchButton",
       "description": "A button for a finger on a touch screen. It holds an input action down while it's held, so pressed(\"jump\") reads it with no extra code.",
       "properties": {
-        "action": { "type": "action", "default": "jump", "group": "Button", "description": "The action it holds down while a finger is on it (none: it only tells its script, with pressed() and released())." },
+        "action": { "type": "action", "default": "jump", "group": "Button", "description": "The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched())." },
         "player": { "type": "int", "default": 0, "min": 0, "max": 8, "group": "Button", "description": "Whose action it presses: 2 for player 2. 0 takes the player of the piece it's inside, or player 1." },
         "shape": { "type": "enum", "options": ["circle", "rectangle"], "default": "circle", "group": "Button", "description": "circle is the biggest circle that fits its rectangle. rectangle is the whole rectangle." },
         "text": { "type": "text", "default": "", "group": "Button", "description": "Words or a letter on the button." },
@@ -630,8 +630,8 @@
         "isDown": { "args": "", "doc": "True while a finger holds it down." }
       },
       "events": {
-        "pressed": { "args": "", "doc": "A finger pressed the button (or slid onto it)." },
-        "released": { "args": "", "doc": "The finger let go, or slid off." }
+        "touched": { "args": "", "doc": "A finger pressed the button (or slid onto it)." },
+        "untouched": { "args": "", "doc": "The finger let go, or slid off." }
       }
     },
 

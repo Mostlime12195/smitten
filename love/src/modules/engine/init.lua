@@ -65,7 +65,22 @@ local function extendModules()
 			return math.floor(v / step + 0.5) * step
 		end
 		function m.distance(x1, y1, x2, y2) return math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) end
-		function m.angle(x1, y1, x2, y2) return math.atan2(y2 - y1, x2 - x1) end
+		-- Angles for scripts, in the unit they use (degrees; engine/compat.lua).
+		local compat = require("love.engine.compat")
+		local RAD, DEG = compat.rad, compat.deg
+		---The angle of a direction, angle(x, y), or from one point to
+		---another, angle(x1, y1, x2, y2): 0 is right, 90 is down.
+		function m.angle(x1, y1, x2, y2)
+			if x2 == nil then return math.atan2(y1, x1) * DEG end
+			return math.atan2(y2 - y1, x2 - x1) * DEG
+		end
+		---The x, y of a step of length (default 1) at an angle:
+		---vx, vy = direction(rotation, 200).
+		function m.direction(angle, length)
+			local r = angle * RAD
+			length = length or 1
+			return math.cos(r) * length, math.sin(r) * length
+		end
 		---A random number with a fraction, from a to b.
 		function m.randomFloat(a, b) return a + (b - a) * m.random() end
 	end
@@ -237,7 +252,9 @@ end
 
 ---Called by boot.lua once the modules are loaded.
 function engine.init(conf)
-	love.version = "0.2.0"
+	love.version = "0.3.0"
+	-- Which rules the project plays by (old projects keep the old ones).
+	require("love.engine.compat")
 	installLazyModules()
 	extendModules()
 	hookHandlers()
