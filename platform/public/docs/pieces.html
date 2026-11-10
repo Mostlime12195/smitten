@@ -25,7 +25,7 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces" aria-current="page">Pieces</a><ul class="nav-sub"><li><a href="#basic">Basic</a></li><li><a href="#things-you-see">Things you see</a></li><li><a href="#light-and-shadow">Light and shadow</a></li><li><a href="#bodies-and-zones">Bodies and zones</a></li><li><a href="#on-screen-ui">On-screen UI</a></li><li><a href="#sound">Sound</a></li></ul></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Pieces</h1>
@@ -78,7 +78,8 @@
 <tr><td><code>scaleY</code></td><td>number</td><td>1</td><td>Height multiplier. Negative flips it.</td></tr>
 <tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
 <tr><td><code>tint</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Multiplies the colors of this piece and everything inside it.</td></tr>
-<tr><td><code>layer</code></td><td>int</td><td>0</td><td>Higher layers are drawn on top. Pieces on the same layer draw in scene order.</td></tr></tbody>
+<tr><td><code>layer</code></td><td>int</td><td>0</td><td>Higher layers are drawn on top. Pieces on the same layer draw in scene order.</td></tr>
+<tr><td><code>lit</code></td><td>bool</td><td>true</td><td>Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs).</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -180,7 +181,8 @@
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>tileset</code></td><td>resource</td><td>&quot;&quot;</td><td>The .tileset file: a picture cut into tiles, with settings such as solid.</td></tr>
-<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>Tiles marked solid block bodies. Off makes every tile just decoration.</td></tr></tbody>
+<tr><td><code>solid</code></td><td>bool</td><td>true</td><td>Tiles marked solid block bodies. Off makes every tile just decoration.</td></tr>
+<tr><td><code>castShadows</code></td><td>bool</td><td>false</td><td>Tiles marked solid block Lights that have shadows on.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -261,6 +263,50 @@
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function finished()</code></td><td>The last particle is gone and no more are coming (after a burst or stop()). Good for destroy().</td></tr></tbody>
+</table></div>
+<h2 id="light-and-shadow"><a class="anchor" href="#light-and-shadow" aria-hidden="true">#</a>Light and shadow</h2>
+<h3 id="light"><a class="anchor" href="#light" aria-hidden="true">#</a>Light</h3>
+<p>Shines on the pieces around it. With a dark Tint in the scene it's a torch at night; on its own it makes things brighter.</p>
+<p>Extends <a href="#group">Group</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light reaches.</td></tr>
+<tr><td><code>brightness</code></td><td>number</td><td>1</td><td>How strong the light is: 0 is dark, 2 is twice as bright.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The light's color.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow.</td></tr>
+<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this light off.</td></tr>
+<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>Only lights pieces with one of these tags, and what's inside them (empty: every piece).</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and higher (empty: no limit).</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and lower (empty: no limit).</td></tr>
+<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>Occluders, and Tiles with castShadows on, block this light.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows.</td></tr>
+<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest.</td></tr>
+<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>How long a sun's shadows are; 0 for shadows that never end.</td></tr>
+<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside.</td></tr></tbody>
+</table></div>
+<h3 id="occluder"><a class="anchor" href="#occluder" aria-hidden="true">#</a>Occluder</h3>
+<p>Blocks light: Lights with shadows on throw a shadow behind it. Put it inside a piece to fit that piece's Sprite or Shape.</p>
+<p>Extends <a href="#group">Group</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle width.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle height.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... of the outline.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Let light through.</td></tr></tbody>
+</table></div>
+<h3 id="tint"><a class="anchor" href="#tint" aria-hidden="true">#</a>Tint</h3>
+<p>Colors the whole scene (not the on-screen UI): dark blue for night, orange for sunset. Lights shine on top of it. The first Tint in the scene wins.</p>
+<p>Extends <a href="#piece">Piece</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn the tint off.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and higher (empty: no limit).</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and lower (empty: no limit).</td></tr></tbody>
 </table></div>
 <h2 id="bodies-and-zones"><a class="anchor" href="#bodies-and-zones" aria-hidden="true">#</a>Bodies and zones</h2>
 <h3 id="body"><a class="anchor" href="#body" aria-hidden="true">#</a>Body</h3>

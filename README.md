@@ -267,12 +267,13 @@ Tests:
   bodies and zones, scripts and the whole script API: input, tiles,
   camera, sprites, particles, sound, saving, pausing, time scale, scene
   changes with values and transitions, UI focus; `rigid` for physics
-  Bodies and tag filtering; `physics` for scene physics). Open one in
+  Bodies and tag filtering; `physics` for scene physics; `lights` for
+  Lights, Occluders and the Tint, by reading pixels back). Open one in
   the player with the test server (below); every line it prints says what
   it checked.
 - `node tools/scene-tests/run.mjs` runs the scene tests in a headless
-  Chrome and fails if one goes wrong (`errors` checks itself: what the
-  engine says when a script is wrong); `python3 tools/serve_test.py` tests
+  Chrome and fails if one goes wrong (`errors` and `lights` check themselves: what
+  the engine says when a script is wrong, and what lights and shadows draw); `python3 tools/serve_test.py` tests
   `serve.py`. CI (`.github/workflows/ci.yml`) runs all of these on every
   push and keeps the built `dist/` as an artifact.
 - `python3 tools/stress/gen.py` and `node tools/stress/run.mjs` run stress

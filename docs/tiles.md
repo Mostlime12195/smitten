@@ -61,6 +61,9 @@ local t = touchingTile("damage")
 if t then hurt(t.damage) end
 ```
 
+With **castShadows** on, the tiles marked solid block
+[Lights](lights.md#shadows) that have shadows on.
+
 The tileset file format is in [File formats](formats.md#tilesets).
 
 <!-- piece:Tiles -->
@@ -68,6 +71,7 @@ The tileset file format is in [File formats](formats.md#tilesets).
 | --- | --- | --- | --- |
 | `tileset` | resource | "" | The .tileset file: a picture cut into tiles, with settings such as solid. |
 | `solid` | bool | true | Tiles marked solid block bodies. Off makes every tile just decoration. |
+| `castShadows` | bool | false | Tiles marked solid block Lights that have shadows on. |
 
 | Method | |
 | --- | --- |

@@ -61,6 +61,7 @@ Extends [Piece](#piece).
 | `visible` | bool | true | Show this piece and everything inside it. |
 | `tint` | color | {1, 1, 1, 1} | Multiplies the colors of this piece and everything inside it. |
 | `layer` | int | 0 | Higher layers are drawn on top. Pieces on the same layer draw in scene order. |
+| `lit` | bool | true | Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs). |
 
 | Method | |
 | --- | --- |
@@ -180,6 +181,7 @@ Extends [Group](#group).
 | --- | --- | --- | --- |
 | `tileset` | resource | "" | The .tileset file: a picture cut into tiles, with settings such as solid. |
 | `solid` | bool | true | Tiles marked solid block bodies. Off makes every tile just decoration. |
+| `castShadows` | bool | false | Tiles marked solid block Lights that have shadows on. |
 
 | Method | |
 | --- | --- |
@@ -266,6 +268,60 @@ Extends [Group](#group).
 | Event (a function in its script) | |
 | --- | --- |
 | `function finished()` | The last particle is gone and no more are coming (after a burst or stop()). Good for destroy(). |
+
+## Light and shadow
+
+### Light
+
+Shines on the pieces around it. With a dark Tint in the scene it's a torch at night; on its own it makes things brighter.
+
+Extends [Group](#group).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `kind` | enum | "point" | point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned. |
+| `radius` | number (px) | 200 | How far the light reaches. |
+| `brightness` | number | 1 | How strong the light is: 0 is dark, 2 is twice as bright. |
+| `color` | color | {1, 1, 1, 1} | The light's color. |
+| `image` | resource | "" | A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow. |
+| `blend` | enum | "add" | add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color. |
+| `off` | bool | false | Turn this light off. |
+| `lights` | tags | "" | Only lights pieces with one of these tags, and what's inside them (empty: every piece). |
+| `fromLayer` | number | none | Only lights pieces on this layer and higher (empty: no limit). |
+| `toLayer` | number | none | Only lights pieces on this layer and lower (empty: no limit). |
+| `shadows` | bool | false | Occluders, and Tiles with castShadows on, block this light. |
+| `shadowColor` | color | {0, 0, 0, 1} | What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows. |
+| `shadowSoftness` | number (px) | 0 | Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest. |
+| `shadowLength` | number (px) | 0 | How long a sun's shadows are; 0 for shadows that never end. |
+| `shadowsFrom` | tags | "" | Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside. |
+
+### Occluder
+
+Blocks light: Lights with shadows on throw a shadow behind it. Put it inside a piece to fit that piece's Sprite or Shape.
+
+Extends [Group](#group).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `shape` | enum | "auto" | auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside. |
+| `width` | number (px) | 32 | Rectangle width. |
+| `height` | number (px) | 32 | Rectangle height. |
+| `radius` | number (px) | 16 | Circle radius. |
+| `points` | points | {0, -16, 16, 16, -16, 16} | Corner points x1, y1, x2, y2, ... of the outline. |
+| `off` | bool | false | Let light through. |
+
+### Tint
+
+Colors the whole scene (not the on-screen UI): dark blue for night, orange for sunset. Lights shine on top of it. The first Tint in the scene wins.
+
+Extends [Piece](#piece).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `color` | color | {0.35, 0.4, 0.6, 1} | Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches. |
+| `off` | bool | false | Turn the tint off. |
+| `fromLayer` | number | none | Only tints pieces on this layer and higher (empty: no limit). |
+| `toLayer` | number | none | Only tints pieces on this layer and lower (empty: no limit). |
 
 ## Bodies and zones
 

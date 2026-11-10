@@ -98,6 +98,7 @@ Add a piece dialog, completions and [docs/pieces.md](docs/pieces.md) read.
 | --- | --- |
 | Basic | `Group` (a position; holds other pieces or runs a script), `Timer` |
 | Things you see | `Sprite`, `Shape`, `Text`, `Tiles`, `Camera`, `Particles` |
+| Light and shadow | `Light` (point or sun), `Occluder`, `Tint` |
 | Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint` |
 | On-screen UI | `Label`, `Button`, `Panel`, `Picture`, `Bar` |
 | Sound | `Sound` |

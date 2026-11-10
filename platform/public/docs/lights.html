@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lights · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Lights.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights" aria-current="page">Lights</a><ul class="nav-sub"><li><a href="#a-night-scene-with-a-torch">A night scene with a torch</a></li><li><a href="#lights">Lights</a></li><li><a href="#shadows">Shadows</a></li><li><a href="#which-pieces-a-light-lights">Which pieces a light lights</a></li><li><a href="#day-and-night">Day and night</a></li><li><a href="#try-it">Try it</a></li><li><a href="#how-fast-it-is-and-its-limits">How fast it is, and its limits</a></li></ul></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Lights</h1>
+<p>Three pieces make light and darkness, in the <strong>Light and shadow</strong> group of Add a piece:</p>
+<ul><li>A <strong>Light</strong> shines on the pieces around it.</li><li>An <strong>Occluder</strong> blocks light, so lights can throw shadows.</li><li>A <strong>Tint</strong> colors the whole scene: dark blue for night, orange for sunset.</li></ul>
+<p>They are building blocks, and each works without the others:</p>
+<div class="table"><table>
+<thead><tr><th>In the scene</th><th>What you get</th></tr></thead>
+<tbody><tr><td>A Tint</td><td>A color grade: everything multiplied by the Tint's color</td></tr>
+<tr><td>Lights</td><td>The scene as usual, brighter where the lights shine</td></tr>
+<tr><td>A dark Tint and Lights</td><td>Night, with pools of light</td></tr>
+<tr><td>Lights with <code>shadows</code> on, and Occluders</td><td>Shadows behind the Occluders</td></tr></tbody>
+</table></div>
+<p>The rule behind it: a piece is shown in its own colors multiplied by the light that falls on it. That light starts as the Tint's color (white if there's no Tint), and each Light adds to it where it shines.</p>
+<p>The on-screen UI (Labels, Buttons, Bars...) is never lit or tinted.</p>
+<h2 id="a-night-scene-with-a-torch"><a class="anchor" href="#a-night-scene-with-a-torch" aria-hidden="true">#</a>A night scene with a torch</h2>
+<ol><li>Add a <strong>Tint</strong>. Its color starts as a dim blue, so the scene turns to night straight away. Make it darker for a cave, lighter for dusk.</li><li>Add a <strong>Light</strong> inside the player, so it moves with them. Set <code>radius</code> to how far the torch reaches and <code>color</code> to a warm orange.</li><li>Turn on the Light's <strong>shadows</strong>.</li><li>Put an <strong>Occluder</strong> inside each thing that should block the light, next to its Sprite or Shape: a crate, a pillar, a wall. Its <code>shape</code> starts as <code>auto</code>, which fits that Sprite or Shape, the way a Body does. For walls painted with a Tiles piece, turn on the Tiles piece's <strong>castShadows</strong> instead: every tile marked solid in the tileset blocks light.</li></ol>
+<p>That's all of it, with no code. To make the torch flicker, give the Light a script:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  brightness = <span class="tk-n">0.9</span> + <span class="tk-f">rnd</span>(<span class="tk-n">0.2</span>)
+<span class="tk-k">end</span></code></pre>
+<p>and to light it up or put it out smoothly:</p>
+<pre><code class="lang-lua"><span class="tk-f">tween</span>(Torch, <span class="tk-n">0.5</span>, { brightness = <span class="tk-n">0</span> })</code></pre>
+<h2 id="lights"><a class="anchor" href="#lights" aria-hidden="true">#</a>Lights</h2>
+<p>A Light's <code>kind</code> is <strong>point</strong> or <strong>sun</strong>.</p>
+<ul><li>A <strong>point</strong> light shines out from where the piece is, as far as <code>radius</code>, fading towards the edge. Give it an <code>image</code> to change its shape: the light is the picture, white where it shines, stretched so it is <code>radius</code> wide each side of the piece. A cone-shaped picture makes a flashlight (turn the Light to aim it), a window-shaped one makes light through a window. Scaling the Light stretches it.</li><li>A <strong>sun</strong> lights the whole view evenly. It only has a direction, the way the piece is turned (<code>rotation</code> 0 shines to the right), which is where its shadows point. <code>shadowLength</code> keeps a sun's shadows short, which suits games seen from above.</li></ul>
+<p><code>brightness</code> is how strong the light is and <code>color</code> its color. <code>off</code> turns it off; a hidden Light (<code>visible</code> off, or inside a hidden piece) is off too.</p>
+<p><code>blend</code> is what the light does to the light already there:</p>
+<div class="table"><table>
+<thead><tr><th>blend</th><th></th></tr></thead>
+<tbody><tr><td><code>add</code></td><td>Makes it brighter. Lights add up.</td></tr>
+<tr><td><code>subtract</code></td><td>Makes it darker: a patch of gloom, a blob shadow under a character</td></tr>
+<tr><td><code>mix</code></td><td>Replaces it with this light's color: a colored spotlight that looks the same by day and by night</td></tr></tbody>
+</table></div>
+<p>Everything is an ordinary property, so scripts change them and <code>tween</code> animates them:</p>
+<pre><code class="lang-lua">Lamp.color = { <span class="tk-n">1</span>, <span class="tk-n">0.2</span>, <span class="tk-n">0.2</span> }           <span class="tk-c">-- alarm!</span>
+<span class="tk-f">tween</span>(Lamp, <span class="tk-n">0.3</span>, { radius = <span class="tk-n">400</span> })</code></pre>
+<h2 id="shadows"><a class="anchor" href="#shadows" aria-hidden="true">#</a>Shadows</h2>
+<p>A Light with <strong>shadows</strong> on is blocked by every Occluder, and by the solid tiles of Tiles pieces with <strong>castShadows</strong> on.</p>
+<p>An Occluder's <code>shape</code> is <code>auto</code>, <code>rectangle</code>, <code>circle</code> or <code>polygon</code>. <code>auto</code> fits the Sprites and Shapes inside the Occluder; when it has none, it fits the ones in the piece it is inside. So both of these work:</p>
+<pre><code>Crate (Body)              Pillar (Occluder)
+  Look (Sprite)             Look (Sprite)
+  Shadow (Occluder)</code></pre>
+<p>The shadow starts at the far side of the Occluder, so the thing that blocks the light is lit itself. <code>off</code> lets light through again (a door opening).</p>
+<p>On the Light:</p>
+<ul><li><code>shadowColor</code> is what is left of the light inside a shadow. Black (the start) leaves none. Lower its opacity for fainter shadows.</li><li><code>shadowSoftness</code> blurs the shadows' edges by that many pixels. 0 is sharp and quickest.</li><li><code>shadowsFrom</code> is a list of tags: only Occluders and Tiles with one of them block this light (the tag can be on the Occluder or on the piece it is inside). Empty means all of them.</li></ul>
+<h2 id="which-pieces-a-light-lights"><a class="anchor" href="#which-pieces-a-light-lights" aria-hidden="true">#</a>Which pieces a light lights</h2>
+<ul><li><strong>lit</strong> is a setting every piece with a position has. Turn it off and the piece, and everything inside it, ignores Lights and the Tint: it always shows at full brightness. Use it for things that glow by themselves: a laser, lava, a sign, a firefly. It keeps its place in the drawing order.</li><li>A Light's <strong>lights</strong> is a list of tags: it only lights pieces with one of them, and what's inside those pieces. <code>lights = &quot;player&quot;</code> makes a light that picks out the player and leaves the floor dark.</li><li>A Light's <strong>fromLayer</strong> and <strong>toLayer</strong> limit it to pieces on those layers. A Tint has the same two settings: <code>toLayer = 0</code> on a Tint leaves everything on layer 1 and above untinted.</li></ul>
+<pre><code class="lang-lua"><span class="tk-c">-- Lightning: a sun that lights only the background layers, for a moment</span>
+Flash.fromLayer, Flash.toLayer = -<span class="tk-n">10</span>, -<span class="tk-n">1</span>
+Flash.brightness = <span class="tk-n">3</span>
+<span class="tk-f">tween</span>(Flash, <span class="tk-n">0.4</span>, { brightness = <span class="tk-n">0</span> })</code></pre>
+<h2 id="day-and-night"><a class="anchor" href="#day-and-night" aria-hidden="true">#</a>Day and night</h2>
+<p>A Tint's <code>color</code> is a list of three numbers, and <code>tween</code> can change them:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On the scene's root, with a Tint called Sky and a sun Light called Sun</span>
+<span class="tk-k">local</span> day = { <span class="tk-n">1</span>, <span class="tk-n">1</span>, <span class="tk-n">1</span> }
+<span class="tk-k">local</span> dusk = { <span class="tk-n">1</span>, <span class="tk-n">0.6</span>, <span class="tk-n">0.45</span> }
+<span class="tk-k">local</span> night = { <span class="tk-n">0.2</span>, <span class="tk-n">0.25</span>, <span class="tk-n">0.45</span> }
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">while</span> <span class="tk-k">true</span> <span class="tk-k">do</span>
+    <span class="tk-f">tween</span>(Sky.color, <span class="tk-n">8</span>, dusk)
+    <span class="tk-f">tween</span>(Sun, <span class="tk-n">8</span>, { brightness = <span class="tk-n">0.2</span>, rotation = math.pi })
+    <span class="tk-f">wait</span>(<span class="tk-n">8</span>)
+    <span class="tk-f">tween</span>(Sky.color, <span class="tk-n">8</span>, night)
+    <span class="tk-f">tween</span>(Sun, <span class="tk-n">8</span>, { brightness = <span class="tk-n">0</span> })
+    <span class="tk-f">wait</span>(<span class="tk-n">20</span>)
+    <span class="tk-f">tween</span>(Sky.color, <span class="tk-n">8</span>, day)
+    Sun.rotation = <span class="tk-n">0</span>
+    <span class="tk-f">tween</span>(Sun, <span class="tk-n">8</span>, { brightness = <span class="tk-n">0.5</span> })
+    <span class="tk-f">wait</span>(<span class="tk-n">20</span>)
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>Lamps that come on at night are Lights whose <code>brightness</code> you tween up when it gets dark; windows that glow are pieces with <code>lit</code> off.</p>
+<p>The first Tint in the scene that isn't <code>off</code> is the one used, like Cameras.</p>
+<h2 id="try-it"><a class="anchor" href="#try-it" aria-hidden="true">#</a>Try it</h2>
+<p><code>tools/scene-tests/lights</code> in Smitten's source is a small project to open in the editor: <code>scenes/demo.scene</code> is a night scene with a torch on the mouse, a lamp, crates and a wall of tiles that throw shadows, and a glowing sign. (<code>scenes/main.scene</code> is the engine's own test of all of this.)</p>
+<h2 id="how-fast-it-is-and-its-limits"><a class="anchor" href="#how-fast-it-is-and-its-limits" aria-hidden="true">#</a>How fast it is, and its limits</h2>
+<p>A scene without a Light or a Tint is drawn exactly as before: none of this costs anything until you use it.</p>
+<ul><li>Each Light is one picture drawn over the area it reaches. Dozens of small lights are fine on a school laptop; what costs is area, so a few huge lights cost more than many small ones. Lights that are off, hidden, or don't reach the view cost nothing.</li><li>Shadows cost more: for each Light with <code>shadows</code> on, the far edges of the Occluders within its reach are drawn. Turn shadows on for the lights where they matter (the player's torch), not for every candle. <code>shadowSoftness</code> above 0 adds two blur passes per light.</li><li>Occluder outlines are worked out again only when the Occluder moves or changes. Tiles merge runs of solid tiles into single edges.</li><li>Lights that use <code>lights</code> tags or a layer range are drawn into their own light map, one for each different combination of lights in view. Up to 8 combinations and 24 such lights are handled at once; past that a warning is printed and some pieces get the wrong lights.</li><li>Shadows are hard-edged shapes behind each Occluder; <code>shadowSoftness</code> blurs them by the same amount everywhere, rather than more further away.</li><li>A sun's endless shadows use shadow-casting tiles up to two screens away from the view; set <code>shadowLength</code> for exact, shorter shadows.</li><li>Lights blend in the order they joined the scene, which only matters for <code>mix</code>.</li><li>A script's <code>draw()</code> is lit like the piece, unless it sets a shader of its own.</li></ul>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>kind</code></td><td>enum</td><td>&quot;point&quot;</td><td>point shines out from where the piece is, as far as radius. sun lights the whole view from one side: it shines the way the piece is turned.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>200</td><td>How far the light reaches.</td></tr>
+<tr><td><code>brightness</code></td><td>number</td><td>1</td><td>How strong the light is: 0 is dark, 2 is twice as bright.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The light's color.</td></tr>
+<tr><td><code>image</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture of the light's shape, white where it shines: a beam, a window. Empty: a soft round glow.</td></tr>
+<tr><td><code>blend</code></td><td>enum</td><td>&quot;add&quot;</td><td>add makes what it shines on brighter. subtract makes it darker (a patch of gloom). mix swaps the light that's there for this light's color.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn this light off.</td></tr>
+<tr><td><code>lights</code></td><td>tags</td><td>&quot;&quot;</td><td>Only lights pieces with one of these tags, and what's inside them (empty: every piece).</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and higher (empty: no limit).</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only lights pieces on this layer and lower (empty: no limit).</td></tr>
+<tr><td><code>shadows</code></td><td>bool</td><td>false</td><td>Occluders, and Tiles with castShadows on, block this light.</td></tr>
+<tr><td><code>shadowColor</code></td><td>color</td><td>{0, 0, 0, 1}</td><td>What's left of the light inside a shadow: black for nothing. A see-through color makes fainter shadows.</td></tr>
+<tr><td><code>shadowSoftness</code></td><td>number (px)</td><td>0</td><td>Blurs the edges of the shadows this far. 0 keeps them sharp, and is quickest.</td></tr>
+<tr><td><code>shadowLength</code></td><td>number (px)</td><td>0</td><td>How long a sun's shadows are; 0 for shadows that never end.</td></tr>
+<tr><td><code>shadowsFrom</code></td><td>tags</td><td>&quot;&quot;</td><td>Only Occluders and Tiles with one of these tags block it (empty: all of them). The tag can be on the piece the Occluder is inside.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>shape</code></td><td>enum</td><td>&quot;auto&quot;</td><td>auto fits the Sprites and Shapes inside it or, when it has none, the ones in the piece it is inside.</td></tr>
+<tr><td><code>width</code></td><td>number (px)</td><td>32</td><td>Rectangle width.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>32</td><td>Rectangle height.</td></tr>
+<tr><td><code>radius</code></td><td>number (px)</td><td>16</td><td>Circle radius.</td></tr>
+<tr><td><code>points</code></td><td>points</td><td>{0, -16, 16, 16, -16, 16}</td><td>Corner points x1, y1, x2, y2, ... of the outline.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Let light through.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>color</code></td><td>color</td><td>{0.35, 0.4, 0.6, 1}</td><td>Every piece's colors are multiplied by this: white changes nothing, black hides everything that no light reaches.</td></tr>
+<tr><td><code>off</code></td><td>bool</td><td>false</td><td>Turn the tint off.</td></tr>
+<tr><td><code>fromLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and higher (empty: no limit).</td></tr>
+<tr><td><code>toLayer</code></td><td>number</td><td>none</td><td>Only tints pieces on this layer and lower (empty: no limit).</td></tr></tbody>
+</table></div>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="tiles"><span>Previous</span>Tiles</a><a class="next" href="ui"><span>Next</span>UI</a></nav>
+  </main>
+</div>
+</body>
+</html>

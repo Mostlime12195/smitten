@@ -40,7 +40,7 @@ const NAV = [
   {
     title: 'Making games',
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'],
-      ['camera', 'Camera'], ['tiles', 'Tiles'], ['ui', 'UI'], ['physics', 'Physics'], ['saving', 'Saving'], ['drawing', 'Drawing']],
+      ['camera', 'Camera'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['ui', 'UI'], ['physics', 'Physics'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
   { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing']] },
   {

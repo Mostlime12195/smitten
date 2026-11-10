@@ -179,6 +179,7 @@ downwards. Higher layers draw on top.
 | `visible` | bool | true | Show this piece and everything inside it. |
 | `tint` | color | {1, 1, 1, 1} | Multiplies the colors of this piece and everything inside it. |
 | `layer` | int | 0 | Higher layers are drawn on top. Pieces on the same layer draw in scene order. |
+| `lit` | bool | true | Lights and the Tint change how this piece and everything inside it looks. Off: always at full brightness (glows, lasers, signs). |
 
 | Method | |
 | --- | --- |
