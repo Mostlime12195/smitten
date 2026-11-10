@@ -74,7 +74,7 @@ end
 | `build.py` | Build script (reads source lists from `love/CMakeLists.txt`) |
 | `serve.py` | Local dev server |
 | `package.py` | Command-line web export for a project folder or zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, the JIT's suite) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, the JIT's suite) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -264,6 +264,11 @@ Tests:
   scripts and script variables, and "Update this project" (old scenes and
   scripts in, new ones and the report out).
 - `node web/editor/workspaces/scene/cells.test.mjs`: the tile format.
+- `node web/editor/workspaces/scene/uilayout.test.mjs`: where the editor
+  puts UI pieces (`uilayout.js`), against the cases in
+  `tools/scene-tests/ui/layout-cases.json` that the engine's copy
+  (`uilayout.lua`) is checked with too, and against rectangles worked out
+  by hand.
 - `node web/editor/workspaces/scene/terrain.test.mjs`: the terrain
   matcher (which tile fits a cell's neighbours), against the cases in
   `tools/scene-tests/levels/terrain-cases.json` that the engine's copy is
@@ -290,6 +295,11 @@ Tests:
   long searches take.
 - `lua5.1 tools/text-tests/test.lua`: the text engine's parser, layout and
   reveal (`smitten.text`) under plain Lua, with a made-up font.
+- `lua5.1 tools/ui-tests/test.lua`: the UI pieces' own logic (the engine's
+  `ui.lua`, `widgets.lua`, `textinput.lua` and `uilayout.lua`) under plain
+  Lua with drawing stubbed out: where Rows, Columns, Grids and Scrolls put
+  things, dragging a Slider, Checkbox groups, typing and selecting in a
+  TextInput, and the keyboard focus.
 - `node tools/scene-tests/run.mjs` runs the scene tests in a headless
   Chrome and fails if one goes wrong (`errors` and `lights` check themselves: what
   the engine says when a script is wrong, and what lights and shadows draw;

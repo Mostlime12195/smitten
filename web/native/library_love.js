@@ -326,10 +326,17 @@ addToLibrary({
           const forward = t.endsWith('Forward');
           if (!real(forward ? 'Delete' : 'Backspace')) _loveweb_text_key(forward ? 1 : 0);
         } else if (t.startsWith('history') || t.startsWith('format') || t === 'insertFromPaste' || t === 'insertFromDrop') {
-          // Pasting is left to the game (love.system.getClipboardText), as
-          // on desktop.
+          // Pasting is the paste event's, below.
           e.preventDefault();
         }
+      });
+      // What's pasted (Ctrl+V, a phone's Paste) reaches the game as typed
+      // text, line breaks included: a page can't read the clipboard when
+      // it likes, as love.system.getClipboardText does on desktop.
+      f.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '');
+        if (text) loveText.send(_loveweb_text_input, text);
       });
       f.addEventListener('compositionstart', () => {
         loveText.flush();

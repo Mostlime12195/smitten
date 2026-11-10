@@ -36,6 +36,9 @@ jobs:
       - name: Terrain tests
         run: node web/editor/workspaces/scene/terrain.test.mjs
 
+      - name: UI layout tests
+        run: node web/editor/workspaces/scene/uilayout.test.mjs
+
       - name: Sharing site tests
         run: node tools/platform-tests/test.mjs
 
@@ -51,6 +54,10 @@ jobs:
       # So are the text engine's parser and layout, with a made-up font.
       - name: Text tests
         run: lua5.1 tools/text-tests/test.lua
+
+      # And the UI pieces' logic: layout, sliders, checkboxes, typing, focus.
+      - name: UI tests
+        run: lua5.1 tools/ui-tests/test.lua
 
   build:
     runs-on: ubuntu-latest

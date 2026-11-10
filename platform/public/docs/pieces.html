@@ -512,11 +512,12 @@
 <p>Extends <a href="#piece">Piece</a>. A base for other types; not added itself.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece.</td></tr>
+<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead.</td></tr>
 <tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>Width (ignored with fill).</td></tr>
 <tr><td><code>height</code></td><td>number (px)</td><td>40</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>grow</code></td><td>number</td><td>0</td><td>Inside a Row or Column: its share of the room left over (two pieces with 1 split it in half). 0 keeps its own size.</td></tr>
 <tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
 <tr><td><code>opacity</code></td><td>number</td><td>1</td><td>0 is invisible, 1 is solid.</td></tr></tbody>
 </table></div>
@@ -590,7 +591,11 @@
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the words smaller until they fit inside the button.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be pressed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr></tbody>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches. It's drawn lighter under the pointer and darker while held, unless the next two say otherwise.</td></tr>
+<tr><td><code>skinHover</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the pointer is over the button or it has the focus. Empty: the skin, a little lighter.</td></tr>
+<tr><td><code>skinDown</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the button is held down. Empty: the skin, a little darker.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -610,7 +615,9 @@
 <tbody><tr><td><code>color</code></td><td>color</td><td>{0.08, 0.09, 0.12, 0.85}</td><td>Fill color.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr>
 <tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.15}</td><td>Outline color.</td></tr>
-<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>Outline thickness; 0 for none.</td></tr></tbody>
+<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>Outline thickness; 0 for none.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches, so one small picture makes a panel of any size.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
@@ -696,6 +703,167 @@
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function touched()</code></td><td>A finger pressed the button (or slid onto it).</td></tr>
 <tr><td><code>function untouched()</code></td><td>The finger let go, or slid off.</td></tr></tbody>
+</table></div>
+<h3 id="textinput"><a class="anchor" href="#textinput" aria-hidden="true">#</a>TextInput</h3>
+<p>A box to type in: a name, a chat line, a number. Click or tap it and type; on phones the keyboard comes up.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>200</td><td>Width (ignored with fill).</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>36</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>What's typed in it. Read it from a script, or set it.</td></tr>
+<tr><td><code>placeholder</code></td><td>string</td><td>&quot;&quot;</td><td>Faint words shown while it's empty: &quot;Your name&quot;.</td></tr>
+<tr><td><code>multiline</code></td><td>bool</td><td>false</td><td>Several lines: Enter starts a new line and long lines wrap.</td></tr>
+<tr><td><code>maxLength</code></td><td>int</td><td>0</td><td>The most characters it takes. 0 is no limit.</td></tr>
+<tr><td><code>secret</code></td><td>bool</td><td>false</td><td>Shows dots instead of the characters, for passwords.</td></tr>
+<tr><td><code>allow</code></td><td>enum</td><td>&quot;anything&quot;</td><td>What can be typed. numbers: digits, a minus sign in front and one decimal point. letters: letters and digits, no spaces or symbols. only: the characters you list.</td></tr>
+<tr><td><code>allowCharacters</code></td><td>string</td><td>&quot;&quot;</td><td>The characters that can be typed, like abcdef0123456789.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be typed in; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Ready to type in when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font, &quot;pixel&quot;, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color (the blinking caret's too).</td></tr>
+<tr><td><code>placeholderColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The placeholder's color.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0.05, 0.06, 0.09, 0.9}</td><td>The box's color.</td></tr>
+<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The outline's color. The outline takes the selection's color while it's being typed in.</td></tr>
+<tr><td><code>selectionColor</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color behind selected text.</td></tr>
+<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>focus()</code></td><td>Starts typing in it, as a click does.</td></tr>
+<tr><td><code>blur()</code></td><td>Stops typing in it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it's being typed in.</td></tr>
+<tr><td><code>selectAll()</code></td><td>Selects all of its text, so typing replaces it.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function changed(text)</code></td><td>The text changed by typing, deleting or pasting (not when a script sets it).</td></tr>
+<tr><td><code>function submitted(text)</code></td><td>Enter was pressed (in a multiline one: Ctrl+Enter).</td></tr>
+<tr><td><code>function focused()</code></td><td>It began being typed in.</td></tr>
+<tr><td><code>function blurred()</code></td><td>It stopped being typed in: the focus went elsewhere, or Escape was pressed.</td></tr></tbody>
+</table></div>
+<h3 id="slider"><a class="anchor" href="#slider" aria-hidden="true">#</a>Slider</h3>
+<p>A knob to drag along a track to pick a number: volume, brightness, speed.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>24</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>value</code></td><td>number</td><td>50</td><td>The number it's at, between min and max.</td></tr>
+<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value at the left end (the bottom, when vertical).</td></tr>
+<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value at the right end (the top, when vertical).</td></tr>
+<tr><td><code>step</code></td><td>number</td><td>0</td><td>The value moves in jumps this big: 1 for whole numbers, 10 for tens. 0 moves smoothly.</td></tr>
+<tr><td><code>vertical</code></td><td>bool</td><td>false</td><td>Runs bottom to top instead of left to right.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be moved; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color of the filled part of the track.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the rest of the track.</td></tr>
+<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The knob's color (or a tint for its image).</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the track instead of the drawn one. Its ends keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus: the arrow keys or a stick then move it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function changed(value)</code></td><td>The player moved the slider (not when a script sets value).</td></tr></tbody>
+</table></div>
+<h3 id="checkbox"><a class="anchor" href="#checkbox" aria-hidden="true">#</a>Checkbox</h3>
+<p>A box to tick, or a switch to flip, with words beside it. Give several the same group and only one of them can be on: a choice.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>28</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>checked</code></td><td>bool</td><td>false</td><td>Ticked (or switched on).</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;Checkbox&quot;</td><td>The words beside it.</td></tr>
+<tr><td><code>look</code></td><td>enum</td><td>&quot;box&quot;</td><td>box is a square with a tick. switch slides left and right. In a group, a box is drawn round.</td></tr>
+<tr><td><code>group</code></td><td>string</td><td>&quot;&quot;</td><td>Checkboxes inside the same piece with the same group name are a choice: ticking one unticks the others. Empty: it's on its own.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be changed; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The box's color when it's ticked.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The box's color when it isn't.</td></tr>
+<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the words and the tick.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it isn't ticked, instead of the drawn one.</td></tr>
+<tr><td><code>skinChecked</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it's ticked.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>toggle()</code></td><td>Flips it, as a click does (toggled() runs).</td></tr>
+<tr><td><code>focus()</code></td><td>Gives it keyboard focus: accept then flips it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function toggled(checked)</code></td><td>It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked.</td></tr></tbody>
+</table></div>
+<h3 id="row"><a class="anchor" href="#row" aria-hidden="true">#</a>Row</h3>
+<p>Lines up the UI pieces inside it left to right, so you don't place each one by hand.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;center&quot;</td><td>Top to bottom: start puts the pieces at the top, end at the bottom, stretch makes them all as tall as the row.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the row is wider than they are: start is the left, end the right, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h3 id="column"><a class="anchor" href="#column" aria-hidden="true">#</a>Column</h3>
+<p>Stacks the UI pieces inside it top to bottom: a menu, a list of settings.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Left to right: start puts the pieces at the left, end at the right, stretch makes them all as wide as the column.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the column is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h3 id="grid"><a class="anchor" href="#grid" aria-hidden="true">#</a>Grid</h3>
+<p>Lays the UI pieces inside it out in columns, row after row: an inventory, a level select.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width: the columns share it. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>columns</code></td><td>int</td><td>2</td><td>How many pieces go in a row before the next row starts.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next, both ways.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Where each piece sits in its cell: start is the top-left corner, end the bottom-right, stretch fills the cell.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the rows go when the grid is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h3 id="scroll"><a class="anchor" href="#scroll" aria-hidden="true">#</a>Scroll</h3>
+<p>A window onto a list longer than it is: it stacks the UI pieces inside it and scrolls them with the wheel, a drag or a flick.</p>
+<p>Extends <a href="#ui">UI</a>.</p>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>240</td><td>Width (ignored with fill).</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>160</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>direction</code></td><td>enum</td><td>&quot;vertical&quot;</td><td>vertical stacks the pieces top to bottom, each as wide as the Scroll, and scrolls up and down. horizontal lines them up left to right and scrolls sideways.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>scrollX</code></td><td>number (px)</td><td>0</td><td>How far it's scrolled sideways (horizontal ones).</td></tr>
+<tr><td><code>scrollY</code></td><td>number (px)</td><td>0</td><td>How far down it's scrolled.</td></tr>
+<tr><td><code>scrollbar</code></td><td>bool</td><td>true</td><td>Shows a thin bar at the edge while there's more than fits.</td></tr>
+<tr><td><code>barColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The scrollbar's color.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>scrollTo(piece)</code></td><td>Scrolls just far enough to show a piece inside it: List:scrollTo(List.Item20).</td></tr>
+<tr><td><code>scrollLimit()</code></td><td>How far it can scroll: the biggest scrollX and scrollY.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function scrolled(x, y)</code></td><td>The player scrolled it.</td></tr></tbody>
 </table></div>
 <h2 id="sound"><a class="anchor" href="#sound" aria-hidden="true">#</a>Sound</h2>
 <h3 id="sound-2"><a class="anchor" href="#sound-2" aria-hidden="true">#</a>Sound</h3>

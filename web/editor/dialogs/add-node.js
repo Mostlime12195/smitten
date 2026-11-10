@@ -11,7 +11,7 @@ const RECENT_KEY = 'smitten-editor.recent-nodes';
 /** Suggestions for what to add, from what the parent is. */
 function suggestionsFor(parentType) {
   if (parentType === 'Body' || parentType === 'Zone') return ['Sprite', 'Shape', 'Camera', 'Hitbox', 'Particles'];
-  if (parentType && isA(parentType, 'UI')) return ['Label', 'Button', 'Panel', 'Picture', 'Bar', 'TouchStick', 'TouchButton'];
+  if (parentType && isA(parentType, 'UI')) return ['Label', 'Button', 'Slider', 'Checkbox', 'TextInput', 'Row', 'Column', 'Panel', 'Picture', 'Bar'];
   return ['Sprite', 'Body', 'Zone', 'Shape', 'Tiles', 'Label', 'Camera'];
 }
 

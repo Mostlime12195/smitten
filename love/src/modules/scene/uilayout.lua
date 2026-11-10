@@ -36,6 +36,7 @@ function M.measure(o, items)
 	local n = #items
 	local gap, pad = o.gap or 0, o.padding or 0
 	local kind = o.kind
+	if n == 0 then return 2 * pad, 2 * pad end
 	if kind == "grid" then
 		local cols = columnsOf(o)
 		local rows = ceil(n / cols)

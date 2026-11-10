@@ -100,7 +100,7 @@ Add a piece dialog, completions and [docs/pieces.md](docs/pieces.md) read.
 | Things you see | `Sprite`, `Shape`, `Text`, `Tiles` (with terrains that fit their own edges, and animated tiles), `Background` (parallax), `Camera`, `Particles` |
 | Light and shadow | `Light` (point or sun), `Occluder`, `Tint` |
 | Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint`, `Walkable` (where things can walk, for `smitten.paths`) |
-| On-screen UI | `Label`, `Button`, `Panel`, `Picture`, `Bar` |
+| On-screen UI | `Label`, `Button`, `Panel`, `Picture`, `Bar`, `Slider`, `Checkbox`, `TextInput`; `Row`, `Column`, `Grid` and `Scroll` to lay them out; `TouchStick`, `TouchButton` |
 | Sound | `Sound` |
 
 What makes these Smitten's own rather than another engine's:

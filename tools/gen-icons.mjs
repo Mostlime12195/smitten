@@ -32,6 +32,8 @@ const NAMES = {
   bodyPhysics: 'package', zone: 'square-dashed', hitbox: 'scan', joint: 'link-2', ui: 'app-window',
   label: 'case-sensitive', button: 'mouse-pointer-click', panel: 'panel-top', picture: 'image', bar: 'battery-medium',
   walkable: 'land-plot', touchStick: 'joystick', touchButton: 'pointer',
+  textInput: 'text-cursor-input', slider: 'sliders-horizontal', checkbox: 'square-check', row: 'columns-3', column: 'rows-3',
+  gridLayout: 'grid-2x2', scroll: 'gallery-vertical',
   sound: 'volume-2', light: 'lightbulb', occluder: 'eclipse', tint: 'sun-moon', background: 'mountain',
   // Ready-made scripts
   footprints: 'footprints', walk: 'move', patrol: 'arrow-left-right', chase: 'crosshair', fly: 'send',

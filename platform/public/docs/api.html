@@ -166,7 +166,13 @@
 <tr><td><code>function unhovered()</code></td><td>UI</td><td>The pointer left it.</td></tr>
 <tr><td><code>function revealed(index, char)</code></td><td>Text, Label</td><td>Text: reveal() showed one more character: play a blip, or wait at a full stop. Label: reveal() showed one more character: play a blip, or wait at a full stop.</td></tr>
 <tr><td><code>function eachCharacter(c)</code></td><td>Text, Label</td><td>Text: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. Label: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it.</td></tr>
-<tr><td><code>function linkPressed(name)</code></td><td>Label</td><td>A [link=name] in the text was clicked or tapped.</td></tr></tbody>
+<tr><td><code>function linkPressed(name)</code></td><td>Label</td><td>A [link=name] in the text was clicked or tapped.</td></tr>
+<tr><td><code>function changed(text)</code></td><td>TextInput, Slider</td><td>TextInput: The text changed by typing, deleting or pasting (not when a script sets it). Slider: The player moved the slider (not when a script sets value).</td></tr>
+<tr><td><code>function toggled(checked)</code></td><td>Checkbox</td><td>It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked.</td></tr>
+<tr><td><code>function submitted(text)</code></td><td>TextInput</td><td>Enter was pressed (in a multiline one: Ctrl+Enter).</td></tr>
+<tr><td><code>function focused()</code></td><td>TextInput</td><td>It began being typed in.</td></tr>
+<tr><td><code>function blurred()</code></td><td>TextInput</td><td>It stopped being typed in: the focus went elsewhere, or Escape was pressed.</td></tr>
+<tr><td><code>function scrolled(x, y)</code></td><td>Scroll</td><td>The player scrolled it.</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="older-projects"><span>Previous</span>Older projects</a><a class="next" href="pieces"><span>Next</span>Pieces</a></nav>

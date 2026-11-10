@@ -75,12 +75,18 @@ export function isA(type, base) {
  */
 export function properties(type) {
   const out = [];
-  const seen = new Set();
+  const seen = new Map();
   for (const t of lineage(type)) {
     for (const [name, def] of Object.entries(getSchema().types[t].properties || {})) {
-      if (seen.has(name)) continue;
-      seen.add(name);
-      out.push({ name, def, owner: t });
+      // A type that gives an inherited property a default of its own (a
+      // Row's width of 0) keeps the property's place in the list.
+      if (seen.has(name)) {
+        seen.get(name).def = def;
+        continue;
+      }
+      const entry = { name, def, owner: t };
+      seen.set(name, entry);
+      out.push(entry);
     }
   }
   return out;

@@ -159,3 +159,9 @@ Called by the engine when a script defines them.
 | `function revealed(index, char)` | Text, Label | Text: reveal() showed one more character: play a blip, or wait at a full stop. Label: reveal() showed one more character: play a blip, or wait at a full stop. |
 | `function eachCharacter(c)` | Text, Label | Text: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. Label: Called for every character each time the text is drawn, to move or color it: c.y = math.sin(c.time * 4 + c.index) * 3. c has x, y, rotation, scale, color, alpha, visible to change, and index, count, char, line, time, since to read. It's one table used for every character, so don't keep it. |
 | `function linkPressed(name)` | Label | A [link=name] in the text was clicked or tapped. |
+| `function changed(text)` | TextInput, Slider | TextInput: The text changed by typing, deleting or pasting (not when a script sets it). Slider: The player moved the slider (not when a script sets value). |
+| `function toggled(checked)` | Checkbox | It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked. |
+| `function submitted(text)` | TextInput | Enter was pressed (in a multiline one: Ctrl+Enter). |
+| `function focused()` | TextInput | It began being typed in. |
+| `function blurred()` | TextInput | It stopped being typed in: the focus went elsewhere, or Escape was pressed. |
+| `function scrolled(x, y)` | Scroll | The player scrolled it. |

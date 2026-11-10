@@ -136,4 +136,4 @@ export const SCRIPT_API = SCRIPT_API_GROUPS.flatMap((g) => g.items);
 export const SCRIPT_API_NAMES = new Set(SCRIPT_API.map(([name]) => name));
 
 /** Callbacks the engine calls on a script, if it has them. */
-export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'clicked', 'touched', 'untouched', 'tick', 'finished', 'hovered', 'unhovered', 'revealed', 'eachCharacter', 'linkPressed'];
+export const SCRIPT_CALLBACKS = ['ready', 'update', 'physicsUpdate', 'draw', 'removed', 'hit', 'entered', 'exited', 'clicked', 'touched', 'untouched', 'tick', 'finished', 'hovered', 'unhovered', 'revealed', 'eachCharacter', 'linkPressed', 'changed', 'toggled', 'submitted', 'focused', 'blurred', 'scrolled'];

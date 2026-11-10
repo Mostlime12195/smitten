@@ -25,17 +25,57 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li><li><a href="#touchstick">TouchStick</a></li><li><a href="#touchbutton">TouchButton</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui" aria-current="page">UI</a><ul class="nav-sub"><li><a href="#layout">Layout</a></li><li><a href="#laying-things-out">Laying things out</a></li><li><a href="#buttons">Buttons</a></li><li><a href="#sliders">Sliders</a></li><li><a href="#checkboxes">Checkboxes</a></li><li><a href="#typing-boxes">Typing boxes</a></li><li><a href="#skins">Skins</a></li><li><a href="#menus-for-keyboards-and-gamepads">Menus for keyboards and gamepads</a></li><li><a href="#a-settings-screen-from-these-parts">A settings screen from these parts</a></li><li><a href="#label">Label</a></li><li><a href="#button">Button</a></li><li><a href="#bar">Bar</a></li><li><a href="#panel">Panel</a></li><li><a href="#picture">Picture</a></li><li><a href="#textinput">TextInput</a></li><li><a href="#slider">Slider</a></li><li><a href="#checkbox">Checkbox</a></li><li><a href="#row">Row</a></li><li><a href="#column">Column</a></li><li><a href="#grid">Grid</a></li><li><a href="#scroll-2">Scroll</a></li><li><a href="#touchstick">TouchStick</a></li><li><a href="#touchbutton">TouchButton</a></li></ul></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
-<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus. There are seven: <strong>Label</strong> (text), <strong>Button</strong>, <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI), <strong>Picture</strong>, and for touch screens <strong>TouchStick</strong> and <strong>TouchButton</strong> (<a href="input#touch">Input: Touch</a>). A UI piece inside another is laid out inside it.</p>
+<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus.</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td>To show</td><td><strong>Label</strong> (text), <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI), <strong>Picture</strong></td></tr>
+<tr><td>To work</td><td><strong>Button</strong>, <strong>Slider</strong>, <strong>Checkbox</strong> (a tick box, a switch, or one of a choice), <strong>TextInput</strong> (a box to type in)</td></tr>
+<tr><td>To lay out</td><td><strong>Row</strong>, <strong>Column</strong>, <strong>Grid</strong>, <strong>Scroll</strong> (a list longer than the screen)</td></tr>
+<tr><td>For touch screens</td><td><strong>TouchStick</strong> and <strong>TouchButton</strong> (<a href="input#touch">Input: Touch</a>)</td></tr></tbody>
+</table></div>
+<p>They are building blocks: a settings screen, an inventory or a chat box is some of these put together (<a href="#a-settings-screen-from-these-parts">below</a> is one). A UI piece inside another is laid out inside it.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
 <p>Each UI piece is placed from an <strong>anchor</strong>: a corner, an edge, the center, or <code>fill</code> (the whole screen, or the whole of the UI piece it's inside). <code>x</code> and <code>y</code> are the distance in from that anchor. With the anchor <code>bottomRight</code> and <code>x</code>, <code>y</code> at 16, a piece sits 16 pixels in from the bottom-right corner on any screen size.</p>
 <p>Every setting can change while the game runs:</p>
 <pre><code class="lang-lua">Message.text = <span class="tk-s">&quot;Level complete!&quot;</span>
 <span class="tk-f">tween</span>(Message, <span class="tk-n">0.3</span>, { opacity = <span class="tk-n">1</span> })</code></pre>
 <p><code>getRect()</code> returns where a UI piece is on the screen right now, and <code>visible</code> and <code>opacity</code> hide or fade it along with everything inside it.</p>
+<h2 id="laying-things-out"><a class="anchor" href="#laying-things-out" aria-hidden="true">#</a>Laying things out</h2>
+<p>Placing every button of a menu by hand gets old. A <strong>Row</strong>, a <strong>Column</strong> or a <strong>Grid</strong> places the UI pieces directly inside it, in the order they are in the Scene panel:</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><strong>Row</strong></td><td>Left to right</td></tr>
+<tr><td><strong>Column</strong></td><td>Top to bottom</td></tr>
+<tr><td><strong>Grid</strong></td><td>In <code>columns</code>, row after row: an inventory, a level select</td></tr>
+<tr><td><strong>Scroll</strong></td><td>Top to bottom (or left to right) in a window that scrolls</td></tr></tbody>
+</table></div>
+<p>Inside one of these, a piece keeps its <code>width</code> and <code>height</code>, and its anchor, <code>x</code> and <code>y</code> aren't used: move it by dragging it up or down in the Scene panel. The container itself is still placed by its own anchor, so a Column with the anchor <code>center</code> is a menu in the middle of any screen.</p>
+<div class="table"><table>
+<thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+<tbody><tr><td><code>gap</code></td><td>The room between one piece and the next</td></tr>
+<tr><td><code>padding</code></td><td>The room between the container's edges and the pieces</td></tr>
+<tr><td><code>alignItems</code></td><td>Across the way the pieces run: <code>start</code>, <code>center</code>, <code>end</code>, or <code>stretch</code> to make them all as tall as the Row (as wide as the Column)</td></tr>
+<tr><td><code>justify</code></td><td>Along the way they run, when there's room left: <code>start</code>, <code>center</code>, <code>end</code>, or <code>spaceBetween</code> to spread them from edge to edge</td></tr>
+<tr><td><code>width</code>, <code>height</code></td><td>0 fits what's inside. Set one and the container is that big whatever it holds</td></tr>
+<tr><td><code>grow</code> (on a piece inside)</td><td>Its share of the room left over in a Row or Column: one piece with <code>grow</code> 1 takes it all, two share it</td></tr></tbody>
+</table></div>
+<p>Containers nest: a Column of Rows is a form, with a Label and a Slider in each Row. They draw nothing themselves; put one in a Panel for a background. They work the layout out again only when something inside them changes, so a big menu costs nothing while it sits there.</p>
+<p>Pieces made while the game runs line up like the rest:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Column: one Button for each saved game</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">for</span> i, name <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">load</span>(<span class="tk-s">&quot;saves&quot;</span>, {})) <span class="tk-k">do</span>
+    <span class="tk-k">local</span> b = self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;Button&quot;</span>, { text = name })
+    b:<span class="tk-f">on</span>(<span class="tk-s">&quot;pressed&quot;</span>, <span class="tk-k">function</span>() <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/game.scene&quot;</span>, { save = name }) <span class="tk-k">end</span>)
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<h3 id="scroll"><a class="anchor" href="#scroll" aria-hidden="true">#</a>Scroll</h3>
+<p>A <strong>Scroll</strong> is a window onto a list longer than itself. It stacks the pieces inside it like a Column, each as wide as the Scroll (with <code>direction</code> set to <code>horizontal</code>: like a Row, each as tall), and shows the part that fits. The mouse wheel scrolls it, and so does a drag or a flick with a finger or the mouse; moving the keyboard focus to a piece out of sight scrolls it into view. For a scrolling grid, put a Grid inside.</p>
+<pre><code class="lang-lua">List.scrollY = <span class="tk-n">0</span>                 <span class="tk-c">-- back to the top</span>
+List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">-- just far enough to show a piece</span></code></pre>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
 <p>When a Button is clicked or tapped, its script's <code>clicked()</code> runs (Pictures and Panels get it too):</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On a &quot;Play&quot; button</span>
@@ -50,16 +90,116 @@
 <tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events when the pointer arrives and leaves</td></tr>
 <tr><td><code>smitten.mouse.isOverUI()</code></td><td>The pointer is over any button or panel</td></tr></tbody>
 </table></div>
+<h2 id="sliders"><a class="anchor" href="#sliders" aria-hidden="true">#</a>Sliders</h2>
+<p>A <strong>Slider</strong> picks a number between <code>min</code> and <code>max</code> by dragging its knob (or clicking anywhere on its track). <code>step</code> makes it move in jumps: 1 for whole numbers. Its script's <code>changed(value)</code> runs when the player moves it:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Slider with min 0 and max 1</span>
+<span class="tk-k">function</span> <span class="tk-f">changed</span>(value)
+  <span class="tk-f">masterVolume</span>(value)
+<span class="tk-k">end</span></code></pre>
+<p>Setting <code>value</code> from a script moves the knob without calling <code>changed()</code>. <code>vertical</code> turns it to run bottom to top.</p>
+<h2 id="checkboxes"><a class="anchor" href="#checkboxes" aria-hidden="true">#</a>Checkboxes</h2>
+<p>A <strong>Checkbox</strong> is a box to tick with words beside it; with <code>look</code> set to <code>switch</code> it's a switch that slides. <code>toggled(checked)</code> runs when it changes:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">toggled</span>(checked)
+  <span class="tk-f">fullscreen</span>(checked)
+<span class="tk-k">end</span></code></pre>
+<p>For a choice of one among several (easy, normal, hard), give the Checkboxes the same <code>group</code> name. In a group, ticking one unticks the others inside the same piece, and they are drawn round:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On each of three Checkboxes with group &quot;difficulty&quot;</span>
+<span class="tk-k">function</span> <span class="tk-f">toggled</span>(checked)
+  <span class="tk-k">if</span> checked <span class="tk-k">then</span> game.difficulty = text <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<h2 id="typing-boxes"><a class="anchor" href="#typing-boxes" aria-hidden="true">#</a>Typing boxes</h2>
+<p>A <strong>TextInput</strong> is a box to type in. Click or tap it and type; on a phone the keyboard comes up. It has a caret, a selection (drag, or Shift with the arrow keys), Ctrl+A, copy, cut and paste, Home and End, and Ctrl with the arrows to jump a word.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a TextInput</span>
+<span class="tk-k">function</span> <span class="tk-f">submitted</span>(text)       <span class="tk-c">-- Enter</span>
+  <span class="tk-f">print</span>(<span class="tk-s">&quot;Hello, &quot;</span> .. text)
+<span class="tk-k">end</span></code></pre>
+<div class="table"><table>
+<thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+<tbody><tr><td><code>placeholder</code></td><td>Faint words while it's empty: &quot;Your name&quot;</td></tr>
+<tr><td><code>maxLength</code></td><td>The most characters it takes</td></tr>
+<tr><td><code>allow</code></td><td><code>numbers</code>, <code>letters</code>, or <code>only</code> the characters in <code>allowCharacters</code></td></tr>
+<tr><td><code>secret</code></td><td>Dots instead of characters</td></tr>
+<tr><td><code>multiline</code></td><td>Several lines: Enter starts a new one, and Ctrl+Enter submits</td></tr></tbody>
+</table></div>
+<p><code>changed(text)</code> runs on every edit, <code>submitted(text)</code> on Enter, and <code>focused()</code> and <code>blurred()</code> when typing starts and stops. <code>text</code> is what's in it: read it or set it at any time.</p>
+<p>While a TextInput is being typed in, the keys go to it and not to the game: typing &quot;w&quot; doesn't walk, and <code>pressed(&quot;jump&quot;)</code> doesn't fire on the space bar. Typing ends with Escape, Tab (on to the next piece), a click somewhere else, or <code>blur()</code>.</p>
+<p>For text input of your own making, without a piece, <a href="input#typing"><code>typed()</code></a> is what this is built on.</p>
+<h2 id="skins"><a class="anchor" href="#skins" aria-hidden="true">#</a>Skins</h2>
+<p>Panels, Buttons, TextInputs and Sliders are drawn as plain colored shapes until you give them a <strong>skin</strong>: a picture to draw instead. A skin is stretched in a way that keeps its corners: <code>skinEdges</code> says how many pixels at each edge stay their own size, and only the middle stretches. One 24 × 24 picture of a wooden frame with <code>skinEdges</code> at 8 makes a panel of any size with crisp corners.</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>skin</code></td><td>The picture</td></tr>
+<tr><td><code>skinEdges</code></td><td><code>8</code> for all four edges, or <code>8, 4, 8, 12</code>: left, top, right, bottom</td></tr>
+<tr><td><code>skinHover</code>, <code>skinDown</code> (Button)</td><td>Pictures for under the pointer and held down. Without them the skin is drawn a little lighter and darker</td></tr>
+<tr><td><code>knobImage</code> (Slider)</td><td>A picture for the knob; <code>skin</code> is the track, and <code>color</code> tints the filled part</td></tr>
+<tr><td><code>skin</code>, <code>skinChecked</code> (Checkbox)</td><td>Pictures for the box, unticked and ticked</td></tr></tbody>
+</table></div>
+<p>In a project whose display is set to pixel, skins aren't smoothed, like every other picture.</p>
 <h2 id="menus-for-keyboards-and-gamepads"><a class="anchor" href="#menus-for-keyboards-and-gamepads" aria-hidden="true">#</a>Menus for keyboards and gamepads</h2>
-<p>Turn on a Button's <strong>autofocus</strong> and it has the focus when the scene starts. The arrow keys, d-pad and stick then move the focus to the nearest button in that direction, and Enter, Space or gamepad A press it. Clicking a button also focuses it, and <code>focus()</code> moves the focus from a script. While no button has focus, the arrow keys go to the game as usual.</p>
+<p>Turn on <strong>autofocus</strong> on a Button (or a Slider, Checkbox or TextInput) and it has the focus when the scene starts. The arrow keys, d-pad and stick then move the focus to the nearest piece in that direction, Tab and Shift+Tab step through them in order, and the focused piece shows a ring:</p>
+<div class="table"><table>
+<thead><tr><th>Focused piece</th><th>What the keys do</th></tr></thead>
+<tbody><tr><td>Button</td><td>Enter, Space or gamepad A press it</td></tr>
+<tr><td>Checkbox</td><td>Enter, Space or gamepad A flip it</td></tr>
+<tr><td>Slider</td><td>Left and right move it (up and down for a vertical one); hold to keep going</td></tr>
+<tr><td>TextInput</td><td>Keys type. Up and down leave it for the piece that way, Tab goes to the next, Escape or gamepad B ends the typing</td></tr></tbody>
+</table></div>
+<p>Clicking a piece also focuses it, and <code>focus()</code> moves the focus from a script. While nothing has focus, the arrow keys go to the game as usual.</p>
+<p>Any player's keys and gamepad work a menu. If a piece, or one it's inside, has a <code>player</code> (<a href="input#more-than-one-player">More than one player</a>), only that player's input does: a menu each for split screen.</p>
 <p>UI keeps working while the game is paused, which is what pause menus need (<a href="scenes#pausing-and-slow-motion">Pausing</a>).</p>
+<h2 id="a-settings-screen-from-these-parts"><a class="anchor" href="#a-settings-screen-from-these-parts" aria-hidden="true">#</a>A settings screen from these parts</h2>
+<p>Nothing here is a ready-made options menu; this one is built from the pieces above, and yours can be shaped however your game needs.</p>
+<pre><code>Panel      Settings    anchor center, 360 × 250
+└ Column   Menu        anchor fill, x 16, y 16, gap 12
+  ├ Label    Title       text &quot;Settings&quot;
+  ├ Row      VolumeRow
+  │ ├ Label    (text &quot;Volume&quot;, width 100)
+  │ └ Slider   Volume    min 0, max 1, grow 1
+  ├ Checkbox Fullscreen  text &quot;Fullscreen&quot;, look switch
+  ├ Row      NameRow
+  │ ├ Label    (text &quot;Name&quot;, width 100)
+  │ └ TextInput Name     placeholder &quot;Your name&quot;, maxLength 12, grow 1
+  └ Button   Back        text &quot;Back&quot;, autofocus on</code></pre>
+<p>The Column stretches each row to its own width, and <code>grow</code> gives the Slider and the TextInput whatever the Labels leave. All of that is set in the Inspector. Three short scripts make it work:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On the Volume slider</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  value = <span class="tk-f">load</span>(<span class="tk-s">&quot;volume&quot;</span>, <span class="tk-n">1</span>)
+  <span class="tk-f">masterVolume</span>(value)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">changed</span>(value)
+  <span class="tk-f">masterVolume</span>(value)
+  <span class="tk-f">save</span>(<span class="tk-s">&quot;volume&quot;</span>, value)
+<span class="tk-k">end</span></code></pre>
+<pre><code class="lang-lua"><span class="tk-c">-- On the Fullscreen checkbox</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  checked = <span class="tk-f">fullscreen</span>()
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">toggled</span>(checked)
+  <span class="tk-f">fullscreen</span>(checked)
+<span class="tk-k">end</span></code></pre>
+<pre><code class="lang-lua"><span class="tk-c">-- On the Name box</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  text = <span class="tk-f">load</span>(<span class="tk-s">&quot;name&quot;</span>, <span class="tk-s">&quot;&quot;</span>)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">blurred</span>()          <span class="tk-c">-- typing ended: Enter, Escape, Tab or a click away</span>
+  <span class="tk-f">save</span>(<span class="tk-s">&quot;name&quot;</span>, text)
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">submitted</span>()
+  <span class="tk-f">blur</span>()
+<span class="tk-k">end</span></code></pre>
+<p>With a gamepad or the arrow keys, the focus starts on Back and moves up through the box, the switch and the slider.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
-<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece.</td></tr>
+<tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead.</td></tr>
 <tr><td><code>x</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>y</code></td><td>number (px)</td><td>0</td><td>Distance in from the anchor.</td></tr>
 <tr><td><code>width</code></td><td>number (px)</td><td>160</td><td>Width (ignored with fill).</td></tr>
 <tr><td><code>height</code></td><td>number (px)</td><td>40</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>grow</code></td><td>number</td><td>0</td><td>Inside a Row or Column: its share of the room left over (two pieces with 1 split it in half). 0 keeps its own size.</td></tr>
 <tr><td><code>visible</code></td><td>bool</td><td>true</td><td>Show this piece and everything inside it.</td></tr>
 <tr><td><code>opacity</code></td><td>number</td><td>1</td><td>0 is invisible, 1 is solid.</td></tr></tbody>
 </table></div>
@@ -130,7 +270,11 @@
 <tr><td><code>fit</code></td><td>enum</td><td>&quot;none&quot;</td><td>shrink makes the words smaller until they fit inside the button.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
 <tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be pressed; drawn faded.</td></tr>
-<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr></tbody>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches. It's drawn lighter under the pointer and darker while held, unless the next two say otherwise.</td></tr>
+<tr><td><code>skinHover</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the pointer is over the button or it has the focus. Empty: the skin, a little lighter.</td></tr>
+<tr><td><code>skinDown</code></td><td>resource</td><td>&quot;&quot;</td><td>The picture while the button is held down. Empty: the skin, a little darker.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Method</th><th></th></tr></thead>
@@ -159,7 +303,9 @@
 <tbody><tr><td><code>color</code></td><td>color</td><td>{0.08, 0.09, 0.12, 0.85}</td><td>Fill color.</td></tr>
 <tr><td><code>cornerRadius</code></td><td>number (px)</td><td>8</td><td>Rounds the corners.</td></tr>
 <tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.15}</td><td>Outline color.</td></tr>
-<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>Outline thickness; 0 for none.</td></tr></tbody>
+<tr><td><code>borderWidth</code></td><td>number (px)</td><td>1</td><td>Outline thickness; 0 for none.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches, so one small picture makes a panel of any size.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
@@ -175,6 +321,153 @@
 <div class="table"><table>
 <thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
 <tbody><tr><td><code>function clicked()</code></td><td>The picture was clicked or tapped.</td></tr></tbody>
+</table></div>
+<h2 id="textinput"><a class="anchor" href="#textinput" aria-hidden="true">#</a>TextInput</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>200</td><td>Width (ignored with fill).</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>36</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;&quot;</td><td>What's typed in it. Read it from a script, or set it.</td></tr>
+<tr><td><code>placeholder</code></td><td>string</td><td>&quot;&quot;</td><td>Faint words shown while it's empty: &quot;Your name&quot;.</td></tr>
+<tr><td><code>multiline</code></td><td>bool</td><td>false</td><td>Several lines: Enter starts a new line and long lines wrap.</td></tr>
+<tr><td><code>maxLength</code></td><td>int</td><td>0</td><td>The most characters it takes. 0 is no limit.</td></tr>
+<tr><td><code>secret</code></td><td>bool</td><td>false</td><td>Shows dots instead of the characters, for passwords.</td></tr>
+<tr><td><code>allow</code></td><td>enum</td><td>&quot;anything&quot;</td><td>What can be typed. numbers: digits, a minus sign in front and one decimal point. letters: letters and digits, no spaces or symbols. only: the characters you list.</td></tr>
+<tr><td><code>allowCharacters</code></td><td>string</td><td>&quot;&quot;</td><td>The characters that can be typed, like abcdef0123456789.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be typed in; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Ready to type in when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A .ttf/.otf font, &quot;pixel&quot;, or empty for the default font.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>Text color (the blinking caret's too).</td></tr>
+<tr><td><code>placeholderColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The placeholder's color.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0.05, 0.06, 0.09, 0.9}</td><td>The box's color.</td></tr>
+<tr><td><code>borderColor</code></td><td>color</td><td>{1, 1, 1, 0.3}</td><td>The outline's color. The outline takes the selection's color while it's being typed in.</td></tr>
+<tr><td><code>selectionColor</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color behind selected text.</td></tr>
+<tr><td><code>cornerRadius</code></td><td>number (px)</td><td>6</td><td>Rounds the corners.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture to draw instead of the colored box. Its corners keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>focus()</code></td><td>Starts typing in it, as a click does.</td></tr>
+<tr><td><code>blur()</code></td><td>Stops typing in it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it's being typed in.</td></tr>
+<tr><td><code>selectAll()</code></td><td>Selects all of its text, so typing replaces it.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function changed(text)</code></td><td>The text changed by typing, deleting or pasting (not when a script sets it).</td></tr>
+<tr><td><code>function submitted(text)</code></td><td>Enter was pressed (in a multiline one: Ctrl+Enter).</td></tr>
+<tr><td><code>function focused()</code></td><td>It began being typed in.</td></tr>
+<tr><td><code>function blurred()</code></td><td>It stopped being typed in: the focus went elsewhere, or Escape was pressed.</td></tr></tbody>
+</table></div>
+<h2 id="slider"><a class="anchor" href="#slider" aria-hidden="true">#</a>Slider</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>24</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>value</code></td><td>number</td><td>50</td><td>The number it's at, between min and max.</td></tr>
+<tr><td><code>min</code></td><td>number</td><td>0</td><td>The value at the left end (the bottom, when vertical).</td></tr>
+<tr><td><code>max</code></td><td>number</td><td>100</td><td>The value at the right end (the top, when vertical).</td></tr>
+<tr><td><code>step</code></td><td>number</td><td>0</td><td>The value moves in jumps this big: 1 for whole numbers, 10 for tens. 0 moves smoothly.</td></tr>
+<tr><td><code>vertical</code></td><td>bool</td><td>false</td><td>Runs bottom to top instead of left to right.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be moved; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The color of the filled part of the track.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The color of the rest of the track.</td></tr>
+<tr><td><code>knobColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The knob's color (or a tint for its image).</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the track instead of the drawn one. Its ends keep their size and its middle stretches.</td></tr>
+<tr><td><code>skinEdges</code></td><td>string</td><td>&quot;8&quot;</td><td>How many pixels at the picture's edges keep their size while the middle stretches. One number for all four edges, or four: left, top, right, bottom.</td></tr>
+<tr><td><code>knobImage</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the knob, instead of the drawn one.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>focus()</code></td><td>Gives it keyboard focus: the arrow keys or a stick then move it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function changed(value)</code></td><td>The player moved the slider (not when a script sets value).</td></tr></tbody>
+</table></div>
+<h2 id="checkbox"><a class="anchor" href="#checkbox" aria-hidden="true">#</a>Checkbox</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>height</code></td><td>number (px)</td><td>28</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>checked</code></td><td>bool</td><td>false</td><td>Ticked (or switched on).</td></tr>
+<tr><td><code>text</code></td><td>text</td><td>&quot;Checkbox&quot;</td><td>The words beside it.</td></tr>
+<tr><td><code>look</code></td><td>enum</td><td>&quot;box&quot;</td><td>box is a square with a tick. switch slides left and right. In a group, a box is drawn round.</td></tr>
+<tr><td><code>group</code></td><td>string</td><td>&quot;&quot;</td><td>Checkboxes inside the same piece with the same group name are a choice: ticking one unticks the others. Empty: it's on its own.</td></tr>
+<tr><td><code>disabled</code></td><td>bool</td><td>false</td><td>Can't be changed; drawn faded.</td></tr>
+<tr><td><code>autofocus</code></td><td>bool</td><td>false</td><td>Has keyboard focus when the scene starts.</td></tr>
+<tr><td><code>font</code></td><td>resource</td><td>&quot;&quot;</td><td>A font, or empty for the default.</td></tr>
+<tr><td><code>size</code></td><td>int (px)</td><td>18</td><td>Font size.</td></tr>
+<tr><td><code>color</code></td><td>color</td><td>{0.25, 0.47, 0.95, 1}</td><td>The box's color when it's ticked.</td></tr>
+<tr><td><code>background</code></td><td>color</td><td>{0, 0, 0, 0.45}</td><td>The box's color when it isn't.</td></tr>
+<tr><td><code>textColor</code></td><td>color</td><td>{1, 1, 1, 1}</td><td>The color of the words and the tick.</td></tr>
+<tr><td><code>skin</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it isn't ticked, instead of the drawn one.</td></tr>
+<tr><td><code>skinChecked</code></td><td>resource</td><td>&quot;&quot;</td><td>A picture for the box when it's ticked.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>toggle()</code></td><td>Flips it, as a click does (toggled() runs).</td></tr>
+<tr><td><code>focus()</code></td><td>Gives it keyboard focus: accept then flips it.</td></tr>
+<tr><td><code>isFocused()</code></td><td>True while it has the keyboard focus.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function toggled(checked)</code></td><td>It was ticked or unticked: by the player, by toggle(), or because another one in its group was ticked.</td></tr></tbody>
+</table></div>
+<h2 id="row"><a class="anchor" href="#row" aria-hidden="true">#</a>Row</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;center&quot;</td><td>Top to bottom: start puts the pieces at the top, end at the bottom, stretch makes them all as tall as the row.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the row is wider than they are: start is the left, end the right, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h2 id="column"><a class="anchor" href="#column" aria-hidden="true">#</a>Column</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Left to right: start puts the pieces at the left, end at the right, stretch makes them all as wide as the column.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the pieces go when the column is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h2 id="grid"><a class="anchor" href="#grid" aria-hidden="true">#</a>Grid</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>0</td><td>Width: the columns share it. 0 fits what's inside it.</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>0</td><td>Height. 0 fits what's inside it.</td></tr>
+<tr><td><code>columns</code></td><td>int</td><td>2</td><td>How many pieces go in a row before the next row starts.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next, both ways.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>alignItems</code></td><td>enum</td><td>&quot;stretch&quot;</td><td>Where each piece sits in its cell: start is the top-left corner, end the bottom-right, stretch fills the cell.</td></tr>
+<tr><td><code>justify</code></td><td>enum</td><td>&quot;start&quot;</td><td>Where the rows go when the grid is taller than they are: start is the top, end the bottom, spaceBetween spreads them from edge to edge.</td></tr></tbody>
+</table></div>
+<h2 id="scroll-2"><a class="anchor" href="#scroll-2" aria-hidden="true">#</a>Scroll</h2>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>width</code></td><td>number (px)</td><td>240</td><td>Width (ignored with fill).</td></tr>
+<tr><td><code>height</code></td><td>number (px)</td><td>160</td><td>Height (ignored with fill).</td></tr>
+<tr><td><code>direction</code></td><td>enum</td><td>&quot;vertical&quot;</td><td>vertical stacks the pieces top to bottom, each as wide as the Scroll, and scrolls up and down. horizontal lines them up left to right and scrolls sideways.</td></tr>
+<tr><td><code>gap</code></td><td>number (px)</td><td>8</td><td>The room between one piece and the next.</td></tr>
+<tr><td><code>padding</code></td><td>number (px)</td><td>0</td><td>The room between its edges and the pieces inside.</td></tr>
+<tr><td><code>scrollX</code></td><td>number (px)</td><td>0</td><td>How far it's scrolled sideways (horizontal ones).</td></tr>
+<tr><td><code>scrollY</code></td><td>number (px)</td><td>0</td><td>How far down it's scrolled.</td></tr>
+<tr><td><code>scrollbar</code></td><td>bool</td><td>true</td><td>Shows a thin bar at the edge while there's more than fits.</td></tr>
+<tr><td><code>barColor</code></td><td>color</td><td>{1, 1, 1, 0.4}</td><td>The scrollbar's color.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>scrollTo(piece)</code></td><td>Scrolls just far enough to show a piece inside it: List:scrollTo(List.Item20).</td></tr>
+<tr><td><code>scrollLimit()</code></td><td>How far it can scroll: the biggest scrollX and scrollY.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Event (a function in its script)</th><th></th></tr></thead>
+<tbody><tr><td><code>function scrolled(x, y)</code></td><td>The player scrolled it.</td></tr></tbody>
 </table></div>
 <h2 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h2>
 <p>A stick for a thumb: it pushes input actions like a gamepad's stick. <a href="input#touch">Input: Touch</a> shows how to lay out touch controls.</p>

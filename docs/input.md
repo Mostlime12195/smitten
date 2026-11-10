@@ -318,6 +318,10 @@ name ..= typed()
 if pressed("backspace") then name = name:sub(1, -2) end
 ```
 
+For a box to type in, with a caret, selecting, copy and paste, there's a
+piece: [TextInput](ui.md#typing-boxes). In a browser, text pasted with
+Ctrl+V arrives through `typed()` too.
+
 ## smitten.input
 
 <!-- module:input -->

@@ -24,6 +24,7 @@ export function measure(o, items) {
   const n = items.length;
   const gap = num(o.gap);
   const pad = num(o.padding);
+  if (n === 0) return [2 * pad, 2 * pad];
   if (o.kind === 'grid') {
     const cols = columnsOf(o);
     const rows = Math.ceil(n / cols);
@@ -211,7 +212,8 @@ export function layoutTree(root, api, screenW, screenH, each) {
         slots = arrange(o, list, r[2], r[3]);
         if (api.type(n) === 'Scroll') {
           const [cw, ch] = measure(o, list);
-          info.content = [Math.max(cw, r[2]), Math.max(ch, r[3])];
+          // What's inside it, along the way it scrolls.
+          info.content = o.kind === 'row' ? [Math.max(cw, r[2]), r[3]] : [r[2], Math.max(ch, r[3])];
           const sx = o.kind === 'row' ? Math.min(Math.max(0, num(api.get(n, 'scrollX'))), Math.max(0, cw - r[2])) : 0;
           const sy = o.kind === 'column' ? Math.min(Math.max(0, num(api.get(n, 'scrollY'))), Math.max(0, ch - r[3])) : 0;
           for (const s of slots) {

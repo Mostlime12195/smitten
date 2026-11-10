@@ -10,6 +10,7 @@
 import { isA, defaultOf, equal, clone } from '../../core/schema.js';
 import { decodeCells, cellBounds } from './cells.js';
 import { parseRich, layoutRich } from '../../core/richtext.js';
+import { layoutTree, anchorRect } from './uilayout.js';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 32;
@@ -1103,44 +1104,47 @@ export class Viewport2D {
     collect(root, IDENTITY, [1, 1, 1, 1], 0);
     items.sort((p, q) => p.z - q.z || p.order - q.order);
 
-    // The UI pass (ui.lua visit): controls lay out in their parent control,
-    // or the screen.
+    // The UI pass (ui.lua visit): controls lay out in their parent control
+    // or the screen by their anchors, or are placed by the Row, Column, Grid
+    // or Scroll they are inside (uilayout.js, the engine's rules).
     const ui = [];
     const disp = this.displayInfo();
-    const visit = (e, px, py, pw, ph, alpha) => {
-      const n = e.node;
-      if (e.isUI) {
-        if (!this.get(n, 'visible')) return;
-        e.parentRect = [px, py, pw, ph];
-        e.rect = this.layout(n, px, py, pw, ph);
-        alpha *= num(this.get(n, 'opacity'), 1);
-        e.alpha = alpha;
-        ui.push(e);
-        [px, py, pw, ph] = e.rect;
-      } else if (e.is2d || e.is3d) {
-        if (this.get(n, 'visible') === false) return;
-      }
-      for (const c of e.children) visit(c, px, py, pw, ph, alpha);
+    const api = {
+      type: (e) => e.type,
+      children: (e) => e.children,
+      isUI: (e) => e.isUI,
+      visible: (e) => (e.isUI ? !!this.get(e.node, 'visible') : this.get(e.node, 'visible') !== false),
+      get: (e, p) => this.get(e.node, p),
     };
-    visit(root, 0, 0, disp.width, disp.height, 1);
+    layoutTree(root, api, disp.width, disp.height, (e, rect, parentRect, info) => {
+      e.parentRect = parentRect;
+      e.rect = rect;
+      e.slotted = info.slotted;
+      e.clip = info.clip;
+      e.content = info.content;
+      let alpha = 1;
+      for (let p = e.parent; p; p = p.parent) {
+        if (p.isUI) {
+          alpha = p.alpha ?? 1;
+          break;
+        }
+      }
+      e.alpha = alpha * num(this.get(e.node, 'opacity'), 1);
+      ui.push(e);
+    });
     this.scene = { root, entries, items, ui };
     return this.scene;
   }
 
   layout(n, px, py, pw, ph) {
-    const x = num(this.get(n, 'x'));
-    const y = num(this.get(n, 'y'));
-    const anchor = this.get(n, 'anchor');
-    if (anchor === 'fill') return [px + x, py + y, Math.max(0, pw - 2 * x), Math.max(0, ph - 2 * y)];
-    const a = ANCHORS[anchor] || ANCHORS.topLeft;
-    const w = num(this.get(n, 'width'));
-    const h = num(this.get(n, 'height'));
-    return [px + a[0] * (pw - w) + (a[0] === 1 ? -x : x), py + a[1] * (ph - h) + (a[1] === 1 ? -y : y), w, h];
+    return anchorRect(this.get(n, 'anchor'), num(this.get(n, 'x')), num(this.get(n, 'y')), num(this.get(n, 'width')), num(this.get(n, 'height')), px, py, pw, ph);
   }
 
   /** Layout offsets that put a control at rect [x, y, w, h] (the inverse of layout). */
   offsetsFor(e, rect) {
     const n = e.node;
+    // Inside a Row, Column, Grid or Scroll only its size is its own.
+    if (e.slotted) return { width: rect[2], height: rect[3] };
     const [px, py, pw, ph] = e.parentRect;
     const anchor = this.get(n, 'anchor');
     if (anchor === 'fill') return { x: rect[0] - px, y: rect[1] - py };
@@ -1935,7 +1939,70 @@ export class Viewport2D {
     const [x, y, w, h] = e.rect;
     const alpha = e.alpha;
     this.setWorld(g);
+    // Inside a Scroll, only what's in its window shows.
+    if (e.clip) {
+      g.beginPath();
+      g.rect(e.clip[0], e.clip[1], e.clip[2], e.clip[3]);
+      g.clip();
+    }
     const fill = (c, a = alpha) => rgba(colorOf(c), a);
+    // A skin: a picture whose edges keep their size while its middle
+    // stretches (ui.lua drawSkin). False if there's no picture to draw yet.
+    const skin = (path, bx, by, bw, bh, a = alpha, tint = [1, 1, 1, 1]) => {
+      const img = path ? this.assets.image(path) : null;
+      if (!img || img.status !== 'ready') return false;
+      const src = this.assets.tinted(img, tint);
+      const parts = String(this.get(n, 'skinEdges') ?? '').match(/[\d.]+/g)?.map(Number) || [0];
+      let l = parts[0] || 0;
+      let t = parts[1] ?? l;
+      let r = parts[2] ?? l;
+      let b = parts[3] ?? parts[1] ?? l;
+      l = Math.min(l, img.w);
+      r = Math.min(r, img.w - l);
+      t = Math.min(t, img.h);
+      b = Math.min(b, img.h - t);
+      const sx = [0, l, img.w - r];
+      const sw = [l, img.w - l - r, r];
+      const sy = [0, t, img.h - b];
+      const sh = [t, img.h - t - b, b];
+      let [dl, dt, dr, db] = [l, t, r, b];
+      if (dl + dr > bw && dl + dr > 0) [dl, dr] = [(dl * bw) / (dl + dr), (dr * bw) / (dl + dr)];
+      if (dt + db > bh && dt + db > 0) [dt, db] = [(dt * bh) / (dt + db), (db * bh) / (dt + db)];
+      const dx = [bx, bx + dl, bx + bw - dr];
+      const dw = [dl, bw - dl - dr, dr];
+      const dy = [by, by + dt, by + bh - db];
+      const dh = [dt, bh - dt - db, db];
+      g.globalAlpha = clamp(a * tint[3], 0, 1);
+      for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 3; i++) {
+          if (sw[i] > 0 && sh[j] > 0 && dw[i] > 0 && dh[j] > 0) g.drawImage(src, sx[i], sy[j], sw[i], sh[j], dx[i], dy[j], dw[i], dh[j]);
+        }
+      }
+      g.globalAlpha = 1;
+      return true;
+    };
+    // A picture fitted into a square (a knob, a checkbox's box).
+    const fitted = (path, cx, cy, size, a = alpha, tint = [1, 1, 1, 1]) => {
+      const img = path ? this.assets.image(path) : null;
+      if (!img || img.status !== 'ready') return false;
+      const k = size / Math.max(img.w, img.h);
+      g.globalAlpha = clamp(a * tint[3], 0, 1);
+      g.drawImage(this.assets.tinted(img, tint), cx - (img.w * k) / 2, cy - (img.h * k) / 2, img.w * k, img.h * k);
+      g.globalAlpha = 1;
+      return true;
+    };
+    // What a Row, Column, Grid or Scroll looks like in the editor only: a
+    // dashed outline (in the game they draw nothing themselves).
+    const outline = () => {
+      const [ir, ig, ib] = this.display.ink;
+      g.strokeStyle = `rgba(${ir * 255}, ${ig * 255}, ${ib * 255}, 0.35)`;
+      const k = this.dpr * this.view.zoom;
+      g.lineWidth = 1 / k;
+      g.setLineDash([4 / k, 3 / k]);
+      // An empty one has no size yet: a small mark where it is.
+      g.strokeRect(x, y, w > 0 ? w : 24, h > 0 ? h : 24);
+      g.setLineDash([]);
+    };
     const label = (font, size, text, bx, by, bw, bh, align, valign) => {
       const m = fontMetrics(this.assets.font(font), Math.max(1, num(size, 16)));
       const lines = wrapText(m, String(text ?? ''), bw);
@@ -1971,10 +2038,12 @@ export class Viewport2D {
       case 'Button': {
         const c = colorOf(this.get(n, 'color'));
         const a = this.get(n, 'disabled') ? alpha * 0.5 : alpha;
-        g.fillStyle = rgba(c, a);
-        g.beginPath();
-        roundRectPath(g, x, y, w, h, num(this.get(n, 'cornerRadius')));
-        g.fill();
+        if (!skin(this.get(n, 'skin'), x, y, w, h, a)) {
+          g.fillStyle = rgba(c, a);
+          g.beginPath();
+          roundRectPath(g, x, y, w, h, num(this.get(n, 'cornerRadius')));
+          g.fill();
+        }
         if (this.get(n, 'rich')) {
           richIn(x + 4, y, w - 8, h, 'center', 'middle', this.get(n, 'textColor'), a);
           break;
@@ -1985,6 +2054,7 @@ export class Viewport2D {
         break;
       }
       case 'Panel': {
+        if (skin(this.get(n, 'skin'), x, y, w, h)) break;
         const r = num(this.get(n, 'cornerRadius'));
         g.fillStyle = fill(this.get(n, 'color'));
         g.beginPath();
@@ -2119,6 +2189,167 @@ export class Viewport2D {
           const t = label(this.get(n, 'font'), this.get(n, 'size'), words, x, y, w, h, 'center', 'middle');
           g.fillStyle = fill(this.get(n, 'textColor'));
           printf(g, t.m, t.lines, x, t.ty, w, 'center');
+        }
+        break;
+      }
+      case 'TextInput': {
+        const a = this.get(n, 'disabled') ? alpha * 0.5 : alpha;
+        const r = num(this.get(n, 'cornerRadius'));
+        if (!skin(this.get(n, 'skin'), x, y, w, h, a)) {
+          g.fillStyle = fill(this.get(n, 'background'), a);
+          g.beginPath();
+          roundRectPath(g, x, y, w, h, r);
+          g.fill();
+          g.strokeStyle = fill(this.get(n, 'borderColor'), a);
+          g.lineWidth = 1;
+          g.beginPath();
+          roundRectPath(g, x + 0.5, y + 0.5, w - 1, h - 1, r);
+          g.stroke();
+        }
+        // Its text, or the placeholder while it's empty.
+        let words = String(this.get(n, 'text') ?? '');
+        const empty = words === '';
+        if (empty) words = String(this.get(n, 'placeholder') ?? '');
+        else if (this.get(n, 'secret')) words = '•'.repeat(Array.from(words).length);
+        if (words) {
+          const many = !!this.get(n, 'multiline');
+          if (!many) words = words.replace(/\n/g, ' ');
+          g.beginPath();
+          g.rect(x + 7, y + 1, Math.max(0, w - 14), Math.max(0, h - 2));
+          g.clip();
+          const t = label(this.get(n, 'font'), this.get(n, 'size'), words, x + 8, many ? y + 6 : y, many ? Math.max(1, w - 16) : 100000, many ? h - 6 : h, 'left', many ? 'top' : 'middle');
+          g.fillStyle = fill(this.get(n, empty ? 'placeholderColor' : 'color'), a);
+          printf(g, t.m, t.lines, x + 8, t.ty, many ? Math.max(1, w - 16) : 100000, 'left');
+        }
+        break;
+      }
+      case 'Slider': {
+        const a = this.get(n, 'disabled') ? alpha * 0.5 : alpha;
+        const vertical = !!this.get(n, 'vertical');
+        const lo = Math.min(num(this.get(n, 'min')), num(this.get(n, 'max')));
+        const hi = Math.max(num(this.get(n, 'min')), num(this.get(n, 'max')));
+        const t = hi !== lo ? clamp((num(this.get(n, 'value')) - lo) / (hi - lo), 0, 1) : 0;
+        const r = Math.min(w, h) / 2;
+        const from = vertical ? y + h - r : x + r;
+        const to = vertical ? y + r : x + w - r;
+        const at = from + (to - from) * t;
+        const path = this.get(n, 'skin');
+        const img = path ? this.assets.image(path) : null;
+        if (img && img.status === 'ready') {
+          const tw = vertical ? Math.min(w, img.w) : w;
+          const th = vertical ? h : Math.min(h, img.h);
+          const tx = x + (w - tw) / 2;
+          const ty = y + (h - th) / 2;
+          skin(path, tx, ty, tw, th, a);
+          if (t > 0) {
+            g.save();
+            g.beginPath();
+            if (vertical) g.rect(tx, at, tw, ty + th - at);
+            else g.rect(tx, ty, at - tx, th);
+            g.clip();
+            skin(path, tx, ty, tw, th, a, colorOf(this.get(n, 'color')));
+            g.restore();
+          }
+        } else {
+          const thick = Math.max(4, Math.floor((vertical ? w : h) / 3));
+          const half = thick / 2;
+          g.fillStyle = fill(this.get(n, 'background'), a);
+          g.beginPath();
+          if (vertical) roundRectPath(g, x + w / 2 - half, y, thick, h, half);
+          else roundRectPath(g, x, y + h / 2 - half, w, thick, half);
+          g.fill();
+          g.fillStyle = fill(this.get(n, 'color'), a);
+          g.beginPath();
+          if (vertical) roundRectPath(g, x + w / 2 - half, at - half, thick, y + h - at + half, half);
+          else roundRectPath(g, x, y + h / 2 - half, at - x + half, thick, half);
+          g.fill();
+        }
+        const cx = vertical ? x + w / 2 : at;
+        const cy = vertical ? at : y + h / 2;
+        const kc = colorOf(this.get(n, 'knobColor'));
+        if (!fitted(this.get(n, 'knobImage'), cx, cy, r * 2, a, kc)) {
+          g.fillStyle = rgba([kc[0] * 0.9, kc[1] * 0.9, kc[2] * 0.9, kc[3]], a);
+          g.beginPath();
+          g.arc(cx, cy, r, 0, Math.PI * 2);
+          g.fill();
+        }
+        break;
+      }
+      case 'Checkbox': {
+        const a = this.get(n, 'disabled') ? alpha * 0.5 : alpha;
+        const checked = !!this.get(n, 'checked');
+        const fontSize = Math.max(1, num(this.get(n, 'size'), 18));
+        const size = Math.max(8, Math.min(h, Math.floor(fontSize * 1.2 + 0.5)));
+        const isSwitch = this.get(n, 'look') === 'switch';
+        const grouped = String(this.get(n, 'group') ?? '') !== '';
+        let bw = isSwitch ? Math.floor(size * 1.8 + 0.5) : size;
+        const by = y + (h - size) / 2;
+        const picture = (checked && this.get(n, 'skinChecked')) || this.get(n, 'skin');
+        const ink = fill(this.get(n, 'textColor'), a);
+        if (picture && fitted(picture, x + size / 2, by + size / 2, size, a, [0.92, 0.92, 0.92, 1])) {
+          bw = size;
+        } else {
+          g.fillStyle = fill(this.get(n, checked ? 'color' : 'background'), a);
+          g.beginPath();
+          if (isSwitch) {
+            roundRectPath(g, x, by, bw, size, size / 2);
+            g.fill();
+            g.fillStyle = ink;
+            g.beginPath();
+            g.arc(checked ? x + bw - size / 2 : x + size / 2, by + size / 2, Math.max(1, size / 2 - 3), 0, Math.PI * 2);
+            g.fill();
+          } else if (grouped) {
+            g.arc(x + size / 2, by + size / 2, size / 2, 0, Math.PI * 2);
+            g.fill();
+            if (checked) {
+              g.fillStyle = ink;
+              g.beginPath();
+              g.arc(x + size / 2, by + size / 2, Math.max(1, size / 5), 0, Math.PI * 2);
+              g.fill();
+            }
+          } else {
+            roundRectPath(g, x, by, size, size, 4);
+            g.fill();
+            if (checked) {
+              g.strokeStyle = ink;
+              g.lineWidth = Math.max(2, size / 9);
+              g.beginPath();
+              g.moveTo(x + size * 0.22, by + size * 0.52);
+              g.lineTo(x + size * 0.42, by + size * 0.72);
+              g.lineTo(x + size * 0.78, by + size * 0.28);
+              g.stroke();
+            }
+          }
+        }
+        const words = String(this.get(n, 'text') ?? '');
+        if (words) {
+          const tw = Math.max(0, w - bw - 8);
+          const t = label(this.get(n, 'font'), fontSize, words, x + bw + 8, y, tw, h, 'left', 'middle');
+          g.fillStyle = ink;
+          printf(g, t.m, t.lines, x + bw + 8, t.ty, tw, 'left');
+        }
+        break;
+      }
+      case 'Row': case 'Column': case 'Grid':
+        outline();
+        break;
+      case 'Scroll': {
+        outline();
+        // Its scrollbar, when there's more inside than fits.
+        if (this.get(n, 'scrollbar') && e.content) {
+          const horizontal = this.get(n, 'direction') === 'horizontal';
+          const view = horizontal ? w : h;
+          const content = horizontal ? e.content[0] : e.content[1];
+          const limit = content - view;
+          if (limit > 0) {
+            const len = Math.max(16, (view * view) / content);
+            const at = ((view - len) * clamp(num(this.get(n, horizontal ? 'scrollX' : 'scrollY')), 0, limit)) / limit;
+            g.fillStyle = fill(this.get(n, 'barColor'));
+            g.beginPath();
+            if (horizontal) roundRectPath(g, x + at, y + h - 6, len, 4, 2);
+            else roundRectPath(g, x + w - 6, y + at, 4, len, 2);
+            g.fill();
+          }
         }
         break;
       }
@@ -2954,7 +3185,7 @@ export class Viewport2D {
       const en = sc.entries.get(n);
       if (!en) continue;
       if (en.isUI) {
-        if (kind === 'move' && this.get(n, 'anchor') !== 'full') items.push({ node: n, entry: en, ui: true, rect0: [...en.rect] });
+        if (kind === 'move' && this.get(n, 'anchor') !== 'full' && !en.slotted) items.push({ node: n, entry: en, ui: true, rect0: [...en.rect] });
       } else if (en.m) {
         items.push({
           node: n, entry: en, pinv: invert(en.pm) || IDENTITY, g0: [en.m[4], en.m[5]],
@@ -3225,7 +3456,11 @@ export class Viewport2D {
       }
     }
     const o = this.offsetsFor(d.entry, [left, top, right - left, bottom - top]);
-    d.gesture.set([[d.entry.node, { x: roundTo(o.x, 0.01), y: roundTo(o.y, 0.01), width: roundTo(o.width, 0.01), height: roundTo(o.height, 0.01) }]]);
+    // Only what the piece's layout lets it set (a piece placed by a Row has
+    // a size but no place of its own).
+    const props = {};
+    for (const k of ['x', 'y', 'width', 'height']) if (Number.isFinite(o[k])) props[k] = roundTo(o[k], 0.01);
+    d.gesture.set([[d.entry.node, props]]);
   }
 
   // -------------------------------------------------------------------------
@@ -3280,7 +3515,7 @@ export class Viewport2D {
       const en = sc.entries.get(n);
       if (!en) continue;
       if (en.isUI) {
-        if (this.get(n, 'anchor') === 'full') continue;
+        if (this.get(n, 'anchor') === 'full' || en.slotted) continue;
         const o = this.offsetsFor(en, [en.rect[0] + dx, en.rect[1] + dy, en.rect[2], en.rect[3]]);
         entries.push([n, { x: roundTo(o.x, 0.001), y: roundTo(o.y, 0.001) }]);
       } else if (en.m) {

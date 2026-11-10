@@ -169,6 +169,7 @@ speed = <span class="tk-n">220</span>
 <p><code>typed()</code> returns whatever was typed this frame, and turns on text input (on phones, that shows the keyboard):</p>
 <pre><code class="lang-lua">name ..= <span class="tk-f">typed</span>()
 <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;backspace&quot;</span>) <span class="tk-k">then</span> name = name:<span class="tk-f">sub</span>(<span class="tk-n">1</span>, -<span class="tk-n">2</span>) <span class="tk-k">end</span></code></pre>
+<p>For a box to type in, with a caret, selecting, copy and paste, there's a piece: <a href="ui#typing-boxes">TextInput</a>. In a browser, text pasted with Ctrl+V arrives through <code>typed()</code> too.</p>
 <h2 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
