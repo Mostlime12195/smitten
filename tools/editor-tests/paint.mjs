@@ -245,6 +245,96 @@ try {
   check('the menu of an image says "Open in the sprite editor"', await page.eval(`!!${menuItem('Open in the sprite editor')}`));
   await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
 
+  // A pen, with synthetic input only (no real tablet here): pressure, the
+  // eraser end, the side button, palm rejection, and a pinch with two fingers.
+  await click(`document.querySelector('.workspace[data-ws="paint"] .doc-new')`);
+  await sleep(600);
+  await page.eval(`${spr}.focus()`);
+  await key('0', 'Digit0', 48);
+  await frame();
+  const z2 = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`)) / 100;
+  check('pen: a smooth brush has pressure on size by default', await page.eval(`${spr}.querySelector('select[aria-label="Pen pressure"]').value`) === 'size');
+  const pen = (type, x, y, force, button = 'left', buttons = 1) => page.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' && !buttons ? 'none' : button, buttons, clickCount: 1, pointerType: 'pen', force, tiltX: 10, tiltY: -5 });
+  const penStroke = async (y, force) => {
+    await pen('mouseMoved', cx - 80 * z2, y, 0, 'none', 0);
+    await pen('mousePressed', cx - 80 * z2, y, force);
+    for (let i = 1; i <= 20; i++) { await pen('mouseMoved', cx - 80 * z2 + (160 * z2 * i) / 20, y, force); await sleep(10); }
+    await pen('mouseReleased', cx + 80 * z2, y, 0, 'left', 0);
+  };
+  const mouseStroke = async (y) => {
+    await mouse('mouseMoved', cx - 80 * z2, y, 0);
+    await mouse('mousePressed', cx - 80 * z2, y);
+    for (let i = 1; i <= 20; i++) { await mouse('mouseMoved', cx - 80 * z2 + (160 * z2 * i) / 20, y); await sleep(10); }
+    await mouse('mouseReleased', cx + 80 * z2, y, 0);
+  };
+  await penStroke(cy - 60 * z2, 0.1);
+  await penStroke(cy, 1);
+  await mouseStroke(cy + 60 * z2);
+  await frame();
+  // The opaque runs down one column of the image (from the frame's thumbnail canvas).
+  const runs = (x) => page.eval(`(() => {
+    const c = ${spr}.querySelector('.spr-frame.current canvas');
+    const d = c.getContext('2d').getImageData(${x}, 0, 1, c.height).data;
+    const out = []; let start = -1;
+    for (let y = 0; y <= c.height; y++) {
+      const on = y < c.height && d[y * 4 + 3] > 128;
+      if (on && start < 0) start = y;
+      if (!on && start >= 0) { out.push([start, y - start]); start = -1; }
+    }
+    return JSON.stringify(out);
+  })()`).then(JSON.parse);
+  const W2 = await page.eval(`${spr}.querySelector('.spr-frame.current canvas').width`);
+  const col = await runs(Math.round(W2 / 2));
+  check('pen: three lines', col.length === 3, col);
+  if (col.length === 3) {
+    const [light, heavy, mouseLine] = col.map((r) => r[1]);
+    check('pen: a light touch draws a thinner line than full pressure', light < heavy && light <= 4, { light, heavy });
+    check('pen: full pressure is the full brush size, the same as the mouse', Math.abs(heavy - mouseLine) <= 1, { heavy, mouseLine });
+    check('mouse: the line has the full brush size (8 pixels)', mouseLine >= 7 && mouseLine <= 10, mouseLine);
+  }
+  // The eraser end of the pen (button 5, buttons 32), as synthetic pointer events.
+  await page.eval(`(() => {
+    const c = ${spr}.querySelector('.spr-canvas');
+    const ev = (type, y, buttons) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 77, pointerType: 'pen', isPrimary: true,
+      button: type === 'pointermove' ? -1 : 5, buttons, pressure: buttons ? 1 : 0, clientX: ${cx + 40 * z2}, clientY: y }));
+    ev('pointerdown', ${cy - 90 * z2}, 32);
+    for (let i = 1; i <= 18; i++) ev('pointermove', ${cy - 90 * z2} + i * ${10 * z2}, 32);
+    ev('pointerup', ${cy + 90 * z2}, 0);
+  })()`);
+  await frame();
+  check('pen: the eraser end erases (with the brush tool picked)', (await runs(Math.round(W2 / 2 + 40))).length === 0, await runs(Math.round(W2 / 2 + 40)));
+  // The side button picks the color under the pen.
+  await page.eval(`(() => { const i = ${spr}.querySelector('.spr-hex'); i.value = '#ff0000'; i.dispatchEvent(new Event('change')); })()`);
+  await pen('mouseMoved', cx - 40 * z2, cy, 0, 'none', 0);
+  await pen('mousePressed', cx - 40 * z2, cy, 0.5, 'right', 2);
+  await pen('mouseReleased', cx - 40 * z2, cy, 0, 'right', 0);
+  check('pen: the side button picks the color under it', await page.eval(`${spr}.querySelector('.spr-hex').value`) === '#000000', await page.eval(`${spr}.querySelector('.spr-hex').value`));
+  // Palm rejection: right after the pen was near, a finger does not paint.
+  await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  await pen('mouseMoved', cx, cy + 100 * z2, 0, 'none', 0);
+  const touch = (type, points) => page.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([x, y], id) => ({ x, y, id })) });
+  await touch('touchStart', [[cx - 60 * z2, cy + 90 * z2]]);
+  for (let i = 1; i <= 10; i++) { await touch('touchMove', [[cx - 60 * z2 + i * 12 * z2, cy + 90 * z2]]); await sleep(10); }
+  await touch('touchEnd', []);
+  await frame();
+  check('palm rejection: a finger next to the pen paints nothing', (await runs(Math.round(W2 / 2))).length === 3, await runs(Math.round(W2 / 2)));
+  // Two fingers, with no pen near: a pinch zooms in.
+  await sleep(1200);
+  const zBefore = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`));
+  await touch('touchStart', [[cx - 40, cy], [cx + 40, cy]]);
+  for (let i = 1; i <= 10; i++) { await touch('touchMove', [[cx - 40 - i * 10, cy], [cx + 40 + i * 10, cy]]); await sleep(16); }
+  await touch('touchEnd', []);
+  await sleep(300);
+  const zAfter = parseFloat(await page.eval(`${spr}.querySelector('.spr-zoom-label').textContent`));
+  check('touch: a pinch with two fingers zooms in', zAfter > zBefore * 1.5, { zBefore, zAfter });
+  check('touch: a pinch paints nothing', (await runs(Math.round(W2 / 2))).length === 3, await runs(Math.round(W2 / 2)));
+  await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  // Pixel brushes keep no pressure by default.
+  await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Pixel')`);
+  check('pen: a pixel brush has no pressure by default', await page.eval(`${spr}.querySelector('select[aria-label="Pen pressure"]').value`) === 'off');
+  await click(`[...${spr}.querySelectorAll('.spr-seg button')].find((b) => b.textContent.trim() === 'Smooth')`);
+  await shot('pen');
+
   check('no errors in the page', problems.length === 0, problems.join('\n'));
 } catch (e) {
   check('the test ran to the end', false, e.message || e);

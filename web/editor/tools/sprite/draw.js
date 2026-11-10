@@ -55,7 +55,7 @@ export class Mask {
  * (pixel centers are at +0.5). hardness 1 gives a solid disc with a one-pixel
  * antialiased edge; lower values fade out from radius * hardness.
  */
-export function capsule(mask, ax, ay, bx, by, radius, hardness, clip) {
+export function capsule(mask, ax, ay, bx, by, radius, hardness, clip, strength = 1) {
   const { w, h, data } = mask;
   const R = Math.max(0.5, radius);
   const hard = hardness >= 1;
@@ -86,7 +86,7 @@ export function capsule(mask, ax, ay, bx, by, radius, hardness, clip) {
         c = u <= 0 ? 1 : u >= 1 ? 0 : 1 - u * u * (3 - 2 * u);
       }
       if (c <= 0) continue;
-      const v = c >= 1 ? 255 : Math.round(c * 255);
+      const v = Math.round((c >= 1 ? 255 : c * 255) * strength);
       if (v > data[i]) data[i] = v;
     }
   }
@@ -190,17 +190,22 @@ export function square(mask, cx, cy, size, clip) {
  * A line of squares from pixel (x0, y0) to pixel (x1, y1) (Bresenham, so a
  * fast stroke has no gaps). Returns the box of the line (null if it is all
  * outside the image or the clip), without making objects for each pixel.
+ * strength (0-1) below 1 gives partial coverage (pen pressure on opacity).
  */
-export function pixelLine(mask, x0, y0, x1, y1, size, clip) {
+export function pixelLine(mask, x0, y0, x1, y1, size, clip, strength = 1) {
   const off = Math.floor((size - 1) / 2);
   const area = clipBox(Math.min(x0, x1) - off, Math.min(y0, y1) - off, Math.max(x0, x1) - off + size, Math.max(y0, y1) - off + size, mask.w, mask.h, clip);
   if (!area) return null;
   const { data, w } = mask;
+  const v = Math.round(255 * Math.min(1, Math.max(0, strength)));
   line(x0, y0, x1, y1, (x, y) => {
     const ax0 = Math.max(x - off, area.x0), ax1 = Math.min(x - off + size, area.x1);
     if (ax1 <= ax0) return;
     const ye = Math.min(y - off + size, area.y1);
-    for (let yy = Math.max(y - off, area.y0); yy < ye; yy++) data.fill(255, yy * w + ax0, yy * w + ax1);
+    for (let yy = Math.max(y - off, area.y0); yy < ye; yy++) {
+      if (v === 255) data.fill(255, yy * w + ax0, yy * w + ax1);
+      else for (let i = yy * w + ax0, e = yy * w + ax1; i < e; i++) if (v > data[i]) data[i] = v;
+    }
   });
   return mask.mark(area);
 }
@@ -607,4 +612,16 @@ export function rgbToHsv(r, g, b) {
     if (h < 0) h += 360;
   }
   return [h, max ? d / max : 0, max];
+}
+
+// ---------------------------------------------------------------------------
+// Pen pressure
+
+/**
+ * How much of the brush a pen pressure (0-1) gives: min (0-1) at the
+ * lightest touch, all of it at full pressure.
+ */
+export function pressureScale(pressure, min) {
+  const p = Math.min(1, Math.max(0, pressure));
+  return min + (1 - min) * p;
 }

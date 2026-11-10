@@ -72,5 +72,35 @@ canvas to give it the keyboard focus. On a Mac, use Cmd for Ctrl.
 When the mouse pointer goes out of the canvas during a stroke, the stroke
 continues. Each stroke is one step for undo.
 
+## Pen and touch
+
+You can draw with a pen on a tablet or on a touch screen.
+
+- The pen paints the same as the left mouse button.
+- The eraser end of the pen erases, with all tools.
+- The side button of the pen picks the color under the pen.
+- While the pen is on or near the screen, the editor ignores fingers.
+  Because of this, your hand can lie on the screen while you draw.
+- With two fingers, drag to move the view, and pinch to zoom.
+
+The pressure of the pen can change the brush and the eraser. Set **Pen**
+in the tool options:
+
+| Pen | What the pressure changes |
+| --- | --- |
+| **No pressure** | Nothing. Each stroke has the full size and opacity |
+| **Pressure: size** | The size of the brush. A light touch makes a thin line |
+| **Pressure: opacity** | The opacity of the stroke. A light touch makes a faint line |
+| **Pressure: both** | The size and the opacity |
+
+**Lightest** sets how much of the size or the opacity the lightest touch
+gives. At 100%, the pressure changes nothing.
+
+The brush and the eraser each keep their own **Pen** setting, for smooth
+brushes and for pixel brushes. For smooth brushes, the default is
+**Pressure: size**. For pixel brushes, the default is **No pressure**, so
+pixel art keeps hard, even lines. The pressure does not change strokes
+that you make with a mouse.
+
 To use an image in a scene, drag the file from the **Files** panel into the
 scene view. The editor makes a `Sprite` piece that shows it.

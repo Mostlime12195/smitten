@@ -33,6 +33,7 @@ const MAX_RECENT = 16;
 // copies it to the screen. Zoomed in, drawing the pixels that show is cheap.
 const CACHE_MAX_PIXELS = 6 * 1024 * 1024;
 const ZOOM_SETTLE_MS = 160; // while you zoom, the kept image is stretched; it is drawn sharp this long after the last step
+const PEN_GRACE_MS = 1000; // fingers are ignored this long after the pen was last seen
 
 const TOOLS = [
   { id: 'brush', label: 'Brush', key: 'B' },
@@ -163,6 +164,13 @@ export class SpriteEditor {
     this.filled = prefs.filled ?? false;
     this.mirrorX = false;
     this.mirrorY = false;
+    // What the pressure of a pen changes, for each tool and brush mode
+    // ("brush:smooth": 'off', 'size', 'opacity' or 'both'), and how much of
+    // the brush the lightest touch gives (percent). A mouse never uses it.
+    this.pressure = prefs.pressure && typeof prefs.pressure === 'object' ? prefs.pressure : {};
+    this.pressureMin = clamp(prefs.pressureMin ?? 25, 0, 100);
+    this.penSeenAt = -Infinity; // when a pen was last near the screen (palm rejection)
+    this.penDown = false;
     this.pixelGrid = prefs.pixelGrid ?? true;
     this.grid = prefs.grid ?? false;
     this.gridW = prefs.gridW || 16;
@@ -218,6 +226,12 @@ export class SpriteEditor {
   }
 
   get size() { return this.sizes[this.mode]; }
+
+  /** What pen pressure changes for the brush or the eraser in the current mode (off for pixel brushes unless you turn it on). */
+  pressureMode(tool = this.tool) {
+    const t = tool === 'eraser' ? 'eraser' : 'brush';
+    return this.pressure[`${t}:${this.mode}`] || (this.mode === 'smooth' ? 'size' : 'off');
+  }
   get frame() { return this.doc.frames[this.current]; }
 
   // -------------------------------------------------------------------------
@@ -424,6 +438,18 @@ export class SpriteEditor {
     this.optSize = this.slider({ label: 'Size', min: 1, max: MAX_BRUSH, unit: 'px', curve: 2.2, title: 'Brush size ([ and ])', onInput: (v) => this.setSize(v) });
     this.optHardness = this.slider({ label: 'Hardness', min: 0, max: 100, unit: '%', title: 'How sharp the brush edge is (Shift+[ and Shift+])', onInput: (v) => this.setHardness(v) });
     this.optOpacity = this.slider({ label: 'Opacity', min: 1, max: 100, unit: '%', title: 'Opacity of each stroke', onInput: (v) => this.setOpacity(v) });
+    this.optPressure = h('label', { class: 'spr-check', title: 'What the pressure of a pen changes. A mouse always paints at the full size and opacity.' },
+      h('span', {}, 'Pen'),
+      this.pressureSelect = h('select', { class: 'spr-select', 'aria-label': 'Pen pressure' },
+        h('option', { value: 'off' }, 'No pressure'), h('option', { value: 'size' }, 'Pressure: size'),
+        h('option', { value: 'opacity' }, 'Pressure: opacity'), h('option', { value: 'both' }, 'Pressure: both')));
+    this.pressureSelect.addEventListener('change', () => {
+      this.pressure[`${this.tool === 'eraser' ? 'eraser' : 'brush'}:${this.mode}`] = this.pressureSelect.value;
+      this.persist();
+      this.renderOptions();
+      this.element.focus({ preventScroll: true });
+    });
+    this.optPressureMin = this.slider({ label: 'Lightest', min: 0, max: 100, unit: '%', title: 'How much of the size or opacity the lightest touch of the pen gives', onInput: (v) => { this.pressureMin = v; this.persist(); this.renderOptions(); } });
     this.optShape = this.segmented([['outline', 'Outline'], ['filled', 'Filled']], (v) => { this.filled = v === 'filled'; this.persist(); this.renderOptions(); }, 'Shape style');
     this.optTolerance = this.slider({ label: 'Tolerance', min: 0, max: 100, unit: '%', title: 'How different a color can be and still be filled', onInput: (v) => { this.tolerance = v; this.persist(); this.renderOptions(); } });
     this.optContiguous = h('label', { class: 'spr-check', title: 'Fill only the area touching the click. Shift+click does the opposite.' },
@@ -431,7 +457,7 @@ export class SpriteEditor {
     this.contiguousInput.addEventListener('change', () => { this.contiguous = this.contiguousInput.checked; this.persist(); });
     this.optHint = h('span', { class: 'spr-hint' });
     this.options = h('div', { class: 'spr-options' }, this.optTitle, this.optMode.el, this.optSize.el, this.optHardness.el,
-      this.optShape.el, this.optOpacity.el, this.optTolerance.el, this.optContiguous, this.optHint);
+      this.optShape.el, this.optOpacity.el, this.optPressure, this.optPressureMin.el, this.optTolerance.el, this.optContiguous, this.optHint);
 
     this.btnMirrorX = this.iconButton('mirrorX', 'Mirror left and right: paint on both sides', () => { this.mirrorX = !this.mirrorX; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
     this.btnMirrorY = this.iconButton('mirrorY', 'Mirror top and bottom: paint on both halves', () => { this.mirrorY = !this.mirrorY; this.renderToolbar(); this.render(); }, { 'aria-pressed': 'false' });
@@ -645,6 +671,7 @@ export class SpriteEditor {
       sizes: this.sizes, hardness: this.hardness, opacity: this.opacity, tolerance: this.tolerance,
       contiguous: this.contiguous, filled: this.filled, pixelGrid: this.pixelGrid, grid: this.grid,
       gridW: this.gridW, gridH: this.gridH, onion: this.onion, recent: this.recent, palette: this.paletteId,
+      pressure: this.pressure, pressureMin: this.pressureMin,
     });
     savePrefs(this.prefs);
   }
@@ -766,6 +793,10 @@ export class SpriteEditor {
     this.optShape.set(this.filled ? 'filled' : 'outline');
     this.optOpacity.el.hidden = !(paint || t === 'fill');
     this.optOpacity.set(this.opacity);
+    this.optPressure.hidden = !brush;
+    this.pressureSelect.value = this.pressureMode();
+    this.optPressureMin.el.hidden = !brush || this.pressureMode() === 'off';
+    this.optPressureMin.set(this.pressureMin);
     this.optTolerance.el.hidden = t !== 'fill';
     this.optTolerance.set(this.tolerance);
     this.optContiguous.hidden = t !== 'fill';
@@ -1244,7 +1275,7 @@ export class SpriteEditor {
 
   mirror(p, mx, my) {
     const { fw, fh } = this.doc;
-    return { x: mx ? fw - 1 - p.x : p.x, y: my ? fh - 1 - p.y : p.y, fx: mx ? fw - p.fx : p.fx, fy: my ? fh - p.fy : p.fy };
+    return { x: mx ? fw - 1 - p.x : p.x, y: my ? fh - 1 - p.y : p.y, fx: mx ? fw - p.fx : p.fx, fy: my ? fh - p.fy : p.fy, pr: p.pr };
   }
 
   /** [a, b] and its mirror images. */
@@ -1269,13 +1300,39 @@ export class SpriteEditor {
   }
 
   /** Add the brush dragged from a to b (and its mirrors) to the mask; returns the box touched. */
-  strokeMask(a, b) {
+  strokeMask(a, b, pressure = null) {
     const clip = this.clip();
     let box = null;
     for (const [s, t] of this.mirrorPairs(a, b)) {
-      box = draw.union(box, this.mode === 'pixel'
-        ? draw.pixelLine(this.mask, s.x, s.y, t.x, t.y, this.size, clip)
-        : draw.capsule(this.mask, s.fx, s.fy, t.fx, t.fy, this.size / 2, this.hardness / 100, clip));
+      box = draw.union(box, pressure ? this.pressureSegment(s, t, pressure, clip)
+        : this.mode === 'pixel'
+          ? draw.pixelLine(this.mask, s.x, s.y, t.x, t.y, this.size, clip)
+          : draw.capsule(this.mask, s.fx, s.fy, t.fx, t.fy, this.size / 2, this.hardness / 100, clip));
+    }
+    return box;
+  }
+
+  /**
+   * A stroke segment of a pen: its size and/or opacity follow the pressure
+   * at each end. Smooth brushes change smoothly along the segment; pixel
+   * brushes take the size at the end (whole pixels).
+   */
+  pressureSegment(s, t, mode, clip) {
+    const min = this.pressureMin / 100;
+    const sizeOf = (q) => (mode === 'size' || mode === 'both' ? draw.pressureScale(q.pr ?? 1, min) : 1);
+    const strengthOf = (q) => (mode === 'opacity' || mode === 'both' ? draw.pressureScale(q.pr ?? 1, min) : 1);
+    if (this.mode === 'pixel') {
+      return draw.pixelLine(this.mask, s.x, s.y, t.x, t.y, Math.max(1, Math.round(this.size * sizeOf(t))), clip, strengthOf(t));
+    }
+    const ra = (this.size / 2) * sizeOf(s), rb = (this.size / 2) * sizeOf(t);
+    const ka = strengthOf(s), kb = strengthOf(t);
+    const n = clamp(Math.ceil(Math.hypot(t.fx - s.fx, t.fy - s.fy) / Math.max(0.5, Math.min(ra, rb) * 0.5)), 1, 64);
+    let box = null;
+    for (let i = 0; i < n; i++) {
+      const u0 = i / n, u1 = (i + 1) / n;
+      box = draw.union(box, draw.capsule(this.mask,
+        s.fx + (t.fx - s.fx) * u0, s.fy + (t.fy - s.fy) * u0, s.fx + (t.fx - s.fx) * u1, s.fy + (t.fy - s.fy) * u1,
+        ra + (rb - ra) * u1, this.hardness / 100, clip, ka + (kb - ka) * u1));
     }
     return box;
   }
@@ -1285,7 +1342,7 @@ export class SpriteEditor {
     this.prepareMask();
     const d = { ...base, kind: 'stroke', last: p };
     this.drag = d;
-    this.paintBox(d, this.strokeMask(shift && this.lastPoint ? this.lastPoint : p, p));
+    this.paintBox(d, this.strokeMask(shift && this.lastPoint ? this.lastPoint : p, p, d.pressure));
   }
 
   /** Shift: lines snap to 45°, rectangles and ellipses become squares and circles. */
@@ -1506,13 +1563,24 @@ export class SpriteEditor {
   toPixel(e, r = this.canvas.getBoundingClientRect()) {
     const fx = (e.clientX - r.left - this.panX) / this.zoom;
     const fy = (e.clientY - r.top - this.panY) / this.zoom;
-    return { x: Math.floor(fx), y: Math.floor(fy), fx, fy };
+    // pr: the pen pressure (0-1); null for a mouse or a finger.
+    return { x: Math.floor(fx), y: Math.floor(fy), fx, fy, pr: e.pointerType === 'pen' ? e.pressure : null };
   }
 
   onPointerDown(e) {
     this.element.focus({ preventScroll: true });
     if (!this.loaded || this.failed) return;
+    if (e.pointerType === 'pen') {
+      this.penSeenAt = performance.now();
+      this.penDown = true;
+      // A palm that touched first does not paint on.
+      if (this.drag?.pointerType === 'touch') this.cancelDrag();
+      this.pointers.clear();
+      this.gesture = null;
+    }
     if (e.pointerType === 'touch') {
+      // Palm rejection: while a pen is on or near the screen, fingers do nothing.
+      if (this.penDown || performance.now() - this.penSeenAt < PEN_GRACE_MS) return;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.pointers.size === 2) {
         this.cancelDrag();
@@ -1530,14 +1598,17 @@ export class SpriteEditor {
       this.updateCursor();
       return;
     }
-    const eraserButton = e.button === 5; // pen eraser end
+    const pen = e.pointerType === 'pen';
+    const eraserButton = e.button === 5 || (pen && (e.buttons & 32) !== 0); // the eraser end of a pen
     if (e.button !== 0 && e.button !== 2 && !eraserButton) return;
-    const secondary = e.button === 2;
-    let tool = eraserButton ? 'eraser' : this.tool;
+    const barrel = pen && e.button === 2; // a pen's side button picks a color
+    const secondary = e.button === 2 && !barrel;
+    let tool = eraserButton ? 'eraser' : barrel ? 'picker' : this.tool;
     if (e.altKey && tool !== 'select' && tool !== 'origin') tool = 'picker';
     if (tool !== 'select') this.commitFloating();
     const color = secondary ? this.secondary : this.primary;
-    const base = { id: e.pointerId, tool, color, erase: tool === 'eraser' || color[3] === 0 };
+    const pressure = pen && (tool === 'brush' || tool === 'eraser') && this.pressureMode(tool) !== 'off' ? this.pressureMode(tool) : null;
+    const base = { id: e.pointerId, pointerType: e.pointerType, tool, color, erase: tool === 'eraser' || color[3] === 0, pressure };
 
     if (tool === 'brush' || tool === 'eraser') {
       this.startStroke(base, p, e.shiftKey);
@@ -1589,7 +1660,10 @@ export class SpriteEditor {
   }
 
   onPointerMove(e) {
-    if (e.pointerType === 'touch' && this.pointers.has(e.pointerId)) {
+    if (e.pointerType === 'pen') this.penSeenAt = performance.now();
+    if (e.pointerType === 'touch') {
+      // A finger that is not one of ours (a palm next to a pen) does nothing, not even hover.
+      if (!this.pointers.has(e.pointerId)) return;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.gesture) { this.updateGesture(); return; }
     }
@@ -1622,7 +1696,7 @@ export class SpriteEditor {
             ? q.x === d.last.x && q.y === d.last.y
             : Math.hypot(q.fx - d.last.fx, q.fy - d.last.fy) < 0.25;
           if (still) continue;
-          box = draw.union(box, this.strokeMask(d.last, q));
+          box = draw.union(box, this.strokeMask(d.last, q, d.pressure));
           d.last = q;
         }
         this.paintBox(d, box);
@@ -1658,6 +1732,7 @@ export class SpriteEditor {
   }
 
   onPointerUp(e, cancelled = false) {
+    if (e.pointerType === 'pen') { this.penDown = false; this.penSeenAt = performance.now(); }
     if (e.pointerType === 'touch') {
       this.pointers.delete(e.pointerId);
       if (this.gesture) {

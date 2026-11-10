@@ -331,7 +331,9 @@ Tests:
   checks that the saved PNG has all of each stroke. It also counts how much
   the editor draws. A stroke in a selection draws only the changed part. A
   stroke outside the image draws nothing. When you move a selection or pan
-  the view, the editor does not draw the image again.
+  the view, the editor does not draw the image again. Then it tests a pen
+  and fingers with input that it makes, not with a real tablet. It checks
+  the pressure, the eraser end, the side button, palm rejection and a pinch.
 - `node tools/clip-tests/test.mjs`: clips (`web/player/clips.js`). It
   tests the GIF encoder (it decodes each GIF again), the reading, joining,
   cutting and writing of WebM files, and the ring of recordings, with a

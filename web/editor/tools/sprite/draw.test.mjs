@@ -87,5 +87,22 @@ for (let y = 0; y < h; y++) buf.set([255, 0, 0, 255], (y * w + 3) * 4);
   check('composite: at 50% opacity, full coverage still mixes', dst[0] > 100 && dst[0] < 160, [...dst]);
 }
 
+// Pen pressure: how much of the brush a pressure gives, and partial coverage.
+{
+  check('pressureScale: no pressure gives the lightest part', d.pressureScale(0, 0.25) === 0.25);
+  check('pressureScale: full pressure gives all of it', d.pressureScale(1, 0.25) === 1);
+  check('pressureScale: half way', Math.abs(d.pressureScale(0.5, 0.2) - 0.6) < 1e-9);
+  check('pressureScale: out of range is clamped', d.pressureScale(2, 0) === 1 && d.pressureScale(-1, 0.5) === 0.5);
+  const m = new d.Mask(8, 8);
+  d.capsule(m, 4, 4, 4, 4, 3, 1, null, 0.5);
+  check('capsule with strength 0.5: half coverage in the middle', m.data[4 * 8 + 4] === 128, m.data[4 * 8 + 4]);
+  d.capsule(m, 4, 4, 4, 4, 3, 1, null, 1);
+  check('capsule: a stronger dab over it wins (the most coverage stays)', m.data[4 * 8 + 4] === 255);
+  const p = new d.Mask(8, 8);
+  d.pixelLine(p, 1, 1, 5, 1, 1, null, 0.5);
+  d.pixelLine(p, 3, 1, 3, 1, 1, null, 0.25);
+  check('pixel line with strength: partial coverage, a weaker dab does not lower it', p.data[9] === 128 && p.data[11] === 128, [...p.data.subarray(8, 16)]);
+}
+
 console.log(`draw.js: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
