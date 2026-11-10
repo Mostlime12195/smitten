@@ -29,8 +29,8 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Drawing</h1>
-<p>Most games don't need any drawing code: Sprites, Shapes, Text, Tiles and Particles draw themselves. When you want something they can't do, such as a health bar over an enemy or a laser beam, give the piece a <code>draw()</code> function.</p>
-<p><code>draw()</code> runs right after the piece draws itself, in the piece's own coordinates: (0, 0) is the piece's position, and the drawing turns and scales with the piece.</p>
+<p>Most games do not need drawing code. Sprites, Shapes, Text, Tiles and Particles draw themselves. If you want something that they cannot do, give the piece a <code>draw()</code> function. For example, use <code>draw()</code> for a health bar above an enemy, or for a laser beam.</p>
+<p>The engine calls <code>draw()</code> immediately after the piece draws itself. It uses the coordinates of the piece: (0, 0) is the position of the piece. When the piece turns or changes its scale, the drawing also turns or changes its scale.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- A health bar above an enemy</span>
 <span class="tk-k">function</span> <span class="tk-f">draw</span>()
   <span class="tk-f">pen</span>(<span class="tk-n">0</span>, <span class="tk-n">0</span>, <span class="tk-n">0</span>, <span class="tk-n">0.5</span>)
@@ -53,27 +53,30 @@
 <tr><td><code>sprite(image, x, y, options)</code></td><td>An image, or a frame of a sheet: sprite(&quot;art/hero.sprite&quot;, x, y, { frame = 2, rotation = 90 }). rotation is in degrees.</td></tr></tbody>
 </table></div>
 <h2 id="colors"><a class="anchor" href="#colors" aria-hidden="true">#</a>Colors</h2>
-<p><code>pen</code> sets the color for what you draw next: red, green, blue and alpha from 0 to 1 (<code>pen(1, 0.5, 0)</code>), a gray (<code>pen(0.5)</code>), a table like color settings use (<code>pen({1, 0, 0, 0.5})</code>), or a hex code (<code>pen(&quot;#ff8800&quot;)</code>). The piece's <code>tint</code> also colors everything it draws.</p>
+<p><code>pen</code> sets the color for the next things that you draw. You can give it:</p>
+<ul><li>red, green, blue and alpha, from 0 to 1 (<code>pen(1, 0.5, 0)</code>).</li><li>a gray (<code>pen(0.5)</code>).</li><li>a table, as color properties use (<code>pen({1, 0, 0, 0.5})</code>).</li><li>a hex code (<code>pen(&quot;#ff8800&quot;)</code>).</li></ul>
+<p>The <code>tint</code> of the piece also changes the color of all the things that it draws.</p>
 <h2 id="text"><a class="anchor" href="#text" aria-hidden="true">#</a>Text</h2>
-<p><code>write(text, x, y)</code> writes at 16 pixels, and <code>write(text, x, y, 24)</code> at</p>
-<ol><li>For more, pass a table: <code>size</code>, <code>font</code> (a font file, or <code>&quot;pixel&quot;</code> for</li></ol>
-<p>the built-in pixel font), <code>align</code> (<code>&quot;left&quot;</code>, <code>&quot;center&quot;</code> or <code>&quot;right&quot;</code>) and <code>width</code> (longer lines wrap). Text stays sharp when the game is scaled up.</p>
-<p><code>write()</code> returns the width and height of what it wrote, and can do what the <a href="text">Text</a> page describes: <code>rich = true</code> reads tags like <code>[b]bold[/b]</code> and <code>[color=red]</code>, <code>visible</code> shows only the first so many letters, and <code>outline</code> and <code>shadow</code> make text readable on any background.</p>
+<p><code>write(text, x, y)</code> writes text with a size of 16 pixels. <code>write(text, x, y, 24)</code> writes with a size of 24 pixels. For more options, give a table:</p>
+<ul><li><code>size</code>.</li><li><code>font</code>: a font file, or <code>&quot;pixel&quot;</code> for the pixel font that Smitten has.</li><li><code>align</code>: <code>&quot;left&quot;</code>, <code>&quot;center&quot;</code> or <code>&quot;right&quot;</code>.</li><li><code>width</code>: longer lines wrap.</li></ul>
+<p>Text stays sharp when the game becomes bigger.</p>
+<p><code>write()</code> gives the width and height of the text that it wrote. It can do the things that the <a href="text">Text</a> page tells about:</p>
+<ul><li><code>rich = true</code> reads text tags such as <code>[b]bold[/b]</code> and <code>[color=red]</code>.</li><li><code>visible</code> shows only a number of letters from the start.</li><li><code>outline</code> and <code>shadow</code> make text easy to read on all backgrounds.</li></ul>
 <pre><code class="lang-lua"><span class="tk-f">write</span>(<span class="tk-s">&quot;[b]Wave[/b] [color=gold]3[/color]&quot;</span>, <span class="tk-n">160</span>, <span class="tk-n">8</span>, { rich = <span class="tk-k">true</span>, size = <span class="tk-n">20</span>, align = <span class="tk-s">&quot;center&quot;</span>, outline = <span class="tk-k">true</span> })</code></pre>
 <h2 id="sprites"><a class="anchor" href="#sprites" aria-hidden="true">#</a>Sprites</h2>
-<p><code>sprite(path, x, y)</code> draws a picture with its top-left corner at x, y. An options table picks a frame or transforms it:</p>
+<p><code>sprite(path, x, y)</code> draws a picture with its top-left corner at x, y. A table of options can choose a frame, or turn, scale or flip the picture:</p>
 <div class="table"><table>
 <thead><tr><th>Option</th><th></th></tr></thead>
-<tbody><tr><td><code>frame</code></td><td>A frame of a <code>.sprite</code> file, or of a sheet cut with <code>columns</code> and <code>rows</code> (counting from 0)</td></tr>
+<tbody><tr><td><code>frame</code></td><td>A frame of a <code>.sprite</code> file, or of a sheet that <code>columns</code> and <code>rows</code> cut (the first frame is 0)</td></tr>
 <tr><td><code>columns</code>, <code>rows</code></td><td>Cut a plain picture into frames</td></tr>
 <tr><td><code>rotation</code>, <code>scale</code>, <code>scaleX</code>, <code>scaleY</code></td><td>Turn (in degrees) and size</td></tr>
-<tr><td><code>flipX</code>, <code>flipY</code></td><td>Mirror it</td></tr>
-<tr><td><code>centered</code></td><td>Center it on x, y</td></tr></tbody>
+<tr><td><code>flipX</code>, <code>flipY</code></td><td>Mirror the picture</td></tr>
+<tr><td><code>centered</code></td><td>Put the center of the picture on x, y</td></tr></tbody>
 </table></div>
 <pre><code class="lang-lua"><span class="tk-f">sprite</span>(<span class="tk-s">&quot;art/tiles.png&quot;</span>, <span class="tk-n">32</span>, <span class="tk-n">0</span>, { columns = <span class="tk-n">8</span>, rows = <span class="tk-n">8</span>, frame = <span class="tk-n">12</span> })</code></pre>
 <h2 id="drawing-on-the-screen"><a class="anchor" href="#drawing-on-the-screen" aria-hidden="true">#</a>Drawing on the screen</h2>
-<p>A UI piece's <code>draw()</code> uses screen pixels, starting from its own top-left corner, so it's the place for anything that should ignore the camera. <code>clearScreen(color)</code> fills the whole screen, for hand-drawn backgrounds.</p>
-<p>For anything beyond these, <a href="engine"><code>smitten.graphics</code></a> has the full set: meshes, canvases, shaders, blend modes and more.</p>
+<p>The <code>draw()</code> function of a UI piece uses screen pixels, from the top-left corner of the piece. Because of this, use it for all drawings that the camera must not move. <code>clearScreen(color)</code> fills all of the screen with a color, for backgrounds that you draw yourself.</p>
+<p>For more, <a href="engine"><code>smitten.graphics</code></a> has the full set of functions: meshes, canvases, shaders, blend modes and more.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="saving"><span>Previous</span>Saving</a><a class="next" href="settings"><span>Next</span>Project settings</a></nav>
   </main>

@@ -29,11 +29,12 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Older projects</h1>
-<p>Smitten changed four things about how scripts work. Projects made before that keep working exactly as they did: a project plays by the rules it was made with until you choose to update it. Games you already published are never touched.</p>
-<p>A project's rules go by the <code>&quot;version&quot;</code> in its <code>smitten.json</code>. New projects are version 3. A project of version 2 opens with <strong>Older rules · Update…</strong> at the bottom of the editor.</p>
+<p>Smitten changed four things about how scripts work. Projects that are older than this change continue to work as before. A project uses the rules of its version until you update it. Smitten does not change games that you published before.</p>
+<p>The <code>&quot;version&quot;</code> setting in <code>smitten.json</code> gives the rules of a project. New projects are version 3. When you open a project of version 2, the editor shows <strong>Older rules · Update…</strong> at the bottom.</p>
 <h2 id="what-changed-in-version-3"><a class="anchor" href="#what-changed-in-version-3" aria-hidden="true">#</a>What changed in version 3</h2>
 <h3 id="1-angles-are-degrees"><a class="anchor" href="#1-angles-are-degrees" aria-hidden="true">#</a>1. Angles are degrees</h3>
-<p><code>rotation</code> used to be radians in scripts and degrees in the Inspector. Now it's degrees everywhere, and so is every other angle: a Body's <code>spin</code> (degrees a second), <code>angleTo()</code>, <code>lookAt()</code>, a Joint's <code>minAngle</code>, <code>maxAngle</code>, <code>getAngle()</code> and a turning motor's <code>motorSpeed</code>, a Particles piece's <code>direction</code> and <code>spread</code>, <code>sprite()</code>'s <code>rotation</code>, and <code>smitten.math.angle()</code>.</p>
+<p>Before, <code>rotation</code> was in radians in scripts and in degrees in the Inspector. Now it is in degrees in all places. All other angles are also in degrees:</p>
+<ul><li><code>spin</code> of a Body (degrees each second).</li><li><code>angleTo()</code> and <code>lookAt()</code>.</li><li><code>minAngle</code>, <code>maxAngle</code>, <code>getAngle()</code> of a Joint, and <code>motorSpeed</code> of a motor that turns.</li><li><code>direction</code> and <code>spread</code> of a Particles piece.</li><li><code>rotation</code> of <code>sprite()</code>.</li><li><code>smitten.math.angle()</code>.</li></ul>
 <pre><code class="lang-lua"><span class="tk-c">-- Before</span>
 rotation = math.pi / <span class="tk-n">2</span>
 rotation += <span class="tk-n">2</span> * math.pi * dt
@@ -45,9 +46,9 @@ rotation = <span class="tk-n">90</span>
 rotation += <span class="tk-n">360</span> * dt
 vx, vy = smitten.math.<span class="tk-f">direction</span>(rotation, <span class="tk-n">300</span>)
 rotation = smitten.math.<span class="tk-f">angle</span>(dx, dy)</code></pre>
-<p><code>math.sin</code>, <code>math.cos</code> and <code>math.atan2</code> are Lua's and still work in radians: <code>math.rad(angle)</code> turns degrees into radians, <code>math.deg(radians)</code> turns them back. The low-level <code>smitten.graphics</code> calls take radians too.</p>
+<p><code>math.sin</code>, <code>math.cos</code> and <code>math.atan2</code> are Lua functions, and they continue to use radians. <code>math.rad(angle)</code> changes degrees to radians. <code>math.deg(radians)</code> changes radians to degrees. The low-level <code>smitten.graphics</code> functions also use radians.</p>
 <h3 id="2-a-button-s-event-is-clicked"><a class="anchor" href="#2-a-button-s-event-is-clicked" aria-hidden="true">#</a>2. A Button's event is <code>clicked()</code></h3>
-<p>A Button, Panel or Picture used to call its script's <code>pressed()</code>, which is also the name of the input call. Now it calls <code>clicked()</code>, and <code>pressed(&quot;jump&quot;)</code> always asks about input. A TouchButton's and TouchStick's events are <code>touched()</code> and <code>untouched()</code>.</p>
+<p>Before, a Button, Panel or Picture called <code>pressed()</code> in its script. But <code>pressed</code> is also the name of the input function. Now the engine calls <code>clicked()</code>, and <code>pressed(&quot;jump&quot;)</code> always asks about input. The events of a TouchButton and a TouchStick are <code>touched()</code> and <code>untouched()</code>.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- Before                              -- Now</span>
 <span class="tk-k">function</span> <span class="tk-f">pressed</span>()                     <span class="tk-k">function</span> <span class="tk-f">clicked</span>()
   <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>)              <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>)
@@ -55,33 +56,33 @@ rotation = smitten.math.<span class="tk-f">angle</span>(dx, dy)</code></pre>
 
 Play:<span class="tk-f">on</span>(<span class="tk-s">&quot;pressed&quot;</span>, start)              Play:<span class="tk-f">on</span>(<span class="tk-s">&quot;clicked&quot;</span>, start)</code></pre>
 <h3 id="3-setting-a-name-that-was-never-made-is-an-error"><a class="anchor" href="#3-setting-a-name-that-was-never-made-is-an-error" aria-hidden="true">#</a>3. Setting a name that was never made is an error</h3>
-<p>A mistyped name used to make a new variable without a word. Now a script makes its variables at the top (or with <code>local</code>), and setting any other name inside a function stops the game and says which name it could have meant. See <a href="scripts#making-variables">Making variables</a>.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- Before: found is made the first time a coin is picked up</span>
+<p>Before, a typing mistake in a name made a new variable, with no message. Now a script makes its variables at the top (or with <code>local</code>). If a function sets a different name, the game stops. The message tells you which name you possibly wanted. See <a href="scripts#making-variables">Making variables</a>.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- Before: the first coin that the player collects makes found</span>
 <span class="tk-k">function</span> <span class="tk-f">entered</span>(other)
   found = (found <span class="tk-k">or</span> <span class="tk-n">0</span>) + <span class="tk-n">1</span>
 <span class="tk-k">end</span>
 
-<span class="tk-c">-- Now: made at the top</span>
+<span class="tk-c">-- Now: the top of the script makes found</span>
 found = <span class="tk-n">0</span>
 
 <span class="tk-k">function</span> <span class="tk-f">entered</span>(other)
   found += <span class="tk-n">1</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>name = nil</code> at the top makes a variable with no value yet.</p>
+<p><code>name = nil</code> at the top makes a variable that has no value now.</p>
 <h3 id="4-a-body-s-gravity-is-gravityscale"><a class="anchor" href="#4-a-body-s-gravity-is-gravityscale" aria-hidden="true">#</a>4. A Body's <code>gravity</code> is <code>gravityScale</code></h3>
-<p>The setting that makes one Body fall faster, float or fall upwards is called <code>gravityScale</code>. That leaves <code>gravity</code> free as an ordinary name for a script's own variable, and <code>jumpSpeed()</code> uses it.</p>
+<p>The name of the property that makes one Body fall faster, float or fall upwards is now <code>gravityScale</code>. Because of this, a script can use <code>gravity</code> as the name of its own variable. <code>jumpSpeed()</code> uses this variable.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- Before                              -- Now</span>
 Balloon.gravity = -<span class="tk-n">0.2</span>                 Balloon.gravityScale = -<span class="tk-n">0.2</span>
 fallGravity = <span class="tk-n">1800</span>                     gravity = <span class="tk-n">1800</span>
 vy += fallGravity * dt                 vy += gravity * dt</code></pre>
 <h2 id="update-this-project"><a class="anchor" href="#update-this-project" aria-hidden="true">#</a>Update this project</h2>
-<p><strong>Older rules · Update…</strong> (or <strong>Update this project…</strong> in the project's menu) shows what updating would change, and does it only if you say so. First it keeps a copy of the project as it is, called &quot;… (before update)&quot;, among your games.</p>
-<p>It changes what a program can change safely:</p>
-<ul><li>the project's version, to 3;</li><li>scenes: angles to degrees, and a Body's <code>gravity</code> to <code>gravityScale</code>. What you see in the Inspector stays the same;</li><li><code>function pressed()</code> to <code>function clicked()</code> in scripts attached to Buttons, Panels and Pictures (and <code>touched()</code>, <code>untouched()</code> for touch pieces), and <code>on(&quot;pressed&quot;, ...)</code> where it can tell whose event it is;</li><li>if you leave the box ticked, a <code>name = nil</code> line at the top of a script for each variable the script only made inside a function, so nothing stops with the new error.</li></ul>
-<p>It can't safely rewrite sums, so it lists the lines for you to look at:</p>
-<ul><li>lines that work with angles (<code>rotation</code>, <code>spin</code>, <code>angleTo</code>, <code>math.pi</code>, <code>math.cos</code>...). Change radians to degrees as in the examples above;</li><li><code>on(&quot;pressed&quot;, ...)</code> on pieces it couldn't identify.</li></ul>
-<p>The list stays in the Output panel. If something goes wrong, the copy from before is still there.</p>
-<p>Until you update, everything on this page under &quot;Before&quot; is still how the project works, though the rest of the docs describe the new rules. Scenes you edit are saved in the new form either way (the engine reads both). A game remixed from the games site opens with the rules it was published with.</p>
+<p><strong>Older rules · Update…</strong> (or <strong>Update this project…</strong> in the menu of the project) shows the changes that the update makes. It makes the changes only if you agree. First, it keeps a copy of the project as it is now, with the name &quot;… (before update)&quot;, with your other games.</p>
+<p>The update makes the changes that a program can make safely:</p>
+<ul><li>It changes the version of the project to 3.</li><li>In scenes, it changes angles to degrees, and the <code>gravity</code> of a Body to <code>gravityScale</code>. The Inspector shows the same values as before.</li><li>In scripts on Buttons, Panels and Pictures, it changes <code>function pressed()</code> to <code>function clicked()</code>. For touch pieces, it changes them to <code>touched()</code> and <code>untouched()</code>. It also changes <code>on(&quot;pressed&quot;, ...)</code> when it can find which piece sends the event.</li><li>If you keep the box ticked, it adds lines at the top of a script. It adds a <code>name = nil</code> line for each variable that the script makes only in a function. Because of this, no script stops with the new error.</li></ul>
+<p>The update cannot safely change calculations. Because of this, it makes a list of lines for you to examine:</p>
+<ul><li>lines that use angles (<code>rotation</code>, <code>spin</code>, <code>angleTo</code>, <code>math.pi</code>, <code>math.cos</code>...). Change radians to degrees, as in the examples above.</li><li><code>on(&quot;pressed&quot;, ...)</code> on pieces that it cannot identify.</li></ul>
+<p>The list stays in the Output panel. If there is a problem, you still have the copy from before the update.</p>
+<p>Until you update, the project works as this page shows under &quot;Before&quot;. The other pages of the docs tell about the new rules. When you change a scene, the editor saves it in the new form, before and after the update (the engine reads both forms). When you remix a game from the games site, it opens with the rules of its version when its maker published it.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="leaderboards"><span>Previous</span>Leaderboards</a><a class="next" href="api"><span>Next</span>Script API</a></nav>
   </main>

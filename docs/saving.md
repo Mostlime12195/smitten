@@ -1,9 +1,10 @@
 # Saving
 
-`save(key, value)` keeps a value after the game closes, and
-`load(key, default)` reads it back, or gives `default` when nothing has
-been saved under that name yet. That's all you need for high scores,
-settings and progress:
+`save(key, value)` keeps a value after the game closes.
+`load(key, default)` gives the value back. If there is no saved value with
+that name, `load()` gives `default`. These two functions are sufficient for
+high scores, the choices of the player (for example, the volume) and
+progress:
 
 ```lua
 score = 0
@@ -28,8 +29,8 @@ end
 | `load(key, default)` | A saved value, or default: load("best", 0). |
 <!-- end -->
 
-Saved values can be numbers, text, true/false and tables of those, so a
-whole save game fits in one table:
+A saved value can be a number, text, true or false, or a table of these.
+You can keep all the progress of a player in one table:
 
 ```lua
 save("progress", { level = 3, coins = 120, unlocked = { "dash" } })
@@ -38,11 +39,13 @@ local progress = load("progress", { level = 1, coins = 0, unlocked = {} })
 
 ## Where saves live
 
-Each game keeps its own saves, named after the project (or after
-`identity` in `smitten.json`), so two games never mix them up. Renaming a
-project starts it with no saves. In the browser, saves belong to the site
-the game is played on: the same game on itch.io and on the sharing site
-keeps separate saves.
+Each game keeps its own saves. The name of the saves is the name of the
+project, or the `identity` setting in `smitten.json` if it has one. Because of this,
+the saves of two games do not mix.
+
+- If you rename a project, it starts with no saves.
+- In a browser, the saves belong to the website where the game runs. The
+  same game on itch.io and on the games site keeps different saves.
 
 ## smitten.storage
 

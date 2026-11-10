@@ -29,7 +29,7 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Saving</h1>
-<p><code>save(key, value)</code> keeps a value after the game closes, and <code>load(key, default)</code> reads it back, or gives <code>default</code> when nothing has been saved under that name yet. That's all you need for high scores, settings and progress:</p>
+<p><code>save(key, value)</code> keeps a value after the game closes. <code>load(key, default)</code> gives the value back. If there is no saved value with that name, <code>load()</code> gives <code>default</code>. These two functions are sufficient for high scores, the choices of the player (for example, the volume) and progress:</p>
 <pre><code class="lang-lua">score = <span class="tk-n">0</span>
 best = <span class="tk-n">0</span>
 
@@ -48,11 +48,12 @@ best = <span class="tk-n">0</span>
 <tbody><tr><td><code>save(key, value)</code></td><td>Keeps a value between plays: save(&quot;best&quot;, score).</td></tr>
 <tr><td><code>load(key, default)</code></td><td>A saved value, or default: load(&quot;best&quot;, 0).</td></tr></tbody>
 </table></div>
-<p>Saved values can be numbers, text, true/false and tables of those, so a whole save game fits in one table:</p>
+<p>A saved value can be a number, text, true or false, or a table of these. You can keep all the progress of a player in one table:</p>
 <pre><code class="lang-lua"><span class="tk-f">save</span>(<span class="tk-s">&quot;progress&quot;</span>, { level = <span class="tk-n">3</span>, coins = <span class="tk-n">120</span>, unlocked = { <span class="tk-s">&quot;dash&quot;</span> } })
 <span class="tk-k">local</span> progress = <span class="tk-f">load</span>(<span class="tk-s">&quot;progress&quot;</span>, { level = <span class="tk-n">1</span>, coins = <span class="tk-n">0</span>, unlocked = {} })</code></pre>
 <h2 id="where-saves-live"><a class="anchor" href="#where-saves-live" aria-hidden="true">#</a>Where saves live</h2>
-<p>Each game keeps its own saves, named after the project (or after <code>identity</code> in <code>smitten.json</code>), so two games never mix them up. Renaming a project starts it with no saves. In the browser, saves belong to the site the game is played on: the same game on itch.io and on the sharing site keeps separate saves.</p>
+<p>Each game keeps its own saves. The name of the saves is the name of the project, or the <code>identity</code> setting in <code>smitten.json</code> if it has one. Because of this, the saves of two games do not mix.</p>
+<ul><li>If you rename a project, it starts with no saves.</li><li>In a browser, the saves belong to the website where the game runs. The same game on itch.io and on the games site keeps different saves.</li></ul>
 <h2 id="smitten-storage"><a class="anchor" href="#smitten-storage" aria-hidden="true">#</a>smitten.storage</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>

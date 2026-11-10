@@ -1,99 +1,110 @@
 # Text
 
-Three things draw words: the **Text** piece (in the game world: a sign, a
-damage number), the **Label** (on the screen: a score, a title) and
-`write()` in a script's `draw()`. Buttons have words too. All of them use
-the same text engine, `smitten.text`, so what this page says about one is
-true of the others.
+Three things draw words:
 
-Out of the box they draw plain text in one font, size and color. This page
-is about everything past that: words in different colors and sizes inside
-one text, letters that wave or shake, text that types itself out, and
-finding out how big a text is or where one of its letters sits.
+- the **Text** piece, in the game world (for example, a sign or a damage
+  number).
+- the **Label** piece, on the screen (for example, a score or a title).
+- `write()` in the `draw()` function of a script.
 
-There's no ready-made dialogue box, name tag or choice menu. The pieces
-here are what you build your own from; [the last example](#a-dialogue-box-from-these-parts)
-shows one way.
+Buttons also have words. All of them use the same text engine,
+`smitten.text`. Because of this, what this page tells about one of them is also true
+for the others.
+
+With their default properties, they draw plain text in one font, one size
+and one color. This page tells about the other things that they can do:
+
+- words in different colors and sizes in one text.
+- letters that move up and down or shake.
+- text that comes onto the screen one letter after the other.
+- how to find the size of a text, or the position of one of its letters.
+
+Smitten does not have a ready-made dialogue box, name tag or choice menu.
+You make your own from the parts on this page.
+[The last example](#a-dialogue-box-from-these-parts) shows one way.
 
 ## Plain text
 
-| Setting | |
+| Property | |
 | --- | --- |
-| `text` | What it says. Press Enter in the Inspector for a new line |
-| `font` | A `.ttf` or `.otf` file from your project, `pixel` for the built-in pixel font, or empty for the default font |
-| `size`, `color` | How big, and what color |
-| `align` | `left`, `center`, `right`, or `justify` (wrapped lines stretched to the same width) |
-| `wrap` (Text) | Lines longer than this many pixels wrap; 0 never wraps. A Label wraps at its own width |
-| `wrapBy` | Break lines between words (`word`), after any character (`character`, for writing without spaces such as Japanese) or, on a Label, not at all (`none`) |
-| `lineHeight` | 1 is the font's own line spacing; 1.5 leaves half a line between lines |
-| `letterSpacing` | Extra pixels between letters |
-| `outline`, `outlineWidth`, `outlineColor` | A line around every letter, so text reads on any background |
-| `shadow`, `shadowX`, `shadowY`, `shadowColor` | A copy of the text behind it, moved a little |
-| `valign` (Label) | `top`, `middle` or `bottom` of the Label's rectangle |
-| `fit` (Label, Button) | `shrink` makes the text smaller until it fits the rectangle |
+| `text` | The words. To start a new line in the Inspector, press Enter |
+| `font` | A `.ttf` or `.otf` file from your project, `pixel` for the pixel font that Smitten has, or empty for the default font |
+| `size`, `color` | The size, and the color |
+| `align` | `left`, `center`, `right`, or `justify` (Smitten makes wrapped lines the same width) |
+| `wrap` (Text) | A line that is longer than this number of pixels goes onto the next line. 0 does not wrap. A Label wraps at its own width |
+| `wrapBy` | Where lines break: between words (`word`), after any character (`character`, for languages without spaces, for example Japanese) or, on a Label, nowhere (`none`) |
+| `lineHeight` | 1 is the line spacing of the font. 1.5 puts half a line of space between lines |
+| `letterSpacing` | More pixels between letters |
+| `outline`, `outlineWidth`, `outlineColor` | A line around each letter. With it, you can read the text on all backgrounds |
+| `shadow`, `shadowX`, `shadowY`, `shadowColor` | A copy of the text behind it, a small distance away |
+| `valign` (Label) | `top`, `middle` or `bottom` of the rectangle of the Label |
+| `fit` (Label, Button) | `shrink` makes the text smaller until it fits in the rectangle |
 
-Text is drawn at the size it has on the screen, so it stays sharp when the
-game is scaled up to fill a big window.
+Smitten draws text at its size on the screen. Because of this, the text stays sharp
+when the game becomes bigger to fill a big window.
 
 ## Rich text
 
-Turn on **rich** and the text can carry **tags**: words in square
-brackets that change how the text after them looks, until a closing tag
-with a slash.
+If you turn on **rich**, the text can have **text tags**. A text tag is a
+word in square brackets. It changes how the text after it looks. The
+change stops at a closing text tag with a slash.
 
 ```
 You found the [color=gold][b]Sun Key[/b][/color]!
 ```
 
-This works in the Inspector with no code: type the tags into a Text's or
-Label's `text`. `[/]` closes whichever tag was opened last, and a tag
-that's never closed runs to the end of the text.
+You can do this in the Inspector, without code. Type the text tags into
+the `text` of a Text or a Label. `[/]` closes the last text tag that you
+opened. If you do not close a text tag, it continues to the end of the
+text.
 
 | Tag | What it does |
 | --- | --- |
 | `[b]`, `[i]` | Bold, italic |
 | `[u]`, `[s]` | Underline, strike-through |
-| `[color=red]`, `[color=#ff8800]` | A color: a name or a hex code (`#f80`, `#ff8800`, `#ff8800cc` with see-through) |
+| `[color=red]`, `[color=#ff8800]` | A color: a name or a hex code (`#f80`, `#ff8800`, or `#ff8800cc` with transparency) |
 | `[size=24]`, `[size=+4]` | A size in pixels, or bigger (`+`) or smaller (`-`) than the text around it |
-| `[font=fonts/title.ttf]` | Another font file (or `[font=pixel]`) |
-| `[outline]`, `[outline=#000]`, `[outline=2,#000]` | An outline: 1 pixel and black unless you give a width and a color |
-| `[shadow]`, `[shadow=#000 x=2 y=2]` | A shadow, with its color and how far it falls |
-| `[center]`, `[right]`, `[left]` | Lines this line up on its own, whatever `align` says. Put it at the start of a line |
-| `[img=art/coin.png]` | A picture in the line, as tall as the letters. `[img=art/hero.sprite frame=2]` shows one frame; `columns=` and `rows=` cut a plain picture into frames; `height=` or `width=` set its size |
-| `[link=shop]` | Marks a part of the text that can be clicked (see [Links](#links)) |
-| `[wave]`, `[shake]`, `[rainbow]`, `[pulse]`, `[fade]` | Effects that move or color each letter (below) |
-| `[pause=0.5]`, `[speed=10]` | For [revealing text](#revealing-text-a-typewriter): wait here, or change the pace |
+| `[font=fonts/title.ttf]` | A different font file (or `[font=pixel]`) |
+| `[outline]`, `[outline=#000]`, `[outline=2,#000]` | An outline. It is 1 pixel and black if you do not give a width and a color |
+| `[shadow]`, `[shadow=#000 x=2 y=2]` | A shadow, with its color and its distance from the text |
+| `[center]`, `[right]`, `[left]` | Aligns this line, and ignores `align`. Put it at the start of a line |
+| `[img=art/coin.png]` | A picture in the line, as tall as the letters. `[img=art/hero.sprite frame=2]` shows one frame. `columns=` and `rows=` cut a plain picture into frames. `height=` or `width=` set its size |
+| `[link=shop]` | Marks a part of the text that the player can click (see [Links](#links)) |
+| `[wave]`, `[shake]`, `[rainbow]`, `[pulse]`, `[fade]` | Effects that move or color each letter (see below) |
+| `[pause=0.5]`, `[speed=10]` | For [revealing text](#revealing-text-a-typewriter): wait at this position, or change the speed |
 
 The color names are `white`, `black`, `gray`, `silver`, `red`, `orange`,
 `yellow`, `gold`, `green`, `lime`, `teal`, `cyan`, `blue`, `navy`,
 `purple`, `pink`, `brown` and `clear`.
 
-Tags can sit inside each other, and tags aren't characters: they're never
-drawn, counted or measured.
+You can put text tags inside other text tags. Text tags are not
+characters: Smitten does not draw, count or measure them.
 
-**A real square bracket** is typed twice: `[[`. A tag Smitten doesn't know
-(`[colour=red]`, a typing mistake) is shown as it's written, and the
-Output panel says so once, so mistakes are easy to see. Before putting
-text you didn't write into rich text (a player's name), pass it through
-`smitten.text.escape(name)`.
+**A real square bracket:** type it two times: `[[`. If Smitten does not
+know a text tag (for example, `[colour=red]`, a typing mistake), it shows
+the text tag as you wrote it. The Output panel also tells you one time.
+Because of this, you can find mistakes quickly. If you put text from a different source
+into rich text (for example, the name of a player), give it to
+`smitten.text.escape(name)` first.
 
-**Bold and italic.** If you have the bold and italic versions of your
-font, set them as the piece's `fontBold` and `fontItalic` and `[b]` and
-`[i]` use them. Without them the font is faked: bold is drawn twice a
-pixel apart, italic is slanted. That's also how the pixel font does it.
+**Bold and italic:** if you have the bold and italic versions of your font,
+set them as the `fontBold` and `fontItalic` properties of the piece. Then
+`[b]` and `[i]` use them. Without them, Smitten makes the bold and italic
+itself. It draws bold text two times, one pixel apart. It slants italic
+text. The pixel font also uses this method.
 
 ### Effects
 
-An effect changes each letter separately, every frame. Five are built in,
-and each takes settings after its name:
+An effect changes each letter separately, in each frame. Smitten has five
+effects. Each effect can have values after its name:
 
-| Tag | Settings (and what they are when left out) |
+| Tag | Values (and their default values) |
 | --- | --- |
-| `[wave]` | `amp=3` pixels up and down, `freq=1.5` waves a second, `spread=0.5` how far each letter is behind the one before |
-| `[shake]` | `amp=1.5` pixels, `speed=20` jumps a second |
-| `[rainbow]` | `speed=0.5` times round the colors a second, `spread=0.06` between letters, `sat=0.75` how strong the colors are |
-| `[pulse]` | `amp=0.15` how much bigger and smaller, `freq=1` beats a second |
-| `[fade]` | `time=0.3` seconds each letter takes to fade in when it's revealed |
+| `[wave]` | `amp=3` pixels up and down, `freq=1.5` waves each second, `spread=0.5` how much each letter is behind the letter before it |
+| `[shake]` | `amp=1.5` pixels, `speed=20` jumps each second |
+| `[rainbow]` | `speed=0.5` cycles through the colors each second, `spread=0.06` between letters, `sat=0.75` how strong the colors are |
+| `[pulse]` | `amp=0.15` how much bigger and smaller, `freq=1` beats each second |
+| `[fade]` | `time=0.3` seconds for each letter to fade in when it comes onto the screen |
 
 ```
 [wave amp=5 freq=2]Wheee![/wave]   [shake]it's c-c-cold[/shake]
@@ -101,9 +112,10 @@ and each takes settings after its name:
 
 ## Your own effects
 
-`smitten.text.effect(name, fn)` adds a tag of your own. Smitten calls the
-function for each letter inside the tag, every frame, with a table `c`
-that describes the letter and that the function changes:
+`smitten.text.effect(name, fn)` adds your own text tag. Smitten calls the
+function in each frame, for each letter in the text tag. It gives the
+function a table `c`. The table tells about the letter, and the function
+changes the table:
 
 ```lua
 -- [bounce height=6]boing[/bounce]
@@ -113,37 +125,37 @@ smitten.text.effect("bounce", function(c)
 end)
 ```
 
-Add effects once, before the text that uses them is shown: the main
-scene's script is a good place.
+Add each effect one time, before Smitten shows the text that uses it. The
+script of the main scene is a good place.
 
 | Change these | |
 | --- | --- |
-| `c.x`, `c.y` | Moves the letter this many pixels (both start at 0) |
-| `c.rotation` | Turns it, in degrees, around its middle |
-| `c.scale` | Makes it bigger or smaller (1 is normal) |
-| `c.color` | Its color, `{r, g, b, a}`: change the numbers or set a new table |
+| `c.x`, `c.y` | Moves the letter this number of pixels (both start at 0) |
+| `c.rotation` | Turns the letter around its middle, in degrees |
+| `c.scale` | Makes the letter bigger or smaller (1 is normal) |
+| `c.color` | The color of the letter, `{r, g, b, a}`: change the numbers or set a new table |
 | `c.alpha` | 0 is invisible, 1 is solid |
-| `c.visible` | `false` hides it |
+| `c.visible` | `false` hides the letter |
 
 | Read these | |
 | --- | --- |
-| `c.index`, `c.count` | Which letter this is (1 is the first of the whole text), and how many there are |
-| `c.char` | The letter itself |
-| `c.line` | Which line it's on |
-| `c.time` | Seconds, always counting up: put it in `math.sin` for movement |
-| `c.since` | Seconds since this letter was revealed (see below) |
-| `c.args` | The settings typed in the tag: `[bounce height=6]` gives `c.args.height` |
-| `c.piece` | The Text or Label being drawn |
+| `c.index`, `c.count` | The number of this letter (1 is the first letter of all the text), and the number of letters |
+| `c.char` | The letter |
+| `c.line` | The line that the letter is on |
+| `c.time` | Seconds. This number always increases: put it in `math.sin` for movement |
+| `c.since` | Seconds since this letter came onto the screen (see below) |
+| `c.args` | The values in the text tag: `[bounce height=6]` gives `c.args.height` |
+| `c.piece` | The Text or Label that Smitten draws |
 
-`c` is **one table used for every letter**, to keep things fast. Read it
-and change it inside the function, but don't store it for later.
+`c` is **one table for all the letters**. This keeps the game fast. Read
+and change `c` in the function. Do not keep it for later.
 
-For a one-off effect on a single piece, skip the tag: give the piece's
-script an `eachCharacter(c)` function. It runs for every letter of that
-piece, with the same `c`:
+For an effect on only one piece, you do not need a text tag. Give the
+script of the piece an `eachCharacter(c)` function. Smitten calls it for
+each letter of that piece, with the same `c`:
 
 ```lua
--- On a Label: every letter drops in from above when it's revealed
+-- On a Label: each letter falls in from above when it comes onto the screen
 function eachCharacter(c)
   local t = math.min(1, c.since / 0.2)
   c.y = c.y - (1 - t) * 12
@@ -153,24 +165,27 @@ end
 
 ## Revealing text (a typewriter)
 
-Two settings decide how much of a text shows:
+Two properties set how much of a text Smitten shows:
 
-- `visibleCharacters`: how many letters, counted from the start. 0 shows
-  nothing and -1 shows everything.
-- `visibleRatio`: the same as a part of the whole, 0 to 1. It's a plain
-  number, so it can be tweened: `tween(Label, 2, { visibleRatio = 1 })`.
+- `visibleCharacters`: the number of letters, from the start. 0 shows no
+  letters, and -1 shows all the letters.
+- `visibleRatio`: the same as a part of all the text, from 0 to 1. It is
+  a plain number, so you can tween it:
+  `tween(Label, 2, { visibleRatio = 1 })`.
 
-Tags and line breaks don't count as letters, and hidden letters still take
-up their room, so nothing jumps about as the text appears.
+Text tags and line breaks are not letters. Hidden letters keep their
+space. Because of this, the text does not move while the letters come onto the
+screen.
 
-`reveal(charactersPerSecond)` counts `visibleCharacters` up for you, 30 a
-second unless you give another number. While it runs, the piece gets
-`revealed(index, char)` for each letter and `finished()` at the end.
-`skip()` shows the rest at once. It stops while the game is paused.
+`reveal(charactersPerSecond)` increases `visibleCharacters` for you. The
+default speed is 30 letters each second. While it runs, the engine calls
+`revealed(index, char)` for each letter, and `finished()` at the end.
+`skip()` shows the remaining text immediately. While the game is paused,
+`reveal()` stops.
 
 ```lua
--- On a Label: types its text out, with a blip for each letter and a
--- short stop after punctuation.
+-- On a Label: show the text one letter after the other, with a blip for
+-- each letter and a short stop after punctuation.
 local typing
 
 function ready()
@@ -188,51 +203,51 @@ function finished()
 end
 ```
 
-`reveal()` returns a handle:
+`reveal()` gives a handle:
 
 | | |
 | --- | --- |
-| `typing:wait(seconds)` | Holds the next letter back |
-| `typing:cancel()` | Stops where it is |
-| `typing:after(fn)` | Calls `fn` when everything shows |
-| `typing.speed = 80` | Changes the pace |
+| `typing:wait(seconds)` | Waits before the next letter |
+| `typing:cancel()` | Stops at the current letter |
+| `typing:after(fn)` | Calls `fn` when all the text shows |
+| `typing.speed = 80` | Changes the speed |
 
-Rich text can set the pace from inside the text: `[pause=0.5]` waits half
-a second at that spot, and `[speed=10]slowly...[/speed]` reveals its part
-at 10 letters a second.
+Rich text can set the speed in the text. `[pause=0.5]` waits half a second
+at that position. `[speed=10]slowly...[/speed]` shows its part at 10
+letters each second.
 
 ```
 Well...[pause=0.6] [speed=8]I suppose so.[/speed]
 ```
 
-`[fade]` and `c.since` go well with this: `[fade]` around the whole text
-makes each letter fade in as it's revealed.
+`[fade]` and `c.since` are good with this. Put `[fade]` around all the
+text, and each letter fades in when it comes onto the screen.
 
 ## Measuring
 
-A Text or Label can tell you about its text as it's laid out right now:
+A Text or a Label can tell you about the current layout of its text:
 
 | | |
 | --- | --- |
-| `measure()` | Width and height of the whole text |
-| `lineCount()`, `characterCount()` | How many lines, and how many letters |
-| `characterRect(index)` | Where one letter is: x, y, width, height |
+| `measure()` | The width and height of all the text |
+| `lineCount()`, `characterCount()` | The number of lines, and the number of letters |
+| `characterRect(index)` | The position of one letter: x, y, width, height |
 | `characterAt(x, y)` | The number of the letter at a point, or nil |
 | `linkAt(x, y)` | The name of the `[link]` at a point, or nil |
 
-Points and rectangles are measured from the piece's own position (a
-Text) or from the Label's top-left corner.
+For a Text, points and rectangles are relative to the position of the
+piece. For a Label, they are relative to the top-left corner of the Label.
 
 ```lua
--- A Panel behind a Label, sized to its text
+-- Make a Panel behind a Label the size of its text
 local w, h = Label:measure()
 Panel.width, Panel.height = w + 24, h + 16
 
--- Where the last letter is, to put a cursor after it
+-- Find the position of the last letter, to put a cursor after it
 local x, y, w, h = Label:characterRect(Label:characterCount())
 ```
 
-Without a piece, `smitten.text` measures any text:
+Without a piece, `smitten.text` can measure any text:
 
 ```lua
 local w, h, lines = smitten.text.measure("Some [b]words[/b]", { rich = true, size = 20, width = 200 })
@@ -253,8 +268,9 @@ local lines = smitten.text.wrap("A long sentence to cut up", { width = 120, size
 
 ## Links
 
-`[link=name]` marks a part of rich text. On a **Label**, clicking or
-tapping it calls `linkPressed(name)` in the Label's script:
+`[link=name]` marks a part of rich text. On a **Label**, when the player
+clicks or taps that part, the engine calls `linkPressed(name)` in the
+script of the Label:
 
 ```lua
 -- text: Visit the [link=shop][u]shop[/u][/link] or [link=inn][u]rest[/u][/link].
@@ -263,8 +279,9 @@ function linkPressed(name)
 end
 ```
 
-The tag only marks the spot. How a link looks is up to you: underline it,
-color it. On a **Text** in the world, ask where the pointer is yourself:
+The text tag only marks the part of the text. You choose how a link looks:
+for example, underline it or give it a color. On a **Text** in the world,
+your script must find the position of the pointer:
 
 ```lua
 function update()
@@ -277,12 +294,16 @@ end
 
 ## write()
 
-`write(text, x, y, options)` takes the same ideas as options: `rich =
-true` to read tags, `visible` (how many letters show), `wrap`,
-`lineHeight`, `letterSpacing`, `outline` (true or a width) with
-`outlineColor`, and `shadow` with `shadowX`, `shadowY`, `shadowColor`,
-next to `size`, `font`, `align` and `width`. It returns the width and
-height of what it wrote.
+`write(text, x, y, options)` uses the same properties as options:
+
+- `rich = true` to read text tags.
+- `visible`: the number of letters that show.
+- `wrap`, `lineHeight` and `letterSpacing`.
+- `outline` (true or a width), with `outlineColor`.
+- `shadow`, with `shadowX`, `shadowY` and `shadowColor`.
+- `size`, `font`, `align` and `width`.
+
+It gives the width and height of the text that it wrote.
 
 ```lua
 function draw()
@@ -293,9 +314,10 @@ end
 
 ## A dialogue box from these parts
 
-A Panel, with a Label inside it (anchor `fill`, `rich` on) and this
-script on the Label. The game calls `say()` with the lines to show;
-pressing a key shows the rest of a line, then the next line.
+Make a Panel. Put a Label in it (anchor `fill`, `rich` on). Put this
+script on the Label. The game calls `say()` with the lines to show. When
+the player presses a key, the Label shows the remaining part of the line.
+At the next key press, it shows the next line.
 
 ```lua
 -- On the Label inside the Panel
@@ -319,7 +341,7 @@ end
 function update()
   if not parent.visible or not pressed("accept") then return end
   if visibleCharacters >= 0 then
-    skip()                  -- still typing: show the whole line
+    skip()                  -- the line is not complete: show all of it
   elseif at < #lines then
     at += 1
     show()
@@ -329,26 +351,28 @@ function update()
 end
 ```
 
-Names, portraits and choices are more pieces: another Label, a Picture,
-a few Buttons.
+For names, portraits and choices, add more pieces: a different Label, a
+Picture, some Buttons.
 
 ## How fast it is
 
-- A text is read and laid out once, when it or one of its settings
-  changes, and then drawn from a ready-made batch. Text that stays the
-  same costs almost nothing per frame, however many tags it has.
-- Only letters inside an effect (or all of them, on a piece with
-  `eachCharacter`) are worked out every frame. Put effect tags around
-  the words that need them rather than the whole page.
-- A text that changes every frame (a timer) is laid out again every
-  frame. That's fine for a line or two; keep long paragraphs still.
-- Plain text with none of this page's settings is drawn exactly as it
-  always was.
+- Smitten reads and lays out a text one time, when the text or one of its
+  properties changes. Then it draws the text from a ready-made batch. Text
+  that does not change uses almost no time in each frame, with any number
+  of text tags.
+- Smitten calculates in each frame only the letters in an effect (or all
+  the letters, on a piece with `eachCharacter`). Put effect text tags
+  around only the words that need them, not around all the text.
+- If a text changes in each frame (for example, a timer), Smitten lays it
+  out again in each frame. This is not a problem for one or two lines.
+  Do not change long paragraphs in each frame.
+- Smitten draws plain text without the properties on this page in the same
+  way as before.
 
 ## Reference
 
-A Label has the same settings, methods and events, plus `valign`, `fit`
-and `linkPressed(name)`: see [UI](ui.md#label).
+A Label has the same properties, methods and events. It also has `valign`,
+`fit` and `linkPressed(name)`: see [UI](ui.md#label).
 
 <!-- piece:Text -->
 | Property | Type | Default | |

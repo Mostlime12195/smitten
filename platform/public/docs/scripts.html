@@ -29,11 +29,12 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Scripts</h1>
-<p>A script is a piece's own code. Attach one to any piece in the Inspector, and it can move the piece, react to what happens to it, and change the rest of the game. Scripts are written in Lua with a few additions.</p>
-<p>Inside a script, names refer to the piece it's attached to. There's no <code>self.</code> to write and no table to return: <code>x</code> is the piece's position, <code>move()</code> calls its <code>move</code> method, and a variable you set belongs to it.</p>
+<p>A script is the code of a piece. In the Inspector, you can attach a script to a piece. The script can move the piece, do something when an event occurs, and change the other parts of the game. You write scripts in Lua, with some additions.</p>
+<p>In a script, names refer to the piece that has the script. You do not write <code>self.</code>, and you do not return a table. For example:</p>
+<ul><li><code>x</code> is the position of the piece.</li><li><code>move()</code> calls the <code>move</code> method of the piece.</li><li>A variable that you set belongs to the piece.</li></ul>
 <pre><code class="lang-lua"><span class="tk-c">-- scripts/enemy.lua, on a Body</span>
-speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script variable: editable per piece in the Inspector</span>
-<span class="tk-k">local</span> hp = <span class="tk-n">3</span>         <span class="tk-c">-- private to this piece</span>
+speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script variable: you can change it for each piece in the Inspector</span>
+<span class="tk-k">local</span> hp = <span class="tk-n">3</span>         <span class="tk-c">-- only this piece has this value</span>
 
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   vx = speed
@@ -42,7 +43,7 @@ speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script va
 <span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
   vy += <span class="tk-n">1800</span> * dt
   <span class="tk-f">move</span>()
-  <span class="tk-k">if</span> <span class="tk-f">onWall</span>() <span class="tk-k">then</span> vx = -vx <span class="tk-k">end</span>   <span class="tk-c">-- turn around at walls</span>
+  <span class="tk-k">if</span> <span class="tk-f">onWall</span>() <span class="tk-k">then</span> vx = -vx <span class="tk-k">end</span>   <span class="tk-c">-- at a wall, go the other way</span>
 <span class="tk-k">end</span>
 
 <span class="tk-k">function</span> <span class="tk-f">hurt</span>(damage)             <span class="tk-c">-- other scripts can call other:hurt(1)</span>
@@ -54,58 +55,64 @@ speed = <span class="tk-n">80</span>           <span class="tk-c">-- a script va
   <span class="tk-k">if</span> other:<span class="tk-f">is</span>(<span class="tk-s">&quot;player&quot;</span>) <span class="tk-k">then</span> other:<span class="tk-f">hurt</span>(<span class="tk-n">1</span>) <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="how-names-are-found"><a class="anchor" href="#how-names-are-found" aria-hidden="true">#</a>How names are found</h2>
-<p>When a script uses a name, Smitten looks for it in this order:</p>
-<ol><li>functions defined in the script itself;</li><li>the piece's own properties, script variables and methods (<code>x</code>, <code>vx</code>, <code>move()</code>);</li><li>the piece's children, for names that start with a capital letter (<code>Look.color</code>, <code>Camera.zoom</code>);</li><li>the <a href="api">Script API</a>: <code>pressed</code>, <code>spawn</code>, <code>sfx</code>, <code>wait</code> and the rest;</li><li>Lua's built-ins, such as <code>math</code>, <code>string</code> and <code>print</code>.</li></ol>
-<p>Assigning to a name that isn't <code>local</code> stores it on the piece, where other scripts can read it (<code>other.hp</code>). <code>self</code> is the piece itself, for when you need to pass it somewhere.</p>
+<p>When a script uses a name, Smitten looks for the name in this order:</p>
+<ol><li>The functions in the script.</li><li>The properties, script variables and methods of the piece (<code>x</code>, <code>vx</code>, <code>move()</code>).</li><li>The children of the piece, for names that start with a capital letter (<code>Look.color</code>, <code>Camera.zoom</code>).</li><li>The <a href="api">Script API</a>: <code>pressed</code>, <code>spawn</code>, <code>sfx</code>, <code>wait</code> and the other functions.</li><li>The functions and tables that Lua has, for example <code>math</code>, <code>string</code> and <code>print</code>.</li></ol>
+<p>If you give a value to a name that is not <code>local</code>, Smitten keeps the value on the piece. Other scripts can read it there (<code>other.hp</code>). <code>self</code> is the piece. Use <code>self</code> when you must give the piece to a function.</p>
 <h2 id="making-variables"><a class="anchor" href="#making-variables" aria-hidden="true">#</a>Making variables</h2>
-<p>A script's variables are made at its top level, outside any function:</p>
-<pre><code class="lang-lua">score = <span class="tk-n">0</span>          <span class="tk-c">-- a variable, starting at 0</span>
-target = <span class="tk-k">nil</span>       <span class="tk-c">-- one with no value yet</span>
-<span class="tk-k">local</span> timer = <span class="tk-n">0</span>    <span class="tk-c">-- one only this script sees</span>
+<p>Make the variables of a script at its top level, outside all functions:</p>
+<pre><code class="lang-lua">score = <span class="tk-n">0</span>          <span class="tk-c">-- a variable, with the value 0</span>
+target = <span class="tk-k">nil</span>       <span class="tk-c">-- a variable with no value now</span>
+<span class="tk-k">local</span> timer = <span class="tk-n">0</span>    <span class="tk-c">-- a variable that only this script can see</span>
 
 <span class="tk-k">function</span> <span class="tk-f">hit</span>(other)
-  score += <span class="tk-n">1</span>       <span class="tk-c">-- fine: score was made above</span>
-  target = other   <span class="tk-c">-- fine</span>
-  scroe = <span class="tk-n">0</span>        <span class="tk-c">-- a typing mistake: the game stops here and says so</span>
+  score += <span class="tk-n">1</span>       <span class="tk-c">-- correct: the line above made score</span>
+  target = other   <span class="tk-c">-- correct</span>
+  scroe = <span class="tk-n">0</span>        <span class="tk-c">-- a typing mistake: the game stops here and tells you</span>
 <span class="tk-k">end</span></code></pre>
-<p>Inside a function you can set a variable from the top of the script, one of the piece's properties (<code>x</code>, <code>vx</code>, <code>text</code>), or a <code>local</code>. Setting any other name is taken for a typing mistake, and the game stops with</p>
+<p>In a function, you can set these names:</p>
+<ul><li>a variable from the top of the script.</li><li>a property of the piece (<code>x</code>, <code>vx</code>, <code>text</code>).</li><li>a <code>local</code>.</li></ul>
+<p>If you set a different name, Smitten thinks that it is a typing mistake. The game stops with this message:</p>
 <pre><code>scripts/player.lua:9: there's no variable called &quot;scroe&quot; here (did you mean &quot;score&quot;?).
 To make a new one, write scroe = 0 at the top of the script (or local scroe = 0
 right here, if only this function uses it).</code></pre>
-<p>Without this, a mistyped name would quietly make a second variable, and the score would just never go up. A few things count as made already: a value given to the piece in the Inspector or by <code>spawn(&quot;...&quot;, { hp = 3 })</code>, and anything set with <code>self.name = ...</code>, which is always allowed.</p>
-<p>A function of yours with the name of something the piece already does replaces it: <code>function move()</code> on a Body means <code>move()</code> is yours, and the body no longer moves by itself. Smitten says so in Output when the game starts. If that isn't what you meant, pick another name, like <code>walk()</code>.</p>
-<p>A few details: <code>spawn()</code> adds a new piece to the scene, while <code>self:spawn()</code> adds it inside this piece; <code>type()</code> is Lua's function, so a piece's type is <code>self.type</code>; and <code>load()</code> reads a <a href="saving">saved value</a>, so Lua's own <code>load</code> is <code>_G.load</code>.</p>
+<p>Without this check, a typing mistake makes a second variable with no message. Then, for example, the score does not increase. Some names are already made:</p>
+<ul><li>a value that the piece gets in the Inspector.</li><li>a value that the piece gets from <code>spawn(&quot;...&quot;, { hp = 3 })</code>.</li><li>a name that you set with <code>self.name = ...</code>. You can always do this.</li></ul>
+<p>If your function has the same name as a method of the piece, your function replaces the method. For example, if you write <code>function move()</code> on a Body, <code>move()</code> is your function, and the Body does not move by itself. Smitten tells you about this in Output when the game starts. If you do not want this, use a different name, for example <code>walk()</code>.</p>
+<p>Some more details:</p>
+<ul><li><code>spawn()</code> adds a new piece to the scene. <code>self:spawn()</code> adds the new piece inside this piece.</li><li><code>type()</code> is the Lua function. Because of this, the piece type of a piece is <code>self.type</code>.</li><li><code>load()</code> reads a <a href="saving">saved value</a>. The Lua function <code>load</code> is <code>_G.load</code>.</li></ul>
 <h2 id="script-variables"><a class="anchor" href="#script-variables" aria-hidden="true">#</a>Script variables</h2>
-<p>Any top-level line like <code>speed = 80</code> with a number, text, true/false or a color (<code>{r, g, b, a}</code>) becomes a <strong>script variable</strong>. The Inspector shows it, uses the comment on the same line as its help, and lets each piece that uses the script have its own value. Names starting with <code>_</code> stay hidden.</p>
-<p>Top-level <code>local</code> variables belong to each piece separately. For something the whole game shares, like the score, use the <a href="scenes#the-game-table"><code>game</code></a> table.</p>
+<p>A top-level line such as <code>speed = 80</code> makes a <strong>script variable</strong> if its value is one of these:</p>
+<ul><li>a number</li><li>text</li><li>true or false</li><li>a color (<code>{r, g, b, a}</code>)</li></ul>
+<p>The Inspector shows the script variable. It shows the comment on the same line as help for the variable. Each piece that uses the script can have its own value. The Inspector does not show names that start with <code>_</code>.</p>
+<p>Each piece has its own top-level <code>local</code> variables. For a value that all of the game shares, for example the score, use the <a href="scenes#the-game-table"><code>game</code></a> table.</p>
 <h2 id="what-the-engine-calls"><a class="anchor" href="#what-the-engine-calls" aria-hidden="true">#</a>What the engine calls</h2>
-<p>Define any of these and the engine calls them at the right time:</p>
+<p>If you write one of these functions, the engine calls it at the correct time:</p>
 <div class="table"><table>
-<thead><tr><th>Function</th><th>Called</th></tr></thead>
-<tbody><tr><td><code>ready(...)</code></td><td>Once, after the piece and its children have joined the scene. The scene's root receives <code>go()</code>'s extra values</td></tr>
-<tr><td><code>update(dt)</code></td><td>Every frame. <code>dt</code> is the time since the last frame, in seconds</td></tr>
-<tr><td><code>physicsUpdate(dt)</code></td><td>60 times a second, just before bodies move. Put movement here</td></tr>
-<tr><td><code>draw()</code></td><td>After the piece draws itself, in its own coordinates (see <a href="drawing">Drawing</a>)</td></tr>
-<tr><td><code>removed()</code></td><td>When the piece leaves the scene</td></tr></tbody>
+<thead><tr><th>Function</th><th>When the engine calls it</th></tr></thead>
+<tbody><tr><td><code>ready(...)</code></td><td>One time, after the piece and its children come into the scene. The root of the scene gets the extra values from <code>go()</code></td></tr>
+<tr><td><code>update(dt)</code></td><td>In each frame. <code>dt</code> is the time since the last frame, in seconds</td></tr>
+<tr><td><code>physicsUpdate(dt)</code></td><td>60 times each second, immediately before bodies move. Put movement here</td></tr>
+<tr><td><code>draw()</code></td><td>After the piece draws itself, in the coordinates of the piece (see <a href="drawing">Drawing</a>)</td></tr>
+<tr><td><code>removed()</code></td><td>When the piece goes out of the scene</td></tr></tbody>
 </table></div>
-<p>Pieces also call <strong>events</strong> when things happen to them: a Body's <code>hit(other)</code>, a Zone's <code>entered(other)</code>, a Button's <code>clicked()</code>, a Timer's <code>tick()</code>, and so on. <a href="pieces">Pieces</a> lists every piece's events.</p>
+<p>Pieces also send <strong>events</strong> when something occurs to them. For example, a Body sends <code>hit(other)</code>, a Zone sends <code>entered(other)</code>, a Button sends <code>clicked()</code> and a Timer sends <code>tick()</code>. <a href="pieces">Pieces</a> shows the events of each piece type.</p>
 <h2 id="your-own-events"><a class="anchor" href="#your-own-events" aria-hidden="true">#</a>Your own events</h2>
-<p><code>emit(name, ...)</code> sends an event of your own: it calls the piece's function with that name, and anyone listening. <code>piece:on(name, fn)</code> listens, and returns a handle whose <code>:off()</code> stops listening.</p>
+<p><code>emit(name, ...)</code> sends your own event. It calls the function of the piece that has that name. It also calls all the functions that listen for the event. <code>piece:on(name, fn)</code> listens for an event. It gives a handle. To stop listening, call <code>:off()</code> on the handle.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On the player, when it lands:</span>
 <span class="tk-f">emit</span>(<span class="tk-s">&quot;landed&quot;</span>)
 
-<span class="tk-c">-- Somewhere else, shake the camera whenever that happens:</span>
+<span class="tk-c">-- In a different script: shake the camera each time that the player lands</span>
 <span class="tk-f">first</span>(<span class="tk-s">&quot;player&quot;</span>):<span class="tk-f">on</span>(<span class="tk-s">&quot;landed&quot;</span>, <span class="tk-k">function</span>() <span class="tk-f">shake</span>(<span class="tk-n">4</span>, <span class="tk-n">0.2</span>) <span class="tk-k">end</span>)</code></pre>
 <h2 id="waiting"><a class="anchor" href="#waiting" aria-hidden="true">#</a>Waiting</h2>
-<p><code>ready()</code>, <code>removed()</code> and events can pause partway with <code>wait(seconds)</code> and carry on afterwards, which makes sequences easy to write:</p>
+<p><code>ready()</code>, <code>removed()</code> and events can stop for some time with <code>wait(seconds)</code>, and then continue. This makes it easy to write a sequence of steps:</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">hit</span>(other)
   <span class="tk-k">if</span> other:<span class="tk-f">is</span>(<span class="tk-s">&quot;spikes&quot;</span>) <span class="tk-k">then</span>
     visible = <span class="tk-k">false</span>
     <span class="tk-f">wait</span>(<span class="tk-n">1</span>)
-    x, y, visible = <span class="tk-n">100</span>, <span class="tk-n">100</span>, <span class="tk-k">true</span>   <span class="tk-c">-- back to the start, a second later</span>
+    x, y, visible = <span class="tk-n">100</span>, <span class="tk-n">100</span>, <span class="tk-k">true</span>   <span class="tk-c">-- after one second, go back to the start</span>
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>update()</code>, <code>physicsUpdate()</code> and <code>draw()</code> run every frame, so they can't wait. Start a <code>task</code> from them instead, or use <code>after</code>.</p>
+<p><code>update()</code>, <code>physicsUpdate()</code> and <code>draw()</code> run in each frame. Because of this, they cannot wait. In these functions, start a <code>task</code> or use <code>after</code>.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>wait(seconds)</code></td><td>Pauses ready(), an event or a task for some seconds.</td></tr>
@@ -115,8 +122,9 @@ right here, if only this function uses it).</code></pre>
 <tr><td><code>tween(target, seconds, values, easing)</code></td><td>Changes numbers smoothly: tween(self, 0.3, { y = 100 }).</td></tr>
 <tr><td><code>time()</code></td><td>Seconds since the game started.</td></tr></tbody>
 </table></div>
-<p>A piece's waits, timers and tweens end when the piece is destroyed or the scene changes, and pause while the game is paused. <code>after</code>, <code>every</code> and <code>tween</code> return a handle with <code>:cancel()</code>, and a tween's <code>:after(fn)</code> runs when it finishes.</p>
-<pre><code class="lang-lua"><span class="tk-f">tween</span>(self, <span class="tk-n">0.4</span>, { y = y - <span class="tk-n">40</span> }, <span class="tk-s">&quot;outBack&quot;</span>)   <span class="tk-c">-- hop up 40 pixels</span></code></pre>
+<p>The waits, timers and tweens of a piece stop when you destroy the piece or when the scene changes. When you pause the game, they pause too.</p>
+<ul><li><code>after</code>, <code>every</code> and <code>tween</code> give a handle. To stop it, call <code>:cancel()</code> on the handle.</li><li>On the handle of a tween, <code>:after(fn)</code> calls <code>fn</code> when the tween ends.</li></ul>
+<pre><code class="lang-lua"><span class="tk-f">tween</span>(self, <span class="tk-n">0.4</span>, { y = y - <span class="tk-n">40</span> }, <span class="tk-s">&quot;outBack&quot;</span>)   <span class="tk-c">-- jump up 40 pixels</span></code></pre>
 <p>Easings: <code>linear</code>, <code>outQuad</code> (the default), <code>inQuad</code>, <code>inOutQuad</code>, <code>inCubic</code>, <code>outCubic</code>, <code>inOutCubic</code>, <code>inSine</code>, <code>outSine</code>, <code>inOutSine</code>, <code>inExpo</code>, <code>outExpo</code>, <code>inBack</code>, <code>outBack</code>, <code>inOutBack</code>, <code>outBounce</code>, <code>outElastic</code>.</p>
 <h2 id="math-helpers"><a class="anchor" href="#math-helpers" aria-hidden="true">#</a>Math helpers</h2>
 <div class="table"><table>
@@ -131,28 +139,28 @@ right here, if only this function uses it).</code></pre>
 <tr><td><code>dist(a, b)</code></td><td>The distance between two pieces, or dist(x1, y1, x2, y2).</td></tr>
 <tr><td><code>jumpSpeed(height, gravity)</code></td><td>How fast to go up to jump this high, with the script's gravity variable (or the gravity given; 1800 if there is neither).</td></tr></tbody>
 </table></div>
-<p>There's more in <a href="engine"><code>smitten.math</code></a>.</p>
+<p><a href="engine"><code>smitten.math</code></a> has more math functions.</p>
 <h2 id="smitten-s-lua"><a class="anchor" href="#smitten-s-lua" aria-hidden="true">#</a>Smitten's Lua</h2>
-<p>Scripts are Lua 5.1 with a few conveniences:</p>
+<p>Scripts are Lua 5.1, with some additions that make code shorter:</p>
 <div class="table"><table>
 <thead><tr><th>Write</th><th>Means</th></tr></thead>
 <tbody><tr><td><code>score += 10</code></td><td><code>score = score + 10</code>; also <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>, <code>^=</code>, <code>..=</code></td></tr>
-<tr><td><code>`HP: {hp}/{maxHp}`</code></td><td>Text with values filled in</td></tr>
-<tr><td><code>continue</code></td><td>Skip to the next turn of a loop</td></tr>
-<tr><td><code>x = if a then b else c</code></td><td>An <code>if</code> that produces a value</td></tr></tbody>
+<tr><td><code>`HP: {hp}/{maxHp}`</code></td><td>Text with the values put in</td></tr>
+<tr><td><code>continue</code></td><td>Go to the next cycle of a loop</td></tr>
+<tr><td><code>x = if a then b else c</code></td><td>An <code>if</code> that gives a value</td></tr></tbody>
 </table></div>
 <h2 id="ready-made-scripts"><a class="anchor" href="#ready-made-scripts" aria-hidden="true">#</a>Ready-made scripts</h2>
-<p><strong>Attach a script</strong> offers scripts to start from. Choosing one copies it into your <code>scripts/</code> folder, so you can read it and change anything.</p>
+<p><strong>Attach a script</strong> shows scripts that you can start from. When you choose a script, Smitten copies it into your <code>scripts/</code> folder. Then you can read it and change it.</p>
 <div class="table"><table>
 <thead><tr><th>Script</th><th>For</th></tr></thead>
-<tbody><tr><td><code>platformer.lua</code></td><td>A Body that runs and jumps, with coyote time and double jumps</td></tr>
-<tr><td><code>topdown.lua</code></td><td>A Body that walks in any direction</td></tr>
-<tr><td><code>patrol.lua</code></td><td>An enemy that walks back and forth, turning at walls and edges</td></tr>
-<tr><td><code>chase.lua</code></td><td>Moves towards the nearest piece with a tag</td></tr>
-<tr><td><code>fly.lua</code></td><td>Keeps moving the way it faces: bullets, arrows</td></tr>
-<tr><td><code>pickup.lua</code></td><td>A Zone the player collects; tells the scene with <code>collected</code></td></tr>
-<tr><td><code>spin.lua</code>, <code>bob.lua</code></td><td>Keeps turning; floats gently up and down</td></tr>
-<tr><td><code>drag.lua</code></td><td>Picked up with the mouse or a finger, and thrown</td></tr></tbody>
+<tbody><tr><td><code>platformer.lua</code></td><td>A Body that runs and jumps, with coyote time and double jumps. With coyote time, the Body can jump for a short time after it goes off an edge</td></tr>
+<tr><td><code>topdown.lua</code></td><td>A Body that walks in all directions</td></tr>
+<tr><td><code>patrol.lua</code></td><td>An enemy that walks from side to side. It turns at walls and at edges</td></tr>
+<tr><td><code>chase.lua</code></td><td>Moves to the nearest piece with a tag</td></tr>
+<tr><td><code>fly.lua</code></td><td>Moves in the direction that it points to, for example a bullet or an arrow</td></tr>
+<tr><td><code>pickup.lua</code></td><td>A Zone that the player collects. It tells the scene with the event <code>collected</code></td></tr>
+<tr><td><code>spin.lua</code>, <code>bob.lua</code></td><td><code>spin.lua</code> turns all the time. <code>bob.lua</code> moves slowly up and down</td></tr>
+<tr><td><code>drag.lua</code></td><td>You can pick it up with the mouse or a finger, and throw it</td></tr></tbody>
 </table></div>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="getting-started"><span>Previous</span>Getting started</a><a class="next" href="scenes"><span>Next</span>Scenes and pieces</a></nav>

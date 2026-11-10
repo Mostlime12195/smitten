@@ -1,23 +1,27 @@
 # Camera
 
-A **Camera** decides which part of the scene is on the screen. Without
-one, the screen shows the scene from (0, 0) at the top-left corner. UI
-pieces stay put on the screen whatever the camera does.
+A **Camera** sets which part of the scene is on the screen. If a scene has
+no Camera, the screen shows the scene with (0, 0) at the top-left corner.
+UI pieces stay in the same position on the screen, when the camera moves
+and when it does not.
 
 ## Following the player
 
-The simplest way is to put the Camera inside the player: it moves with
-them. Or set the Camera's **target** to the player in the Inspector (or
-call `Camera:follow(player)`), which lets the camera live anywhere and
-switch targets later.
+The simplest method is to put the Camera inside the player. Then the
+Camera moves with the player. A different method is to set the **target**
+of the Camera to the player in the Inspector, or to call
+`Camera:follow(player)`. With this method, the Camera can be in any
+position in the scene, and it can change to a different target later.
 
-**smoothing** makes it glide after its target instead of sticking to it
-(0 sticks, 5 is gentle). `offsetX` and `offsetY` shift the view, for
-example to look ahead of a running player. After teleporting the player,
-`snap()` jumps the camera straight there.
+- **smoothing** makes the Camera move smoothly after its target. 0 makes
+  the Camera stay exactly on the target. 5 makes it move gently.
+- `offsetX` and `offsetY` move the view. For example, use them to show
+  more of the level in front of a player who runs.
+- After you teleport the player, call `snap()`. The camera then goes to
+  the player immediately.
 
 ```lua
--- On the player: look ahead in the direction it's running
+-- On the player: show more of the level in the direction that the player runs
 function update(dt)
   Camera.offsetX = approach(Camera.offsetX, sign(vx) * 60, 120 * dt)
 end
@@ -25,43 +29,49 @@ end
 
 ## Keeping it inside the level
 
-`left`, `top`, `right` and `bottom` stop the camera from showing anything
-past those edges. `setLimits(left, top, right, bottom)` sets all four, and
-`limitTo(level)` uses the painted area of a Tiles piece, so the view never
-shows empty space outside the level. If the limited area is smaller than
-the screen, it's centered.
+`left`, `top`, `right` and `bottom` are limits. The camera does not show
+the scene past these edges.
+
+- `setLimits(left, top, right, bottom)` sets all four limits.
+- `limitTo(level)` uses the painted area of a Tiles piece as the limits.
+  Because of this, the view does not show empty space outside the level.
+
+If the area in the limits is smaller than the screen, the camera puts the
+area in the center.
 
 ## Zoom and shake
 
-`zoom = 2` makes everything twice as big; tween it for a smooth zoom.
-`shake(strength, seconds)` shakes the view and fades out: `shake(6, 0.3)`
-for a hit, `shake(16, 0.8)` for an explosion.
+`zoom = 2` makes all things two times bigger. To zoom smoothly, tween
+`zoom`. `shake(strength, seconds)` shakes the view, and the shake becomes
+weaker until it stops. For example, use `shake(6, 0.3)` for a hit and
+`shake(16, 0.8)` for an explosion.
 
 ## Several cameras
 
-The first active camera in the scene is the one used. `makeCurrent()`
-switches to another camera, and `camera()` returns the one in use.
+Smitten uses the first active camera in the scene. `makeCurrent()` changes
+to a different camera. `camera()` gives the camera that Smitten uses now.
 
 ## Screen and scene positions
 
-The screen is measured in game pixels, and the scene in its own units
-through the camera. These convert between them:
+Positions on the screen are in game pixels. Positions in the scene are in
+the units of the scene, through the camera. These functions change one
+type of position to the other:
 
 | | |
 | --- | --- |
-| `mouse()` | The pointer's position in the scene |
+| `mouse()` | The position of the pointer in the scene |
 | `Camera:screenToWorld(x, y)` | A point on the screen, as a point in the scene |
 | `Camera:worldToScreen(x, y)` | A point in the scene, as a point on the screen |
-| `Camera:getView()` | The part of the scene on screen: x, y, width, height |
+| `Camera:getView()` | The part of the scene that is on the screen: x, y, width, height |
 
 ```lua
--- Spawn a bat just past the right edge of the screen
+-- Spawn a bat immediately past the right edge of the screen
 local vx, vy, vw, vh = camera():getView()
 spawn("scenes/bat.scene", { x = vx + vw + 32, y = vy + rnd(vh) })
 ```
 
-For layers that scroll slower or faster than the camera (far hills, a sky
-that stays put), see [Backgrounds](backgrounds.md).
+For layers that scroll slower or faster than the camera (for example, far
+hills, or a sky that does not move), see [Backgrounds](backgrounds.md).
 
 <!-- piece:Camera -->
 | Property | Type | Default | |

@@ -29,102 +29,105 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Text</h1>
-<p>Three things draw words: the <strong>Text</strong> piece (in the game world: a sign, a damage number), the <strong>Label</strong> (on the screen: a score, a title) and <code>write()</code> in a script's <code>draw()</code>. Buttons have words too. All of them use the same text engine, <code>smitten.text</code>, so what this page says about one is true of the others.</p>
-<p>Out of the box they draw plain text in one font, size and color. This page is about everything past that: words in different colors and sizes inside one text, letters that wave or shake, text that types itself out, and finding out how big a text is or where one of its letters sits.</p>
-<p>There's no ready-made dialogue box, name tag or choice menu. The pieces here are what you build your own from; <a href="#a-dialogue-box-from-these-parts">the last example</a> shows one way.</p>
+<p>Three things draw words:</p>
+<ul><li>the <strong>Text</strong> piece, in the game world (for example, a sign or a damage number).</li><li>the <strong>Label</strong> piece, on the screen (for example, a score or a title).</li><li><code>write()</code> in the <code>draw()</code> function of a script.</li></ul>
+<p>Buttons also have words. All of them use the same text engine, <code>smitten.text</code>. Because of this, what this page tells about one of them is also true for the others.</p>
+<p>With their default properties, they draw plain text in one font, one size and one color. This page tells about the other things that they can do:</p>
+<ul><li>words in different colors and sizes in one text.</li><li>letters that move up and down or shake.</li><li>text that comes onto the screen one letter after the other.</li><li>how to find the size of a text, or the position of one of its letters.</li></ul>
+<p>Smitten does not have a ready-made dialogue box, name tag or choice menu. You make your own from the parts on this page. <a href="#a-dialogue-box-from-these-parts">The last example</a> shows one way.</p>
 <h2 id="plain-text"><a class="anchor" href="#plain-text" aria-hidden="true">#</a>Plain text</h2>
 <div class="table"><table>
-<thead><tr><th>Setting</th><th></th></tr></thead>
-<tbody><tr><td><code>text</code></td><td>What it says. Press Enter in the Inspector for a new line</td></tr>
-<tr><td><code>font</code></td><td>A <code>.ttf</code> or <code>.otf</code> file from your project, <code>pixel</code> for the built-in pixel font, or empty for the default font</td></tr>
-<tr><td><code>size</code>, <code>color</code></td><td>How big, and what color</td></tr>
-<tr><td><code>align</code></td><td><code>left</code>, <code>center</code>, <code>right</code>, or <code>justify</code> (wrapped lines stretched to the same width)</td></tr>
-<tr><td><code>wrap</code> (Text)</td><td>Lines longer than this many pixels wrap; 0 never wraps. A Label wraps at its own width</td></tr>
-<tr><td><code>wrapBy</code></td><td>Break lines between words (<code>word</code>), after any character (<code>character</code>, for writing without spaces such as Japanese) or, on a Label, not at all (<code>none</code>)</td></tr>
-<tr><td><code>lineHeight</code></td><td>1 is the font's own line spacing; 1.5 leaves half a line between lines</td></tr>
-<tr><td><code>letterSpacing</code></td><td>Extra pixels between letters</td></tr>
-<tr><td><code>outline</code>, <code>outlineWidth</code>, <code>outlineColor</code></td><td>A line around every letter, so text reads on any background</td></tr>
-<tr><td><code>shadow</code>, <code>shadowX</code>, <code>shadowY</code>, <code>shadowColor</code></td><td>A copy of the text behind it, moved a little</td></tr>
-<tr><td><code>valign</code> (Label)</td><td><code>top</code>, <code>middle</code> or <code>bottom</code> of the Label's rectangle</td></tr>
-<tr><td><code>fit</code> (Label, Button)</td><td><code>shrink</code> makes the text smaller until it fits the rectangle</td></tr></tbody>
+<thead><tr><th>Property</th><th></th></tr></thead>
+<tbody><tr><td><code>text</code></td><td>The words. To start a new line in the Inspector, press Enter</td></tr>
+<tr><td><code>font</code></td><td>A <code>.ttf</code> or <code>.otf</code> file from your project, <code>pixel</code> for the pixel font that Smitten has, or empty for the default font</td></tr>
+<tr><td><code>size</code>, <code>color</code></td><td>The size, and the color</td></tr>
+<tr><td><code>align</code></td><td><code>left</code>, <code>center</code>, <code>right</code>, or <code>justify</code> (Smitten makes wrapped lines the same width)</td></tr>
+<tr><td><code>wrap</code> (Text)</td><td>A line that is longer than this number of pixels goes onto the next line. 0 does not wrap. A Label wraps at its own width</td></tr>
+<tr><td><code>wrapBy</code></td><td>Where lines break: between words (<code>word</code>), after any character (<code>character</code>, for languages without spaces, for example Japanese) or, on a Label, nowhere (<code>none</code>)</td></tr>
+<tr><td><code>lineHeight</code></td><td>1 is the line spacing of the font. 1.5 puts half a line of space between lines</td></tr>
+<tr><td><code>letterSpacing</code></td><td>More pixels between letters</td></tr>
+<tr><td><code>outline</code>, <code>outlineWidth</code>, <code>outlineColor</code></td><td>A line around each letter. With it, you can read the text on all backgrounds</td></tr>
+<tr><td><code>shadow</code>, <code>shadowX</code>, <code>shadowY</code>, <code>shadowColor</code></td><td>A copy of the text behind it, a small distance away</td></tr>
+<tr><td><code>valign</code> (Label)</td><td><code>top</code>, <code>middle</code> or <code>bottom</code> of the rectangle of the Label</td></tr>
+<tr><td><code>fit</code> (Label, Button)</td><td><code>shrink</code> makes the text smaller until it fits in the rectangle</td></tr></tbody>
 </table></div>
-<p>Text is drawn at the size it has on the screen, so it stays sharp when the game is scaled up to fill a big window.</p>
+<p>Smitten draws text at its size on the screen. Because of this, the text stays sharp when the game becomes bigger to fill a big window.</p>
 <h2 id="rich-text"><a class="anchor" href="#rich-text" aria-hidden="true">#</a>Rich text</h2>
-<p>Turn on <strong>rich</strong> and the text can carry <strong>tags</strong>: words in square brackets that change how the text after them looks, until a closing tag with a slash.</p>
+<p>If you turn on <strong>rich</strong>, the text can have <strong>text tags</strong>. A text tag is a word in square brackets. It changes how the text after it looks. The change stops at a closing text tag with a slash.</p>
 <pre><code>You found the [color=gold][b]Sun Key[/b][/color]!</code></pre>
-<p>This works in the Inspector with no code: type the tags into a Text's or Label's <code>text</code>. <code>[/]</code> closes whichever tag was opened last, and a tag that's never closed runs to the end of the text.</p>
+<p>You can do this in the Inspector, without code. Type the text tags into the <code>text</code> of a Text or a Label. <code>[/]</code> closes the last text tag that you opened. If you do not close a text tag, it continues to the end of the text.</p>
 <div class="table"><table>
 <thead><tr><th>Tag</th><th>What it does</th></tr></thead>
 <tbody><tr><td><code>[b]</code>, <code>[i]</code></td><td>Bold, italic</td></tr>
 <tr><td><code>[u]</code>, <code>[s]</code></td><td>Underline, strike-through</td></tr>
-<tr><td><code>[color=red]</code>, <code>[color=#ff8800]</code></td><td>A color: a name or a hex code (<code>#f80</code>, <code>#ff8800</code>, <code>#ff8800cc</code> with see-through)</td></tr>
+<tr><td><code>[color=red]</code>, <code>[color=#ff8800]</code></td><td>A color: a name or a hex code (<code>#f80</code>, <code>#ff8800</code>, or <code>#ff8800cc</code> with transparency)</td></tr>
 <tr><td><code>[size=24]</code>, <code>[size=+4]</code></td><td>A size in pixels, or bigger (<code>+</code>) or smaller (<code>-</code>) than the text around it</td></tr>
-<tr><td><code>[font=fonts/title.ttf]</code></td><td>Another font file (or <code>[font=pixel]</code>)</td></tr>
-<tr><td><code>[outline]</code>, <code>[outline=#000]</code>, <code>[outline=2,#000]</code></td><td>An outline: 1 pixel and black unless you give a width and a color</td></tr>
-<tr><td><code>[shadow]</code>, <code>[shadow=#000 x=2 y=2]</code></td><td>A shadow, with its color and how far it falls</td></tr>
-<tr><td><code>[center]</code>, <code>[right]</code>, <code>[left]</code></td><td>Lines this line up on its own, whatever <code>align</code> says. Put it at the start of a line</td></tr>
-<tr><td><code>[img=art/coin.png]</code></td><td>A picture in the line, as tall as the letters. <code>[img=art/hero.sprite frame=2]</code> shows one frame; <code>columns=</code> and <code>rows=</code> cut a plain picture into frames; <code>height=</code> or <code>width=</code> set its size</td></tr>
-<tr><td><code>[link=shop]</code></td><td>Marks a part of the text that can be clicked (see <a href="#links">Links</a>)</td></tr>
-<tr><td><code>[wave]</code>, <code>[shake]</code>, <code>[rainbow]</code>, <code>[pulse]</code>, <code>[fade]</code></td><td>Effects that move or color each letter (below)</td></tr>
-<tr><td><code>[pause=0.5]</code>, <code>[speed=10]</code></td><td>For <a href="#revealing-text-a-typewriter">revealing text</a>: wait here, or change the pace</td></tr></tbody>
+<tr><td><code>[font=fonts/title.ttf]</code></td><td>A different font file (or <code>[font=pixel]</code>)</td></tr>
+<tr><td><code>[outline]</code>, <code>[outline=#000]</code>, <code>[outline=2,#000]</code></td><td>An outline. It is 1 pixel and black if you do not give a width and a color</td></tr>
+<tr><td><code>[shadow]</code>, <code>[shadow=#000 x=2 y=2]</code></td><td>A shadow, with its color and its distance from the text</td></tr>
+<tr><td><code>[center]</code>, <code>[right]</code>, <code>[left]</code></td><td>Aligns this line, and ignores <code>align</code>. Put it at the start of a line</td></tr>
+<tr><td><code>[img=art/coin.png]</code></td><td>A picture in the line, as tall as the letters. <code>[img=art/hero.sprite frame=2]</code> shows one frame. <code>columns=</code> and <code>rows=</code> cut a plain picture into frames. <code>height=</code> or <code>width=</code> set its size</td></tr>
+<tr><td><code>[link=shop]</code></td><td>Marks a part of the text that the player can click (see <a href="#links">Links</a>)</td></tr>
+<tr><td><code>[wave]</code>, <code>[shake]</code>, <code>[rainbow]</code>, <code>[pulse]</code>, <code>[fade]</code></td><td>Effects that move or color each letter (see below)</td></tr>
+<tr><td><code>[pause=0.5]</code>, <code>[speed=10]</code></td><td>For <a href="#revealing-text-a-typewriter">revealing text</a>: wait at this position, or change the speed</td></tr></tbody>
 </table></div>
 <p>The color names are <code>white</code>, <code>black</code>, <code>gray</code>, <code>silver</code>, <code>red</code>, <code>orange</code>, <code>yellow</code>, <code>gold</code>, <code>green</code>, <code>lime</code>, <code>teal</code>, <code>cyan</code>, <code>blue</code>, <code>navy</code>, <code>purple</code>, <code>pink</code>, <code>brown</code> and <code>clear</code>.</p>
-<p>Tags can sit inside each other, and tags aren't characters: they're never drawn, counted or measured.</p>
-<p><strong>A real square bracket</strong> is typed twice: <code>[[</code>. A tag Smitten doesn't know (<code>[colour=red]</code>, a typing mistake) is shown as it's written, and the Output panel says so once, so mistakes are easy to see. Before putting text you didn't write into rich text (a player's name), pass it through <code>smitten.text.escape(name)</code>.</p>
-<p><strong>Bold and italic.</strong> If you have the bold and italic versions of your font, set them as the piece's <code>fontBold</code> and <code>fontItalic</code> and <code>[b]</code> and <code>[i]</code> use them. Without them the font is faked: bold is drawn twice a pixel apart, italic is slanted. That's also how the pixel font does it.</p>
+<p>You can put text tags inside other text tags. Text tags are not characters: Smitten does not draw, count or measure them.</p>
+<p><strong>A real square bracket:</strong> type it two times: <code>[[</code>. If Smitten does not know a text tag (for example, <code>[colour=red]</code>, a typing mistake), it shows the text tag as you wrote it. The Output panel also tells you one time. Because of this, you can find mistakes quickly. If you put text from a different source into rich text (for example, the name of a player), give it to <code>smitten.text.escape(name)</code> first.</p>
+<p><strong>Bold and italic:</strong> if you have the bold and italic versions of your font, set them as the <code>fontBold</code> and <code>fontItalic</code> properties of the piece. Then <code>[b]</code> and <code>[i]</code> use them. Without them, Smitten makes the bold and italic itself. It draws bold text two times, one pixel apart. It slants italic text. The pixel font also uses this method.</p>
 <h3 id="effects"><a class="anchor" href="#effects" aria-hidden="true">#</a>Effects</h3>
-<p>An effect changes each letter separately, every frame. Five are built in, and each takes settings after its name:</p>
+<p>An effect changes each letter separately, in each frame. Smitten has five effects. Each effect can have values after its name:</p>
 <div class="table"><table>
-<thead><tr><th>Tag</th><th>Settings (and what they are when left out)</th></tr></thead>
-<tbody><tr><td><code>[wave]</code></td><td><code>amp=3</code> pixels up and down, <code>freq=1.5</code> waves a second, <code>spread=0.5</code> how far each letter is behind the one before</td></tr>
-<tr><td><code>[shake]</code></td><td><code>amp=1.5</code> pixels, <code>speed=20</code> jumps a second</td></tr>
-<tr><td><code>[rainbow]</code></td><td><code>speed=0.5</code> times round the colors a second, <code>spread=0.06</code> between letters, <code>sat=0.75</code> how strong the colors are</td></tr>
-<tr><td><code>[pulse]</code></td><td><code>amp=0.15</code> how much bigger and smaller, <code>freq=1</code> beats a second</td></tr>
-<tr><td><code>[fade]</code></td><td><code>time=0.3</code> seconds each letter takes to fade in when it's revealed</td></tr></tbody>
+<thead><tr><th>Tag</th><th>Values (and their default values)</th></tr></thead>
+<tbody><tr><td><code>[wave]</code></td><td><code>amp=3</code> pixels up and down, <code>freq=1.5</code> waves each second, <code>spread=0.5</code> how much each letter is behind the letter before it</td></tr>
+<tr><td><code>[shake]</code></td><td><code>amp=1.5</code> pixels, <code>speed=20</code> jumps each second</td></tr>
+<tr><td><code>[rainbow]</code></td><td><code>speed=0.5</code> cycles through the colors each second, <code>spread=0.06</code> between letters, <code>sat=0.75</code> how strong the colors are</td></tr>
+<tr><td><code>[pulse]</code></td><td><code>amp=0.15</code> how much bigger and smaller, <code>freq=1</code> beats each second</td></tr>
+<tr><td><code>[fade]</code></td><td><code>time=0.3</code> seconds for each letter to fade in when it comes onto the screen</td></tr></tbody>
 </table></div>
 <pre><code>[wave amp=5 freq=2]Wheee![/wave]   [shake]it's c-c-cold[/shake]</code></pre>
 <h2 id="your-own-effects"><a class="anchor" href="#your-own-effects" aria-hidden="true">#</a>Your own effects</h2>
-<p><code>smitten.text.effect(name, fn)</code> adds a tag of your own. Smitten calls the function for each letter inside the tag, every frame, with a table <code>c</code> that describes the letter and that the function changes:</p>
+<p><code>smitten.text.effect(name, fn)</code> adds your own text tag. Smitten calls the function in each frame, for each letter in the text tag. It gives the function a table <code>c</code>. The table tells about the letter, and the function changes the table:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- [bounce height=6]boing[/bounce]</span>
 smitten.text.<span class="tk-f">effect</span>(<span class="tk-s">&quot;bounce&quot;</span>, <span class="tk-k">function</span>(c)
   <span class="tk-k">local</span> height = c.args.height <span class="tk-k">or</span> <span class="tk-n">4</span>
   c.y = c.y - math.<span class="tk-f">abs</span>(math.<span class="tk-f">sin</span>(c.time * <span class="tk-n">6</span> + c.index * <span class="tk-n">0.4</span>)) * height
 <span class="tk-k">end</span>)</code></pre>
-<p>Add effects once, before the text that uses them is shown: the main scene's script is a good place.</p>
+<p>Add each effect one time, before Smitten shows the text that uses it. The script of the main scene is a good place.</p>
 <div class="table"><table>
 <thead><tr><th>Change these</th><th></th></tr></thead>
-<tbody><tr><td><code>c.x</code>, <code>c.y</code></td><td>Moves the letter this many pixels (both start at 0)</td></tr>
-<tr><td><code>c.rotation</code></td><td>Turns it, in degrees, around its middle</td></tr>
-<tr><td><code>c.scale</code></td><td>Makes it bigger or smaller (1 is normal)</td></tr>
-<tr><td><code>c.color</code></td><td>Its color, <code>{r, g, b, a}</code>: change the numbers or set a new table</td></tr>
+<tbody><tr><td><code>c.x</code>, <code>c.y</code></td><td>Moves the letter this number of pixels (both start at 0)</td></tr>
+<tr><td><code>c.rotation</code></td><td>Turns the letter around its middle, in degrees</td></tr>
+<tr><td><code>c.scale</code></td><td>Makes the letter bigger or smaller (1 is normal)</td></tr>
+<tr><td><code>c.color</code></td><td>The color of the letter, <code>{r, g, b, a}</code>: change the numbers or set a new table</td></tr>
 <tr><td><code>c.alpha</code></td><td>0 is invisible, 1 is solid</td></tr>
-<tr><td><code>c.visible</code></td><td><code>false</code> hides it</td></tr></tbody>
+<tr><td><code>c.visible</code></td><td><code>false</code> hides the letter</td></tr></tbody>
 </table></div>
 <div class="table"><table>
 <thead><tr><th>Read these</th><th></th></tr></thead>
-<tbody><tr><td><code>c.index</code>, <code>c.count</code></td><td>Which letter this is (1 is the first of the whole text), and how many there are</td></tr>
-<tr><td><code>c.char</code></td><td>The letter itself</td></tr>
-<tr><td><code>c.line</code></td><td>Which line it's on</td></tr>
-<tr><td><code>c.time</code></td><td>Seconds, always counting up: put it in <code>math.sin</code> for movement</td></tr>
-<tr><td><code>c.since</code></td><td>Seconds since this letter was revealed (see below)</td></tr>
-<tr><td><code>c.args</code></td><td>The settings typed in the tag: <code>[bounce height=6]</code> gives <code>c.args.height</code></td></tr>
-<tr><td><code>c.piece</code></td><td>The Text or Label being drawn</td></tr></tbody>
+<tbody><tr><td><code>c.index</code>, <code>c.count</code></td><td>The number of this letter (1 is the first letter of all the text), and the number of letters</td></tr>
+<tr><td><code>c.char</code></td><td>The letter</td></tr>
+<tr><td><code>c.line</code></td><td>The line that the letter is on</td></tr>
+<tr><td><code>c.time</code></td><td>Seconds. This number always increases: put it in <code>math.sin</code> for movement</td></tr>
+<tr><td><code>c.since</code></td><td>Seconds since this letter came onto the screen (see below)</td></tr>
+<tr><td><code>c.args</code></td><td>The values in the text tag: <code>[bounce height=6]</code> gives <code>c.args.height</code></td></tr>
+<tr><td><code>c.piece</code></td><td>The Text or Label that Smitten draws</td></tr></tbody>
 </table></div>
-<p><code>c</code> is <strong>one table used for every letter</strong>, to keep things fast. Read it and change it inside the function, but don't store it for later.</p>
-<p>For a one-off effect on a single piece, skip the tag: give the piece's script an <code>eachCharacter(c)</code> function. It runs for every letter of that piece, with the same <code>c</code>:</p>
-<pre><code class="lang-lua"><span class="tk-c">-- On a Label: every letter drops in from above when it's revealed</span>
+<p><code>c</code> is <strong>one table for all the letters</strong>. This keeps the game fast. Read and change <code>c</code> in the function. Do not keep it for later.</p>
+<p>For an effect on only one piece, you do not need a text tag. Give the script of the piece an <code>eachCharacter(c)</code> function. Smitten calls it for each letter of that piece, with the same <code>c</code>:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Label: each letter falls in from above when it comes onto the screen</span>
 <span class="tk-k">function</span> <span class="tk-f">eachCharacter</span>(c)
   <span class="tk-k">local</span> t = math.<span class="tk-f">min</span>(<span class="tk-n">1</span>, c.since / <span class="tk-n">0.2</span>)
   c.y = c.y - (<span class="tk-n">1</span> - t) * <span class="tk-n">12</span>
   c.alpha = t
 <span class="tk-k">end</span></code></pre>
 <h2 id="revealing-text-a-typewriter"><a class="anchor" href="#revealing-text-a-typewriter" aria-hidden="true">#</a>Revealing text (a typewriter)</h2>
-<p>Two settings decide how much of a text shows:</p>
-<ul><li><code>visibleCharacters</code>: how many letters, counted from the start. 0 shows nothing and -1 shows everything.</li><li><code>visibleRatio</code>: the same as a part of the whole, 0 to 1. It's a plain number, so it can be tweened: <code>tween(Label, 2, { visibleRatio = 1 })</code>.</li></ul>
-<p>Tags and line breaks don't count as letters, and hidden letters still take up their room, so nothing jumps about as the text appears.</p>
-<p><code>reveal(charactersPerSecond)</code> counts <code>visibleCharacters</code> up for you, 30 a second unless you give another number. While it runs, the piece gets <code>revealed(index, char)</code> for each letter and <code>finished()</code> at the end. <code>skip()</code> shows the rest at once. It stops while the game is paused.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- On a Label: types its text out, with a blip for each letter and a</span>
-<span class="tk-c">-- short stop after punctuation.</span>
+<p>Two properties set how much of a text Smitten shows:</p>
+<ul><li><code>visibleCharacters</code>: the number of letters, from the start. 0 shows no letters, and -1 shows all the letters.</li><li><code>visibleRatio</code>: the same as a part of all the text, from 0 to 1. It is a plain number, so you can tween it: <code>tween(Label, 2, { visibleRatio = 1 })</code>.</li></ul>
+<p>Text tags and line breaks are not letters. Hidden letters keep their space. Because of this, the text does not move while the letters come onto the screen.</p>
+<p><code>reveal(charactersPerSecond)</code> increases <code>visibleCharacters</code> for you. The default speed is 30 letters each second. While it runs, the engine calls <code>revealed(index, char)</code> for each letter, and <code>finished()</code> at the end. <code>skip()</code> shows the remaining text immediately. While the game is paused, <code>reveal()</code> stops.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Label: show the text one letter after the other, with a blip for</span>
+<span class="tk-c">-- each letter and a short stop after punctuation.</span>
 <span class="tk-k">local</span> typing
 
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
@@ -140,35 +143,35 @@ smitten.text.<span class="tk-f">effect</span>(<span class="tk-s">&quot;bounce&qu
 <span class="tk-k">function</span> <span class="tk-f">finished</span>()
   <span class="tk-f">print</span>(<span class="tk-s">&quot;all shown&quot;</span>)
 <span class="tk-k">end</span></code></pre>
-<p><code>reveal()</code> returns a handle:</p>
+<p><code>reveal()</code> gives a handle:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>typing:wait(seconds)</code></td><td>Holds the next letter back</td></tr>
-<tr><td><code>typing:cancel()</code></td><td>Stops where it is</td></tr>
-<tr><td><code>typing:after(fn)</code></td><td>Calls <code>fn</code> when everything shows</td></tr>
-<tr><td><code>typing.speed = 80</code></td><td>Changes the pace</td></tr></tbody>
+<tbody><tr><td><code>typing:wait(seconds)</code></td><td>Waits before the next letter</td></tr>
+<tr><td><code>typing:cancel()</code></td><td>Stops at the current letter</td></tr>
+<tr><td><code>typing:after(fn)</code></td><td>Calls <code>fn</code> when all the text shows</td></tr>
+<tr><td><code>typing.speed = 80</code></td><td>Changes the speed</td></tr></tbody>
 </table></div>
-<p>Rich text can set the pace from inside the text: <code>[pause=0.5]</code> waits half a second at that spot, and <code>[speed=10]slowly...[/speed]</code> reveals its part at 10 letters a second.</p>
+<p>Rich text can set the speed in the text. <code>[pause=0.5]</code> waits half a second at that position. <code>[speed=10]slowly...[/speed]</code> shows its part at 10 letters each second.</p>
 <pre><code>Well...[pause=0.6] [speed=8]I suppose so.[/speed]</code></pre>
-<p><code>[fade]</code> and <code>c.since</code> go well with this: <code>[fade]</code> around the whole text makes each letter fade in as it's revealed.</p>
+<p><code>[fade]</code> and <code>c.since</code> are good with this. Put <code>[fade]</code> around all the text, and each letter fades in when it comes onto the screen.</p>
 <h2 id="measuring"><a class="anchor" href="#measuring" aria-hidden="true">#</a>Measuring</h2>
-<p>A Text or Label can tell you about its text as it's laid out right now:</p>
+<p>A Text or a Label can tell you about the current layout of its text:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>measure()</code></td><td>Width and height of the whole text</td></tr>
-<tr><td><code>lineCount()</code>, <code>characterCount()</code></td><td>How many lines, and how many letters</td></tr>
-<tr><td><code>characterRect(index)</code></td><td>Where one letter is: x, y, width, height</td></tr>
+<tbody><tr><td><code>measure()</code></td><td>The width and height of all the text</td></tr>
+<tr><td><code>lineCount()</code>, <code>characterCount()</code></td><td>The number of lines, and the number of letters</td></tr>
+<tr><td><code>characterRect(index)</code></td><td>The position of one letter: x, y, width, height</td></tr>
 <tr><td><code>characterAt(x, y)</code></td><td>The number of the letter at a point, or nil</td></tr>
 <tr><td><code>linkAt(x, y)</code></td><td>The name of the <code>[link]</code> at a point, or nil</td></tr></tbody>
 </table></div>
-<p>Points and rectangles are measured from the piece's own position (a Text) or from the Label's top-left corner.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- A Panel behind a Label, sized to its text</span>
+<p>For a Text, points and rectangles are relative to the position of the piece. For a Label, they are relative to the top-left corner of the Label.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- Make a Panel behind a Label the size of its text</span>
 <span class="tk-k">local</span> w, h = Label:<span class="tk-f">measure</span>()
 Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="tk-n">16</span>
 
-<span class="tk-c">-- Where the last letter is, to put a cursor after it</span>
+<span class="tk-c">-- Find the position of the last letter, to put a cursor after it</span>
 <span class="tk-k">local</span> x, y, w, h = Label:<span class="tk-f">characterRect</span>(Label:<span class="tk-f">characterCount</span>())</code></pre>
-<p>Without a piece, <code>smitten.text</code> measures any text:</p>
+<p>Without a piece, <code>smitten.text</code> can measure any text:</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> w, h, lines = smitten.text.<span class="tk-f">measure</span>(<span class="tk-s">&quot;Some [b]words[/b]&quot;</span>, { rich = <span class="tk-k">true</span>, size = <span class="tk-n">20</span>, width = <span class="tk-n">200</span> })
 <span class="tk-k">local</span> lines = smitten.text.<span class="tk-f">wrap</span>(<span class="tk-s">&quot;A long sentence to cut up&quot;</span>, { width = <span class="tk-n">120</span>, size = <span class="tk-n">16</span> })</code></pre>
 <div class="table"><table>
@@ -182,12 +185,12 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
 <tr><td><code>smitten.text.color(value)</code></td><td>A color from &quot;#ff8800&quot;, &quot;#f80&quot; or a name like &quot;red&quot;: {r, g, b, a}, or nil.</td></tr></tbody>
 </table></div>
 <h2 id="links"><a class="anchor" href="#links" aria-hidden="true">#</a>Links</h2>
-<p><code>[link=name]</code> marks a part of rich text. On a <strong>Label</strong>, clicking or tapping it calls <code>linkPressed(name)</code> in the Label's script:</p>
+<p><code>[link=name]</code> marks a part of rich text. On a <strong>Label</strong>, when the player clicks or taps that part, the engine calls <code>linkPressed(name)</code> in the script of the Label:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- text: Visit the [link=shop][u]shop[/u][/link] or [link=inn][u]rest[/u][/link].</span>
 <span class="tk-k">function</span> <span class="tk-f">linkPressed</span>(name)
   <span class="tk-k">if</span> name == <span class="tk-s">&quot;shop&quot;</span> <span class="tk-k">then</span> <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/shop.scene&quot;</span>) <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p>The tag only marks the spot. How a link looks is up to you: underline it, color it. On a <strong>Text</strong> in the world, ask where the pointer is yourself:</p>
+<p>The text tag only marks the part of the text. You choose how a link looks: for example, underline it or give it a color. On a <strong>Text</strong> in the world, your script must find the position of the pointer:</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>()
   <span class="tk-k">if</span> smitten.mouse.<span class="tk-f">pressed</span>(<span class="tk-n">1</span>) <span class="tk-k">then</span>
     <span class="tk-k">local</span> name = <span class="tk-f">linkAt</span>(<span class="tk-f">fromWorld</span>(<span class="tk-f">mouse</span>()))
@@ -195,13 +198,15 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="write"><a class="anchor" href="#write" aria-hidden="true">#</a>write()</h2>
-<p><code>write(text, x, y, options)</code> takes the same ideas as options: <code>rich = true</code> to read tags, <code>visible</code> (how many letters show), <code>wrap</code>, <code>lineHeight</code>, <code>letterSpacing</code>, <code>outline</code> (true or a width) with <code>outlineColor</code>, and <code>shadow</code> with <code>shadowX</code>, <code>shadowY</code>, <code>shadowColor</code>, next to <code>size</code>, <code>font</code>, <code>align</code> and <code>width</code>. It returns the width and height of what it wrote.</p>
+<p><code>write(text, x, y, options)</code> uses the same properties as options:</p>
+<ul><li><code>rich = true</code> to read text tags.</li><li><code>visible</code>: the number of letters that show.</li><li><code>wrap</code>, <code>lineHeight</code> and <code>letterSpacing</code>.</li><li><code>outline</code> (true or a width), with <code>outlineColor</code>.</li><li><code>shadow</code>, with <code>shadowX</code>, <code>shadowY</code> and <code>shadowColor</code>.</li><li><code>size</code>, <code>font</code>, <code>align</code> and <code>width</code>.</li></ul>
+<p>It gives the width and height of the text that it wrote.</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">draw</span>()
   <span class="tk-k">local</span> w, h = <span class="tk-f">write</span>(<span class="tk-s">&quot;[b]HP[/b] [color=red]12[/color]/20&quot;</span>, <span class="tk-n">8</span>, <span class="tk-n">8</span>, { rich = <span class="tk-k">true</span>, size = <span class="tk-n">20</span>, outline = <span class="tk-n">2</span> })
   <span class="tk-f">rect</span>(<span class="tk-n">8</span>, <span class="tk-n">12</span> + h, w, <span class="tk-n">3</span>)
 <span class="tk-k">end</span></code></pre>
 <h2 id="a-dialogue-box-from-these-parts"><a class="anchor" href="#a-dialogue-box-from-these-parts" aria-hidden="true">#</a>A dialogue box from these parts</h2>
-<p>A Panel, with a Label inside it (anchor <code>fill</code>, <code>rich</code> on) and this script on the Label. The game calls <code>say()</code> with the lines to show; pressing a key shows the rest of a line, then the next line.</p>
+<p>Make a Panel. Put a Label in it (anchor <code>fill</code>, <code>rich</code> on). Put this script on the Label. The game calls <code>say()</code> with the lines to show. When the player presses a key, the Label shows the remaining part of the line. At the next key press, it shows the next line.</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On the Label inside the Panel</span>
 <span class="tk-k">local</span> lines, at = {}, <span class="tk-n">0</span>
 
@@ -223,7 +228,7 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
 <span class="tk-k">function</span> <span class="tk-f">update</span>()
   <span class="tk-k">if</span> <span class="tk-k">not</span> parent.visible <span class="tk-k">or</span> <span class="tk-k">not</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;accept&quot;</span>) <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
   <span class="tk-k">if</span> visibleCharacters &gt;= <span class="tk-n">0</span> <span class="tk-k">then</span>
-    <span class="tk-f">skip</span>()                  <span class="tk-c">-- still typing: show the whole line</span>
+    <span class="tk-f">skip</span>()                  <span class="tk-c">-- the line is not complete: show all of it</span>
   <span class="tk-k">elseif</span> at &lt; #lines <span class="tk-k">then</span>
     at += <span class="tk-n">1</span>
     <span class="tk-f">show</span>()
@@ -231,11 +236,11 @@ Panel.width, Panel.height = w + <span class="tk-n">24</span>, h + <span class="t
     parent.visible = <span class="tk-k">false</span>
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
-<p>Names, portraits and choices are more pieces: another Label, a Picture, a few Buttons.</p>
+<p>For names, portraits and choices, add more pieces: a different Label, a Picture, some Buttons.</p>
 <h2 id="how-fast-it-is"><a class="anchor" href="#how-fast-it-is" aria-hidden="true">#</a>How fast it is</h2>
-<ul><li>A text is read and laid out once, when it or one of its settings changes, and then drawn from a ready-made batch. Text that stays the same costs almost nothing per frame, however many tags it has.</li><li>Only letters inside an effect (or all of them, on a piece with <code>eachCharacter</code>) are worked out every frame. Put effect tags around the words that need them rather than the whole page.</li><li>A text that changes every frame (a timer) is laid out again every frame. That's fine for a line or two; keep long paragraphs still.</li><li>Plain text with none of this page's settings is drawn exactly as it always was.</li></ul>
+<ul><li>Smitten reads and lays out a text one time, when the text or one of its properties changes. Then it draws the text from a ready-made batch. Text that does not change uses almost no time in each frame, with any number of text tags.</li><li>Smitten calculates in each frame only the letters in an effect (or all the letters, on a piece with <code>eachCharacter</code>). Put effect text tags around only the words that need them, not around all the text.</li><li>If a text changes in each frame (for example, a timer), Smitten lays it out again in each frame. This is not a problem for one or two lines. Do not change long paragraphs in each frame.</li><li>Smitten draws plain text without the properties on this page in the same way as before.</li></ul>
 <h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
-<p>A Label has the same settings, methods and events, plus <code>valign</code>, <code>fit</code> and <code>linkPressed(name)</code>: see <a href="ui#label">UI</a>.</p>
+<p>A Label has the same properties, methods and events. It also has <code>valign</code>, <code>fit</code> and <code>linkPressed(name)</code>: see <a href="ui#label">UI</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Text&quot;</td><td>What it says.</td></tr>

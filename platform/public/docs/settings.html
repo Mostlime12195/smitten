@@ -29,7 +29,8 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Project settings</h1>
-<p><strong>Project › Project settings</strong> (Ctrl+,) edits <code>smitten.json</code>, the file at the top of every project. It holds the game's name, the scene it starts with, its resolution and how it fits the screen, its splash screen, input actions, physics settings and which engine modules it downloads.</p>
+<p><strong>Project › Project settings</strong> (Ctrl+,) changes <code>smitten.json</code>. This file is at the top of each project. It has these settings of the game:</p>
+<ul><li>its name.</li><li>the scene that it starts with.</li><li>its resolution, and how it fits the screen.</li><li>its splash screen.</li><li>its input actions.</li><li>its physics settings.</li><li>the engine modules that it downloads.</li></ul>
 <pre><code class="lang-json">{
   &quot;format&quot;: &quot;smitten.project&quot;,
   &quot;version&quot;: 3,
@@ -40,37 +41,39 @@
 }</code></pre>
 <div class="table"><table>
 <thead><tr><th>Setting</th><th></th></tr></thead>
-<tbody><tr><td><code>version</code></td><td>Which rules the game plays by. New projects are 3; an older one keeps the rules it was made with until you <a href="older-projects">update it</a></td></tr>
-<tr><td><code>name</code></td><td>The game's name: the window title and the name of its saves</td></tr>
-<tr><td><code>main</code></td><td>The scene the game starts with</td></tr>
-<tr><td><code>display.width</code>, <code>display.height</code></td><td>The resolution the game is designed for</td></tr>
-<tr><td><code>display.stretch</code></td><td>How it fits the screen (below)</td></tr>
-<tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for crisp pixel art (the default with <code>pixel</code> stretch)</td></tr>
-<tr><td><code>display.antialias</code></td><td>Smooth edges on shapes and lines. On, except with <code>pixel</code> stretch</td></tr>
-<tr><td><code>display.background</code></td><td>The color behind everything, bars included, as <code>[r, g, b, a]</code></td></tr>
-<tr><td><code>splash</code></td><td>The splash screen shown while the game loads (below)</td></tr>
-<tr><td><code>input</code></td><td><a href="input#actions">Input actions</a> to add or change. <code>input.players</code> holds each player's own inputs: <code>&quot;players&quot;: { &quot;2&quot;: { &quot;jump&quot;: [&quot;return&quot;, &quot;pad:a&quot;] } }</code> (<a href="input#more-than-one-player">More than one player</a>)</td></tr>
+<tbody><tr><td><code>version</code></td><td>The rules of the game. New projects are version 3. An older project keeps the rules of its version until you <a href="older-projects">update it</a></td></tr>
+<tr><td><code>name</code></td><td>The name of the game: the window title and the name of its saves</td></tr>
+<tr><td><code>main</code></td><td>The scene that the game starts with</td></tr>
+<tr><td><code>display.width</code>, <code>display.height</code></td><td>The resolution that you make the game for</td></tr>
+<tr><td><code>display.stretch</code></td><td>How the game fits the screen (see below)</td></tr>
+<tr><td><code>display.filter</code></td><td><code>smooth</code>, or <code>pixel</code> for sharp pixel art (the default with <code>pixel</code> stretch)</td></tr>
+<tr><td><code>display.antialias</code></td><td>Smooth edges on shapes and lines. On, but not with <code>pixel</code> stretch</td></tr>
+<tr><td><code>display.background</code></td><td>The color behind all things, also behind the bars, as <code>[r, g, b, a]</code></td></tr>
+<tr><td><code>splash</code></td><td>The splash screen that shows while the game loads (see below)</td></tr>
+<tr><td><code>input</code></td><td><a href="input#actions">Input actions</a> to add or change. <code>input.players</code> has the inputs of each player: <code>&quot;players&quot;: { &quot;2&quot;: { &quot;jump&quot;: [&quot;return&quot;, &quot;pad:a&quot;] } }</code> (<a href="input#more-than-one-player">More than one player</a>)</td></tr>
 <tr><td><code>physics.gravity</code></td><td>Gravity, as <code>[x, y]</code> in pixels per second per second. See <a href="physics">Physics</a></td></tr>
-<tr><td><code>modules</code></td><td>Force an engine module <code>&quot;always&quot;</code> or <code>&quot;never&quot;</code></td></tr>
-<tr><td><code>identity</code></td><td>The name saves use, if it shouldn't follow <code>name</code></td></tr></tbody>
+<tr><td><code>modules</code></td><td>Makes the game always use an engine module (<code>&quot;always&quot;</code>) or never use it (<code>&quot;never&quot;</code>)</td></tr>
+<tr><td><code>identity</code></td><td>The name of the saves, if it must be different from <code>name</code></td></tr></tbody>
 </table></div>
 <h2 id="resolution-and-fitting-the-screen"><a class="anchor" href="#resolution-and-fitting-the-screen" aria-hidden="true">#</a>Resolution and fitting the screen</h2>
-<p>You design a game for one resolution, like 1280×720, and Smitten scales it to fit whatever window or screen it's played on. Positions in scenes and UI are always in these game pixels. The resolution is the size you design for, not a limit: the game always fills the window and draws at the screen's full sharpness, so it looks crisp in fullscreen and on phones.</p>
+<p>You make a game for one resolution, for example 1280×720. Smitten scales the game to fit the window or screen where it plays. Positions in scenes and in UI are always in these game pixels. The resolution is the size that you make the game for. It is not a limit. The game always fills the window, and it draws with the full sharpness of the screen. Because of this, it looks sharp in fullscreen and on phones.</p>
 <div class="table"><table>
 <thead><tr><th><code>stretch</code></th><th></th></tr></thead>
-<tbody><tr><td><code>expand</code></td><td>The default. Scales to fit, and shows a little more of the world where the shapes differ, so there are never bars</td></tr>
-<tr><td><code>fit</code></td><td>Scales to fit, and fills the leftover space with the background color</td></tr>
-<tr><td><code>stretch</code></td><td>Fills the screen exactly, distorting if the shapes differ</td></tr>
-<tr><td><code>pixel</code></td><td>Draws at your resolution and scales it up by whole numbers (2×, 3×...), for crisp pixel art</td></tr></tbody>
+<tbody><tr><td><code>expand</code></td><td>The default. Scales to fit. If the screen has a different shape, it shows a little more of the world. Because of this, there are never bars</td></tr>
+<tr><td><code>fit</code></td><td>Scales to fit. It fills the remaining space with the background color</td></tr>
+<tr><td><code>stretch</code></td><td>Fills the screen exactly. If the screen has a different shape, the game changes its shape too</td></tr>
+<tr><td><code>pixel</code></td><td>Draws at your resolution, and scales it up by whole numbers (2×, 3×...), for sharp pixel art</td></tr></tbody>
 </table></div>
-<p>With <code>expand</code>, the edges of the screen move with its shape. Anchor UI to the edges, and use <code>smitten.display</code>'s <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code> and <code>viewHeight</code> for the area that's actually showing. <code>screenWidth()</code> and <code>screenHeight()</code> are always your resolution.</p>
+<p>With <code>expand</code>, the edges of the screen move with the shape of the screen. Because of this, do these things:</p>
+<ul><li>Anchor UI to the edges.</li><li>For the area that shows on the screen, use <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code> and <code>viewHeight</code> of <code>smitten.display</code>.</li></ul>
+<p><code>screenWidth()</code> and <code>screenHeight()</code> are always your resolution.</p>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>screenWidth()</code></td><td>The game's width, in game pixels.</td></tr>
 <tr><td><code>screenHeight()</code></td><td>The game's height, in game pixels.</td></tr>
 <tr><td><code>fullscreen(on)</code></td><td>fullscreen(true) fills the screen; fullscreen() is true while it does.</td></tr></tbody>
 </table></div>
-<p>Browsers only allow fullscreen right after a click or key press, so call <code>fullscreen(true)</code> from a button's <code>clicked()</code> or after <code>pressed(&quot;f&quot;)</code>.</p>
+<p>Browsers allow fullscreen only immediately after a click or a key press. Because of this, call <code>fullscreen(true)</code> from the <code>clicked()</code> function of a button, or after <code>pressed(&quot;f&quot;)</code>.</p>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
 <tbody><tr><td><code>smitten.display.toGame(x, y)</code></td><td>Window coordinates to game coordinates.</td></tr>
@@ -79,26 +82,27 @@
 </table></div>
 <p>Fields: <code>width</code>, <code>height</code>, <code>viewX</code>, <code>viewY</code>, <code>viewWidth</code>, <code>viewHeight</code>, <code>scale</code>, <code>stretch</code>, <code>filter</code>, <code>antialias</code>, <code>background</code>.</p>
 <h2 id="the-splash-screen"><a class="anchor" href="#the-splash-screen" aria-hidden="true">#</a>The splash screen</h2>
-<p>While a game loads in a browser, Smitten shows a splash screen: a heart and &quot;Made with Smitten&quot; on a dark background. Once the game has loaded, and the splash has been up for a second, it fades into the main scene. There's no Play button to press.</p>
-<p>Make it yours in <strong>Project settings › Splash</strong>. Pick a picture from your project (a logo or a title screen), a background color and how long it stays up, and choose whether &quot;Made with Smitten&quot; shows underneath.</p>
+<p>While a game loads in a browser, Smitten shows a splash screen: a heart and &quot;Made with Smitten&quot; on a dark background. When the game has loaded, and the splash screen has shown for one second, the splash screen fades into the main scene. The player does not have to press a Play button.</p>
+<p>To change the splash screen, go to <strong>Project settings › Splash</strong>:</p>
+<ol><li>Choose a picture from your project (for example, a logo or a title screen).</li><li>Choose a background color.</li><li>Choose how long the splash screen shows.</li><li>Choose if &quot;Made with Smitten&quot; shows below the picture.</li></ol>
 <pre><code class="lang-json">&quot;splash&quot;: { &quot;image&quot;: &quot;art/logo.png&quot;, &quot;background&quot;: &quot;#1a1c2c&quot;, &quot;duration&quot;: 2, &quot;madeWith&quot;: false }</code></pre>
 <div class="table"><table>
 <thead><tr><th><code>splash</code></th><th></th></tr></thead>
-<tbody><tr><td><code>image</code></td><td>A picture from the project, shown in the middle. Empty for Smitten's heart</td></tr>
+<tbody><tr><td><code>image</code></td><td>A picture from the project, in the middle. Empty for the heart of Smitten</td></tr>
 <tr><td><code>background</code></td><td><code>&quot;#rrggbb&quot;</code>, or <code>[r, g, b]</code> from 0 to 1</td></tr>
-<tr><td><code>duration</code></td><td>Seconds it stays up at least (0 to 10); longer if the game is still loading</td></tr>
-<tr><td><code>madeWith</code></td><td>Show &quot;Made with Smitten&quot; (<code>true</code> unless you turn it off)</td></tr></tbody>
+<tr><td><code>duration</code></td><td>The minimum time in seconds that the splash screen shows (0 to 10). It shows longer if the game continues to load</td></tr>
+<tr><td><code>madeWith</code></td><td>Show &quot;Made with Smitten&quot; (<code>true</code> if you do not turn it off)</td></tr></tbody>
 </table></div>
-<p>Pixel-art games (<code>display.filter</code> set to <code>pixel</code>) get a crisp, unblurred splash picture.</p>
+<p>In pixel-art games (<code>display.filter</code> is <code>pixel</code>), the splash picture is sharp, not blurred.</p>
 <h2 id="engine-modules"><a class="anchor" href="#engine-modules" aria-hidden="true">#</a>Engine modules</h2>
-<p>Some parts of the engine are separate downloads, included only when a game uses them, so small games load fast:</p>
+<p>Some parts of the engine are separate downloads. A game includes them only when it uses them. Because of this, small games load fast:</p>
 <div class="table"><table>
-<thead><tr><th>Module</th><th>Included when a game uses</th></tr></thead>
+<thead><tr><th>Module</th><th>A game includes it when it uses</th></tr></thead>
 <tbody><tr><td><code>physics2d</code></td><td>Bodies, Zones, Joints or <code>smitten.physics</code> (<a href="physics">Physics</a>)</td></tr>
 <tr><td><code>video</code></td><td><code>smitten.video</code></td></tr>
 <tr><td><code>synth</code></td><td><code>.sfx</code> and <code>.song</code> files</td></tr></tbody>
 </table></div>
-<p>Project settings › Modules shows what's included and why.</p>
+<p><strong>Project settings › Modules</strong> shows the modules that the game includes, and why.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="drawing"><span>Previous</span>Drawing</a><a class="next" href="sharing"><span>Next</span>Sharing and publishing</a></nav>
   </main>

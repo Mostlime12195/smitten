@@ -29,44 +29,47 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Getting started</h1>
-<p>In this tutorial you'll make a small platformer: a player who runs and jumps, coins to collect, and an enemy to avoid. You'll change how it plays, write your first script, and put the game online for anyone to play. It takes about fifteen minutes, and you don't need to know any programming yet.</p>
+<p>In this tutorial, you make a small platformer. It has a player who runs and jumps, coins to collect and an enemy to avoid. You change how the game plays, you write your first script, and you put the game on the internet. Then anyone can play it. The tutorial takes approximately fifteen minutes. You do not have to know how to write programs.</p>
 <h2 id="1-make-a-game"><a class="anchor" href="#1-make-a-game" aria-hidden="true">#</a>1. Make a game</h2>
-<p>Open the editor. The home screen lists your games and a few templates to start from. Pick <strong>Platformer</strong> and give it a name.</p>
+<ol><li>Open the editor. The home screen shows your games and some templates.</li><li>Click <strong>Platformer</strong>.</li><li>Give the game a name.</li></ol>
 <figure><img src="images/home.webp" alt="The home screen, with templates to start from" loading="lazy"><figcaption>The home screen, with templates to start from</figcaption></figure>
-<p>Your game opens in the editor. Here's what you're looking at:</p>
+<p>The editor opens your game. These are the parts of the editor:</p>
 <figure><img src="images/editor-tour.webp" alt="The editor: the Scene panel (1), the scene view (2), the Inspector (3), Files (4) and Output (5)" loading="lazy"><figcaption>The editor: the Scene panel (1), the scene view (2), the Inspector (3), Files (4) and Output (5)</figcaption></figure>
-<ol><li><strong>Scene panel</strong>: everything in the current scene, as a tree of <strong>pieces</strong>. A piece is anything in your game: the player, a coin, a floor, a camera, a label on the screen.</li><li><strong>Scene view</strong>: the level itself. Click a piece to select it, drag to move it, scroll to zoom.</li><li><strong>Inspector</strong>: the selected piece's settings, like its position, its color, or how fast it runs.</li><li><strong>Files</strong>: everything in your project, such as scenes, scripts, pictures and sounds.</li><li><strong>Output</strong>: messages from your game while it runs, including errors.</li></ol>
-<p>You can rearrange the panels however you like: drag a panel's tab to move it, or pull it out into its own window.</p>
+<ol><li><strong>Scene panel</strong>: all the pieces in the current scene, as a tree. A piece is one thing in your game: the player, a coin, a floor, a camera, or a Label on the screen.</li><li><strong>Scene view</strong>: the level. Click a piece to select it. Drag a piece to move it. Scroll to zoom.</li><li><strong>Inspector</strong>: the properties of the selected piece, for example its position, its color, or how fast it runs.</li><li><strong>Files panel</strong>: all the files in your project, for example scenes, scripts, pictures and sounds.</li><li><strong>Output</strong>: messages from your game while it runs, and errors.</li></ol>
+<p>You can move the panels to different positions. To move a panel, drag its tab. You can also drag a panel out into a different window.</p>
 <h2 id="2-play-it"><a class="anchor" href="#2-play-it" aria-hidden="true">#</a>2. Play it</h2>
-<p>Press <strong>Play</strong> at the top right (or <strong>F5</strong>). Run with the arrow keys or A and D, and jump with Space. Collect the coins, and stay away from the red enemy: touching it starts the level again.</p>
+<ol><li>Click <strong>Play</strong> at the top right, or press <strong>F5</strong>.</li><li>To run, use the arrow keys, or A and D.</li><li>To jump, press Space.</li><li>Collect the coins. Stay away from the red enemy. If the player touches the enemy, the level starts again.</li></ol>
 <figure><img src="images/playing.webp" alt="The platformer running in the editor" loading="lazy"><figcaption>The platformer running in the editor</figcaption></figure>
-<p>Press <strong>Stop</strong> (or <strong>F8</strong>) to go back to editing.</p>
+<p>To go back to the editor, click <strong>Stop</strong> or press <strong>F8</strong>.</p>
 <h2 id="3-change-how-it-plays"><a class="anchor" href="#3-change-how-it-plays" aria-hidden="true">#</a>3. Change how it plays</h2>
-<p>In the Scene panel, click <strong>Player</strong>. The Inspector shows the player's settings. Near the bottom, under <strong>Script variables</strong>, are numbers that control the movement: <code>speed</code>, <code>jumpHeight</code>, <code>gravity</code> and more.</p>
-<figure><img src="images/inspector.webp" alt="The player's script variables in the Inspector" loading="lazy"><figcaption>The player's script variables in the Inspector</figcaption></figure>
-<p>Try setting <code>jumpHeight</code> to <code>160</code> and <code>airJumps</code> to <code>1</code>, then play again. The player now jumps much higher, and can jump a second time in the air.</p>
-<div class="callout tip"><strong>Tip</strong><p>You can change these while the game is running. Select a piece during play, edit it, and the game changes right away. When you stop, the scene goes back to how it was, so you can experiment freely and type in the values you like afterwards.</p></div>
+<ol><li>In the Scene panel, click <strong>Player</strong>. The Inspector shows the properties of the player. Near the bottom, under <strong>Script variables</strong>, there are numbers for the movement: <code>speed</code>, <code>jumpHeight</code>, <code>gravity</code> and more.
+<figure><img src="images/inspector.webp" alt="The player's script variables in the Inspector" loading="lazy"><figcaption>The player's script variables in the Inspector</figcaption></figure></li></ol>
+<ol><li>Set <code>jumpHeight</code> to <code>160</code>.</li><li>Set <code>airJumps</code> to <code>1</code>.</li><li>Play the game again. The player jumps much higher now, and can jump a second time in the air.</li></ol>
+<div class="callout tip"><strong>Tip</strong><p>You can change these values while the game runs. While the game runs, select a piece. Then change a property. The game changes immediately. When you stop the game, the scene goes back to its values from before. Because of this, you can safely try different values. After you stop, type in the values that you like.</p></div>
 <h2 id="4-add-more-coins"><a class="anchor" href="#4-add-more-coins" aria-hidden="true">#</a>4. Add more coins</h2>
-<p>The coins are their own little scene, <code>scenes/coin.scene</code>, placed several times in the level. To add another one, drag <code>coin.scene</code> from the Files panel into the scene view. Change the coin scene once (its color, say) and every coin in the level changes with it.</p>
-<p>The counter at the top of the screen updates on its own: a script on the level counts the coins when the game starts, and adds one each time you pick one up.</p>
+<p>Each coin is a placed scene: the level has the scene <code>scenes/coin.scene</code> in it more than one time.</p>
+<ol><li>To add a coin, drag <code>coin.scene</code> from the Files panel into the scene view.</li><li>Change the coin scene one time (for example, its color). All the coins in the level change.</li></ol>
+<p>The counter at the top of the screen changes automatically. A script on the level counts the coins when the game starts. Each time the player collects a coin, the script adds one to the counter.</p>
 <h2 id="5-write-a-script"><a class="anchor" href="#5-write-a-script" aria-hidden="true">#</a>5. Write a script</h2>
-<p>Scripts are what make pieces do things. Each piece can have one, written in Lua. Let's make the enemy speed up a little every time you collect a coin.</p>
-<p>Select <strong>Enemy</strong> in the Scene panel, then click its script badge to open <code>scripts/patrol.lua</code>. Add this at the end:</p>
+<p>Scripts make pieces do things. Each piece can have one script, in Lua. In this step, the enemy moves a little faster each time that you collect a coin.</p>
+<ol><li>Select <strong>Enemy</strong> in the Scene panel.</li><li>Click the script badge of the enemy. The editor opens <code>scripts/patrol.lua</code>.</li><li>Add this code at the end of the script:
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>()
   <span class="tk-f">root</span>():<span class="tk-f">on</span>(<span class="tk-s">&quot;collected&quot;</span>, <span class="tk-k">function</span>()
     speed += <span class="tk-n">20</span>
   <span class="tk-k">end</span>)
 <span class="tk-k">end</span></code></pre>
-<figure><img src="images/script.webp" alt="The enemy's script in the Script workspace" loading="lazy"><figcaption>The enemy's script in the Script workspace</figcaption></figure>
-<p><code>ready()</code> runs once when the enemy appears. <code>root()</code> is the level, and <code>on(&quot;collected&quot;, ...)</code> listens for the event that coins send when they're picked up. Inside a script, names like <code>speed</code> belong to the piece itself, so <code>speed += 20</code> makes this enemy faster.</p>
-<p>Play again and watch it hurry up as you collect coins.</p>
-<div class="callout tip"><strong>Tip</strong><p>If something goes wrong, the error appears in Output with the file and line. Click it to jump straight there.</p></div>
+<figure><img src="images/script.webp" alt="The enemy's script in the Script workspace" loading="lazy"><figcaption>The enemy's script in the Script workspace</figcaption></figure></li></ol>
+<ol><li>Play the game again. Each time that you collect a coin, the enemy moves faster.</li></ol>
+<p>The engine calls <code>ready()</code> one time, when the enemy comes into the scene. <code>root()</code> is the level. A coin sends the event <code>collected</code> when the player collects it. <code>on(&quot;collected&quot;, ...)</code> listens for this event. In a script, names such as <code>speed</code> belong to the piece. Because of this, <code>speed += 20</code> makes this enemy faster.</p>
+<div class="callout tip"><strong>Tip</strong><p>If there is a problem, Output shows the error with the file and the line. Click the error to go to that line.</p></div>
 <h2 id="6-share-it"><a class="anchor" href="#6-share-it" aria-hidden="true">#</a>6. Share it</h2>
-<p>When you're happy with your game, choose <strong>Publish</strong> in the top bar. Sign in (or make an account), give the game a title and a short description, and publish. You'll get a link anyone can open to play your game in their browser, and remix their own copy.</p>
+<p>When your game is ready, publish it:</p>
+<ol><li>Click <strong>Publish</strong> in the top bar.</li><li>Sign in, or make an account.</li><li>Give the game a title and a short description.</li><li>Click <strong>Publish</strong>.</li></ol>
+<p>You get a link. Anyone can open the link to play your game in a browser, or to remix their own copy.</p>
 <figure><img src="images/publish.webp" alt="Publishing a game" loading="lazy"><figcaption>Publishing a game</figcaption></figure>
-<p>To put the game somewhere else, like itch.io, use <strong>Project › Export</strong> instead.</p>
+<p>To put the game on a different website, for example itch.io, use <strong>Project › Export</strong>.</p>
 <h2 id="next-steps"><a class="anchor" href="#next-steps" aria-hidden="true">#</a>Next steps</h2>
-<ul><li><a href="scripts">Scripts</a> explains how scripts work in more depth.</li><li><a href="scenes">Scenes and pieces</a> covers making, finding and removing pieces.</li><li><a href="input">Input</a>, <a href="sound">Sound and music</a> and <a href="camera">Camera</a> each cover one part of a game.</li><li><a href="api">Script API</a> lists every function a script can use.</li></ul>
+<ul><li><a href="scripts">Scripts</a> tells more about how scripts work.</li><li><a href="scenes">Scenes and pieces</a> tells how to make, find and remove pieces.</li><li><a href="input">Input</a>, <a href="sound">Sound and music</a> and <a href="camera">Camera</a> each tell about one part of a game.</li><li><a href="api">Script API</a> shows each function that a script can use.</li></ul>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="./"><span>Previous</span>Overview</a><a class="next" href="scripts"><span>Next</span>Scripts</a></nav>
   </main>

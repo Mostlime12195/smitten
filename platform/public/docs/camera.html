@@ -29,33 +29,35 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Camera</h1>
-<p>A <strong>Camera</strong> decides which part of the scene is on the screen. Without one, the screen shows the scene from (0, 0) at the top-left corner. UI pieces stay put on the screen whatever the camera does.</p>
+<p>A <strong>Camera</strong> sets which part of the scene is on the screen. If a scene has no Camera, the screen shows the scene with (0, 0) at the top-left corner. UI pieces stay in the same position on the screen, when the camera moves and when it does not.</p>
 <h2 id="following-the-player"><a class="anchor" href="#following-the-player" aria-hidden="true">#</a>Following the player</h2>
-<p>The simplest way is to put the Camera inside the player: it moves with them. Or set the Camera's <strong>target</strong> to the player in the Inspector (or call <code>Camera:follow(player)</code>), which lets the camera live anywhere and switch targets later.</p>
-<p><strong>smoothing</strong> makes it glide after its target instead of sticking to it (0 sticks, 5 is gentle). <code>offsetX</code> and <code>offsetY</code> shift the view, for example to look ahead of a running player. After teleporting the player, <code>snap()</code> jumps the camera straight there.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- On the player: look ahead in the direction it's running</span>
+<p>The simplest method is to put the Camera inside the player. Then the Camera moves with the player. A different method is to set the <strong>target</strong> of the Camera to the player in the Inspector, or to call <code>Camera:follow(player)</code>. With this method, the Camera can be in any position in the scene, and it can change to a different target later.</p>
+<ul><li><strong>smoothing</strong> makes the Camera move smoothly after its target. 0 makes the Camera stay exactly on the target. 5 makes it move gently.</li><li><code>offsetX</code> and <code>offsetY</code> move the view. For example, use them to show more of the level in front of a player who runs.</li><li>After you teleport the player, call <code>snap()</code>. The camera then goes to the player immediately.</li></ul>
+<pre><code class="lang-lua"><span class="tk-c">-- On the player: show more of the level in the direction that the player runs</span>
 <span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
   Camera.offsetX = <span class="tk-f">approach</span>(Camera.offsetX, <span class="tk-f">sign</span>(vx) * <span class="tk-n">60</span>, <span class="tk-n">120</span> * dt)
 <span class="tk-k">end</span></code></pre>
 <h2 id="keeping-it-inside-the-level"><a class="anchor" href="#keeping-it-inside-the-level" aria-hidden="true">#</a>Keeping it inside the level</h2>
-<p><code>left</code>, <code>top</code>, <code>right</code> and <code>bottom</code> stop the camera from showing anything past those edges. <code>setLimits(left, top, right, bottom)</code> sets all four, and <code>limitTo(level)</code> uses the painted area of a Tiles piece, so the view never shows empty space outside the level. If the limited area is smaller than the screen, it's centered.</p>
+<p><code>left</code>, <code>top</code>, <code>right</code> and <code>bottom</code> are limits. The camera does not show the scene past these edges.</p>
+<ul><li><code>setLimits(left, top, right, bottom)</code> sets all four limits.</li><li><code>limitTo(level)</code> uses the painted area of a Tiles piece as the limits. Because of this, the view does not show empty space outside the level.</li></ul>
+<p>If the area in the limits is smaller than the screen, the camera puts the area in the center.</p>
 <h2 id="zoom-and-shake"><a class="anchor" href="#zoom-and-shake" aria-hidden="true">#</a>Zoom and shake</h2>
-<p><code>zoom = 2</code> makes everything twice as big; tween it for a smooth zoom. <code>shake(strength, seconds)</code> shakes the view and fades out: <code>shake(6, 0.3)</code> for a hit, <code>shake(16, 0.8)</code> for an explosion.</p>
+<p><code>zoom = 2</code> makes all things two times bigger. To zoom smoothly, tween <code>zoom</code>. <code>shake(strength, seconds)</code> shakes the view, and the shake becomes weaker until it stops. For example, use <code>shake(6, 0.3)</code> for a hit and <code>shake(16, 0.8)</code> for an explosion.</p>
 <h2 id="several-cameras"><a class="anchor" href="#several-cameras" aria-hidden="true">#</a>Several cameras</h2>
-<p>The first active camera in the scene is the one used. <code>makeCurrent()</code> switches to another camera, and <code>camera()</code> returns the one in use.</p>
+<p>Smitten uses the first active camera in the scene. <code>makeCurrent()</code> changes to a different camera. <code>camera()</code> gives the camera that Smitten uses now.</p>
 <h2 id="screen-and-scene-positions"><a class="anchor" href="#screen-and-scene-positions" aria-hidden="true">#</a>Screen and scene positions</h2>
-<p>The screen is measured in game pixels, and the scene in its own units through the camera. These convert between them:</p>
+<p>Positions on the screen are in game pixels. Positions in the scene are in the units of the scene, through the camera. These functions change one type of position to the other:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>mouse()</code></td><td>The pointer's position in the scene</td></tr>
+<tbody><tr><td><code>mouse()</code></td><td>The position of the pointer in the scene</td></tr>
 <tr><td><code>Camera:screenToWorld(x, y)</code></td><td>A point on the screen, as a point in the scene</td></tr>
 <tr><td><code>Camera:worldToScreen(x, y)</code></td><td>A point in the scene, as a point on the screen</td></tr>
-<tr><td><code>Camera:getView()</code></td><td>The part of the scene on screen: x, y, width, height</td></tr></tbody>
+<tr><td><code>Camera:getView()</code></td><td>The part of the scene that is on the screen: x, y, width, height</td></tr></tbody>
 </table></div>
-<pre><code class="lang-lua"><span class="tk-c">-- Spawn a bat just past the right edge of the screen</span>
+<pre><code class="lang-lua"><span class="tk-c">-- Spawn a bat immediately past the right edge of the screen</span>
 <span class="tk-k">local</span> vx, vy, vw, vh = <span class="tk-f">camera</span>():<span class="tk-f">getView</span>()
 <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/bat.scene&quot;</span>, { x = vx + vw + <span class="tk-n">32</span>, y = vy + <span class="tk-f">rnd</span>(vh) })</code></pre>
-<p>For layers that scroll slower or faster than the camera (far hills, a sky that stays put), see <a href="backgrounds">Backgrounds</a>.</p>
+<p>For layers that scroll slower or faster than the camera (for example, far hills, or a sky that does not move), see <a href="backgrounds">Backgrounds</a>.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>active</code></td><td>bool</td><td>true</td><td>Use this camera. When several are active, the first in the scene wins.</td></tr>

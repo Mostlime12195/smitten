@@ -1,56 +1,60 @@
 # Scenes and pieces
 
-A **scene** is one screen of your game, such as a level, a menu or a game
-over screen, saved as a `.scene` file. It's a tree of **pieces**: a level
-might hold the player, the ground, some coins and a camera, and the player
-holds its picture and its own camera. One scene runs at a time, starting
-with the project's main scene.
+A **scene** is one screen of your game, for example a level, a menu or a
+game over screen. Smitten keeps each scene in a `.scene` file. A scene is
+a tree of **pieces**. For example, a level can have the player, the ground,
+some coins and a camera in it. The player has its picture and its own
+camera in it. One scene runs at a time. The game starts with the main
+scene of the project.
 
-Scenes can be placed inside other scenes. The Platformer template's coin
-is its own small scene, placed many times in the level; each copy can
-change its settings, and editing the coin scene changes them all.
+You can put a scene inside a different scene (a placed scene). For
+example, the coin in the Platformer template is a small scene. The level
+has this scene in it many times. Each copy can change its properties. When
+you change the coin scene, all the copies change.
 
 ## Finding pieces
 
 | | |
 | --- | --- |
-| `Look`, `Camera` | A child, by its name (names starting with a capital letter work like this) |
-| `find("UI/Score")` | A piece by its path from this one; `..` goes up a level |
-| `findDeep("Score")` | The first piece with that name anywhere inside this one |
-| `findChildOfType("Sprite")` | The first child of a type |
-| `parent`, `children` | The piece this one is inside; the pieces inside it |
-| `root()` | The scene's top piece |
-| `first("player")`, `tagged("coin")` | The first piece with a tag; every piece with it |
+| `Look`, `Camera` | A child, found by its name (names that start with a capital letter find children) |
+| `find("UI/Score")` | A piece, found by its path from this piece. `..` goes up one level of the tree |
+| `findDeep("Score")` | The first piece with that name, at any level inside this piece |
+| `findChildOfType("Sprite")` | The first child of a piece type |
+| `parent`, `children` | `parent` is the piece that has this piece in it. `children` are the pieces in this piece |
+| `root()` | The top piece of the scene |
+| `first("player")`, `tagged("coin")` | `first` gives the first piece with a tag. `tagged` gives all the pieces with the tag |
 
 ## Tags
 
-Tags are labels you give pieces, like `player`, `enemy` or `coin`, so
-scripts can find them and tell them apart. Add them in the Inspector, or
-with `tag(name)` and `untag(name)` from a script.
+Tags are words that you put on pieces, for example `player`, `enemy` or
+`coin`. Scripts use tags to find pieces and to know which piece is which.
+Add tags in the Inspector. In a script, `tag(name)` adds a tag, and
+`untag(name)` removes a tag.
 
-`other:is("enemy")` checks for a tag, or a type (`other:is("Body")`).
-`hasAnyTag("enemy, spikes")` checks several at once. Bodies and Zones also
-use tags to decide what they bump into ([Physics](physics.md)).
+`other:is("enemy")` checks for a tag, or for a piece type
+(`other:is("Body")`). `hasAnyTag("enemy, spikes")` checks for more than one
+tag at the same time. Bodies and Zones also use tags to find what they hit
+([Physics](physics.md)).
 
 ## Making and removing pieces
 
-`spawn` makes a new piece, from a scene file or a piece type, and adds it
-to the scene:
+`spawn` makes a new piece from a scene file or a piece type. Then it adds
+the piece to the scene:
 
 ```lua
 spawn("scenes/bullet.scene", { x = x, y = y, rotation = rotation })
 spawn("Text", { text = "+10", x = x, y = y - 20 })
-self:spawn("scenes/hat.scene")           -- inside this piece instead
+self:spawn("scenes/hat.scene")           -- put the new piece inside this piece
 
-local enemy = make("scenes/enemy.scene") -- made, but not added yet
+local enemy = make("scenes/enemy.scene") -- make a piece, but do not add it now
 Enemies:add(enemy)
 
 destroy()                                -- remove this piece
 ```
 
-`destroy()` removes a piece and everything inside it at the end of the
-frame. `remove()` takes a piece out straight away without destroying it,
-so you can `add` it somewhere else.
+`destroy()` removes a piece and all the pieces in it, at the end of the
+frame. `remove()` takes a piece out immediately, but does not destroy it.
+Then you can use `add` to put it in a different place.
 
 <!-- api:Scenes -->
 | Call | |
@@ -73,45 +77,54 @@ so you can `add` it somewhere else.
 
 ## Changing scenes
 
-`go("scenes/level2.scene")` switches to another scene at the end of the
-frame. Any extra values are handed to the new scene's root, in its
+`go("scenes/level2.scene")` changes to a different scene at the end of the
+frame. `go()` gives its extra values to the root of the new scene, in its
 `ready(...)`:
 
 ```lua
 go("scenes/gameover.scene", score)
 
--- on the game over scene's root piece
+-- on the root piece of the game over scene
 function ready(score)
   find("Score").text = `Score: {score}`
 end
 ```
 
-`reload()` starts the current scene again. `transition("fade", 0.4)` makes
-scene changes fade through black (or another color:
-`transition("fade", 0.4, {1, 1, 1})`), and `transition("none")` goes back
-to instant cuts.
+`reload()` starts the current scene again.
+
+- `transition("fade", 0.4)` makes the screen fade to black and back when
+  the scene changes.
+- `transition("fade", 0.4, {1, 1, 1})` fades through a different color.
+- `transition("none")` makes the scene change immediately again.
 
 ## The game table
 
-Everything in a scene is gone when it ends. `game` is a table every script
-can use that lasts for the whole time the game runs, which makes it the
-place for things like lives and score:
+When a scene ends, all the values in it go away. `game` is a table that
+all scripts can use. It stays while the game runs. Because of this, it is
+the correct place for values such as lives and the score:
 
 ```lua
 game.lives = (game.lives or 3) - 1
 ```
 
-To keep something after the game closes, [save](saving.md) it.
+To keep a value after the game closes, [save](saving.md) it.
 
 ## Pausing and slow motion
 
-`pauseGame()` stops pieces' `update` and `physicsUpdate`, physics,
-animations, timers and tweens; the screen still draws and UI still
-responds. Pieces whose **pausable** setting is off, and everything inside
-them, keep running, so put your pause menu inside one:
+`pauseGame()` stops these:
+
+- `update` and `physicsUpdate` of the pieces
+- physics
+- animations
+- timers
+- tweens
+
+The screen continues to draw, and the UI continues to work. Some pieces
+continue to run: a piece with its **pausable** property off, and all the
+pieces in it. Put your pause menu inside such a piece:
 
 ```lua
--- on a Group with pausable off, holding the pause menu
+-- on a Group with pausable off. The pause menu is in this Group.
 function update(dt)
   if pressed("pause") then
     if isPaused() then resumeGame() else pauseGame() end
@@ -120,8 +133,9 @@ function update(dt)
 end
 ```
 
-`timeScale(0.5)` runs the game at half speed for a slow-motion moment, and
-`timeScale(1)` puts it back. Music keeps playing normally through both.
+`timeScale(0.5)` makes the game run at half speed, for slow motion.
+`timeScale(1)` makes the speed normal again. Music plays at its normal
+speed at all time scales.
 
 ## Every piece
 
@@ -159,36 +173,44 @@ end
 | `function removed()` | The piece is leaving the scene. |
 <!-- end -->
 
-Every piece also has `name`, `type`, `parent`, `children` and `script`.
+All pieces also have `name`, `type`, `parent`, `children` and `script`.
 
 ## Position, size and drawing order
 
-Pieces that appear in the world (Group and everything based on it) have
-`x`, `y`, `rotation`, `scaleX`, `scaleY`, `visible`, `tint` and `layer`.
-Positions are measured from the parent piece, and `y` grows downwards.
-Higher layers draw on top.
+Group, and each piece type that has Group as its base, are pieces that you
+can see in the scene. These pieces have `x`, `y`, `rotation`, `scaleX`, `scaleY`,
+`visible`, `tint` and `layer`. A position is relative to the parent piece. `y`
+increases downwards. A piece on a higher layer is on top of a piece on a
+lower layer.
 
 ### Angles
 
-Every angle is in degrees, clockwise: `rotation = 90` is a quarter turn,
-and 0 points right. That goes for everything a script meets: `rotation`,
-`angleTo()`, a Body's `spin` (degrees a second), a Joint's `minAngle`, a
-Particles piece's `direction`, and the Inspector shows the same numbers.
+All angles are in degrees, clockwise. `rotation = 90` is a quarter turn,
+and 0 points to the right. This is true for all the angles in scripts:
+
+- `rotation`
+- `angleTo()`
+- `spin` of a Body (degrees each second)
+- `minAngle` of a Joint
+- `direction` of a Particles piece
+
+The Inspector shows the same numbers.
 
 ```lua
-rotation = angleTo(first("player"))           -- face the player
-rotation += 180 * dt                            -- half a turn a second
+rotation = angleTo(first("player"))           -- point to the player
+rotation += 180 * dt                            -- half a turn each second
 
--- Fly the way the piece faces: the x and y of a step at an angle.
+-- Move in the direction that the piece points to: the x and y of a step at an angle.
 vx, vy = smitten.math.direction(rotation, 300)
 
--- And back: the angle of a direction.
+-- The opposite: the angle of a direction.
 rotation = smitten.math.angle(vx, vy)
 ```
 
-Lua's own `math.sin` and `math.cos` take radians, so give them
-`math.rad(angle)`; `math.deg(radians)` goes the other way. The low-level
-`smitten.graphics` calls (`rotate`, `draw`) take radians too.
+The Lua functions `math.sin` and `math.cos` use radians. Give them
+`math.rad(angle)`. `math.deg(radians)` changes radians to degrees. The
+low-level `smitten.graphics` functions (`rotate`, `draw`) also use
+radians.
 
 <!-- piece:Group -->
 | Property | Type | Default | |

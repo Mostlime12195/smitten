@@ -1,75 +1,82 @@
 # Editor tools
 
-For people extending the editor itself: a tool opens some kinds of files
-(the sprite editor, the sound editor) and can add entries to the New menu.
+This page is for developers who add tools to the editor. A tool opens some
+types of files (for example, the sprite editor and the sound editor). A
+tool can also add entries to the **New** menu.
 
-Each tool is an ES module in `web/editor/tools/<id>/index.js`, listed in
-`web/editor/tools/index.js`, whose default export is:
+Each tool is an ES module in `web/editor/tools/<id>/index.js`.
+`web/editor/tools/index.js` has a list of the tools. The default export of
+a tool module is:
 
 ```js
 export default {
   id: 'sprite',
   label: 'Sprite editor',
-  // Which files the tool opens (instead of the code editor or preview).
+  // The files that the tool opens (in place of the code editor or the preview).
   match: (path) => /\.png$/i.test(path),
-  // Entries for the "New" menu in the file panel.
+  // Entries for the "New" menu in the Files panel.
   newAssets: [{
     label: 'Sprite',
-    folder: 'sprites',              // suggested folder
-    extension: '.png',              // the file the tool then opens
-    files: (base) => ({             // base: chosen path without extension
+    folder: 'sprites',              // the default folder
+    extension: '.png',              // the file that the tool opens after this
+    files: (base) => ({             // base: the path that the user chose, without the extension
       [`${base}.png`]: pngBytes,
       [`${base}.sprite`]: jsonText,
     }),
   }],
-  // Create an instance for one open file.
+  // Make an instance for one open file.
   open(host) { return instance; },
 };
 ```
 
-`host` (one per opened file):
+`host` (one for each open file):
 
 | Member | Meaning |
 | --- | --- |
-| `host.path` | The opened file |
-| `host.read(path)` | A project file's contents (`string` for text, `Uint8Array` for binary), or `undefined` |
-| `host.write(path, data)` | Promise; creates or replaces a project file |
-| `host.exists(path)` | |
-| `host.list()` | Every file path in the project |
-| `host.setDirty(dirty)` | Marks the tab as having unsaved changes |
-| `host.palette()` | The project palette (`['#rrggbb', ...]`) |
-| `host.project()` | The parsed `smitten.json` (with defaults) |
-| `host.synth()` | Promise of the synthesizer (below) |
-| `host.toast(message, {type})` | `type`: `'info'`, `'success'`, `'error'` |
-| `host.openFile(path)` | Open another file in a tab |
-| `host.ui` | `ui.js`'s helpers (`h`, `icon`, `showMenu`, `promptDialog`, ...) |
+| `host.path` | The open file |
+| `host.read(path)` | The contents of a project file (`string` for text, `Uint8Array` for binary), or `undefined` |
+| `host.write(path, data)` | A promise. It makes or replaces a project file |
+| `host.exists(path)` | True if the project file exists |
+| `host.list()` | All the file paths in the project |
+| `host.setDirty(dirty)` | Marks the tab: it has changes that are not saved |
+| `host.palette()` | The palette of the project (`['#rrggbb', ...]`) |
+| `host.project()` | The parsed `smitten.json` (with the defaults) |
+| `host.synth()` | A promise of the synthesizer (see below) |
+| `host.toast(message, {type})` | Shows a short message. `type`: `'info'`, `'success'`, `'error'` |
+| `host.openFile(path)` | Opens a different file in a tab |
+| `host.ui` | The helper functions of `ui.js` (`h`, `icon`, `showMenu`, `promptDialog`, ...) |
 
 `instance`:
 
 | Member | Meaning |
 | --- | --- |
-| `element` | The tool's root element, shown in the editor area |
-| `save()` | Promise; writes the tool's files with `host.write` |
+| `element` | The root element of the tool. The editor shows it in the editor area |
+| `save()` | A promise. It writes the files of the tool with `host.write` |
 | `focus()` | Optional |
-| `show()` / `hide()` | Optional; called when its tab is selected or left |
-| `reload(path)` | Optional; called with the path of any project file that changed outside the tool |
-| `destroy()` | Called when the tab closes |
-| `handleKey(event)` | Optional; return `true` if the tool used the key |
+| `show()` / `hide()` | Optional. The editor calls them when you select the tab of the tool, and when you go to a different tab |
+| `reload(path)` | Optional. The editor calls it with the path of a project file that changed outside the tool |
+| `destroy()` | The editor calls it when the tab closes |
+| `handleKey(event)` | Optional. Return `true` if the tool used the key |
 
-The editor saves dirty tools on Ctrl+S, before running the game, and on
-close (after asking). Tools style themselves with the editor's CSS
-variables (`editor.css`), so light and dark themes work.
+The editor saves tools with changes that are not saved at these times:
+
+- when you press Ctrl+S.
+- before the game runs.
+- when you close the tab (after a question).
+
+Tools use the CSS variables of the editor (`editor.css`) for their style.
+Because of this, light and dark themes work.
 
 ### Synthesizer in the editor
 
-`host.synth()` resolves to:
+`host.synth()` resolves to this object:
 
 ```js
 synth.renderSfx(params)          // -> Float32Array, 44100 Hz mono
-synth.renderSong(song, readSfx)  // readSfx(path as written in the song) -> params or null; -> Float32Array
+synth.renderSong(song, readSfx)  // readSfx(the path as the song has it) -> params or null; -> Float32Array
 synth.play(samples)              // plays through WebAudio; returns {stop()}
 synth.sampleRate                 // 44100
 ```
 
-It's the same C++ code as the engine's, compiled to `synth.mjs`, so
-previews sound exactly like the game.
+It is the same C++ code as the code in the engine, compiled to
+`synth.mjs`. Because of this, previews sound the same as the game.

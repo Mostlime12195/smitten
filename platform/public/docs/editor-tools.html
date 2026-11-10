@@ -29,61 +29,63 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Editor tools</h1>
-<p>For people extending the editor itself: a tool opens some kinds of files (the sprite editor, the sound editor) and can add entries to the New menu.</p>
-<p>Each tool is an ES module in <code>web/editor/tools/&lt;id&gt;/index.js</code>, listed in <code>web/editor/tools/index.js</code>, whose default export is:</p>
+<p>This page is for developers who add tools to the editor. A tool opens some types of files (for example, the sprite editor and the sound editor). A tool can also add entries to the <strong>New</strong> menu.</p>
+<p>Each tool is an ES module in <code>web/editor/tools/&lt;id&gt;/index.js</code>. <code>web/editor/tools/index.js</code> has a list of the tools. The default export of a tool module is:</p>
 <pre><code class="lang-js">export default {
   id: 'sprite',
   label: 'Sprite editor',
-  // Which files the tool opens (instead of the code editor or preview).
+  // The files that the tool opens (in place of the code editor or the preview).
   match: (path) =&gt; /\.png$/i.test(path),
-  // Entries for the &quot;New&quot; menu in the file panel.
+  // Entries for the &quot;New&quot; menu in the Files panel.
   newAssets: [{
     label: 'Sprite',
-    folder: 'sprites',              // suggested folder
-    extension: '.png',              // the file the tool then opens
-    files: (base) =&gt; ({             // base: chosen path without extension
+    folder: 'sprites',              // the default folder
+    extension: '.png',              // the file that the tool opens after this
+    files: (base) =&gt; ({             // base: the path that the user chose, without the extension
       [`${base}.png`]: pngBytes,
       [`${base}.sprite`]: jsonText,
     }),
   }],
-  // Create an instance for one open file.
+  // Make an instance for one open file.
   open(host) { return instance; },
 };</code></pre>
-<p><code>host</code> (one per opened file):</p>
+<p><code>host</code> (one for each open file):</p>
 <div class="table"><table>
 <thead><tr><th>Member</th><th>Meaning</th></tr></thead>
-<tbody><tr><td><code>host.path</code></td><td>The opened file</td></tr>
-<tr><td><code>host.read(path)</code></td><td>A project file's contents (<code>string</code> for text, <code>Uint8Array</code> for binary), or <code>undefined</code></td></tr>
-<tr><td><code>host.write(path, data)</code></td><td>Promise; creates or replaces a project file</td></tr>
-<tr><td><code>host.exists(path)</code></td><td></td></tr>
-<tr><td><code>host.list()</code></td><td>Every file path in the project</td></tr>
-<tr><td><code>host.setDirty(dirty)</code></td><td>Marks the tab as having unsaved changes</td></tr>
-<tr><td><code>host.palette()</code></td><td>The project palette (<code>['#rrggbb', ...]</code>)</td></tr>
-<tr><td><code>host.project()</code></td><td>The parsed <code>smitten.json</code> (with defaults)</td></tr>
-<tr><td><code>host.synth()</code></td><td>Promise of the synthesizer (below)</td></tr>
-<tr><td><code>host.toast(message, {type})</code></td><td><code>type</code>: <code>'info'</code>, <code>'success'</code>, <code>'error'</code></td></tr>
-<tr><td><code>host.openFile(path)</code></td><td>Open another file in a tab</td></tr>
-<tr><td><code>host.ui</code></td><td><code>ui.js</code>'s helpers (<code>h</code>, <code>icon</code>, <code>showMenu</code>, <code>promptDialog</code>, ...)</td></tr></tbody>
+<tbody><tr><td><code>host.path</code></td><td>The open file</td></tr>
+<tr><td><code>host.read(path)</code></td><td>The contents of a project file (<code>string</code> for text, <code>Uint8Array</code> for binary), or <code>undefined</code></td></tr>
+<tr><td><code>host.write(path, data)</code></td><td>A promise. It makes or replaces a project file</td></tr>
+<tr><td><code>host.exists(path)</code></td><td>True if the project file exists</td></tr>
+<tr><td><code>host.list()</code></td><td>All the file paths in the project</td></tr>
+<tr><td><code>host.setDirty(dirty)</code></td><td>Marks the tab: it has changes that are not saved</td></tr>
+<tr><td><code>host.palette()</code></td><td>The palette of the project (<code>['#rrggbb', ...]</code>)</td></tr>
+<tr><td><code>host.project()</code></td><td>The parsed <code>smitten.json</code> (with the defaults)</td></tr>
+<tr><td><code>host.synth()</code></td><td>A promise of the synthesizer (see below)</td></tr>
+<tr><td><code>host.toast(message, {type})</code></td><td>Shows a short message. <code>type</code>: <code>'info'</code>, <code>'success'</code>, <code>'error'</code></td></tr>
+<tr><td><code>host.openFile(path)</code></td><td>Opens a different file in a tab</td></tr>
+<tr><td><code>host.ui</code></td><td>The helper functions of <code>ui.js</code> (<code>h</code>, <code>icon</code>, <code>showMenu</code>, <code>promptDialog</code>, ...)</td></tr></tbody>
 </table></div>
 <p><code>instance</code>:</p>
 <div class="table"><table>
 <thead><tr><th>Member</th><th>Meaning</th></tr></thead>
-<tbody><tr><td><code>element</code></td><td>The tool's root element, shown in the editor area</td></tr>
-<tr><td><code>save()</code></td><td>Promise; writes the tool's files with <code>host.write</code></td></tr>
+<tbody><tr><td><code>element</code></td><td>The root element of the tool. The editor shows it in the editor area</td></tr>
+<tr><td><code>save()</code></td><td>A promise. It writes the files of the tool with <code>host.write</code></td></tr>
 <tr><td><code>focus()</code></td><td>Optional</td></tr>
-<tr><td><code>show()</code> / <code>hide()</code></td><td>Optional; called when its tab is selected or left</td></tr>
-<tr><td><code>reload(path)</code></td><td>Optional; called with the path of any project file that changed outside the tool</td></tr>
-<tr><td><code>destroy()</code></td><td>Called when the tab closes</td></tr>
-<tr><td><code>handleKey(event)</code></td><td>Optional; return <code>true</code> if the tool used the key</td></tr></tbody>
+<tr><td><code>show()</code> / <code>hide()</code></td><td>Optional. The editor calls them when you select the tab of the tool, and when you go to a different tab</td></tr>
+<tr><td><code>reload(path)</code></td><td>Optional. The editor calls it with the path of a project file that changed outside the tool</td></tr>
+<tr><td><code>destroy()</code></td><td>The editor calls it when the tab closes</td></tr>
+<tr><td><code>handleKey(event)</code></td><td>Optional. Return <code>true</code> if the tool used the key</td></tr></tbody>
 </table></div>
-<p>The editor saves dirty tools on Ctrl+S, before running the game, and on close (after asking). Tools style themselves with the editor's CSS variables (<code>editor.css</code>), so light and dark themes work.</p>
+<p>The editor saves tools with changes that are not saved at these times:</p>
+<ul><li>when you press Ctrl+S.</li><li>before the game runs.</li><li>when you close the tab (after a question).</li></ul>
+<p>Tools use the CSS variables of the editor (<code>editor.css</code>) for their style. Because of this, light and dark themes work.</p>
 <h3 id="synthesizer-in-the-editor"><a class="anchor" href="#synthesizer-in-the-editor" aria-hidden="true">#</a>Synthesizer in the editor</h3>
-<p><code>host.synth()</code> resolves to:</p>
+<p><code>host.synth()</code> resolves to this object:</p>
 <pre><code class="lang-js">synth.renderSfx(params)          // -&gt; Float32Array, 44100 Hz mono
-synth.renderSong(song, readSfx)  // readSfx(path as written in the song) -&gt; params or null; -&gt; Float32Array
+synth.renderSong(song, readSfx)  // readSfx(the path as the song has it) -&gt; params or null; -&gt; Float32Array
 synth.play(samples)              // plays through WebAudio; returns {stop()}
 synth.sampleRate                 // 44100</code></pre>
-<p>It's the same C++ code as the engine's, compiled to <code>synth.mjs</code>, so previews sound exactly like the game.</p>
+<p>It is the same C++ code as the code in the engine, compiled to <code>synth.mjs</code>. Because of this, previews sound the same as the game.</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="formats"><span>Previous</span>File formats</a></nav>
   </main>

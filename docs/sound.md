@@ -1,16 +1,19 @@
 # Sound and music
 
-Smitten plays `.wav`, `.ogg`, `.mp3` and `.flac` files, plus the sound
-effects (`.sfx`) and songs (`.song`) you make in the editor's **Sound** and
-**Music** workspaces. There are two ways to play them: from a script with
-`sfx` and `music`, or with a **Sound** piece placed in a scene.
+Smitten plays `.wav`, `.ogg`, `.mp3` and `.flac` files. It also plays the
+sound effects (`.sfx`) and songs (`.song`) that you make in the **Sound**
+and **Music** workspaces of the editor. There are two methods to play
+them:
+
+- from a script, with `sfx` and `music`.
+- with a **Sound** piece in a scene.
 
 ```lua
-sfx("coin")                                -- finds coin.sfx (or coin.wav...) anywhere
+sfx("coin")                                -- finds coin.sfx (or coin.wav...) in all the project
 sfx("hit", { volume = 0.5, pitch = 0.9 + rnd(0.2) })
-music("theme")                             -- loops, and keeps playing between scenes
-music("boss", { fade = 1 })                -- fades from the old music to this one
-stopMusic(2)                               -- fades out over 2 seconds
+music("theme")                             -- plays again and again, also after the scene changes
+music("boss", { fade = 1 })                -- fades from the old music to this music
+stopMusic(2)                               -- fades out in 2 seconds
 ```
 
 <!-- api:Sound -->
@@ -26,31 +29,38 @@ stopMusic(2)                               -- fades out over 2 seconds
 
 ## Finding sounds
 
-Give a bare name like `"coin"` and Smitten finds the sound with that name
-anywhere in your project. If several files share the name, `.sfx` wins.
-A full path like `"sounds/coin.wav"` plays exactly that file.
+If you give only a name, for example `"coin"`, Smitten finds the sound with
+that name in all of your project. If more than one file has the name,
+Smitten uses the `.sfx` file. A full path, for example
+`"sounds/coin.wav"`, plays only that file.
 
-A little random pitch (`pitch = 0.9 + rnd(0.2)`) keeps repeated sounds,
-like footsteps or hits, from sounding mechanical. A pitch of 2 is an
-octave higher.
+Some random pitch (`pitch = 0.9 + rnd(0.2)`) makes sounds that play many
+times sound more natural, for example footsteps or hits. A pitch of 2 is
+one octave higher.
 
 ## Music
 
-`music(name)` loops a sound as background music, replacing whatever was
-playing. Asking for the music that's already playing changes nothing, so
-every level can safely call `music("theme")`. Music carries on across
-scene changes, and isn't stopped by pausing or slowed by `timeScale`.
+`music(name)` plays a sound again and again as background music. It
+replaces the music that played before. If you ask for the music that
+plays now, nothing changes. Because of this, each level can safely call
+`music("theme")`. Music continues when the scene changes. Pausing the game
+does not stop the music, and `timeScale` does not make it slower.
 
 ## The Sound piece
 
-A Sound piece plays one file, chosen in the Inspector. It's useful for
-sounds that belong to something in the level (a waterfall, an engine
-hum), for sounds that should start with the scene (**autoplay**), and for
-sounds a script controls in detail. Its `volume` and `pitch` can change
-while it plays, so you can tween them. It stops when it leaves the scene.
+A Sound piece plays one file. You choose the file in the Inspector. A
+Sound piece is good for these sounds:
+
+- sounds that belong to a thing in the level (for example, a waterfall or
+  the hum of an engine).
+- sounds that must start with the scene (**autoplay**).
+- sounds that a script starts, stops and changes in detail.
+
+Its `volume` and `pitch` can change while it plays. Because of this, you can tween
+them. The Sound piece stops when it goes out of the scene.
 
 ```lua
-function ready() fadeIn(2) end   -- an alarm that swells in
+function ready() fadeIn(2) end   -- an alarm that becomes louder
 ```
 
 <!-- piece:Sound -->
@@ -94,5 +104,5 @@ function ready() fadeIn(2) end   -- an alarm that swells in
 <!-- end -->
 
 `smitten.synth.sfx(path)` and `smitten.synth.song(path)` load `.sfx` and
-`.song` files as objects you can play and stop yourself
+`.song` files. They give objects that you can play and stop in your script
 ([File formats](formats.md#sound-effects-in-code)).

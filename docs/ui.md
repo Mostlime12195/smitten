@@ -1,73 +1,78 @@
 # UI
 
-UI pieces draw on top of the game, in screen pixels, and the camera
-doesn't move them, which suits scores, health bars and menus.
+UI pieces draw on top of the game, in screen pixels. The camera does not
+move them. Because of this, UI pieces are good for scores, health bars and menus.
 
 | | |
 | --- | --- |
 | To show | **Label** (text), **Bar** (health, progress), **Panel** (a box behind other UI), **Picture** |
-| To work | **Button**, **Slider**, **Checkbox** (a tick box, a switch, or one of a choice), **TextInput** (a box to type in) |
-| To lay out | **Row**, **Column**, **Grid**, **Scroll** (a list longer than the screen) |
+| To work | **Button**, **Slider**, **Checkbox** (a box to tick, a switch, or one item in a choice), **TextInput** (a box to type in) |
+| To lay out | **Row**, **Column**, **Grid**, **Scroll** (a list that is longer than the screen) |
 | For touch screens | **TouchStick** and **TouchButton** ([Input: Touch](input.md#touch)) |
 
-They are building blocks: a settings screen, an inventory or a chat box
-is some of these put together ([below](#a-settings-screen-from-these-parts)
-is one). A UI piece inside another is laid out inside it.
+These pieces are building blocks. A settings screen, an inventory or a chat
+box is a set of these pieces. There is an example
+[below](#a-settings-screen-from-these-parts). If a UI piece is inside a
+different UI piece, Smitten lays it out inside that piece.
 
 ## Layout
 
-Each UI piece is placed from an **anchor**: a corner, an edge, the
-center, or `fill` (the whole screen, or the whole of the UI piece it's
-inside). `x` and `y` are the distance in from that anchor. With the anchor
-`bottomRight` and `x`, `y` at 16, a piece sits 16 pixels in from the
-bottom-right corner on any screen size.
+Smitten puts each UI piece relative to an **anchor**. The anchor is a
+corner, an edge, the center, or `fill`. `fill` is all of the screen, or all
+of the UI piece that the piece is inside. `x` and `y` are the distance in
+from the anchor. For example, set the anchor to `bottomRight`. Then set
+`x` and `y` to 16. On all screen sizes, the piece is 16 pixels in from the
+bottom-right corner.
 
-Every setting can change while the game runs:
+You can change each property while the game runs:
 
 ```lua
 Message.text = "Level complete!"
 tween(Message, 0.3, { opacity = 1 })
 ```
 
-`getRect()` returns where a UI piece is on the screen right now, and
-`visible` and `opacity` hide or fade it along with everything inside it.
+`getRect()` gives the position of a UI piece on the screen at this time.
+`visible` hides a UI piece and all the pieces in it. `opacity` fades a UI
+piece and all the pieces in it.
 
 ## Laying things out
 
-Placing every button of a menu by hand gets old. A **Row**, a **Column**
-or a **Grid** places the UI pieces directly inside it, in the order they
-are in the Scene panel:
+It takes a long time to put each button of a menu in its position. A
+**Row**, a **Column** or a **Grid** puts the UI pieces that are directly in
+it in a line. It uses the order of the pieces in the Scene panel:
 
 | | |
 | --- | --- |
 | **Row** | Left to right |
 | **Column** | Top to bottom |
-| **Grid** | In `columns`, row after row: an inventory, a level select |
-| **Scroll** | Top to bottom (or left to right) in a window that scrolls |
+| **Grid** | In `columns`, one row after the other: for example, an inventory or a level select screen |
+| **Scroll** | Top to bottom (or left to right), in a window that scrolls |
 
-Inside one of these, a piece keeps its `width` and `height`, and its
-anchor, `x` and `y` aren't used: move it by dragging it up or down in the
-Scene panel. The container itself is still placed by its own anchor, so a
-Column with the anchor `center` is a menu in the middle of any screen.
+In one of these containers, a piece keeps its `width` and `height`. The
+container does not use the anchor, `x` and `y` of the piece. To move the
+piece, drag it up or down in the Scene panel. The container itself uses
+its own anchor. Because of this, a Column with the anchor `center` is a menu in the
+middle of the screen, on all screen sizes.
 
-| Setting | What it does |
+| Property | What it does |
 | --- | --- |
-| `gap` | The room between one piece and the next |
-| `padding` | The room between the container's edges and the pieces |
-| `alignItems` | Across the way the pieces run: `start`, `center`, `end`, or `stretch` to make them all as tall as the Row (as wide as the Column) |
-| `justify` | Along the way they run, when there's room left: `start`, `center`, `end`, or `spaceBetween` to spread them from edge to edge |
-| `width`, `height` | 0 fits what's inside. Set one and the container is that big whatever it holds |
-| `grow` (on a piece inside) | Its share of the room left over in a Row or Column: one piece with `grow` 1 takes it all, two share it |
+| `gap` | The space between one piece and the next piece |
+| `padding` | The space between the edges of the container and the pieces |
+| `alignItems` | The position across the line of pieces: `start`, `center`, `end`, or `stretch`. `stretch` makes all the pieces as tall as the Row (or as wide as the Column) |
+| `justify` | The position along the line of pieces, when there is space that the pieces do not use: `start`, `center`, `end`, or `spaceBetween`. `spaceBetween` puts the pieces from one edge to the other edge, with equal spaces |
+| `width`, `height` | 0 makes the container fit the pieces in it. If you set a different value, the container has that size, independent of the pieces in it |
+| `grow` (on a piece in the container) | The part of the unused space in a Row or Column that the piece gets. If one piece has `grow` 1, it gets all the space. If two pieces have `grow` 1, they share it |
 
-Containers nest: a Column of Rows is a form, with a Label and a Slider in
-each Row. They draw nothing themselves; put one in a Panel for a
-background. They work the layout out again only when something inside
-them changes, so a big menu costs nothing while it sits there.
+You can put containers in containers. For example, a Column of Rows is a
+form, with a Label and a Slider in each Row. Containers do not draw
+anything. For a background, put the container in a Panel. A container
+calculates its layout again only when a piece in it changes. Because of this, a big
+menu that does not change does not make the game slower.
 
-Pieces made while the game runs line up like the rest:
+Smitten also puts pieces that you make while the game runs in the line:
 
 ```lua
--- On a Column: one Button for each saved game
+-- On a Column: make one Button for each saved game
 function ready()
   for i, name in ipairs(load("saves", {})) do
     local b = self:spawn("Button", { text = name })
@@ -78,22 +83,30 @@ end
 
 ### Scroll
 
-A **Scroll** is a window onto a list longer than itself. It stacks the
-pieces inside it like a Column, each as wide as the Scroll (with
-`direction` set to `horizontal`: like a Row, each as tall), and shows
-the part that fits. The mouse wheel scrolls it, and so does a drag or a
-flick with a finger or the mouse; moving the keyboard focus to a piece out
-of sight scrolls it into view. For a scrolling grid, put a Grid inside.
+A **Scroll** is a window on a list that is longer than the Scroll. It puts
+the pieces in it one below the other, as a Column does. Each piece is as
+wide as the Scroll. If you set `direction` to `horizontal`, the Scroll puts
+the pieces from left to right, as a Row does. Then each piece is as tall as
+the Scroll. The Scroll shows the part of the list that fits in it.
+
+These scroll the list:
+
+- the mouse wheel.
+- a drag or a flick with a finger or the mouse.
+- the keyboard focus: if the focus moves to a piece that you cannot see,
+  the Scroll scrolls to show that piece.
+
+For a grid that scrolls, put a Grid in the Scroll.
 
 ```lua
-List.scrollY = 0                 -- back to the top
-List:scrollTo(List.Item20)       -- just far enough to show a piece
+List.scrollY = 0                 -- go back to the top
+List:scrollTo(List.Item20)       -- scroll only as far as necessary to show a piece
 ```
 
 ## Buttons
 
-When a Button is clicked or tapped, its script's `clicked()` runs
-(Pictures and Panels get it too):
+When you click or tap a Button, the engine calls `clicked()` in its
+script. Pictures and Panels also get `clicked()`:
 
 ```lua
 -- On a "Play" button
@@ -102,23 +115,23 @@ function clicked()
 end
 ```
 
-From another script, listen with `Play:on("clicked", function() ... end)`.
-`pressed("jump")` is always the input call, in a Button's script as
-anywhere else.
+In a different script, use `Play:on("clicked", function() ... end)` to
+listen for the event. In the script of a Button, `pressed("jump")` is
+the input function, as in all other scripts.
 
 | | |
 | --- | --- |
-| `disabled` | Can't be pressed; drawn faded |
-| `isHovered()`, `isDown()` | The pointer is over it; it's held down |
-| `hovered()`, `unhovered()` | Events when the pointer arrives and leaves |
-| `smitten.mouse.isOverUI()` | The pointer is over any button or panel |
+| `disabled` | You cannot press the Button. Smitten draws it faded |
+| `isHovered()`, `isDown()` | `isHovered()`: the pointer is on the Button. `isDown()`: the pointer holds the Button down |
+| `hovered()`, `unhovered()` | Events when the pointer comes onto the Button and when it goes off |
+| `smitten.mouse.isOverUI()` | The pointer is on a button or a panel |
 
 ## Sliders
 
-A **Slider** picks a number between `min` and `max` by dragging its knob
-(or clicking anywhere on its track). `step` makes it move in jumps: 1 for
-whole numbers. Its script's `changed(value)` runs when the player moves
-it:
+A **Slider** sets a number between `min` and `max`. Drag its knob, or
+click a position on its track. `step` makes the knob move in steps: set it
+to 1 for whole numbers. When the player moves the Slider, the engine calls
+`changed(value)` in its script:
 
 ```lua
 -- On a Slider with min 0 and max 1
@@ -127,14 +140,15 @@ function changed(value)
 end
 ```
 
-Setting `value` from a script moves the knob without calling `changed()`.
-`vertical` turns it to run bottom to top.
+If a script sets `value`, the knob moves, but the engine does not call
+`changed()`. `vertical` turns the Slider, so that it goes from bottom to
+top.
 
 ## Checkboxes
 
-A **Checkbox** is a box to tick with words beside it; with `look` set to
-`switch` it's a switch that slides. `toggled(checked)` runs when it
-changes:
+A **Checkbox** is a box that you can tick, with words next to it. If you
+set `look` to `switch`, the Checkbox is a switch that slides. When the
+Checkbox changes, the engine calls `toggled(checked)`:
 
 ```lua
 function toggled(checked)
@@ -142,9 +156,10 @@ function toggled(checked)
 end
 ```
 
-For a choice of one among several (easy, normal, hard), give the
-Checkboxes the same `group` name. In a group, ticking one unticks the
-others inside the same piece, and they are drawn round:
+For a choice of one item from a set (easy, normal, hard), give the
+Checkboxes the same `group` name. In a group, when you tick one Checkbox,
+the other Checkboxes with that name in the same piece become unticked.
+Smitten draws Checkboxes in a group as circles:
 
 ```lua
 -- On each of three Checkboxes with group "difficulty"
@@ -155,86 +170,106 @@ end
 
 ## Typing boxes
 
-A **TextInput** is a box to type in. Click or tap it and type; on a phone
-the keyboard comes up. It has a caret, a selection (drag, or Shift with
-the arrow keys), Ctrl+A, copy, cut and paste, Home and End, and Ctrl with
-the arrows to jump a word.
+A **TextInput** is a box to type in. To type, click or tap the box. On a
+phone, the keyboard comes up. A TextInput has:
+
+- a caret.
+- a selection (drag, or use Shift with the arrow keys).
+- Ctrl+A, copy, cut and paste.
+- Home and End.
+- Ctrl with the arrow keys, to go to the next word.
 
 ```lua
 -- On a TextInput
-function submitted(text)       -- Enter
+function submitted(text)       -- the player pressed Enter
   print("Hello, " .. text)
 end
 ```
 
-| Setting | What it does |
+| Property | What it does |
 | --- | --- |
-| `placeholder` | Faint words while it's empty: "Your name" |
-| `maxLength` | The most characters it takes |
-| `allow` | `numbers`, `letters`, or `only` the characters in `allowCharacters` |
-| `secret` | Dots instead of characters |
-| `multiline` | Several lines: Enter starts a new one, and Ctrl+Enter submits |
+| `placeholder` | Faint words when the box is empty: "Your name" |
+| `maxLength` | The maximum number of characters in the box |
+| `allow` | `numbers`, `letters`, or `only` (only the characters in `allowCharacters`) |
+| `secret` | Shows dots, not the characters |
+| `multiline` | More than one line: Enter starts a new line, and Ctrl+Enter submits |
 
-`changed(text)` runs on every edit, `submitted(text)` on Enter, and
-`focused()` and `blurred()` when typing starts and stops. `text` is what's
-in it: read it or set it at any time.
+The engine calls these functions:
 
-While a TextInput is being typed in, the keys go to it and not to the
-game: typing "w" doesn't walk, and `pressed("jump")` doesn't fire on the
-space bar. Typing ends with Escape, Tab (on to the next piece), a click
-somewhere else, or `blur()`.
+- `changed(text)`: after each change.
+- `submitted(text)`: when the player presses Enter.
+- `focused()`: when typing starts.
+- `blurred()`: when typing stops.
 
-For text input of your own making, without a piece,
-[`typed()`](input.md#typing) is what this is built on.
+`text` is the text in the box. You can read it or set it at all times.
+
+While the player types in a TextInput, the keys go to the TextInput and
+not to the game. For example, "w" does not make the player walk, and the
+space bar does not make `pressed("jump")` true. Typing stops when one of
+these occurs:
+
+- The player presses Escape.
+- The player presses Tab. The focus goes to the next piece.
+- The player clicks a different position.
+- A script calls `blur()`.
+
+The TextInput uses [`typed()`](input.md#typing). To make your own text
+input without a piece, use `typed()`.
 
 ## Skins
 
-Panels, Buttons, TextInputs and Sliders are drawn as plain colored shapes
-until you give them a **skin**: a picture to draw instead. A skin is
-stretched in a way that keeps its corners: `skinEdges` says how many
-pixels at each edge stay their own size, and only the middle stretches.
-One 24 × 24 picture of a wooden frame with `skinEdges` at 8 makes a panel
-of any size with crisp corners.
+Smitten draws Panels, Buttons, TextInputs and Sliders as plain shapes in a
+color. To draw a picture instead, give the piece a **skin**. When Smitten
+stretches a skin, the corners keep their shape. `skinEdges` sets how many
+pixels at each edge keep their size. Only the middle stretches. For
+example, take a 24 × 24 picture of a wooden frame, and set `skinEdges` to
+8. This makes a panel of any size with sharp corners.
 
 | | |
 | --- | --- |
 | `skin` | The picture |
 | `skinEdges` | `8` for all four edges, or `8, 4, 8, 12`: left, top, right, bottom |
-| `skinHover`, `skinDown` (Button) | Pictures for under the pointer and held down. Without them the skin is drawn a little lighter and darker |
-| `knobImage` (Slider) | A picture for the knob; `skin` is the track, and `color` tints the filled part |
-| `skin`, `skinChecked` (Checkbox) | Pictures for the box, unticked and ticked |
+| `skinHover`, `skinDown` (Button) | Pictures for when the pointer is on the Button, and for when the Button is down. Without them, Smitten draws the skin a little lighter or darker |
+| `knobImage` (Slider) | A picture for the knob. `skin` is the track. `color` tints the filled part |
+| `skin`, `skinChecked` (Checkbox) | Pictures for the box when it is not ticked and when it is ticked |
 
-In a project whose display is set to pixel, skins aren't smoothed, like
-every other picture.
+If the display setting of the project is pixel, Smitten does not smooth
+the skins. This is the same for all pictures.
 
 ## Menus for keyboards and gamepads
 
-Turn on **autofocus** on a Button (or a Slider, Checkbox or TextInput)
-and it has the focus when the scene starts. The arrow keys, d-pad and
-stick then move the focus to the nearest piece in that direction, Tab and
-Shift+Tab step through them in order, and the focused piece shows a ring:
+If you turn on **autofocus** on a Button, the Button has the focus when the
+scene starts. This is also possible on a Slider, a Checkbox or a
+TextInput. Then:
 
-| Focused piece | What the keys do |
+- The arrow keys, the d-pad and the stick move the focus to the nearest
+  piece in that direction.
+- Tab and Shift+Tab move the focus through the pieces in their order.
+- The piece with the focus shows a ring.
+
+| Piece with the focus | What the keys do |
 | --- | --- |
 | Button | Enter, Space or gamepad A press it |
-| Checkbox | Enter, Space or gamepad A flip it |
-| Slider | Left and right move it (up and down for a vertical one); hold to keep going |
-| TextInput | Keys type. Up and down leave it for the piece that way, Tab goes to the next, Escape or gamepad B ends the typing |
+| Checkbox | Enter, Space or gamepad A change it to ticked or not ticked |
+| Slider | Left and right move it (up and down for a vertical Slider). Hold the key to continue |
+| TextInput | Keys type. Up and down go to the piece in that direction. Tab goes to the next piece. Escape or gamepad B stops the typing |
 
-Clicking a piece also focuses it, and `focus()` moves the focus from a
-script. While nothing has focus, the arrow keys go to the game as usual.
+When you click a piece, it also gets the focus. In a script, `focus()`
+moves the focus to the piece. When no piece has the focus, the arrow keys
+go to the game as usual.
 
-Any player's keys and gamepad work a menu. If a piece, or one it's
-inside, has a `player` ([More than one player](input.md#more-than-one-player)),
-only that player's input does: a menu each for split screen.
+All players can use a menu with their keys and gamepads. If a piece has a
+`player` ([More than one player](input.md#more-than-one-player)), only that
+player can use it. This is also true for the pieces inside
+it. Because of this, you can make a menu for each player on a split screen.
 
-UI keeps working while the game is paused, which is what pause menus
-need ([Pausing](scenes.md#pausing-and-slow-motion)).
+UI continues to work while the game is paused. Pause menus need this
+([Pausing](scenes.md#pausing-and-slow-motion)).
 
 ## A settings screen from these parts
 
-Nothing here is a ready-made options menu; this one is built from the
-pieces above, and yours can be shaped however your game needs.
+Smitten does not have a ready-made settings menu. This example uses the
+pieces above. You can make your menu in the shape that your game needs.
 
 ```
 Panel      Settings    anchor center, 360 × 250
@@ -250,9 +285,10 @@ Panel      Settings    anchor center, 360 × 250
   └ Button   Back        text "Back", autofocus on
 ```
 
-The Column stretches each row to its own width, and `grow` gives the
-Slider and the TextInput whatever the Labels leave. All of that is set in
-the Inspector. Three short scripts make it work:
+The Column stretches each Row to the width of the Column. `grow` gives the
+Slider and the TextInput the space that the Labels do not use. You set all
+of these properties in the Inspector. Three short scripts make the menu
+work:
 
 ```lua
 -- On the Volume slider
@@ -284,7 +320,7 @@ function ready()
   text = load("name", "")
 end
 
-function blurred()          -- typing ended: Enter, Escape, Tab or a click away
+function blurred()          -- typing stopped: Enter, Escape, Tab or a click on a different position
   save("name", text)
 end
 
@@ -293,8 +329,8 @@ function submitted()
 end
 ```
 
-With a gamepad or the arrow keys, the focus starts on Back and moves up
-through the box, the switch and the slider.
+With a gamepad or the arrow keys, the focus starts on Back. Then it moves
+up through the Name box, the switch and the slider.
 
 <!-- piece:UI -->
 | Property | Type | Default | |
@@ -321,10 +357,13 @@ through the box, the switch and the slider.
 
 ## Label
 
-A Label's words can do everything on the [Text](text.md) page: tags for
-colors, sizes and effects inside the text (turn on `rich`), an outline or
-a shadow, shrinking to fit (`fit`), typing themselves out (`reveal()`),
-and links that call `linkPressed(name)`.
+The text of a Label can do all the things on the [Text](text.md) page:
+
+- tags for colors, sizes and effects in the text (turn on `rich`).
+- an outline or a shadow.
+- a smaller size, to fit in the Label (`fit`).
+- one character after the other comes onto the screen (`reveal()`).
+- links that call `linkPressed(name)`.
 
 <!-- piece:Label -->
 | Property | Type | Default | |
@@ -617,8 +656,9 @@ and links that call `linkPressed(name)`.
 
 ## TouchStick
 
-A stick for a thumb: it pushes input actions like a gamepad's stick.
-[Input: Touch](input.md#touch) shows how to lay out touch controls.
+A stick for a thumb. It pushes input actions, as the stick of a gamepad
+does. [Input: Touch](input.md#touch) shows how to put touch buttons and
+sticks on the screen.
 
 <!-- piece:TouchStick -->
 | Property | Type | Default | |
@@ -650,7 +690,8 @@ A stick for a thumb: it pushes input actions like a gamepad's stick.
 
 ## TouchButton
 
-A button for a finger: it holds an input action down while it's held.
+A button for a finger. While a finger holds the TouchButton down, the
+input action is down.
 
 <!-- piece:TouchButton -->
 | Property | Type | Default | |

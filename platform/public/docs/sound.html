@@ -29,12 +29,13 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Sound and music</h1>
-<p>Smitten plays <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> and <code>.flac</code> files, plus the sound effects (<code>.sfx</code>) and songs (<code>.song</code>) you make in the editor's <strong>Sound</strong> and <strong>Music</strong> workspaces. There are two ways to play them: from a script with <code>sfx</code> and <code>music</code>, or with a <strong>Sound</strong> piece placed in a scene.</p>
-<pre><code class="lang-lua"><span class="tk-f">sfx</span>(<span class="tk-s">&quot;coin&quot;</span>)                                <span class="tk-c">-- finds coin.sfx (or coin.wav...) anywhere</span>
+<p>Smitten plays <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> and <code>.flac</code> files. It also plays the sound effects (<code>.sfx</code>) and songs (<code>.song</code>) that you make in the <strong>Sound</strong> and <strong>Music</strong> workspaces of the editor. There are two methods to play them:</p>
+<ul><li>from a script, with <code>sfx</code> and <code>music</code>.</li><li>with a <strong>Sound</strong> piece in a scene.</li></ul>
+<pre><code class="lang-lua"><span class="tk-f">sfx</span>(<span class="tk-s">&quot;coin&quot;</span>)                                <span class="tk-c">-- finds coin.sfx (or coin.wav...) in all the project</span>
 <span class="tk-f">sfx</span>(<span class="tk-s">&quot;hit&quot;</span>, { volume = <span class="tk-n">0.5</span>, pitch = <span class="tk-n">0.9</span> + <span class="tk-f">rnd</span>(<span class="tk-n">0.2</span>) })
-<span class="tk-f">music</span>(<span class="tk-s">&quot;theme&quot;</span>)                             <span class="tk-c">-- loops, and keeps playing between scenes</span>
-<span class="tk-f">music</span>(<span class="tk-s">&quot;boss&quot;</span>, { fade = <span class="tk-n">1</span> })                <span class="tk-c">-- fades from the old music to this one</span>
-<span class="tk-f">stopMusic</span>(<span class="tk-n">2</span>)                               <span class="tk-c">-- fades out over 2 seconds</span></code></pre>
+<span class="tk-f">music</span>(<span class="tk-s">&quot;theme&quot;</span>)                             <span class="tk-c">-- plays again and again, also after the scene changes</span>
+<span class="tk-f">music</span>(<span class="tk-s">&quot;boss&quot;</span>, { fade = <span class="tk-n">1</span> })                <span class="tk-c">-- fades from the old music to this music</span>
+<span class="tk-f">stopMusic</span>(<span class="tk-n">2</span>)                               <span class="tk-c">-- fades out in 2 seconds</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Call</th><th></th></tr></thead>
 <tbody><tr><td><code>sfx(name, volume, pitch)</code></td><td>Plays a sound once: sfx(&quot;coin&quot;) finds coin.sfx (or .wav, .ogg...) anywhere; sfx(&quot;hit&quot;, { volume = 0.5, pitch = 1.2 }).</td></tr>
@@ -45,13 +46,15 @@
 <tr><td><code>masterVolume(volume)</code></td><td>Every sound's volume, 0 to 1; masterVolume() reads it.</td></tr></tbody>
 </table></div>
 <h2 id="finding-sounds"><a class="anchor" href="#finding-sounds" aria-hidden="true">#</a>Finding sounds</h2>
-<p>Give a bare name like <code>&quot;coin&quot;</code> and Smitten finds the sound with that name anywhere in your project. If several files share the name, <code>.sfx</code> wins. A full path like <code>&quot;sounds/coin.wav&quot;</code> plays exactly that file.</p>
-<p>A little random pitch (<code>pitch = 0.9 + rnd(0.2)</code>) keeps repeated sounds, like footsteps or hits, from sounding mechanical. A pitch of 2 is an octave higher.</p>
+<p>If you give only a name, for example <code>&quot;coin&quot;</code>, Smitten finds the sound with that name in all of your project. If more than one file has the name, Smitten uses the <code>.sfx</code> file. A full path, for example <code>&quot;sounds/coin.wav&quot;</code>, plays only that file.</p>
+<p>Some random pitch (<code>pitch = 0.9 + rnd(0.2)</code>) makes sounds that play many times sound more natural, for example footsteps or hits. A pitch of 2 is one octave higher.</p>
 <h2 id="music"><a class="anchor" href="#music" aria-hidden="true">#</a>Music</h2>
-<p><code>music(name)</code> loops a sound as background music, replacing whatever was playing. Asking for the music that's already playing changes nothing, so every level can safely call <code>music(&quot;theme&quot;)</code>. Music carries on across scene changes, and isn't stopped by pausing or slowed by <code>timeScale</code>.</p>
+<p><code>music(name)</code> plays a sound again and again as background music. It replaces the music that played before. If you ask for the music that plays now, nothing changes. Because of this, each level can safely call <code>music(&quot;theme&quot;)</code>. Music continues when the scene changes. Pausing the game does not stop the music, and <code>timeScale</code> does not make it slower.</p>
 <h2 id="the-sound-piece"><a class="anchor" href="#the-sound-piece" aria-hidden="true">#</a>The Sound piece</h2>
-<p>A Sound piece plays one file, chosen in the Inspector. It's useful for sounds that belong to something in the level (a waterfall, an engine hum), for sounds that should start with the scene (<strong>autoplay</strong>), and for sounds a script controls in detail. Its <code>volume</code> and <code>pitch</code> can change while it plays, so you can tween them. It stops when it leaves the scene.</p>
-<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>() <span class="tk-f">fadeIn</span>(<span class="tk-n">2</span>) <span class="tk-k">end</span>   <span class="tk-c">-- an alarm that swells in</span></code></pre>
+<p>A Sound piece plays one file. You choose the file in the Inspector. A Sound piece is good for these sounds:</p>
+<ul><li>sounds that belong to a thing in the level (for example, a waterfall or the hum of an engine).</li><li>sounds that must start with the scene (<strong>autoplay</strong>).</li><li>sounds that a script starts, stops and changes in detail.</li></ul>
+<p>Its <code>volume</code> and <code>pitch</code> can change while it plays. Because of this, you can tween them. The Sound piece stops when it goes out of the scene.</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>() <span class="tk-f">fadeIn</span>(<span class="tk-n">2</span>) <span class="tk-k">end</span>   <span class="tk-c">-- an alarm that becomes louder</span></code></pre>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>sound</code></td><td>resource</td><td>&quot;&quot;</td><td>The sound file.</td></tr>
@@ -87,7 +90,7 @@
 <tr><td><code>smitten.audio.resumeMusic()</code></td><td>Continues the music.</td></tr>
 <tr><td><code>smitten.audio.getMusic()</code></td><td>The Source playing the music, or nil.</td></tr></tbody>
 </table></div>
-<p><code>smitten.synth.sfx(path)</code> and <code>smitten.synth.song(path)</code> load <code>.sfx</code> and <code>.song</code> files as objects you can play and stop yourself (<a href="formats#sound-effects-in-code">File formats</a>).</p>
+<p><code>smitten.synth.sfx(path)</code> and <code>smitten.synth.song(path)</code> load <code>.sfx</code> and <code>.song</code> files. They give objects that you can play and stop in your script (<a href="formats#sound-effects-in-code">File formats</a>).</p>
     </article>
     <nav class="pager" aria-label="Pages"><a class="prev" href="input"><span>Previous</span>Input</a><a class="next" href="camera"><span>Next</span>Camera</a></nav>
   </main>

@@ -29,43 +29,43 @@
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>UI</h1>
-<p>UI pieces draw on top of the game, in screen pixels, and the camera doesn't move them, which suits scores, health bars and menus.</p>
+<p>UI pieces draw on top of the game, in screen pixels. The camera does not move them. Because of this, UI pieces are good for scores, health bars and menus.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td>To show</td><td><strong>Label</strong> (text), <strong>Bar</strong> (health, progress), <strong>Panel</strong> (a box behind other UI), <strong>Picture</strong></td></tr>
-<tr><td>To work</td><td><strong>Button</strong>, <strong>Slider</strong>, <strong>Checkbox</strong> (a tick box, a switch, or one of a choice), <strong>TextInput</strong> (a box to type in)</td></tr>
-<tr><td>To lay out</td><td><strong>Row</strong>, <strong>Column</strong>, <strong>Grid</strong>, <strong>Scroll</strong> (a list longer than the screen)</td></tr>
+<tr><td>To work</td><td><strong>Button</strong>, <strong>Slider</strong>, <strong>Checkbox</strong> (a box to tick, a switch, or one item in a choice), <strong>TextInput</strong> (a box to type in)</td></tr>
+<tr><td>To lay out</td><td><strong>Row</strong>, <strong>Column</strong>, <strong>Grid</strong>, <strong>Scroll</strong> (a list that is longer than the screen)</td></tr>
 <tr><td>For touch screens</td><td><strong>TouchStick</strong> and <strong>TouchButton</strong> (<a href="input#touch">Input: Touch</a>)</td></tr></tbody>
 </table></div>
-<p>They are building blocks: a settings screen, an inventory or a chat box is some of these put together (<a href="#a-settings-screen-from-these-parts">below</a> is one). A UI piece inside another is laid out inside it.</p>
+<p>These pieces are building blocks. A settings screen, an inventory or a chat box is a set of these pieces. There is an example <a href="#a-settings-screen-from-these-parts">below</a>. If a UI piece is inside a different UI piece, Smitten lays it out inside that piece.</p>
 <h2 id="layout"><a class="anchor" href="#layout" aria-hidden="true">#</a>Layout</h2>
-<p>Each UI piece is placed from an <strong>anchor</strong>: a corner, an edge, the center, or <code>fill</code> (the whole screen, or the whole of the UI piece it's inside). <code>x</code> and <code>y</code> are the distance in from that anchor. With the anchor <code>bottomRight</code> and <code>x</code>, <code>y</code> at 16, a piece sits 16 pixels in from the bottom-right corner on any screen size.</p>
-<p>Every setting can change while the game runs:</p>
+<p>Smitten puts each UI piece relative to an <strong>anchor</strong>. The anchor is a corner, an edge, the center, or <code>fill</code>. <code>fill</code> is all of the screen, or all of the UI piece that the piece is inside. <code>x</code> and <code>y</code> are the distance in from the anchor. For example, set the anchor to <code>bottomRight</code>. Then set <code>x</code> and <code>y</code> to 16. On all screen sizes, the piece is 16 pixels in from the bottom-right corner.</p>
+<p>You can change each property while the game runs:</p>
 <pre><code class="lang-lua">Message.text = <span class="tk-s">&quot;Level complete!&quot;</span>
 <span class="tk-f">tween</span>(Message, <span class="tk-n">0.3</span>, { opacity = <span class="tk-n">1</span> })</code></pre>
-<p><code>getRect()</code> returns where a UI piece is on the screen right now, and <code>visible</code> and <code>opacity</code> hide or fade it along with everything inside it.</p>
+<p><code>getRect()</code> gives the position of a UI piece on the screen at this time. <code>visible</code> hides a UI piece and all the pieces in it. <code>opacity</code> fades a UI piece and all the pieces in it.</p>
 <h2 id="laying-things-out"><a class="anchor" href="#laying-things-out" aria-hidden="true">#</a>Laying things out</h2>
-<p>Placing every button of a menu by hand gets old. A <strong>Row</strong>, a <strong>Column</strong> or a <strong>Grid</strong> places the UI pieces directly inside it, in the order they are in the Scene panel:</p>
+<p>It takes a long time to put each button of a menu in its position. A <strong>Row</strong>, a <strong>Column</strong> or a <strong>Grid</strong> puts the UI pieces that are directly in it in a line. It uses the order of the pieces in the Scene panel:</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><strong>Row</strong></td><td>Left to right</td></tr>
 <tr><td><strong>Column</strong></td><td>Top to bottom</td></tr>
-<tr><td><strong>Grid</strong></td><td>In <code>columns</code>, row after row: an inventory, a level select</td></tr>
-<tr><td><strong>Scroll</strong></td><td>Top to bottom (or left to right) in a window that scrolls</td></tr></tbody>
+<tr><td><strong>Grid</strong></td><td>In <code>columns</code>, one row after the other: for example, an inventory or a level select screen</td></tr>
+<tr><td><strong>Scroll</strong></td><td>Top to bottom (or left to right), in a window that scrolls</td></tr></tbody>
 </table></div>
-<p>Inside one of these, a piece keeps its <code>width</code> and <code>height</code>, and its anchor, <code>x</code> and <code>y</code> aren't used: move it by dragging it up or down in the Scene panel. The container itself is still placed by its own anchor, so a Column with the anchor <code>center</code> is a menu in the middle of any screen.</p>
+<p>In one of these containers, a piece keeps its <code>width</code> and <code>height</code>. The container does not use the anchor, <code>x</code> and <code>y</code> of the piece. To move the piece, drag it up or down in the Scene panel. The container itself uses its own anchor. Because of this, a Column with the anchor <code>center</code> is a menu in the middle of the screen, on all screen sizes.</p>
 <div class="table"><table>
-<thead><tr><th>Setting</th><th>What it does</th></tr></thead>
-<tbody><tr><td><code>gap</code></td><td>The room between one piece and the next</td></tr>
-<tr><td><code>padding</code></td><td>The room between the container's edges and the pieces</td></tr>
-<tr><td><code>alignItems</code></td><td>Across the way the pieces run: <code>start</code>, <code>center</code>, <code>end</code>, or <code>stretch</code> to make them all as tall as the Row (as wide as the Column)</td></tr>
-<tr><td><code>justify</code></td><td>Along the way they run, when there's room left: <code>start</code>, <code>center</code>, <code>end</code>, or <code>spaceBetween</code> to spread them from edge to edge</td></tr>
-<tr><td><code>width</code>, <code>height</code></td><td>0 fits what's inside. Set one and the container is that big whatever it holds</td></tr>
-<tr><td><code>grow</code> (on a piece inside)</td><td>Its share of the room left over in a Row or Column: one piece with <code>grow</code> 1 takes it all, two share it</td></tr></tbody>
+<thead><tr><th>Property</th><th>What it does</th></tr></thead>
+<tbody><tr><td><code>gap</code></td><td>The space between one piece and the next piece</td></tr>
+<tr><td><code>padding</code></td><td>The space between the edges of the container and the pieces</td></tr>
+<tr><td><code>alignItems</code></td><td>The position across the line of pieces: <code>start</code>, <code>center</code>, <code>end</code>, or <code>stretch</code>. <code>stretch</code> makes all the pieces as tall as the Row (or as wide as the Column)</td></tr>
+<tr><td><code>justify</code></td><td>The position along the line of pieces, when there is space that the pieces do not use: <code>start</code>, <code>center</code>, <code>end</code>, or <code>spaceBetween</code>. <code>spaceBetween</code> puts the pieces from one edge to the other edge, with equal spaces</td></tr>
+<tr><td><code>width</code>, <code>height</code></td><td>0 makes the container fit the pieces in it. If you set a different value, the container has that size, independent of the pieces in it</td></tr>
+<tr><td><code>grow</code> (on a piece in the container)</td><td>The part of the unused space in a Row or Column that the piece gets. If one piece has <code>grow</code> 1, it gets all the space. If two pieces have <code>grow</code> 1, they share it</td></tr></tbody>
 </table></div>
-<p>Containers nest: a Column of Rows is a form, with a Label and a Slider in each Row. They draw nothing themselves; put one in a Panel for a background. They work the layout out again only when something inside them changes, so a big menu costs nothing while it sits there.</p>
-<p>Pieces made while the game runs line up like the rest:</p>
-<pre><code class="lang-lua"><span class="tk-c">-- On a Column: one Button for each saved game</span>
+<p>You can put containers in containers. For example, a Column of Rows is a form, with a Label and a Slider in each Row. Containers do not draw anything. For a background, put the container in a Panel. A container calculates its layout again only when a piece in it changes. Because of this, a big menu that does not change does not make the game slower.</p>
+<p>Smitten also puts pieces that you make while the game runs in the line:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- On a Column: make one Button for each saved game</span>
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   <span class="tk-k">for</span> i, name <span class="tk-k">in</span> <span class="tk-f">ipairs</span>(<span class="tk-f">load</span>(<span class="tk-s">&quot;saves&quot;</span>, {})) <span class="tk-k">do</span>
     <span class="tk-k">local</span> b = self:<span class="tk-f">spawn</span>(<span class="tk-s">&quot;Button&quot;</span>, { text = name })
@@ -73,82 +73,91 @@
   <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h3 id="scroll"><a class="anchor" href="#scroll" aria-hidden="true">#</a>Scroll</h3>
-<p>A <strong>Scroll</strong> is a window onto a list longer than itself. It stacks the pieces inside it like a Column, each as wide as the Scroll (with <code>direction</code> set to <code>horizontal</code>: like a Row, each as tall), and shows the part that fits. The mouse wheel scrolls it, and so does a drag or a flick with a finger or the mouse; moving the keyboard focus to a piece out of sight scrolls it into view. For a scrolling grid, put a Grid inside.</p>
-<pre><code class="lang-lua">List.scrollY = <span class="tk-n">0</span>                 <span class="tk-c">-- back to the top</span>
-List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">-- just far enough to show a piece</span></code></pre>
+<p>A <strong>Scroll</strong> is a window on a list that is longer than the Scroll. It puts the pieces in it one below the other, as a Column does. Each piece is as wide as the Scroll. If you set <code>direction</code> to <code>horizontal</code>, the Scroll puts the pieces from left to right, as a Row does. Then each piece is as tall as the Scroll. The Scroll shows the part of the list that fits in it.</p>
+<p>These scroll the list:</p>
+<ul><li>the mouse wheel.</li><li>a drag or a flick with a finger or the mouse.</li><li>the keyboard focus: if the focus moves to a piece that you cannot see, the Scroll scrolls to show that piece.</li></ul>
+<p>For a grid that scrolls, put a Grid in the Scroll.</p>
+<pre><code class="lang-lua">List.scrollY = <span class="tk-n">0</span>                 <span class="tk-c">-- go back to the top</span>
+List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">-- scroll only as far as necessary to show a piece</span></code></pre>
 <h2 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h2>
-<p>When a Button is clicked or tapped, its script's <code>clicked()</code> runs (Pictures and Panels get it too):</p>
+<p>When you click or tap a Button, the engine calls <code>clicked()</code> in its script. Pictures and Panels also get <code>clicked()</code>:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On a &quot;Play&quot; button</span>
 <span class="tk-k">function</span> <span class="tk-f">clicked</span>()
   <span class="tk-f">go</span>(<span class="tk-s">&quot;scenes/level1.scene&quot;</span>)
 <span class="tk-k">end</span></code></pre>
-<p>From another script, listen with <code>Play:on(&quot;clicked&quot;, function() ... end)</code>. <code>pressed(&quot;jump&quot;)</code> is always the input call, in a Button's script as anywhere else.</p>
+<p>In a different script, use <code>Play:on(&quot;clicked&quot;, function() ... end)</code> to listen for the event. In the script of a Button, <code>pressed(&quot;jump&quot;)</code> is the input function, as in all other scripts.</p>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
-<tbody><tr><td><code>disabled</code></td><td>Can't be pressed; drawn faded</td></tr>
-<tr><td><code>isHovered()</code>, <code>isDown()</code></td><td>The pointer is over it; it's held down</td></tr>
-<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events when the pointer arrives and leaves</td></tr>
-<tr><td><code>smitten.mouse.isOverUI()</code></td><td>The pointer is over any button or panel</td></tr></tbody>
+<tbody><tr><td><code>disabled</code></td><td>You cannot press the Button. Smitten draws it faded</td></tr>
+<tr><td><code>isHovered()</code>, <code>isDown()</code></td><td><code>isHovered()</code>: the pointer is on the Button. <code>isDown()</code>: the pointer holds the Button down</td></tr>
+<tr><td><code>hovered()</code>, <code>unhovered()</code></td><td>Events when the pointer comes onto the Button and when it goes off</td></tr>
+<tr><td><code>smitten.mouse.isOverUI()</code></td><td>The pointer is on a button or a panel</td></tr></tbody>
 </table></div>
 <h2 id="sliders"><a class="anchor" href="#sliders" aria-hidden="true">#</a>Sliders</h2>
-<p>A <strong>Slider</strong> picks a number between <code>min</code> and <code>max</code> by dragging its knob (or clicking anywhere on its track). <code>step</code> makes it move in jumps: 1 for whole numbers. Its script's <code>changed(value)</code> runs when the player moves it:</p>
+<p>A <strong>Slider</strong> sets a number between <code>min</code> and <code>max</code>. Drag its knob, or click a position on its track. <code>step</code> makes the knob move in steps: set it to 1 for whole numbers. When the player moves the Slider, the engine calls <code>changed(value)</code> in its script:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On a Slider with min 0 and max 1</span>
 <span class="tk-k">function</span> <span class="tk-f">changed</span>(value)
   <span class="tk-f">masterVolume</span>(value)
 <span class="tk-k">end</span></code></pre>
-<p>Setting <code>value</code> from a script moves the knob without calling <code>changed()</code>. <code>vertical</code> turns it to run bottom to top.</p>
+<p>If a script sets <code>value</code>, the knob moves, but the engine does not call <code>changed()</code>. <code>vertical</code> turns the Slider, so that it goes from bottom to top.</p>
 <h2 id="checkboxes"><a class="anchor" href="#checkboxes" aria-hidden="true">#</a>Checkboxes</h2>
-<p>A <strong>Checkbox</strong> is a box to tick with words beside it; with <code>look</code> set to <code>switch</code> it's a switch that slides. <code>toggled(checked)</code> runs when it changes:</p>
+<p>A <strong>Checkbox</strong> is a box that you can tick, with words next to it. If you set <code>look</code> to <code>switch</code>, the Checkbox is a switch that slides. When the Checkbox changes, the engine calls <code>toggled(checked)</code>:</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">toggled</span>(checked)
   <span class="tk-f">fullscreen</span>(checked)
 <span class="tk-k">end</span></code></pre>
-<p>For a choice of one among several (easy, normal, hard), give the Checkboxes the same <code>group</code> name. In a group, ticking one unticks the others inside the same piece, and they are drawn round:</p>
+<p>For a choice of one item from a set (easy, normal, hard), give the Checkboxes the same <code>group</code> name. In a group, when you tick one Checkbox, the other Checkboxes with that name in the same piece become unticked. Smitten draws Checkboxes in a group as circles:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On each of three Checkboxes with group &quot;difficulty&quot;</span>
 <span class="tk-k">function</span> <span class="tk-f">toggled</span>(checked)
   <span class="tk-k">if</span> checked <span class="tk-k">then</span> game.difficulty = text <span class="tk-k">end</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="typing-boxes"><a class="anchor" href="#typing-boxes" aria-hidden="true">#</a>Typing boxes</h2>
-<p>A <strong>TextInput</strong> is a box to type in. Click or tap it and type; on a phone the keyboard comes up. It has a caret, a selection (drag, or Shift with the arrow keys), Ctrl+A, copy, cut and paste, Home and End, and Ctrl with the arrows to jump a word.</p>
+<p>A <strong>TextInput</strong> is a box to type in. To type, click or tap the box. On a phone, the keyboard comes up. A TextInput has:</p>
+<ul><li>a caret.</li><li>a selection (drag, or use Shift with the arrow keys).</li><li>Ctrl+A, copy, cut and paste.</li><li>Home and End.</li><li>Ctrl with the arrow keys, to go to the next word.</li></ul>
 <pre><code class="lang-lua"><span class="tk-c">-- On a TextInput</span>
-<span class="tk-k">function</span> <span class="tk-f">submitted</span>(text)       <span class="tk-c">-- Enter</span>
+<span class="tk-k">function</span> <span class="tk-f">submitted</span>(text)       <span class="tk-c">-- the player pressed Enter</span>
   <span class="tk-f">print</span>(<span class="tk-s">&quot;Hello, &quot;</span> .. text)
 <span class="tk-k">end</span></code></pre>
 <div class="table"><table>
-<thead><tr><th>Setting</th><th>What it does</th></tr></thead>
-<tbody><tr><td><code>placeholder</code></td><td>Faint words while it's empty: &quot;Your name&quot;</td></tr>
-<tr><td><code>maxLength</code></td><td>The most characters it takes</td></tr>
-<tr><td><code>allow</code></td><td><code>numbers</code>, <code>letters</code>, or <code>only</code> the characters in <code>allowCharacters</code></td></tr>
-<tr><td><code>secret</code></td><td>Dots instead of characters</td></tr>
-<tr><td><code>multiline</code></td><td>Several lines: Enter starts a new one, and Ctrl+Enter submits</td></tr></tbody>
+<thead><tr><th>Property</th><th>What it does</th></tr></thead>
+<tbody><tr><td><code>placeholder</code></td><td>Faint words when the box is empty: &quot;Your name&quot;</td></tr>
+<tr><td><code>maxLength</code></td><td>The maximum number of characters in the box</td></tr>
+<tr><td><code>allow</code></td><td><code>numbers</code>, <code>letters</code>, or <code>only</code> (only the characters in <code>allowCharacters</code>)</td></tr>
+<tr><td><code>secret</code></td><td>Shows dots, not the characters</td></tr>
+<tr><td><code>multiline</code></td><td>More than one line: Enter starts a new line, and Ctrl+Enter submits</td></tr></tbody>
 </table></div>
-<p><code>changed(text)</code> runs on every edit, <code>submitted(text)</code> on Enter, and <code>focused()</code> and <code>blurred()</code> when typing starts and stops. <code>text</code> is what's in it: read it or set it at any time.</p>
-<p>While a TextInput is being typed in, the keys go to it and not to the game: typing &quot;w&quot; doesn't walk, and <code>pressed(&quot;jump&quot;)</code> doesn't fire on the space bar. Typing ends with Escape, Tab (on to the next piece), a click somewhere else, or <code>blur()</code>.</p>
-<p>For text input of your own making, without a piece, <a href="input#typing"><code>typed()</code></a> is what this is built on.</p>
+<p>The engine calls these functions:</p>
+<ul><li><code>changed(text)</code>: after each change.</li><li><code>submitted(text)</code>: when the player presses Enter.</li><li><code>focused()</code>: when typing starts.</li><li><code>blurred()</code>: when typing stops.</li></ul>
+<p><code>text</code> is the text in the box. You can read it or set it at all times.</p>
+<p>While the player types in a TextInput, the keys go to the TextInput and not to the game. For example, &quot;w&quot; does not make the player walk, and the space bar does not make <code>pressed(&quot;jump&quot;)</code> true. Typing stops when one of these occurs:</p>
+<ul><li>The player presses Escape.</li><li>The player presses Tab. The focus goes to the next piece.</li><li>The player clicks a different position.</li><li>A script calls <code>blur()</code>.</li></ul>
+<p>The TextInput uses <a href="input#typing"><code>typed()</code></a>. To make your own text input without a piece, use <code>typed()</code>.</p>
 <h2 id="skins"><a class="anchor" href="#skins" aria-hidden="true">#</a>Skins</h2>
-<p>Panels, Buttons, TextInputs and Sliders are drawn as plain colored shapes until you give them a <strong>skin</strong>: a picture to draw instead. A skin is stretched in a way that keeps its corners: <code>skinEdges</code> says how many pixels at each edge stay their own size, and only the middle stretches. One 24 × 24 picture of a wooden frame with <code>skinEdges</code> at 8 makes a panel of any size with crisp corners.</p>
+<p>Smitten draws Panels, Buttons, TextInputs and Sliders as plain shapes in a color. To draw a picture instead, give the piece a <strong>skin</strong>. When Smitten stretches a skin, the corners keep their shape. <code>skinEdges</code> sets how many pixels at each edge keep their size. Only the middle stretches. For example, take a 24 × 24 picture of a wooden frame, and set <code>skinEdges</code> to</p>
+<ol><li>This makes a panel of any size with sharp corners.</li></ol>
 <div class="table"><table>
 <thead><tr><th></th><th></th></tr></thead>
 <tbody><tr><td><code>skin</code></td><td>The picture</td></tr>
 <tr><td><code>skinEdges</code></td><td><code>8</code> for all four edges, or <code>8, 4, 8, 12</code>: left, top, right, bottom</td></tr>
-<tr><td><code>skinHover</code>, <code>skinDown</code> (Button)</td><td>Pictures for under the pointer and held down. Without them the skin is drawn a little lighter and darker</td></tr>
-<tr><td><code>knobImage</code> (Slider)</td><td>A picture for the knob; <code>skin</code> is the track, and <code>color</code> tints the filled part</td></tr>
-<tr><td><code>skin</code>, <code>skinChecked</code> (Checkbox)</td><td>Pictures for the box, unticked and ticked</td></tr></tbody>
+<tr><td><code>skinHover</code>, <code>skinDown</code> (Button)</td><td>Pictures for when the pointer is on the Button, and for when the Button is down. Without them, Smitten draws the skin a little lighter or darker</td></tr>
+<tr><td><code>knobImage</code> (Slider)</td><td>A picture for the knob. <code>skin</code> is the track. <code>color</code> tints the filled part</td></tr>
+<tr><td><code>skin</code>, <code>skinChecked</code> (Checkbox)</td><td>Pictures for the box when it is not ticked and when it is ticked</td></tr></tbody>
 </table></div>
-<p>In a project whose display is set to pixel, skins aren't smoothed, like every other picture.</p>
+<p>If the display setting of the project is pixel, Smitten does not smooth the skins. This is the same for all pictures.</p>
 <h2 id="menus-for-keyboards-and-gamepads"><a class="anchor" href="#menus-for-keyboards-and-gamepads" aria-hidden="true">#</a>Menus for keyboards and gamepads</h2>
-<p>Turn on <strong>autofocus</strong> on a Button (or a Slider, Checkbox or TextInput) and it has the focus when the scene starts. The arrow keys, d-pad and stick then move the focus to the nearest piece in that direction, Tab and Shift+Tab step through them in order, and the focused piece shows a ring:</p>
+<p>If you turn on <strong>autofocus</strong> on a Button, the Button has the focus when the scene starts. This is also possible on a Slider, a Checkbox or a TextInput. Then:</p>
+<ul><li>The arrow keys, the d-pad and the stick move the focus to the nearest piece in that direction.</li><li>Tab and Shift+Tab move the focus through the pieces in their order.</li><li>The piece with the focus shows a ring.</li></ul>
 <div class="table"><table>
-<thead><tr><th>Focused piece</th><th>What the keys do</th></tr></thead>
+<thead><tr><th>Piece with the focus</th><th>What the keys do</th></tr></thead>
 <tbody><tr><td>Button</td><td>Enter, Space or gamepad A press it</td></tr>
-<tr><td>Checkbox</td><td>Enter, Space or gamepad A flip it</td></tr>
-<tr><td>Slider</td><td>Left and right move it (up and down for a vertical one); hold to keep going</td></tr>
-<tr><td>TextInput</td><td>Keys type. Up and down leave it for the piece that way, Tab goes to the next, Escape or gamepad B ends the typing</td></tr></tbody>
+<tr><td>Checkbox</td><td>Enter, Space or gamepad A change it to ticked or not ticked</td></tr>
+<tr><td>Slider</td><td>Left and right move it (up and down for a vertical Slider). Hold the key to continue</td></tr>
+<tr><td>TextInput</td><td>Keys type. Up and down go to the piece in that direction. Tab goes to the next piece. Escape or gamepad B stops the typing</td></tr></tbody>
 </table></div>
-<p>Clicking a piece also focuses it, and <code>focus()</code> moves the focus from a script. While nothing has focus, the arrow keys go to the game as usual.</p>
-<p>Any player's keys and gamepad work a menu. If a piece, or one it's inside, has a <code>player</code> (<a href="input#more-than-one-player">More than one player</a>), only that player's input does: a menu each for split screen.</p>
-<p>UI keeps working while the game is paused, which is what pause menus need (<a href="scenes#pausing-and-slow-motion">Pausing</a>).</p>
+<p>When you click a piece, it also gets the focus. In a script, <code>focus()</code> moves the focus to the piece. When no piece has the focus, the arrow keys go to the game as usual.</p>
+<p>All players can use a menu with their keys and gamepads. If a piece has a <code>player</code> (<a href="input#more-than-one-player">More than one player</a>), only that player can use it. This is also true for the pieces inside it. Because of this, you can make a menu for each player on a split screen.</p>
+<p>UI continues to work while the game is paused. Pause menus need this (<a href="scenes#pausing-and-slow-motion">Pausing</a>).</p>
 <h2 id="a-settings-screen-from-these-parts"><a class="anchor" href="#a-settings-screen-from-these-parts" aria-hidden="true">#</a>A settings screen from these parts</h2>
-<p>Nothing here is a ready-made options menu; this one is built from the pieces above, and yours can be shaped however your game needs.</p>
+<p>Smitten does not have a ready-made settings menu. This example uses the pieces above. You can make your menu in the shape that your game needs.</p>
 <pre><code>Panel      Settings    anchor center, 360 × 250
 └ Column   Menu        anchor fill, x 16, y 16, gap 12
   ├ Label    Title       text &quot;Settings&quot;
@@ -160,7 +169,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
   │ ├ Label    (text &quot;Name&quot;, width 100)
   │ └ TextInput Name     placeholder &quot;Your name&quot;, maxLength 12, grow 1
   └ Button   Back        text &quot;Back&quot;, autofocus on</code></pre>
-<p>The Column stretches each row to its own width, and <code>grow</code> gives the Slider and the TextInput whatever the Labels leave. All of that is set in the Inspector. Three short scripts make it work:</p>
+<p>The Column stretches each Row to the width of the Column. <code>grow</code> gives the Slider and the TextInput the space that the Labels do not use. You set all of these properties in the Inspector. Three short scripts make the menu work:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On the Volume slider</span>
 <span class="tk-k">function</span> <span class="tk-f">ready</span>()
   value = <span class="tk-f">load</span>(<span class="tk-s">&quot;volume&quot;</span>, <span class="tk-n">1</span>)
@@ -184,14 +193,14 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
   text = <span class="tk-f">load</span>(<span class="tk-s">&quot;name&quot;</span>, <span class="tk-s">&quot;&quot;</span>)
 <span class="tk-k">end</span>
 
-<span class="tk-k">function</span> <span class="tk-f">blurred</span>()          <span class="tk-c">-- typing ended: Enter, Escape, Tab or a click away</span>
+<span class="tk-k">function</span> <span class="tk-f">blurred</span>()          <span class="tk-c">-- typing stopped: Enter, Escape, Tab or a click on a different position</span>
   <span class="tk-f">save</span>(<span class="tk-s">&quot;name&quot;</span>, text)
 <span class="tk-k">end</span>
 
 <span class="tk-k">function</span> <span class="tk-f">submitted</span>()
   <span class="tk-f">blur</span>()
 <span class="tk-k">end</span></code></pre>
-<p>With a gamepad or the arrow keys, the focus starts on Back and moves up through the box, the switch and the slider.</p>
+<p>With a gamepad or the arrow keys, the focus starts on Back. Then it moves up through the Name box, the switch and the slider.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>anchor</code></td><td>enum</td><td>&quot;topLeft&quot;</td><td>What x and y are measured from. fill covers the screen or the parent UI piece. Inside a Row, Column, Grid or Scroll, that piece decides where this one goes instead.</td></tr>
@@ -214,7 +223,8 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <tr><td><code>function unhovered()</code></td><td>The pointer left it.</td></tr></tbody>
 </table></div>
 <h2 id="label"><a class="anchor" href="#label" aria-hidden="true">#</a>Label</h2>
-<p>A Label's words can do everything on the <a href="text">Text</a> page: tags for colors, sizes and effects inside the text (turn on <code>rich</code>), an outline or a shadow, shrinking to fit (<code>fit</code>), typing themselves out (<code>reveal()</code>), and links that call <code>linkPressed(name)</code>.</p>
+<p>The text of a Label can do all the things on the <a href="text">Text</a> page:</p>
+<ul><li>tags for colors, sizes and effects in the text (turn on <code>rich</code>).</li><li>an outline or a shadow.</li><li>a smaller size, to fit in the Label (<code>fit</code>).</li><li>one character after the other comes onto the screen (<code>reveal()</code>).</li><li>links that call <code>linkPressed(name)</code>.</li></ul>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>text</code></td><td>text</td><td>&quot;Label&quot;</td><td>What it says. Change it from a script: text = <code>Score: {score}</code>.</td></tr>
@@ -470,7 +480,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <tbody><tr><td><code>function scrolled(x, y)</code></td><td>The player scrolled it.</td></tr></tbody>
 </table></div>
 <h2 id="touchstick"><a class="anchor" href="#touchstick" aria-hidden="true">#</a>TouchStick</h2>
-<p>A stick for a thumb: it pushes input actions like a gamepad's stick. <a href="input#touch">Input: Touch</a> shows how to lay out touch controls.</p>
+<p>A stick for a thumb. It pushes input actions, as the stick of a gamepad does. <a href="input#touch">Input: Touch</a> shows how to put touch buttons and sticks on the screen.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>leftAction</code></td><td>action</td><td>&quot;left&quot;</td><td>The action it pushes when the thumb goes left (none: it pushes nothing that way).</td></tr>
@@ -498,7 +508,7 @@ List:<span class="tk-f">scrollTo</span>(List.Item20)       <span class="tk-c">--
 <tr><td><code>function untouched()</code></td><td>The finger let go of the stick.</td></tr></tbody>
 </table></div>
 <h2 id="touchbutton"><a class="anchor" href="#touchbutton" aria-hidden="true">#</a>TouchButton</h2>
-<p>A button for a finger: it holds an input action down while it's held.</p>
+<p>A button for a finger. While a finger holds the TouchButton down, the input action is down.</p>
 <div class="table"><table>
 <thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
 <tbody><tr><td><code>action</code></td><td>action</td><td>&quot;jump&quot;</td><td>The action it holds down while a finger is on it (none: it only tells its script, with touched() and untouched()).</td></tr>

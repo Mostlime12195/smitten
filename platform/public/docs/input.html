@@ -25,11 +25,11 @@
   </div>
 </header>
 <div class="docs-layout">
-  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input" aria-current="page">Input</a><ul class="nav-sub"><li><a href="#actions">Actions</a></li><li><a href="#rebinding-controls">Rebinding controls</a></li><li><a href="#the-mouse">The mouse</a></li><li><a href="#touch">Touch</a></li><li><a href="#gamepads">Gamepads</a></li><li><a href="#more-than-one-player">More than one player</a></li><li><a href="#typing">Typing</a></li><li><a href="#smitten-input">smitten.input</a></li></ul></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input" aria-current="page">Input</a><ul class="nav-sub"><li><a href="#actions">Actions</a></li><li><a href="#rebinding-actions">Rebinding actions</a></li><li><a href="#the-mouse">The mouse</a></li><li><a href="#touch">Touch</a></li><li><a href="#gamepads">Gamepads</a></li><li><a href="#more-than-one-player">More than one player</a></li><li><a href="#typing">Typing</a></li><li><a href="#smitten-input">smitten.input</a></li></ul></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
   <main class="docs-main" id="main">
     <article class="prose">
 <h1>Input</h1>
-<p>Most games read input through <strong>actions</strong>: names like <code>jump</code> or <code>left</code> that stand for several keys and buttons at once. A game written with actions works with a keyboard, a gamepad and <a href="#touch">touch controls</a>, without extra code. Players can also rebind them, and every call takes a player number for <a href="#more-than-one-player">games with more than one player</a>.</p>
+<p>Most games read input through <strong>input actions</strong> (short: <strong>actions</strong>). An action is a name, for example <code>jump</code> or <code>left</code>, for a set of keys and buttons. If you write a game with actions, it works with a keyboard, a gamepad and <a href="#touch">touch pieces</a>, without more code. Players can also change the bindings of actions. Each input function can also take a player number, for <a href="#more-than-one-player">games with more than one player</a>.</p>
 <pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
   vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * speed
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
@@ -51,9 +51,9 @@
 <tr><td><code>typed()</code></td><td>The text typed this frame (&quot;&quot; if none); turns text input on.</td></tr></tbody>
 </table></div>
 <h2 id="actions"><a class="anchor" href="#actions" aria-hidden="true">#</a>Actions</h2>
-<p>Every project starts with these. Change them, or add your own, in <strong>Project settings › Input</strong>.</p>
+<p>All projects start with these actions. To change them, or to add your own actions, go to <strong>Project settings › Input</strong>.</p>
 <div class="table"><table>
-<thead><tr><th>Action</th><th>Default inputs</th></tr></thead>
+<thead><tr><th>Action</th><th>Default bindings</th></tr></thead>
 <tbody><tr><td><code>left</code>, <code>right</code>, <code>up</code>, <code>down</code></td><td>Arrow keys, WASD, d-pad, left stick</td></tr>
 <tr><td><code>jump</code></td><td>Space, gamepad A</td></tr>
 <tr><td><code>fire</code></td><td>X, J, left mouse button, gamepad X</td></tr>
@@ -61,83 +61,92 @@
 <tr><td><code>cancel</code></td><td>Escape, Backspace, gamepad B</td></tr>
 <tr><td><code>pause</code></td><td>Escape, P, gamepad Start</td></tr></tbody>
 </table></div>
-<p><code>pressed</code>, <code>down</code> and <code>released</code> also accept a single input, which is handy for quick tests: <code>pressed(&quot;space&quot;)</code>, <code>down(&quot;mouse:2&quot;)</code>. And <code>pressed()</code> with nothing in the brackets is true when anything at all was pressed, for &quot;press any key&quot; screens.</p>
+<p><code>pressed</code>, <code>down</code> and <code>released</code> also accept one input name. This is useful for quick tests: <code>pressed(&quot;space&quot;)</code>, <code>down(&quot;mouse:2&quot;)</code>. If you call <code>pressed()</code> with no input name, it is true when the player pressed any key or button. Use this for &quot;press any key&quot; screens.</p>
 <h3 id="input-names"><a class="anchor" href="#input-names" aria-hidden="true">#</a>Input names</h3>
 <div class="table"><table>
 <thead><tr><th>Name</th><th>Input</th></tr></thead>
 <tbody><tr><td><code>&quot;a&quot;</code>, <code>&quot;space&quot;</code>, <code>&quot;left&quot;</code>, <code>&quot;return&quot;</code>, <code>&quot;escape&quot;</code>, ...</td><td>Keys</td></tr>
-<tr><td><code>&quot;mouse:1&quot;</code>, <code>&quot;mouse:2&quot;</code>, <code>&quot;mouse:3&quot;</code></td><td>Left, right and middle mouse buttons. A touch counts as <code>mouse:1</code>, unless it's on a touch piece</td></tr>
+<tr><td><code>&quot;mouse:1&quot;</code>, <code>&quot;mouse:2&quot;</code>, <code>&quot;mouse:3&quot;</code></td><td>Left, right and middle mouse buttons. A touch is also <code>mouse:1</code>, but not if it is on a touch piece</td></tr>
 <tr><td><code>&quot;wheel:up&quot;</code>, <code>&quot;wheel:down&quot;</code></td><td>The mouse wheel</td></tr>
 <tr><td><code>&quot;pad:a&quot;</code>, <code>&quot;pad:start&quot;</code>, <code>&quot;pad:dpleft&quot;</code>, ...</td><td>Gamepad buttons</td></tr>
-<tr><td><code>&quot;axis:leftx-&quot;</code>, <code>&quot;axis:triggerleft+&quot;</code>, ...</td><td>Half of a stick or a trigger, pushed past halfway</td></tr></tbody>
+<tr><td><code>&quot;axis:leftx-&quot;</code>, <code>&quot;axis:triggerleft+&quot;</code>, ...</td><td>Half of a stick or a trigger, when the player pushes it more than halfway</td></tr></tbody>
 </table></div>
-<h2 id="rebinding-controls"><a class="anchor" href="#rebinding-controls" aria-hidden="true">#</a>Rebinding controls</h2>
-<p><code>smitten.input.bind(action, inputs)</code> changes an action's inputs while the game runs, and <code>smitten.input.lastPressed()</code> tells you what was just pressed. Together they make a &quot;press a key for jump&quot; screen:</p>
+<h2 id="rebinding-actions"><a class="anchor" href="#rebinding-actions" aria-hidden="true">#</a>Rebinding actions</h2>
+<p><code>smitten.input.bind(action, inputs)</code> changes the bindings of an action while the game runs. <code>smitten.input.lastPressed()</code> tells you the input that the player pressed last. With these two functions, you can make a &quot;press a key for jump&quot; screen:</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> key = smitten.input.<span class="tk-f">lastPressed</span>()
 <span class="tk-k">if</span> key <span class="tk-k">then</span>
   smitten.input.<span class="tk-f">bind</span>(<span class="tk-s">&quot;jump&quot;</span>, { key })
-  <span class="tk-f">save</span>(<span class="tk-s">&quot;jumpKey&quot;</span>, key)   <span class="tk-c">-- remember it next time</span>
+  <span class="tk-f">save</span>(<span class="tk-s">&quot;jumpKey&quot;</span>, key)   <span class="tk-c">-- keep the key for the next time that the game starts</span>
 <span class="tk-k">end</span></code></pre>
 <h2 id="the-mouse"><a class="anchor" href="#the-mouse" aria-hidden="true">#</a>The mouse</h2>
-<p><code>mouse()</code> gives the pointer's position in the scene, which is what you want for aiming or clicking on things in the world. <code>mouseScreen()</code> gives it on the screen, for UI. <code>smitten.mouse.isOverUI()</code> is true when the pointer is over a button or panel, so a click meant for the UI doesn't also fire a shot:</p>
+<p><code>mouse()</code> gives the position of the pointer in the scene. Use it to aim, or to click on things in the world. <code>mouseScreen()</code> gives the position on the screen, for UI. <code>smitten.mouse.isOverUI()</code> is true when the pointer is on a button or a panel. Use it so that a click on the UI does not also shoot:</p>
 <pre><code class="lang-lua"><span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;mouse:1&quot;</span>) <span class="tk-k">and</span> <span class="tk-k">not</span> smitten.mouse.<span class="tk-f">isOverUI</span>() <span class="tk-k">then</span> <span class="tk-f">shoot</span>() <span class="tk-k">end</span></code></pre>
 <h2 id="touch"><a class="anchor" href="#touch" aria-hidden="true">#</a>Touch</h2>
-<p>A touch works as the left mouse button, so menus and click-to-play games run on phones as they are. A game played with keys needs something to press: add <strong>TouchStick</strong> and <strong>TouchButton</strong> pieces (Add a piece › On-screen UI). They are UI pieces like any other, so you place them with anchors, put them in Panels, and lay out the controls your game needs.</p>
-<p>A TouchStick pushes four actions (<code>left</code>, <code>right</code>, <code>up</code> and <code>down</code> unless you choose others) and a TouchButton holds one down (<code>jump</code> to start with). They push them the way a gamepad does, part of the way for a stick pushed part of the way, so the script that reads the keyboard already reads them:</p>
+<p>A touch works as the left mouse button. Because of this, menus and games that you play with clicks work on phones with no changes. A game that you play with keys needs something on the screen to press. Add <strong>TouchStick</strong> and <strong>TouchButton</strong> pieces (Add a piece › On-screen UI). These are UI pieces, as the other UI pieces are. You can put them in position with anchors, and put them in Panels. Make the layout of touch pieces that your game needs.</p>
+<p>A TouchStick pushes four actions. By default, these are <code>left</code>, <code>right</code>, <code>up</code> and <code>down</code>, but you can choose different actions. A TouchButton holds one action down. By default, this is <code>jump</code>. The touch pieces push actions as a gamepad does. If the thumb pushes the stick part of the way, the action is also part of the way down. Because of this, a script that reads the keyboard also reads the touch pieces:</p>
 <pre><code class="lang-lua">vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * speed      <span class="tk-c">-- keys, a gamepad or a thumb</span>
 <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span></code></pre>
-<p>A simple layout, with no code at all:</p>
-<ol><li>Add a <strong>TouchStick</strong>. It starts in the bottom-left corner.</li><li>Add a <strong>TouchButton</strong>. It starts bottom right, pressing <code>jump</code>.</li><li>For another button, add one more and choose its <strong>action</strong> (<code>fire</code>).</li><li>Type a letter in <strong>text</strong>, or pick an <strong>image</strong>, to say what it does.</li><li>Move them with <strong>anchor</strong>, <strong>x</strong> and <strong>y</strong>, so they stay in their corners on every screen.</li><li>Play on a phone. On a computer they stay hidden; set <strong>show</strong> to <code>always</code> to see them and work them with the mouse.</li></ol>
-<p><code>show</code> decides when a touch piece is drawn: <code>touch</code> (phones and tablets, and any screen once a finger touches it), <code>always</code>, or <code>never</code> (invisible, but fingers still work it). <code>smitten.input.hasTouch()</code> tells a script the same thing, to hide a &quot;Press Space&quot; label, say.</p>
+<p>To make a simple layout without code:</p>
+<ol><li>Add a <strong>TouchStick</strong>. It starts in the bottom-left corner.</li><li>Add a <strong>TouchButton</strong>. It starts in the bottom-right corner, and it presses <code>jump</code>.</li><li>For one more button, add one more TouchButton.</li><li>Choose the <strong>action</strong> of the new button (for example, <code>fire</code>).</li><li>To show what a button does, type a letter in <strong>text</strong>, or choose an <strong>image</strong>.</li><li>Use <strong>anchor</strong>, <strong>x</strong> and <strong>y</strong> to move the pieces. Then they stay in their corners on all screens.</li><li>Play the game on a phone. On a computer, Smitten hides the touch pieces. To see them on a computer and use them with the mouse, set <strong>show</strong> to <code>always</code>.</li></ol>
+<p><code>show</code> sets when Smitten draws a touch piece:</p>
+<ul><li><code>touch</code>: on phones and tablets, and on all screens after a finger touches the screen.</li><li><code>always</code>.</li><li><code>never</code>: Smitten does not draw the piece, but fingers can use it.</li></ul>
+<p><code>smitten.input.hasTouch()</code> gives the same information to a script. For example, use it to hide a &quot;Press Space&quot; Label.</p>
 <h3 id="sticks"><a class="anchor" href="#sticks" aria-hidden="true">#</a>Sticks</h3>
-<p>A stick's <strong>mode</strong> is <code>fixed</code> (it stays where you put it), <code>floating</code> (it appears under the thumb, wherever it lands in the stick's rectangle: make the rectangle the left half of the screen) or <code>follow</code> (floating, and dragged along when the thumb goes further than <strong>radius</strong>). <strong>deadzone</strong> is how much of the middle counts as no push.</p>
-<p>A stick doesn't have to push actions. Clear the four action boxes and read it yourself, for a second stick that aims:</p>
-<pre><code class="lang-lua"><span class="tk-k">local</span> x, y = Aim:<span class="tk-f">getValue</span>()          <span class="tk-c">-- -1 to 1 each way; 0, 0 when let go</span>
+<p>The <strong>mode</strong> of a stick is one of these:</p>
+<ul><li><code>fixed</code>: the stick stays where you put it.</li><li><code>floating</code>: the stick comes under the thumb, at the position where the thumb touches the rectangle of the stick. Make the rectangle the left half of the screen.</li><li><code>follow</code>: the same as <code>floating</code>, but if the thumb goes farther than <strong>radius</strong>, the stick moves with the thumb.</li></ul>
+<p><strong>deadzone</strong> is the part of the middle where the stick does not push.</p>
+<p>A stick does not have to push actions. For example, for a second stick to aim, clear the four action boxes. Then read the stick in a script:</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> x, y = Aim:<span class="tk-f">getValue</span>()          <span class="tk-c">-- -1 to 1 on each axis; 0, 0 when the thumb is off the stick</span>
 <span class="tk-k">if</span> Aim:<span class="tk-f">isActive</span>() <span class="tk-k">then</span> rotation = smitten.math.<span class="tk-f">angle</span>(x, y) <span class="tk-k">end</span></code></pre>
 <h3 id="buttons"><a class="anchor" href="#buttons" aria-hidden="true">#</a>Buttons</h3>
-<p>A TouchButton holds its <strong>action</strong> down while a finger is on it. Its script also gets <code>touched()</code> and <code>untouched()</code>, so a button with no action can do anything:</p>
+<p>A TouchButton holds its <strong>action</strong> down while a finger is on it. The engine also calls <code>touched()</code> and <code>untouched()</code> in its script. Because of this, a button with no action can do any task:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- On a TouchButton</span>
 <span class="tk-k">function</span> <span class="tk-f">touched</span>()
   <span class="tk-f">pauseGame</span>()
 <span class="tk-k">end</span></code></pre>
-<p>A finger that slides off a button lets go of it, and one that slides from one button onto the next presses that one: four buttons in a cross make a d-pad.</p>
+<p>If a finger slides off a button, the button releases its action. If a finger slides from one button onto a different button, it presses the second button. Because of this, four buttons in a cross make a d-pad.</p>
 <h3 id="several-fingers"><a class="anchor" href="#several-fingers" aria-hidden="true">#</a>Several fingers</h3>
-<p>Each finger is followed on its own, so a thumb can hold the stick while another taps buttons. A finger on a touch piece belongs to that piece: the game doesn't see it as <code>mouse:1</code>, and it doesn't click what's under it. Any other finger is still the mouse, so a game can have a stick on the left and tap-to-shoot everywhere else.</p>
-<p>Touch pieces have a <strong>player</strong> setting. Two sticks and two sets of buttons at opposite ends of a tablet, with <code>player</code> 1 and 2, make a two-player game on one screen (see below).</p>
-<p>For anything else, <code>touches()</code> lists every finger with its <code>id</code>, its screen position (<code>x</code>, <code>y</code>) and its position in the scene (<code>worldX</code>, <code>worldY</code>).</p>
+<p>Smitten follows each finger separately. Because of this, one thumb can hold the stick while a different finger taps buttons. A finger on a touch piece belongs to that piece. The game does not see it as <code>mouse:1</code>, and it does not click the things under it. All other fingers are the mouse. Because of this, a game can have a stick on the left, and a tap on all other positions can shoot.</p>
+<p>Touch pieces have a <strong>player</strong> property. For example, put two sticks and two sets of buttons at opposite ends of a tablet, with <code>player</code> 1 and 2. This makes a game for two players on one screen (see below).</p>
+<p>For all other uses, <code>touches()</code> gives a list of all the fingers. For each finger, it gives its <code>id</code>, its position on the screen (<code>x</code>, <code>y</code>) and its position in the scene (<code>worldX</code>, <code>worldY</code>).</p>
 <h3 id="pressing-actions-from-code"><a class="anchor" href="#pressing-actions-from-code" aria-hidden="true">#</a>Pressing actions from code</h3>
-<p>The touch pieces are built on three functions any script can use:</p>
-<pre><code class="lang-lua">smitten.input.<span class="tk-f">press</span>(<span class="tk-s">&quot;jump&quot;</span>)             <span class="tk-c">-- held until release(&quot;jump&quot;)</span>
+<p>The touch pieces use three functions. All scripts can use them too:</p>
+<pre><code class="lang-lua">smitten.input.<span class="tk-f">press</span>(<span class="tk-s">&quot;jump&quot;</span>)             <span class="tk-c">-- the action stays down until release(&quot;jump&quot;)</span>
 smitten.input.<span class="tk-f">release</span>(<span class="tk-s">&quot;jump&quot;</span>)
 smitten.input.<span class="tk-f">setStrength</span>(<span class="tk-s">&quot;right&quot;</span>, <span class="tk-n">0.5</span>) <span class="tk-c">-- half a push: axis() gives 0.5</span></code></pre>
-<p>Each takes a player number at the end (player 1 without one). They are the way to make your own controls (a steering wheel, tilt), to play back a recording, or to let the computer play a character through the same script a person would use. <code>pressed()</code> is true for the rest of the frame <code>press()</code> was called in, so press before the pieces that read it update: from a piece earlier in the scene, or from an event.</p>
+<p>Each of these functions can take a player number at the end. Without a number, it is player 1. Use these functions for these tasks:</p>
+<ul><li>to make your own input pieces (for example, a steering wheel, or tilt).</li><li>to play back a recording.</li><li>to let the computer play a character with the same script that a person uses.</li></ul>
+<p><code>pressed()</code> is true for the remaining part of the frame in which a script called <code>press()</code>. Because of this, call <code>press()</code> before the pieces that read it update. Call it from a piece that is before them in the scene, or from an event.</p>
 <h2 id="gamepads"><a class="anchor" href="#gamepads" aria-hidden="true">#</a>Gamepads</h2>
-<p>Actions already read gamepads. For more control, <code>stick(&quot;left&quot;)</code> gives a stick's direction, <code>trigger(&quot;right&quot;)</code> how far a trigger is pressed, and <code>vibrate(0.5, 0.2)</code> rumbles. Each takes a player number at the end: <code>stick(&quot;left&quot;, 2)</code> is the second gamepad's.</p>
-<p>Gamepads are numbered as they connect, and keep their number: if gamepad 1 is unplugged, gamepad 2 is still gamepad 2, and the next one plugged in becomes 1. (In a browser a gamepad only shows up once a button on it is pressed.)</p>
+<p>Actions already read gamepads. To read more from a gamepad, use these functions:</p>
+<ul><li><code>stick(&quot;left&quot;)</code> gives the direction of a stick.</li><li><code>trigger(&quot;right&quot;)</code> gives how far the player pushes a trigger.</li><li><code>vibrate(0.5, 0.2)</code> makes the gamepad vibrate.</li></ul>
+<p>Each of these functions can take a player number at the end. <code>stick(&quot;left&quot;, 2)</code> reads the stick of the second gamepad.</p>
+<p>Smitten gives each gamepad a number when it connects, and the gamepad keeps this number. If you disconnect gamepad 1, gamepad 2 is still gamepad 2. The next gamepad that you connect becomes gamepad 1. (In a browser, Smitten sees a gamepad only after a player presses a button on it.)</p>
 <h2 id="more-than-one-player"><a class="anchor" href="#more-than-one-player" aria-hidden="true">#</a>More than one player</h2>
-<p>Every action call takes a player number at the end:</p>
+<p>Each action function can take a player number at the end:</p>
 <pre><code class="lang-lua">vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>, <span class="tk-n">2</span>) * speed
 <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>, <span class="tk-n">2</span>) <span class="tk-k">then</span> ... <span class="tk-k">end</span></code></pre>
-<p>With a number, a call reads that player's inputs only. Without one it reads everything, as always, so a one-player game never thinks about players, and <code>pressed(&quot;pause&quot;)</code> in a two-player game works for whoever presses it.</p>
-<p>Who has what:</p>
-<ul><li><strong>Gamepads:</strong> player 1 has gamepad 1, player 2 gamepad 2, and so on. <code>pad:a</code> in an action means the player's own gamepad. Two gamepads and the calls above are a two-player game, with nothing to set up.</li><li><strong>The keyboard and mouse</strong> are player 1's (<code>assignKeyboard(2)</code> hands them to player 2). Other players only have the keys you give them, in <strong>Project settings › Input</strong>: set <strong>Players</strong> to 2 and each player gets a tab for inputs of their own. <strong>Two players on one keyboard</strong> fills them in: WASD, Space and F for player 1; the arrow keys, Enter and Right Shift for player 2.</li></ul>
-<p>Keyboards have a limit: many can't tell every combination of keys apart, and drop a key when three or four are held at once. The two sets above are far apart and use keys that mostly survive it, but two players on one keyboard will sometimes lose a press, and three won't fit. For more players, use gamepads.</p>
+<p>With a number, the function reads only the inputs of that player. Without a number, it reads all inputs, as before. Because of this, a game for one player does not have to know about players. In a game for two players, <code>pressed(&quot;pause&quot;)</code> works for the player who presses it.</p>
+<p>Which player has which input:</p>
+<ul><li><strong>Gamepads:</strong> player 1 has gamepad 1, player 2 has gamepad 2, and so on. <code>pad:a</code> in an action means the gamepad of the player. Two gamepads and the functions above make a game for two players, with no setup.</li><li><strong>The keyboard and mouse</strong> belong to player 1. (<code>assignKeyboard(2)</code> gives them to player 2.) Other players have only the keys that you give them in <strong>Project settings › Input</strong>. Set <strong>Players</strong> to 2. Then each player gets a tab for their own inputs. <strong>Two players on one keyboard</strong> fills in the tabs. Player 1 gets WASD, Space and F. Player 2 gets the arrow keys, Enter and Right Shift.</li></ul>
+<p>Keyboards have a limit. Many keyboards cannot see all combinations of keys. When a player holds three or four keys at the same time, the keyboard can lose one key. The two sets of keys above are far apart. Most keyboards can see them together. But with two players on one keyboard, the keyboard sometimes loses a key press. Three players do not fit on one keyboard. For more players, use gamepads.</p>
 <h3 id="one-player-scene-for-everyone"><a class="anchor" href="#one-player-scene-for-everyone" aria-hidden="true">#</a>One player scene for everyone</h3>
-<p>You don't write the number in every call. In a piece's script, an input call with no player uses the piece's <code>player</code> variable, or the <code>player</code> of the nearest piece above it that has one. So write the player once:</p>
+<p>You do not have to write the number in each function. In the script of a piece, an input function with no player number uses the <code>player</code> variable of the piece. If the piece does not have one, it uses the <code>player</code> of the nearest piece above it that has one. Because of this, write the player one time:</p>
 <pre><code class="lang-lua"><span class="tk-c">-- scenes/player.lua, on the Body of player.scene</span>
 player = <span class="tk-n">1</span>
 speed = <span class="tk-n">220</span>
 
 <span class="tk-k">function</span> <span class="tk-f">physicsUpdate</span>(dt)
-  vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * speed       <span class="tk-c">-- this piece's player</span>
+  vx = <span class="tk-f">axis</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>) * speed       <span class="tk-c">-- the player of this piece</span>
   <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-f">onGround</span>() <span class="tk-k">then</span> vy = -<span class="tk-f">jumpSpeed</span>(<span class="tk-n">96</span>) <span class="tk-k">end</span>
   <span class="tk-f">move</span>()
 <span class="tk-k">end</span></code></pre>
-<p>Place <code>player.scene</code> twice and set <strong>player</strong> to 1 and 2 in the Inspector. A script on a piece inside (a gun, say) reads the same player without a variable of its own. To read every device from such a script, ask the module: <code>smitten.input.pressed(&quot;pause&quot;)</code>.</p>
+<ol><li>Put <code>player.scene</code> in the scene two times.</li><li>In the Inspector, set <strong>player</strong> to 1 on the first placed scene.</li><li>Set <strong>player</strong> to 2 on the second placed scene.</li></ol>
+<p>A script on a piece inside it (for example, a gun) reads the same player. It does not need its own variable. To read all devices from such a script, use the module: <code>smitten.input.pressed(&quot;pause&quot;)</code>.</p>
 <h3 id="press-a-button-to-join"><a class="anchor" href="#press-a-button-to-join" aria-hidden="true">#</a>Press a button to join</h3>
-<p><code>smitten.input.lastPressedBy()</code> says what was pressed this frame and where it came from: the input's name, then <code>&quot;keyboard&quot;</code>, <code>&quot;mouse&quot;</code> or <code>&quot;gamepad&quot;</code>, then the gamepad's number.</p>
-<pre><code class="lang-lua"><span class="tk-c">-- A lobby: each device that presses something gets the next player.</span>
-<span class="tk-k">local</span> joined = {}     <span class="tk-c">-- &quot;keyboard&quot; or a gamepad's number -&gt; true</span>
+<p><code>smitten.input.lastPressedBy()</code> tells you the input that the player pressed in this frame, and where it came from. It gives the name of the input, then <code>&quot;keyboard&quot;</code>, <code>&quot;mouse&quot;</code> or <code>&quot;gamepad&quot;</code>, then the number of the gamepad.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- A lobby: each device that presses an input gets the next player number.</span>
+<span class="tk-k">local</span> joined = {}     <span class="tk-c">-- &quot;keyboard&quot; or the number of a gamepad -&gt; true</span>
 <span class="tk-k">local</span> count = <span class="tk-n">0</span>
 
 <span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
@@ -148,28 +157,30 @@ speed = <span class="tk-n">220</span>
   joined[who] = <span class="tk-k">true</span>
   count += <span class="tk-n">1</span>
   <span class="tk-k">if</span> pad <span class="tk-k">then</span>
-    smitten.input.<span class="tk-f">assignGamepad</span>(count, pad)     <span class="tk-c">-- the gamepad that joined</span>
+    smitten.input.<span class="tk-f">assignGamepad</span>(count, pad)     <span class="tk-c">-- give this player the gamepad that joined</span>
   <span class="tk-k">else</span>
-    smitten.input.<span class="tk-f">assignKeyboard</span>(count)         <span class="tk-c">-- the keyboard is theirs</span>
+    smitten.input.<span class="tk-f">assignKeyboard</span>(count)         <span class="tk-c">-- give this player the keyboard</span>
     smitten.input.<span class="tk-f">assignGamepad</span>(count, <span class="tk-k">false</span>)   <span class="tk-c">-- and no gamepad</span>
   <span class="tk-k">end</span>
   <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/player.scene&quot;</span>, { player = count, x = <span class="tk-n">200</span> * count, y = <span class="tk-n">300</span> })
 <span class="tk-k">end</span></code></pre>
-<p><code>assignGamepad(player, number)</code> gives a player a gamepad, whatever order they were plugged in, and <code>assignKeyboard(player)</code> the keyboard and mouse; <code>gamepadOf(player)</code> tells you which gamepad they have, and <code>players()</code> how many players have something to play with. For gamepads that come and go, either look at <code>gamepadOf(player)</code> each frame (nil: show &quot;reconnect your gamepad&quot;) or listen:</p>
+<ul><li><code>assignGamepad(player, number)</code> gives a gamepad to a player, in any order of connection.</li><li><code>assignKeyboard(player)</code> gives the keyboard and mouse to a player.</li><li><code>gamepadOf(player)</code> tells you which gamepad a player has.</li><li><code>players()</code> tells you how many players have a device to play with.</li></ul>
+<p>Gamepads can disconnect and connect while the game runs. To know about this, look at <code>gamepadOf(player)</code> in each frame (if it is nil, show &quot;reconnect your gamepad&quot;). Or listen for the event:</p>
 <pre><code class="lang-lua"><span class="tk-k">local</span> listener = smitten.input.<span class="tk-f">on</span>(<span class="tk-s">&quot;gamepadremoved&quot;</span>, <span class="tk-k">function</span>(number)
   <span class="tk-f">pauseGame</span>()
 <span class="tk-k">end</span>)
 
 <span class="tk-k">function</span> <span class="tk-f">removed</span>()
-  listener:<span class="tk-f">off</span>()    <span class="tk-c">-- when this piece goes, stop listening</span>
+  listener:<span class="tk-f">off</span>()    <span class="tk-c">-- when this piece goes out of the scene, stop listening</span>
 <span class="tk-k">end</span></code></pre>
-<p><code>smitten.input.bind(&quot;jump&quot;, { &quot;return&quot; }, 2)</code> changes one player's inputs while the game runs, <code>bindings(&quot;jump&quot;, 2)</code> reads them, and <code>lastPressed(2)</code> is what player 2 just pressed, for a rebinding screen with a column for each player.</p>
-<p>On a tablet, give each player's TouchStick and TouchButtons their <code>player</code> number, or put them inside a Panel whose script says <code>player = 2</code>.</p>
+<p>For a rebinding screen with a column for each player:</p>
+<ul><li><code>smitten.input.bind(&quot;jump&quot;, { &quot;return&quot; }, 2)</code> changes the bindings of one player while the game runs.</li><li><code>bindings(&quot;jump&quot;, 2)</code> reads them.</li><li><code>lastPressed(2)</code> is the input that player 2 pressed last.</li></ul>
+<p>On a tablet, give the TouchStick and TouchButtons of each player their <code>player</code> number. Or put them in a Panel with the script line <code>player = 2</code>.</p>
 <h2 id="typing"><a class="anchor" href="#typing" aria-hidden="true">#</a>Typing</h2>
-<p><code>typed()</code> returns whatever was typed this frame, and turns on text input (on phones, that shows the keyboard):</p>
+<p><code>typed()</code> gives the text that the player typed in this frame. It also turns on text input (on phones, this shows the keyboard):</p>
 <pre><code class="lang-lua">name ..= <span class="tk-f">typed</span>()
 <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;backspace&quot;</span>) <span class="tk-k">then</span> name = name:<span class="tk-f">sub</span>(<span class="tk-n">1</span>, -<span class="tk-n">2</span>) <span class="tk-k">end</span></code></pre>
-<p>For a box to type in, with a caret, selecting, copy and paste, there's a piece: <a href="ui#typing-boxes">TextInput</a>. In a browser, text pasted with Ctrl+V arrives through <code>typed()</code> too.</p>
+<p>For a box to type in, with a caret, selection, copy and paste, use the <a href="ui#typing-boxes">TextInput</a> piece. In a browser, text that the player pastes with Ctrl+V also comes through <code>typed()</code>.</p>
 <h2 id="smitten-input"><a class="anchor" href="#smitten-input" aria-hidden="true">#</a>smitten.input</h2>
 <div class="table"><table>
 <thead><tr><th>Function</th><th></th></tr></thead>
