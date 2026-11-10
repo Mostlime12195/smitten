@@ -263,13 +263,19 @@ Tests:
   undo, placed scenes), module detection, the templates, the ready-made
   scripts and script variables.
 - `node web/editor/workspaces/scene/cells.test.mjs`: the tile format.
+- `node web/editor/workspaces/scene/terrain.test.mjs`: the terrain
+  matcher (which tile fits a cell's neighbours), against the cases in
+  `tools/scene-tests/levels/terrain-cases.json` that the engine's copy is
+  checked with too (`node tools/scene-tests/make-levels-fixture.mjs` writes
+  them).
 - `tools/scene-tests/`: scenes run in the engine (`smoke` for pieces,
   bodies and zones, scripts and the whole script API: input, tiles,
   camera, sprites, particles, sound, saving, pausing, time scale, scene
   changes with values and transitions, UI focus; `rigid` for physics
   Bodies and tag filtering; `physics` for scene physics; `lights` for
   Lights, Occluders and the Tint, by reading pixels back; `paths` for
-  `smitten.paths` in the engine). Open one in
+  `smitten.paths` in the engine; `levels` for terrains, animated tiles
+  and Backgrounds, by reading tiles and pixels back). Open one in
   the player with the test server (below); every line it prints says what
   it checked.
 - `lua5.1 tools/paths-tests/test.lua`: the pathfinders (`smitten.paths`)

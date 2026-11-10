@@ -97,7 +97,7 @@ Add a piece dialog, completions and [docs/pieces.md](docs/pieces.md) read.
 | Group | Pieces |
 | --- | --- |
 | Basic | `Group` (a position; holds other pieces or runs a script), `Timer` |
-| Things you see | `Sprite`, `Shape`, `Text`, `Tiles`, `Camera`, `Particles` |
+| Things you see | `Sprite`, `Shape`, `Text`, `Tiles` (with terrains that fit their own edges, and animated tiles), `Background` (parallax), `Camera`, `Particles` |
 | Light and shadow | `Light` (point or sun), `Occluder`, `Tint` |
 | Bodies and zones | `Body`, `Zone`, `Hitbox`, `Joint`, `Walkable` (where things can walk, for `smitten.paths`) |
 | On-screen UI | `Label`, `Button`, `Panel`, `Picture`, `Bar` |

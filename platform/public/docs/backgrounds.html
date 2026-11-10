@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backgrounds · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Backgrounds.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds" aria-current="page">Backgrounds</a><ul class="nav-sub"><li><a href="#three-layers">Three layers</a></li><li><a href="#where-things-end-up">Where things end up</a></li><li><a href="#good-to-know">Good to know</a></li></ul></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="ui">UI</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="leaderboards">Leaderboards</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Backgrounds</h1>
+<p>A <strong>Background</strong> is a Group that scrolls at its own speed when the camera moves. Far hills that slide by slowly, a sky that stays put, clouds that drift, fog in front of everything: this is parallax, and it makes a flat scene look deep.</p>
+<p>Anything can go inside one: Sprites, Shapes, a Tiles piece, a whole scene. The pieces inside keep their own positions; the Background moves them together when the game draws them.</p>
+<div class="table"><table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody><tr><td><code>scrollX</code>, <code>scrollY</code></td><td>How much it moves with the scene when the camera moves. 1: like everything else. 0.5: half as fast, so it looks far away. 0: it stays on the screen. Above 1: faster, for things in front</td></tr>
+<tr><td><code>repeatWidth</code>, <code>repeatHeight</code></td><td>Draws what's inside again every this many pixels, as far as the view goes: an endless background from one picture (0: once)</td></tr>
+<tr><td><code>driftX</code>, <code>driftY</code></td><td>Slides by itself, in pixels a second: clouds, rain, a starfield</td></tr>
+<tr><td><code>offsetX</code>, <code>offsetY</code></td><td>Shifts it; change them from a script to scroll by hand</td></tr>
+<tr><td><code>left</code>, <code>top</code>, <code>right</code>, <code>bottom</code></td><td>Edges: while the view is past one, it stops scrolling its own way and moves with the scene</td></tr></tbody>
+</table></div>
+<p>Everything else is a Group's: <code>layer</code> and the order in the scene decide what's in front, <code>tint</code> colors it, <code>visible</code> hides it, and a <a href="lights">Light or the Tint</a> lights what's inside like any piece (turn <code>lit</code> off for a sky that should stay bright at night).</p>
+<h2 id="three-layers"><a class="anchor" href="#three-layers" aria-hidden="true">#</a>Three layers</h2>
+<p>A sky, hills and a forest behind a platformer level:</p>
+<ol><li>Add a <strong>Background</strong> called Sky and set <code>scrollX</code> and <code>scrollY</code> to 0. Put a Sprite with the sky picture inside it, placed so it fills the game's screen (its frame in the scene view).</li><li>Add a <strong>Background</strong> called Hills with <code>scrollX</code> 0.3 (and <code>scrollY</code> 0.3, or 1 to keep it level with the ground). Put the hills Sprite inside, with its left edge at x = 0, and set <code>repeatWidth</code> to the picture's width: the hills now go on for ever.</li><li>Add a <strong>Background</strong> called Forest with <code>scrollX</code> 0.6 and the same repeat for its own picture.</li><li>Then the level itself (Tiles, the player, a Camera that follows the player), after the Backgrounds in the scene so it's drawn in front.</li></ol>
+<pre><code>Level
+├─ Sky       Background   scroll 0
+│  └─ Sprite
+├─ Hills     Background   scroll 0.3, repeatWidth 480
+│  └─ Sprite
+├─ Forest    Background   scroll 0.6, repeatWidth 480
+│  └─ Sprite
+├─ Ground    Tiles
+└─ Player    Body
+   └─ Camera</code></pre>
+<p>No code is needed. For clouds, add one more Background with a cloud picture, a <code>repeatWidth</code> and <code>driftX = -10</code>.</p>
+<h2 id="where-things-end-up"><a class="anchor" href="#where-things-end-up" aria-hidden="true">#</a>Where things end up</h2>
+<p>A Background is drawn where you placed it while the camera shows the scene's <strong>first screen</strong>: the area from 0, 0 to the game's width and height, which is also what a scene without a Camera shows. So place background pictures against that frame in the scene view. When the camera moves away from there by some distance, the Background follows the scene by <code>scroll</code> times that distance. The scene view shows Backgrounds as placed, with a note of their scroll and an outline of the repeat size.</p>
+<p>Zooming the camera zooms Backgrounds too, around the middle of the screen.</p>
+<p>With a repeat size, what's inside should fit between 0 and the repeat size (measured from the Background): a 480-wide picture with its left edge at x = 0 and <code>repeatWidth = 480</code> tiles without gaps. A smaller repeat makes copies overlap; a bigger one leaves gaps, which suits single clouds or lamp posts.</p>
+<pre><code class="lang-lua"><span class="tk-c">-- Scroll a starfield by hand instead of with the camera</span>
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  Stars.offsetX -= shipSpeed * dt * <span class="tk-n">0.2</span>
+<span class="tk-k">end</span></code></pre>
+<pre><code class="lang-lua"><span class="tk-c">-- Where is it now? getScroll() gives how far it's drawn from its place</span>
+<span class="tk-k">local</span> x, y = Hills:<span class="tk-f">getScroll</span>()</code></pre>
+<h2 id="good-to-know"><a class="anchor" href="#good-to-know" aria-hidden="true">#</a>Good to know</h2>
+<ul><li>Backgrounds are for looks. A Body or Zone inside one collides where it was placed, not where it's drawn, and <code>worldPosition()</code> gives the placed position.</li><li>In a repeating Background, a Light or an Occluder shines or blocks in one copy only.</li><li>Particles inside a Background should have <code>followPiece</code> on, or they are drawn where they were made in the scene.</li><li>A Background inside a Background adds both movements.</li><li>A scene without a Background pays nothing for the feature.</li></ul>
+<div class="table"><table>
+<thead><tr><th>Property</th><th>Type</th><th>Default</th><th></th></tr></thead>
+<tbody><tr><td><code>scrollX</code></td><td>number</td><td>0.5</td><td>How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front.</td></tr>
+<tr><td><code>scrollY</code></td><td>number</td><td>0.5</td><td>The same, up and down.</td></tr>
+<tr><td><code>repeatWidth</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture.</td></tr>
+<tr><td><code>repeatHeight</code></td><td>number (px)</td><td>0</td><td>Draws what's inside again every this many pixels up and down (0: once).</td></tr>
+<tr><td><code>driftX</code></td><td>number (px/s)</td><td>0</td><td>Slides sideways by itself at this speed, like clouds. Negative goes left.</td></tr>
+<tr><td><code>driftY</code></td><td>number (px/s)</td><td>0</td><td>Slides down by itself at this speed. Negative goes up.</td></tr>
+<tr><td><code>offsetX</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside sideways. Change it from a script to scroll by hand.</td></tr>
+<tr><td><code>offsetY</code></td><td>number (px)</td><td>0</td><td>Shifts what's inside up or down.</td></tr>
+<tr><td><code>left</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge).</td></tr>
+<tr><td><code>top</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is above this.</td></tr>
+<tr><td><code>right</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is right of this.</td></tr>
+<tr><td><code>bottom</code></td><td>number (px)</td><td>none</td><td>Stops scrolling its own way while the view is below this.</td></tr></tbody>
+</table></div>
+<div class="table"><table>
+<thead><tr><th>Method</th><th></th></tr></thead>
+<tbody><tr><td><code>getScroll()</code></td><td>How far it is drawn from where it was placed, right now: x, y.</td></tr></tbody>
+</table></div>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="camera"><span>Previous</span>Camera</a><a class="next" href="tiles"><span>Next</span>Tiles</a></nav>
+  </main>
+</div>
+</body>
+</html>

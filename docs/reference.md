@@ -15,7 +15,8 @@ through a whole small game in about fifteen minutes.
 - [Scenes and pieces](scenes.md) covers building scenes from code, tags,
   changing scenes and pausing.
 - [Input](input.md), [Sound and music](sound.md), [Camera](camera.md),
-  [Tiles](tiles.md), [Lights](lights.md), [UI](ui.md),
+  [Backgrounds](backgrounds.md), [Tiles](tiles.md), [Lights](lights.md),
+  [UI](ui.md),
   [Physics](physics.md), [Pathfinding](pathfinding.md),
   [Saving](saving.md) and [Drawing](drawing.md) each cover one part of a
   game.

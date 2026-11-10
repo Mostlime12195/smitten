@@ -60,6 +60,9 @@ local vx, vy, vw, vh = camera():getView()
 spawn("scenes/bat.scene", { x = vx + vw + 32, y = vy + rnd(vh) })
 ```
 
+For layers that scroll slower or faster than the camera (far hills, a sky
+that stays put), see [Backgrounds](backgrounds.md).
+
 <!-- piece:Camera -->
 | Property | Type | Default | |
 | --- | --- | --- | --- |

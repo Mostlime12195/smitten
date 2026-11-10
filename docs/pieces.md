@@ -182,6 +182,7 @@ Extends [Group](#group).
 | `tileset` | resource | "" | The .tileset file: a picture cut into tiles, with settings such as solid. |
 | `solid` | bool | true | Tiles marked solid block bodies. Off makes every tile just decoration. |
 | `castShadows` | bool | false | Tiles marked solid block Lights that have shadows on. |
+| `animate` | bool | true | Animated tiles play. Off freezes them on the frame they show. |
 
 | Method | |
 | --- | --- |
@@ -200,6 +201,35 @@ Extends [Group](#group).
 | `getTileSize()` | The size of one cell in the scene: width, height. |
 | `getBounds()` | The painted area in the scene: x, y, width, height (all 0 when empty). |
 | `newPathGrid(options?)` | A grid for finding paths through these tiles (solid tiles are solid cells): grid:findPoints(x, y, toX, toY). It follows setTile(). |
+| `setTerrain(column, row, terrain)` | Paints a terrain of the tileset (by name; nil erases) in a cell and re-picks the tiles of the 8 cells around it so the edges fit. |
+| `getTerrain(column, row)` | The name of the terrain the cell's tile belongs to, or nil. |
+| `fillTerrain(column, row, columns, rows, terrain)` | Paints a terrain (nil erases) in a rectangle of cells and fits the edges, also of the cells around it. |
+| `terrains()` | The names of the tileset's terrains. |
+
+### Background
+
+Scrolls the pieces inside it slower or faster than the camera, for far hills, clouds and skies (parallax). It can repeat them endlessly.
+
+Extends [Group](#group).
+
+| Property | Type | Default | |
+| --- | --- | --- | --- |
+| `scrollX` | number | 0.5 | How much it moves sideways with the scene when the camera moves: 1 like everything else, 0.5 half as fast (far away), 0 stays on the screen, above 1 for things in front. |
+| `scrollY` | number | 0.5 | The same, up and down. |
+| `repeatWidth` | number (px) | 0 | Draws what's inside again every this many pixels sideways, as far as the view goes (0: once). Use the width of the picture. |
+| `repeatHeight` | number (px) | 0 | Draws what's inside again every this many pixels up and down (0: once). |
+| `driftX` | number (px/s) | 0 | Slides sideways by itself at this speed, like clouds. Negative goes left. |
+| `driftY` | number (px/s) | 0 | Slides down by itself at this speed. Negative goes up. |
+| `offsetX` | number (px) | 0 | Shifts what's inside sideways. Change it from a script to scroll by hand. |
+| `offsetY` | number (px) | 0 | Shifts what's inside up or down. |
+| `left` | number (px) | none | Stops scrolling its own way while the view is left of this: from there it moves with the scene (empty for no edge). |
+| `top` | number (px) | none | Stops scrolling its own way while the view is above this. |
+| `right` | number (px) | none | Stops scrolling its own way while the view is right of this. |
+| `bottom` | number (px) | none | Stops scrolling its own way while the view is below this. |
+
+| Method | |
+| --- | --- |
+| `getScroll()` | How far it is drawn from where it was placed, right now: x, y. |
 
 ### Camera
 

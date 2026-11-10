@@ -75,6 +75,32 @@ plays its animations; the ready-made player scripts play `idle`, `run` or
 `body:touchingTile("damage")` returns the settings of a touching tile that
 has one, and `tiles:tileInfo(tile)` returns any tile's.
 
+Two more sections are optional ([Tiles](tiles.md#terrains) explains them):
+
+```json
+{
+  "terrains": [
+    { "name": "grass", "match": "all", "color": "#4caf50",
+      "tiles": { "0": 0, "1": 28, "2": 124, "3": 112, "9": 255 } }
+  ],
+  "animations": {
+    "8": { "frames": [8, 9, 10, 11], "fps": 6 },
+    "12": { "frames": [12, 13], "durations": [0.8, 0.2], "randomStart": true }
+  }
+}
+```
+
+- `terrains` is a list. Each has a `name`, a `match` (`"all"`: sides and
+  corners, the default; `"sides"`; `"corners"`), a `color` for the editor,
+  and `tiles`: for each tile of the terrain, a number that says where the
+  terrain carries on past that tile. Add up: up 1, up-right 2, right 4,
+  down-right 8, down 16, down-left 32, left 64, up-left 128. Tiles with the
+  same number are variants. A tile listed in two terrains belongs to the
+  first.
+- `animations` gives a tile the tiles it shows in turn (`frames`), at `fps`
+  frames a second (8 if left out) or for `durations` seconds each;
+  `randomStart` starts every cell at a different point of the loop.
+
 ## Sound effects
 
 `sfx/jump.sfx`. Synth parameters in physical units; the synthesizer
