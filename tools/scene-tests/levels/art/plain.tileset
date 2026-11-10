@@ -1,0 +1,16 @@
+{
+  "format": "smitten.tileset",
+  "version": 1,
+  "image": "tiles.png",
+  "tileWidth": 8,
+  "tileHeight": 8,
+  "tiles": {
+    "0": {
+      "solid": true
+    },
+    "88": {
+      "name": "lava",
+      "damage": 2
+    }
+  }
+}

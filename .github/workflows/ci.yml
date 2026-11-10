@@ -33,6 +33,9 @@ jobs:
       - name: Tile format tests
         run: node web/editor/workspaces/scene/cells.test.mjs
 
+      - name: Terrain tests
+        run: node web/editor/workspaces/scene/terrain.test.mjs
+
       - name: Sharing site tests
         run: node tools/platform-tests/test.mjs
 

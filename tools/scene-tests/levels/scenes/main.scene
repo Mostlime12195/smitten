@@ -1,0 +1,11 @@
+{
+  "format": "smitten.scene",
+  "version": 2,
+  "root": {
+    "name": "Main", "type": "Group",
+    "children": [
+      { "name": "Runner", "type": "Group", "script": "scenes/main.lua", "properties": { "pausable": false } },
+      { "name": "Stage", "type": "Group" }
+    ]
+  }
+}

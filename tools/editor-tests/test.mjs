@@ -90,6 +90,30 @@ for (const [name, def] of Object.entries(types)) {
   check('a scene without lights never reaches lights.lua', /if M\._lights > 0 then return M\._renderLit\(root\) end/.test(
     readFileSync(join(sceneDir, 'nodes2d.lua'), 'utf8')));
 }
+// Levels: the renderers read every Background property, both of them move
+// Backgrounds, and the terrain matcher is the same in Lua and JavaScript.
+{
+  const nodes2dLua = readFileSync(join(sceneDir, 'nodes2d.lua'), 'utf8');
+  const lightsLua = readFileSync(join(sceneDir, 'lights.lua'), 'utf8');
+  const tilemapLua = readFileSync(join(sceneDir, 'tilemap.lua'), 'utf8');
+  const terrainLua = readFileSync(join(sceneDir, 'terrain.lua'), 'utf8');
+  const terrainJs = readFileSync(join(root, 'web', 'editor', 'workspaces', 'scene', 'terrain.js'), 'utf8');
+  check('Background is a piece', !!types.Background && types.Background.extends === 'Group' && types.Background.group === 'visual');
+  for (const p of Object.keys(types.Background?.properties || {})) {
+    check(`nodes2d.lua reads Background.${p}`, new RegExp(`\\.${p}\\b`).test(nodes2dLua));
+  }
+  check('a scene without a Background skips it', /if backgrounds > 0 and n\._bg then/.test(nodes2dLua));
+  check('the lights renderer moves Backgrounds too', /backgroundPlace\(n, /.test(lightsLua) && /backgroundCopies\(n, /.test(lightsLua));
+  check('Tiles has animate', schemaLib.propertyDef('Tiles', 'animate')?.default === true && /self\.animate\b/.test(tilemapLua));
+  for (const m of ['setTerrain', 'getTerrain', 'fillTerrain', 'terrains']) check(`Tiles has ${m}()`, !!types.Tiles.methods[m]);
+  // The numbers the two matchers must agree on.
+  for (const n of ['374761', '668265', '12345', '1000003', '48271', '2147483647', '65536']) {
+    check(`terrain.lua and terrain.js both use ${n}`, terrainLua.includes(n) && terrainJs.includes(n));
+  }
+  const terrainLib = await import(editor('workspaces/scene/terrain.js'));
+  check('terrain.js: 47 blob masks', terrainLib.blobMasks().length === 47);
+  check('terrain.js: three layouts', terrainLib.LAYOUTS.map((l) => l.id).join() === 'sides,corners,blob');
+}
 const scriptLua = readFileSync(join(sceneDir, 'script.lua'), 'utf8');
 const { SCRIPT_API } = await import(editor('core/script-api.js'));
 for (const [name] of SCRIPT_API) {

@@ -1,0 +1,7 @@
+{
+  "format": "smitten.project",
+  "version": 2,
+  "name": "Levels test",
+  "main": "scenes/main.scene",
+  "display": { "width": 200, "height": 120, "stretch": "fit", "background": [0, 0, 0, 1] }
+}
