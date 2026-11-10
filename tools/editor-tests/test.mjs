@@ -685,5 +685,129 @@ check('different share links have different ids', new Set(['', 'a', 'b', 'ab', '
   }
 }
 
+// --- Animations: the Animate panel's edits (core/animations.js) ----------------
+{
+  const A = await import(editor('core/animations.js'));
+  files.set('lamp.scene', JSON.stringify({ format: 'smitten.scene', version: 3, root: { name: 'Lamp', type: 'Group', children: [{ name: 'Glow', type: 'Shape' }] } }));
+  const text = JSON.stringify({
+    format: 'smitten.scene', version: 3,
+    root: { name: 'Room', type: 'Group', children: [
+      { name: 'Door', type: 'Group', children: [
+        { name: 'Panel', type: 'Shape', properties: { y: 4 } },
+        { name: 'Creak', type: 'Sound' },
+        { name: 'Lamp', scene: 'lamp.scene' },
+        { name: 'Anim', type: 'Animator' },
+      ] },
+      { name: 'Outside', type: 'Shape' },
+    ] },
+  });
+  const d = SceneDoc.fromText('room.scene', text, ctx);
+  const door = d.root.children[0];
+  const [panel, , lamp, anim] = door.children;
+  const outside = d.root.children[1];
+  const data = () => d.get(anim, 'animations');
+  const keysOf = (i = 0) => data().open.tracks[i].keys;
+
+  check('anim: an Animator has no animations at first', eq(A.animationsOf(d, anim), {}) && d.get(anim, 'animations') === null);
+  const name = A.addAnimation(d, anim, 'open');
+  check('anim: add an animation', name === 'open' && eq(data(), { open: { length: 1, loop: false, tracks: [] } }));
+  check('anim: the first animation becomes the autoplay', d.get(anim, 'autoplay') === 'open');
+  check('anim: a name that is taken gets a number', A.uniqueAnimationName(d, anim, 'open') === 'open2');
+  d.undo();
+  check('anim: undo the new animation', d.get(anim, 'animations') === null && d.get(anim, 'autoplay') === '');
+  d.redo();
+
+  check('anim: paths from the parent', A.pathTo(d, anim, door) === '.' && A.pathTo(d, anim, panel) === 'Panel' && A.pathTo(d, anim, outside) === null);
+  check('anim: resolve a path', A.resolve(d, anim, 'Panel') === panel && A.resolve(d, anim, '.') === door && A.resolve(d, anim, 'Lamp/Glow')?.readonly === true && A.resolve(d, anim, 'Nope') === null);
+  check('anim: targets', eq(A.targetsOf(d, anim).map((t) => t.path), ['.', 'Panel', 'Creak', 'Lamp', 'Lamp/Glow', 'Anim']));
+  check('anim: the hidden properties are not animatable', !A.animatable('Animator').some((p) => p.name === 'animations') && A.animatable('Shape').some((p) => p.name === 'color'));
+
+  const ti = A.addTrack(d, anim, 'open', 'Panel', 'y');
+  check('anim: add a track', ti === 0 && eq(data().open.tracks[0], { piece: 'Panel', property: 'y', keys: [] }));
+  check('anim: the same track again is the same track', A.addTrack(d, anim, 'open', 'Panel', 'y') === 0 && data().open.tracks.length === 1);
+  A.setKey(d, anim, 'open', 0, 0, 4);
+  A.setKey(d, anim, 'open', 0, 1, -60, { easing: 'outQuad' });
+  A.setKey(d, anim, 'open', 0, 0.5, -20);
+  check('anim: keys go in time order', eq(keysOf(), [{ time: 0, value: 4 }, { time: 0.5, value: -20 }, { time: 1, value: -60, easing: 'outQuad' }]));
+  A.setKey(d, anim, 'open', 0, 0.5, -30);
+  check('anim: a key at the same time changes it', keysOf().length === 3 && keysOf()[1].value === -30);
+  d.undo();
+  check('anim: undo a key change', keysOf()[1].value === -20);
+
+  A.moveKeys(d, anim, 'open', [{ track: 0, index: 1 }], [0.5], 0.33, { snap: 0.25, merge: 'drag1' });
+  A.moveKeys(d, anim, 'open', [{ track: 0, index: 1 }], [0.5], 0.61, { snap: 0.25, merge: 'drag1' });
+  check('anim: move a key (snapped)', keysOf()[1].time === 1);
+  const refs = A.sortKeys(d, anim, 'open', [{ track: 0, index: 1 }], { merge: 'drag1' });
+  check('anim: moving keys stays one undo step', (d.undo(), keysOf()[1].time === 0.5));
+  d.redo();
+  check('anim: in order after the move, and the selection follows', keysOf()[1].time === 1 && keysOf()[2].time === 1 && eq(refs, [{ track: 0, index: 1 }]) && keysOf()[1].value === -20, JSON.stringify(keysOf()));
+  A.moveKeys(d, anim, 'open', [{ track: 0, index: 0 }], [0], -5);
+  check('anim: keys stay at 0 or after', keysOf()[0].time === 0);
+  A.changeKey(d, anim, 'open', { track: 0, index: 2 }, { easing: 'linear', time: 0.75 });
+  check('anim: change a key; linear is left out', keysOf()[2].time === 0.75 && !('easing' in keysOf()[2]));
+  A.deleteKeys(d, anim, 'open', [{ track: 0, index: 2 }, { track: 0, index: 0 }]);
+  check('anim: delete keys', eq(keysOf().map((k) => k.value), [-20]));
+  d.undo();
+  check('anim: undo the delete', keysOf().length === 3);
+  A.sortKeys(d, anim, 'open');
+  check('anim: sort keys', eq(keysOf().map((k) => k.time), [0, 0.75, 1]));
+
+  const ci = A.addTrack(d, anim, 'open', 'Creak', null);
+  A.addCall(d, anim, 'open', ci, 0.5, A.defaultCall('Sound').method);
+  check('anim: call keys play a Sound', eq(data().open.tracks[ci], { piece: 'Creak', calls: [{ time: 0.5, method: 'play' }] }));
+  check('anim: on other pieces a call key sends an event', eq(A.defaultCall('Group', 'open'), { method: 'emit', args: ['open'] }) && A.callable('Sound').includes('fadeOut'));
+  A.setAnimation(d, anim, 'open', { length: 2, loop: true });
+  check('anim: length and loop', data().open.length === 2 && data().open.loop === true);
+
+  // Recording: Inspector and scene view edits become keys at the playhead.
+  const before = JSON.stringify(panel.props);
+  const undoDepth = d.undoStack.length;
+  d.recorder = (entries, opts) => A.record(d, anim, 'open', 1.5, entries, opts);
+  d.setProps(panel, { x: 30, y: -80 }, { merge: 'move1', label: 'Move' });
+  d.setProps(panel, { x: 32, y: -82 }, { merge: 'move1', label: 'Move' });
+  check('anim: record leaves the piece as it is', JSON.stringify(panel.props) === before);
+  const xTrack = data().open.tracks.find((t) => t.property === 'x');
+  check('anim: record makes a track with a key at 0 (the piece as it was) and at the playhead', eq(xTrack, { piece: 'Panel', property: 'x', keys: [{ time: 0, value: 0 }, { time: 1.5, value: 32 }] }), JSON.stringify(xTrack));
+  check('anim: record adds to a track that is there', keysOf().some((k) => k.time === 1.5 && k.value === -82));
+  check('anim: a recorded drag is one undo step', d.undoStack.length === undoDepth + 1);
+  d.setProps(outside, { x: 5 });
+  check('anim: a piece outside the parent is set as usual', d.get(outside, 'x') === 5);
+  d.setProps(anim, { speed: 2 });
+  check('anim: the Animator itself is set as usual', d.get(anim, 'speed') === 2);
+  d.recorder = null;
+  d.undo();
+  d.undo();
+  d.undo();
+  check('anim: undo the recording', !data().open.tracks.some((t) => t.property === 'x') && !keysOf().some((k) => k.time === 1.5));
+
+  // The preview: values at a time, without touching the scene.
+  A.setKey(d, anim, 'open', 0, 1, -60);
+  const dirty = d.dirty;
+  d.dirty = false;
+  const depth = d.undoStack.length;
+  const p = A.previewAt(d, anim, 'open', 0.25);
+  check('anim: preview values', Math.abs(p.nodes.get(panel).y - (4 + (-60 - 4) / 3)) < 1e-9, JSON.stringify([...p.nodes.values()]));
+  let heard = 0;
+  d.addEventListener('preview', () => heard++);
+  d.setPreview(p);
+  check('anim: the preview shows in get()', Math.abs(d.get(panel, 'y') - (4 + (-60 - 4) / 3)) < 1e-9 && heard === 1);
+  check('anim: the preview is not saved, undone or dirty', JSON.parse(d.toText()).root.children[0].children[0].properties.y === 4 && !d.dirty && d.undoStack.length === depth);
+  A.addTrack(d, anim, 'open', 'Lamp/Glow', 'x');
+  A.setKey(d, anim, 'open', data().open.tracks.length - 1, 0, 7);
+  d.setPreview(A.previewAt(d, anim, 'open', 0.25));
+  const glow = d.effectiveChildren(lamp)[0];
+  check('anim: a placed scene\'s piece shows the preview too', d.get(glow, 'x') === 7);
+  d.setPreview(null);
+  check('anim: no preview, the scene again', d.get(panel, 'y') === 4 && d.get(glow, 'x') === 0);
+  d.dirty = dirty;
+
+  A.renameAnimation(d, anim, 'open', 'swing');
+  check('anim: rename keeps the autoplay', d.get(anim, 'autoplay') === 'swing' && !!data().swing);
+  A.deleteAnimation(d, anim, 'swing');
+  check('anim: delete clears the autoplay', d.get(anim, 'autoplay') === '' && eq(data(), {}));
+  check('anim: the file keeps the animations as data', (d.undo(), JSON.parse(d.toText()).root.children[0].children[3].properties.animations.swing.tracks.length === 3));
+  check('anim: values for a call key', eq(A.parseArgs('"opened", 2, true, word'), ['opened', 2, true, 'word']));
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

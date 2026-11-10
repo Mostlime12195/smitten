@@ -104,8 +104,16 @@ export class SceneDoc extends EventTarget {
     return data.root.type || 'Group';
   }
 
-  /** The value of a property in effect: own, else the instanced scene's, else the default. */
+  /**
+   * The value of a property in effect: a preview's (setPreview), else own,
+   * else the instanced scene's, else the default.
+   */
   get(node, key) {
+    const preview = this.preview;
+    if (preview) {
+      const o = preview.nodes.get(node) || (node.readonly && preview.paths.size ? preview.paths.get(this.pathOf(node)) : null);
+      if (o && key in o) return o[key];
+    }
     if (Object.prototype.hasOwnProperty.call(node.props, key)) {
       const v = node.props[key];
       return v === null ? defaultOf(node.type, key) : v;
@@ -267,8 +275,28 @@ export class SceneDoc extends EventTarget {
     return true;
   }
 
+  /**
+   * Shows other values for some properties without changing the scene: the
+   * Animate panel's preview of an animation at a time. preview: { nodes:
+   * Map(node -> {key: value}), paths: Map(path -> {key: value}) } (paths for
+   * pieces of placed scenes), or null to show the scene as it is. get()
+   * gives these values; saving, undo and dirty don't see them. Listeners
+   * hear a 'preview' event.
+   */
+  setPreview(preview) {
+    if (!preview && !this.preview) return;
+    this.preview = preview && (preview.nodes.size || preview.paths.size) ? preview : null;
+    this.dispatchEvent(new CustomEvent('preview'));
+  }
+
   /** Sets properties of one node; values equal to the default are removed. */
   setProps(node, values, { merge = null, label = 'Change property' } = {}) {
+    // While the Animate panel records, it turns what it can into keys.
+    if (this.recorder) {
+      const rest = this.recorder([[node, values]], { merge, label });
+      if (!rest.length) return;
+      values = rest[0][1];
+    }
     const before = {};
     for (const k of Object.keys(values)) before[k] = k in node.props ? clone(node.props[k]) : undefined;
     const set = (vals) => {

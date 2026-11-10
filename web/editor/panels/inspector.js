@@ -41,6 +41,14 @@ export class InspectorPanel {
       if (this.doc?.live && this.body.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       this.render();
     };
+    // The Animate panel's preview changes the values shown, often: once a frame at most.
+    this.onPreview = () => {
+      if (this.previewFrame || this.editing) return;
+      this.previewFrame = requestAnimationFrame(() => {
+        this.previewFrame = 0;
+        if (!(this.body.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) this.render();
+      });
+    };
     ctx.project?.addEventListener?.('file', (e) => {
       if (/\.(lua|sprite)$/.test(e.detail.path)) this.render();
     });
@@ -50,11 +58,13 @@ export class InspectorPanel {
     if (this.doc) {
       this.doc.removeEventListener('select', this.onSelect);
       this.doc.removeEventListener('change', this.onChange);
+      this.doc.removeEventListener('preview', this.onPreview);
     }
     this.doc = doc;
     if (doc) {
       doc.addEventListener('select', this.onSelect);
       doc.addEventListener('change', this.onChange);
+      doc.addEventListener('preview', this.onPreview);
     }
     this.render();
   }
@@ -84,6 +94,11 @@ export class InspectorPanel {
     if (doc.live) {
       this.body.append(h('div', { class: 'live-banner' }, icon('live', 14),
         h('span', {}, 'The running game. Changes here only last until you stop it.')));
+    }
+    // The Animate panel shows an animation in the scene (or records keys).
+    const note = doc.previewNote;
+    if (note) {
+      this.body.append(h('div', { class: `live-banner preview${note.recording ? ' recording' : ''}` }, icon(note.recording ? 'record' : 'animator', 14), h('span', {}, note.text)));
     }
     this.body.append(this.header(node));
     if (node.readonly) {
@@ -302,6 +317,11 @@ export class InspectorPanel {
   }
 
   animationsOf(node) {
+    // An Animator's own animations (made in the Animate panel).
+    if (node.type === 'Animator') {
+      const anims = this.doc.get(node, 'animations');
+      return anims && typeof anims === 'object' ? Object.keys(anims) : [];
+    }
     const img = this.doc.get(node, 'image');
     if (!img || !/\.sprite$/.test(img)) return [];
     try {

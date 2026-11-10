@@ -41,6 +41,8 @@ const NAMES = {
   floatWin: 'picture-in-picture-2', dockLeft: 'panel-left', dockRight: 'panel-right', dockBottom: 'panel-bottom',
   minus: 'minus', user: 'circle-user-round', logOut: 'log-out', contrast: 'contrast', layout: 'layout-dashboard',
   menu: 'menu', chevronsUpDown: 'chevrons-up-down',
+  // The Animate panel
+  animator: 'film', keyframe: 'diamond', skipBack: 'skip-back', skipForward: 'skip-forward', repeat: 'repeat',
 };
 
 const res = await fetch(URL_);

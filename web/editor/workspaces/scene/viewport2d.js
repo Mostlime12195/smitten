@@ -235,6 +235,8 @@ function kindOf(type) {
  * entries: [[node, {key: value}]].
  */
 export function setPropsMany(doc, entries, { merge = null, label = 'Change property' } = {}) {
+  // While the Animate panel records, it turns what it can into keys.
+  if (doc.recorder && entries.length > 1) entries = doc.recorder(entries, { merge, label });
   if (!entries.length) return;
   if (entries.length === 1) {
     doc.setProps(entries[0][0], entries[0][1], { merge, label });
@@ -853,6 +855,7 @@ export class Viewport2D {
     this.cancelDrag();
     if (this.doc) {
       this.doc.removeEventListener('change', this.onDocChange);
+      this.doc.removeEventListener('preview', this.onDocChange);
       this.doc.removeEventListener('select', this.onDocSelect);
       this.views.set(this.doc, { ...this.view });
     }
@@ -861,6 +864,8 @@ export class Viewport2D {
     this.hover = null;
     if (doc) {
       doc.addEventListener('change', this.onDocChange);
+      // The Animate panel's preview (SceneDoc.setPreview).
+      doc.addEventListener('preview', this.onDocChange);
       doc.addEventListener('select', this.onDocSelect);
       const saved = this.views.get(doc);
       if (saved) {
@@ -984,6 +989,7 @@ export class Viewport2D {
     this.raf = 0;
     if (this.doc) {
       this.doc.removeEventListener('change', this.onDocChange);
+      this.doc.removeEventListener('preview', this.onDocChange);
       this.doc.removeEventListener('select', this.onDocSelect);
     }
     for (const fn of this.cleanup) fn();

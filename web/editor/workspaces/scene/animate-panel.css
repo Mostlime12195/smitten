@@ -1,0 +1,90 @@
+/* The Animate panel (animate-panel.js). */
+
+.anp {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  color: var(--fg);
+  font: 12px/1.4 var(--font-ui);
+  outline: none;
+}
+
+.anp-bar,
+.anp-keybar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-height: 34px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+
+.anp-keybar { min-height: 32px; background: var(--panel-2); }
+.anp-bar .spacer, .anp-keybar .spacer { flex: 1; }
+.anp-bar .input, .anp-keybar .input { height: 24px; }
+.anp-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border-strong); flex: none; }
+
+.anp-who {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 6px; border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; flex: none;
+}
+.anp-who:hover { background: var(--hover); }
+
+.anp-pick { width: 130px; flex: none; }
+.anp-time, .anp-len { width: 54px; flex: none; }
+.anp-snap { width: 74px; flex: none; }
+.anp-field { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-muted); flex: none; }
+.anp-field.grow { flex: 1 1 140px; min-width: 120px; }
+.anp-field.grow > .input, .anp-field.grow > span { flex: 1; min-width: 0; }
+.anp-field .num-input { width: 64px; }
+.anp-method { width: 110px; }
+.anp-args { width: 100%; min-width: 80px; }
+.anp-num { display: inline-flex; align-items: center; gap: 4px; }
+.anp-color { display: inline-flex; align-items: center; gap: 6px; }
+.anp-keyname { display: inline-flex; align-items: center; gap: 5px; margin-right: 6px; font-weight: 600; color: var(--fg); flex: none; }
+
+.anp-record[aria-pressed="true"] { color: #fff; background: var(--danger-solid); border-color: transparent; }
+.anp.recording .anp-body { box-shadow: inset 0 0 0 1px var(--danger-solid); }
+
+.anp-body { display: flex; flex: 1; min-height: 0; }
+.anp-labelcol { display: flex; flex-direction: column; width: 190px; flex: none; border-right: 1px solid var(--border); min-height: 0; }
+.anp-head { display: flex; align-items: center; height: 24px; padding: 0 6px; flex: none; border-bottom: 1px solid var(--border-strong); box-sizing: border-box; }
+.anp-head .btn { height: 20px; padding: 0 6px; font-size: 11.5px; }
+.anp-labelscroll { flex: 1; overflow: hidden; min-height: 0; }
+
+.anp-label {
+  display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 8px; box-sizing: border-box; cursor: pointer;
+}
+.anp-label:nth-child(even) { background: color-mix(in srgb, var(--panel-2) 50%, transparent); }
+.anp-label:hover { background: var(--hover); }
+.anp-label .anp-piece { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.anp-label .anp-prop { color: var(--fg-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anp-label.missing { color: var(--danger); }
+.anp-label.missing .anp-prop { color: var(--danger); opacity: 0.8; }
+.anp-remove {
+  display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: none; border-radius: 4px;
+  background: transparent; color: var(--fg-subtle); cursor: pointer; visibility: hidden; flex: none;
+}
+.anp-label:hover .anp-remove { visibility: visible; }
+.anp-remove:hover { background: var(--danger-soft); color: var(--danger); }
+
+.anp-timecol { position: relative; flex: 1; min-width: 0; }
+.anp-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; cursor: default; touch-action: none; }
+
+.anp-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; flex: 1;
+  padding: 16px; text-align: center; color: var(--fg-muted);
+}
+.anp-empty p { margin: 0; max-width: 460px; }
+
+/* The Inspector while the panel shows an animation, or records. */
+.live-banner.preview { background: var(--accent-soft); }
+.live-banner.preview .icon { color: var(--accent); animation: none; }
+.live-banner.recording { background: color-mix(in srgb, var(--danger-solid) 16%, transparent); }
+.live-banner.recording .icon { color: var(--danger-solid); }

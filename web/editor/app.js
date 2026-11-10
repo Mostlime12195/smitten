@@ -49,7 +49,7 @@ const WORKSPACES = [
 ];
 
 const DEFAULT_LAYOUTS = {
-  scene: { left: [['scene'], ['files']], right: [['inspector']], bottom: [['output']], sizes: { left: 270, right: 320, bottom: 170 } },
+  scene: { left: [['scene'], ['files']], right: [['inspector']], bottom: [['output', 'animate']], sizes: { left: 270, right: 320, bottom: 170 } },
   script: { left: [['files']], right: [], bottom: [['output']], sizes: { left: 250, right: 300, bottom: 170 } },
   paint: { left: [['files']], right: [], bottom: [], sizes: { left: 230, right: 300, bottom: 170 } },
   sound: { left: [['files']], right: [], bottom: [], sizes: { left: 230, right: 300, bottom: 170 } },
@@ -236,6 +236,7 @@ async function openProject(id) {
     files: { id: 'files', title: 'Files', region: 'left', el: panelEl() },
     inspector: { id: 'inspector', title: 'Inspector', region: 'right', el: panelEl() },
     output: { id: 'output', title: 'Output', region: 'bottom', el: panelEl() },
+    animate: { id: 'animate', title: 'Animate', region: 'bottom', el: panelEl() },
     docs: { id: 'docs', title: 'Docs', region: 'right', el: panelEl() },
   };
   ed.dock = new DockManager(shell, center, Object.values(panels));
@@ -266,6 +267,7 @@ async function openProject(id) {
   });
   buildFilesPanel(panels.files.el);
   buildOutputPanel(panels.output.el);
+  buildAnimatePanel(panels.animate.el);
 
   // Workspaces
   const wsApp = {
@@ -381,6 +383,7 @@ async function openProject(id) {
     watched = sceneWs().doc;
     watched?.addEventListener('change', updateUndoButtons);
     updateUndoButtons();
+    ed.animate?.setDoc(watched);
   };
   ed.workspaces.scene.addEventListener('activate', watchDoc);
   watchDoc();
@@ -1071,7 +1074,7 @@ function mainMenu() {
     { label: 'Copy share link', icon: 'link', action: () => shareLink() },
     '-',
     { heading: 'Panels' },
-    panel('scene', 'Scene'), panel('files', 'Files'), panel('inspector', 'Inspector'), panel('output', 'Output'),
+    panel('scene', 'Scene'), panel('files', 'Files'), panel('inspector', 'Inspector'), panel('output', 'Output'), panel('animate', 'Animate'),
     { label: 'Reset layout', icon: 'layout', action: () => resetLayout() },
     '-',
     { label: 'Editor settings…', icon: 'settings', action: () => openSettings({}) },
@@ -1285,7 +1288,7 @@ function commands() {
     { label: 'All games', run: () => { location.hash = ''; } },
   ];
   for (const w of WORKSPACES) list.push({ label: `Go to ${w.label}`, run: () => goToWorkspace(w.id) });
-  for (const id of ['scene', 'files', 'inspector', 'output']) list.push({ label: `Show or hide the ${id} panel`, run: () => ed.dock.toggle(id) });
+  for (const id of ['scene', 'files', 'inspector', 'output', 'animate']) list.push({ label: `Show or hide the ${id} panel`, run: () => ed.dock.toggle(id) });
   return list;
 }
 
@@ -1382,6 +1385,29 @@ document.addEventListener('keydown', (e) => {
     else if (doc && k === 'v') { e.preventDefault(); pasteNodes(); }
   }
 });
+
+// The Animate panel (workspaces/scene/animate-panel.js), loaded with the
+// first scene; it follows the open scene. Selecting an Animator shows it.
+function buildAnimatePanel(el) {
+  import('./workspaces/scene/animate-panel.js').then(({ AnimatePanel }) => {
+    ed.animate = new AnimatePanel(el, {
+      showPanel: () => {
+        if (ed.ws !== 'scene') return;
+        if (!ed.dock.isVisible('animate') || !el.offsetWidth) ed.dock.show('animate');
+        // Room for a few tracks.
+        if (ed.dock.layout.sizes.bottom < 220) {
+          ed.dock.layout.sizes.bottom = 220;
+          ed.dock.applySizes();
+          ed.dock.changed();
+        }
+      },
+    });
+    ed.animate.setDoc(sceneWs()?.doc || null);
+  }).catch((e) => {
+    console.error(e);
+    el.append(h('p', { class: 'insp-hint' }, `The Animate panel couldn't load: ${e.message || e}`));
+  });
+}
 
 function buildOutputPanel(el) {
   const filter = h('input', { class: 'input', type: 'search', placeholder: 'Filter output', 'aria-label': 'Filter output' });
