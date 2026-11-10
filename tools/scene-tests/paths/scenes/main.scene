@@ -1,0 +1,112 @@
+{
+ "format": "smitten.scene",
+ "version": 2,
+ "root": {
+  "name": "Main",
+  "type": "Group",
+  "script": "scenes/main.lua",
+  "children": [
+   {
+    "name": "Ground",
+    "type": "Tiles",
+    "properties": {
+     "tileset": "art/tiles.tileset",
+     "cells": {
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 8,
+      "data": "0,0,0,0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,0,-1,-1,-1,-1,0,0,-1,-1,-1,-1,-1,0,-1,-1,-1,-1,0,0,-1,-1,-1,-1,-1,0,-1,-1,-1,-1,0,0,-1,-1,-1,-1,-1,0,-1,-1,-1,-1,0,0,-1,-1,-1,-1,-1,0,-1,-1,-1,-1,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0"
+     }
+    }
+   },
+   {
+    "name": "Chaser",
+    "type": "Body",
+    "script": "scripts/follower.lua",
+    "properties": {
+     "x": 40,
+     "y": 40
+    },
+    "children": [
+     {
+      "name": "Look",
+      "type": "Shape",
+      "properties": {
+       "width": 10,
+       "height": 10
+      }
+     }
+    ]
+   },
+   {
+    "name": "Floor",
+    "type": "Walkable",
+    "properties": {
+     "x": 600,
+     "y": 200,
+     "points": [
+      -200,
+      -150,
+      200,
+      -150,
+      200,
+      150,
+      -200,
+      150
+     ]
+    }
+   },
+   {
+    "name": "Pillar",
+    "type": "Walkable",
+    "properties": {
+     "x": 600,
+     "y": 200,
+     "hole": true,
+     "points": [
+      -50,
+      -50,
+      50,
+      -50,
+      50,
+      50,
+      -50,
+      50
+     ]
+    }
+   },
+   {
+    "name": "Walker",
+    "type": "Body",
+    "script": "scripts/follower.lua",
+    "properties": {
+     "x": 450,
+     "y": 190,
+     "speed": 200
+    },
+    "children": [
+     {
+      "name": "Look",
+      "type": "Shape",
+      "properties": {
+       "width": 10,
+       "height": 10
+      }
+     }
+    ]
+   },
+   {
+    "name": "Drawer",
+    "type": "Group",
+    "script": "scripts/drawer.lua",
+    "properties": {
+     "x": 300,
+     "y": 250,
+     "rotation": 0.7,
+     "scaleX": 1.5
+    }
+   }
+  ]
+ }
+}

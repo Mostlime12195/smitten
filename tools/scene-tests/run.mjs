@@ -7,7 +7,8 @@
 // Needs a built dist/ (python3 build.py). It starts tools/test_server.py
 // itself; CHROME and CHROME_FLAGS are as in tools/stress/run.mjs.
 //
-//   errors, lights    print PASS or FAIL for each check, then DONE
+//   errors, lights,   print PASS or FAIL for each check, then DONE
+//   paths
 //   smoke, rigid,     run for a few seconds: no error may happen (what they
 //   physics           print is for reading; see each test's main.lua)
 //   errorscreen       errors on purpose: the error must come out in plain
@@ -29,6 +30,7 @@ const CASES = {
   smoke: { game: 'tools/scene-tests/smoke.zip', seconds: 6, check: (lines) => noErrors(lines) || (lines.some((l) => /^ready/.test(l)) ? null : 'it never printed "ready"') },
   rigid: { game: 'tools/scene-tests/rigid.zip', seconds: 5, check: noErrors },
   physics: { game: 'tools/scene-tests/physics.zip', seconds: 5, check: noErrors },
+  paths: { game: 'tools/scene-tests/paths.zip', until: /^DONE /, check: selfChecking },
   errorscreen: { game: 'tools/errorscreen.zip', until: /^Error: /, modules: '', check: plainError },
 };
 

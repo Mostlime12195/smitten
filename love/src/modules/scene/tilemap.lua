@@ -81,6 +81,11 @@ local function changedAll(self)
 	self._chunks = nil
 	self._occ = nil -- the edges that block light (lights.lua)
 	self._changes = (self._changes or 0) + 1
+	-- Path grids made from these tiles read them again when next used.
+	local grids = self._pathGrids
+	if grids then
+		for grid in pairs(grids) do grid._stale = true end
+	end
 end
 
 local function ensure(self)
@@ -161,6 +166,10 @@ function Tiles:setTile(cx, cy, tile)
 	self._changes = (self._changes or 0) + 1
 	physics2d.tileChanged(self, cx, cy)
 	if self._occ then require("love.scene.lights")._tileChanged(self, cx, cy) end
+	local grids = self._pathGrids
+	if grids then
+		for grid in pairs(grids) do grid:_tileChanged(cx, cy) end
+	end
 	local chunks = self._chunks
 	if chunks then
 		local kx, ky = floor(cx / CHUNK), floor(cy / CHUNK)
@@ -283,6 +292,17 @@ function Tiles:getBounds()
 	local ax, ay = self:toWorld(x0 * ts.tileWidth, y0 * ts.tileHeight)
 	local bx, by = self:toWorld((x1 + 1) * ts.tileWidth, (y1 + 1) * ts.tileHeight)
 	return math.min(ax, bx), math.min(ay, by), math.abs(bx - ax), math.abs(by - ay)
+end
+
+---A grid for finding paths through these tiles (smitten.paths): solid tiles
+---are solid cells, and a tile's "cost" setting makes its cell cost more to
+---cross. The grid follows setTile(), fill() and clear().
+function Tiles:newPathGrid(options)
+	local grid = require("love.paths.grid").fromTiles(self, options)
+	-- Weak: a grid nobody uses any more is forgotten.
+	self._pathGrids = self._pathGrids or setmetatable({}, { __mode = "k" })
+	self._pathGrids[grid] = true
+	return grid
 end
 
 -- The chunks that have tiles: key -> {kx, ky, dirty = true}.

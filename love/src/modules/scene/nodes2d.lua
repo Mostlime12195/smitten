@@ -624,6 +624,10 @@ local count = 0
 local order = 0
 local transform = love.math.newTransform()
 M._world = love.math.newTransform()
+-- While a script's draw() runs, _inDraw is true and _piece is its piece's
+-- transform (smitten.paths.debugDraw draws in scene coordinates with them).
+M._piece = transform
+M._inDraw = false
 
 local function setMatrix(t, a, b, c, d, tx, ty)
 	t:setMatrix(a, c, 0, tx, b, d, 0, ty, 0, 0, 1, 0, 0, 0, 0, 1)
@@ -755,7 +759,9 @@ function M.render(root)
 		local f = n.draw
 		if f then
 			g.setColor(it.r, it.g, it.bl, it.al)
+			M._inDraw = true
 			f(n)
+			M._inDraw = false
 		end
 		g.pop()
 	end
