@@ -22,6 +22,8 @@ const COLLISION_FILL = 'rgba(77, 179, 255, 0.35)';
 const COLLISION_LINE = 'rgba(77, 179, 255, 0.85)';
 const OCCLUDER_FILL = 'rgba(20, 20, 30, 0.35)';
 const OCCLUDER_LINE = 'rgba(255, 196, 77, 0.9)';
+const WALKABLE = [70, 200, 120]; // a Walkable's area; holes are drawn in WALKABLE_HOLE
+const WALKABLE_HOLE = [235, 110, 85];
 const ANCHORS = {
   topLeft: [0, 0], top: [0.5, 0], topRight: [1, 0],
   left: [0, 0.5], center: [0.5, 0.5], right: [1, 0.5],
@@ -212,6 +214,7 @@ function kindOf(type) {
   if (isA(type, 'Hitbox')) return 'collision';
   if (isA(type, 'Camera')) return 'camera';
   if (isA(type, 'Zone')) return 'area';
+  if (isA(type, 'Walkable')) return 'walkable';
   if (isA(type, 'Body')) return 'body';
   if (isA(type, 'Joint')) return 'joint';
   if (isA(type, 'Light')) return 'light';
@@ -1242,6 +1245,9 @@ export class Viewport2D {
         }
         break;
       }
+      case 'walkable':
+        r = pointsBounds(this.get(n, 'points'));
+        break;
       case 'collision': {
         const shape = this.get(n, 'shape');
         if (shape === 'circle') {
@@ -1471,9 +1477,32 @@ export class Viewport2D {
       case 'occluder':
         if (!this.settings.showCollisions) return undefined;
         return this.drawOccluder(g, e);
+      case 'walkable': return this.drawWalkable(g, e);
       default:
         return undefined;
     }
+  }
+
+  /** A Walkable's polygon: green where things can walk, red for a hole. */
+  drawWalkable(g, e) {
+    const n = e.node;
+    const p = this.get(n, 'points') || [];
+    if (p.length < 6) return;
+    const color = this.get(n, 'hole') ? WALKABLE_HOLE : WALKABLE;
+    const active = this.get(n, 'active') !== false;
+    this.setWorld(g, e.m);
+    const k = Math.sqrt(Math.abs(e.m[0] * e.m[3] - e.m[1] * e.m[2])) * this.view.zoom || 1;
+    g.beginPath();
+    g.moveTo(p[0], p[1]);
+    for (let i = 2; i + 1 < p.length; i += 2) g.lineTo(p[i], p[i + 1]);
+    g.closePath();
+    g.fillStyle = `rgba(${color.join(', ')}, ${active ? 0.22 : 0.08})`;
+    g.fill();
+    g.lineWidth = 1.5 / k;
+    g.strokeStyle = `rgba(${color.join(', ')}, 0.9)`;
+    if (!active) g.setLineDash([4 / k, 3 / k]);
+    g.stroke();
+    g.setLineDash([]);
   }
 
   drawSprite(g, e) {
@@ -2139,6 +2168,8 @@ export class Viewport2D {
         g.arc(h.sx, h.sy, HANDLE_R + 1, 0, Math.PI * 2);
       } else if (h.kind === 'size' && h.round) {
         g.arc(h.sx, h.sy, HANDLE_R, 0, Math.PI * 2);
+      } else if (h.kind === 'midpoint') {
+        g.arc(h.sx, h.sy, HANDLE_R - 2, 0, Math.PI * 2);
       } else {
         g.rect(Math.round(h.sx - HANDLE_R) + 0.5, Math.round(h.sy - HANDLE_R) + 0.5, HANDLE_R * 2, HANDLE_R * 2);
       }
@@ -2211,6 +2242,26 @@ export class Viewport2D {
           const lx = centered ? (hx * w) / 2 : hx === 0 ? w / 2 : w;
           const ly = centered ? (hy * h) / 2 : hy === 0 ? h / 2 : h;
           push(lx, ly, hx, hy);
+        }
+      }
+      // Corner handles on polygons and lines: drag a corner to move it, drag
+      // the small dot in the middle of an edge to add a corner there.
+      const closed = e.kind === 'walkable' || (e.kind === 'shape' && shape === 'polygon');
+      if (closed || (e.kind === 'shape' && shape === 'line')) {
+        const p = this.get(n, 'points') || [];
+        const count = Math.floor(p.length / 2);
+        const at = (lx, ly) => this.toScreen(...apply(e.m, lx, ly));
+        for (let i = 0; i < count; i++) {
+          const [sx, sy] = at(p[i * 2], p[i * 2 + 1]);
+          out.push({ kind: 'point', index: i, sx, sy, entry: e, closed });
+        }
+        for (let i = 0; i < count - (closed ? 0 : 1); i++) {
+          const j = (i + 1) % count;
+          const [ax, ay] = at(p[i * 2], p[i * 2 + 1]);
+          const [bx, by] = at(p[j * 2], p[j * 2 + 1]);
+          // Not where the corners' own handles would cover it.
+          if (Math.hypot(bx - ax, by - ay) < HANDLE_R * 6) continue;
+          out.push({ kind: 'midpoint', index: i, sx: (ax + bx) / 2, sy: (ay + by) / 2, entry: e, closed });
         }
       }
     }
@@ -2310,6 +2361,16 @@ export class Viewport2D {
           return false;
         }
         break;
+      }
+      case 'walkable': {
+        const p = this.get(n, 'points') || [];
+        if (p.length < 6) return false;
+        if (pointInPolygon(p, lx, ly)) return true;
+        for (let i = 0; i + 1 < p.length; i += 2) {
+          const j = (i + 2) % p.length;
+          if (segDist(lx, ly, p[i], p[i + 1], p[j], p[j + 1]) <= tol) return true;
+        }
+        return false;
       }
       case 'collision':
         if (this.get(n, 'shape') === 'circle') return Math.hypot(lx, ly) <= num(this.get(n, 'radius'));
@@ -2478,6 +2539,7 @@ export class Viewport2D {
       case 'rotate': this.updateRotate(cur, world, e); break;
       case 'scale': this.updateScale(cur, world, e); break;
       case 'size': this.updateSize(cur, world, e); break;
+      case 'point': this.updatePoint(cur, world, e); break;
       case 'resize': this.updateResize(cur, world, e); break;
       default:
     }
@@ -2507,6 +2569,10 @@ export class Viewport2D {
           if (d.pending.kind === 'toggle') this.doc.toggleSelect(d.pending.node);
           else this.doc.select([d.pending.node]);
         }
+        break;
+      case 'point':
+        if (!cancelled) this.finishPoint(d);
+        d.gesture?.end();
         break;
       default:
         d.gesture?.end();
@@ -2597,6 +2663,7 @@ export class Viewport2D {
       const h = this.handleAt(sx, sy);
       if (h) {
         if (h.kind === 'rotate') c = 'grab';
+        else if (h.kind === 'point' || h.kind === 'midpoint') c = 'crosshair';
         else {
           // The handle's direction on screen, from the node's center.
           const corners = this.worldCorners(h.entry);
@@ -2686,6 +2753,23 @@ export class Viewport2D {
       return;
     }
     if (h.kind === 'resize' || h.kind === 'size') this.doc.select([n]);
+    if (h.kind === 'point' || h.kind === 'midpoint') {
+      this.doc.select([n]);
+      const points = [...(this.get(n, 'points') || [])];
+      let index = h.index;
+      if (h.kind === 'midpoint') {
+        // A new corner in the middle of the edge, which the drag then moves.
+        const j = (index + 1) % (points.length / 2);
+        points.splice(index * 2 + 2, 0, (points[index * 2] + points[j * 2]) / 2, (points[index * 2 + 1] + points[j * 2 + 1]) / 2);
+        index += 1;
+      }
+      this.drag = {
+        kind: 'point', entry: en, inv: invert(en.m) || IDENTITY, index, points, closed: h.closed, start: world, startS: [h.sx, h.sy],
+        moved: true, gesture: new Gesture(this.doc, `Move a corner of ${n.name}`),
+      };
+      if (h.kind === 'midpoint') this.drag.gesture.set([[n, { points: [...points] }]]);
+      return;
+    }
     const gesture = h.kind === 'scale' ? null : new Gesture(this.doc, `Resize ${n.name}`);
     if (h.kind === 'resize') {
       this.drag = { kind: 'resize', h, entry: en, rect0: [...en.rect], start: world, startS: [h.sx, h.sy], moved: true, gesture };
@@ -2823,6 +2907,37 @@ export class Viewport2D {
       hh = d.h0 * k;
     }
     d.gesture.set([[n, { width: roundTo(w, step), height: roundTo(hh, step) }]]);
+  }
+
+  /** Moves one corner of a polygon or line to the pointer (whole pixels, or the grid when snapping). */
+  updatePoint(d, world, e) {
+    const q = apply(d.inv, world[0], world[1]);
+    const step = this.snapOn(e) ? this.grid : 1;
+    const points = [...d.points];
+    points[d.index * 2] = roundTo(q[0], step);
+    points[d.index * 2 + 1] = roundTo(q[1], step);
+    d.gesture.set([[d.entry.node, { points }]]);
+  }
+
+  /**
+   * A corner dropped onto the one before or after it is taken out (while a
+   * polygon keeps 3 corners and a line 2).
+   */
+  finishPoint(d) {
+    const n = d.entry.node;
+    const p = this.get(n, 'points') || [];
+    const count = Math.floor(p.length / 2);
+    if (count <= (d.closed ? 3 : 2) || d.index >= count) return;
+    const at = (i) => this.toScreen(...apply(d.entry.m, p[i * 2], p[i * 2 + 1]));
+    const [sx, sy] = at(d.index);
+    const near = [d.index - 1, d.index + 1]
+      .filter((i) => d.closed || (i >= 0 && i < count))
+      .map((i) => at((i + count) % count))
+      .some(([x, y]) => Math.hypot(x - sx, y - sy) <= HANDLE_R + 1);
+    if (!near) return;
+    const points = [...p];
+    points.splice(d.index * 2, 2);
+    d.gesture.set([[n, { points }]]);
   }
 
   updateResize(d, world, e) {
