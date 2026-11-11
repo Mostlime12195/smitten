@@ -265,39 +265,63 @@ async function main() {
     }
   });
 
-  await test('migrations that land in either order each run once', async () => {
-    // A copy of the server's code and migrations, with one more migration
-    // numbered before 0007 that comes later (another branch merged after).
+  await test('migrations run once each, from user_version 5 or 6, and in either order', async () => {
+    // A copy of the server's code and migrations, so that a test can add a
+    // migration (another branch merged after this one).
     const dir = mkdtempSync(join(tmpdir(), 'smitten-cloud-order-'));
     try {
       cpSync(join(ROOT, 'platform/src'), join(dir, 'src'), { recursive: true });
       cpSync(join(ROOT, 'platform/migrations'), join(dir, 'migrations'), { recursive: true });
       cpSync(join(ROOT, 'platform/package.json'), join(dir, 'package.json'));
       const { openDb } = await import(pathToFileURL(join(dir, 'src/db.js')).href);
-      const tables = (file) => { const d = new DatabaseSync(file); const t = d.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name); d.close(); return t; };
+      const look = (file) => {
+        const d = new DatabaseSync(file);
+        const out = {
+          tables: d.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name),
+          gameColumns: d.prepare('PRAGMA table_info(games)').all().map((r) => r.name),
+          applied: d.prepare('SELECT name FROM migrations ORDER BY name').all().map((r) => r.name),
+          version: d.prepare('PRAGMA user_version').get().user_version,
+          games: d.prepare('SELECT COUNT(*) AS n FROM games').get().n,
+        };
+        d.close();
+        return out;
+      };
+      const newest = Math.max(...migrationFiles().map((f) => Number.parseInt(f, 10)));
 
-      // 1. This branch first: 0007 is applied, then 0006 arrives.
-      const first = join(dir, 'first.db');
-      oldDatabase(first);
-      openDb(first).close();
-      writeFileSync(join(dir, 'migrations/0006_other.sql'), 'CREATE TABLE other_feature (id INTEGER PRIMARY KEY);');
-      openDb(first).close();
-      assert.ok(tables(first).includes('other_feature'), '0006 ran after 0007');
-      assert.ok(tables(first).includes('cloud_saves'));
-      openDb(first).close();  // and nothing runs twice (CREATE TABLE would fail)
+      // 1. The database at user_version 5 (before play builds): 0006 and 0007 run.
+      const five = join(dir, 'five.db');
+      oldDatabase(five);
+      openDb(five).close();
+      let l = look(five);
+      assert.ok(l.gameColumns.includes('play_size'), '0006 ran');
+      assert.ok(l.tables.includes('cloud_saves'), '0007 ran');
+      assert.deepEqual(l.applied, migrationFiles());
+      assert.equal(l.version, newest);
+      assert.equal(l.games, 1);
+      openDb(five).close();  // again: nothing runs twice (ALTER and CREATE would fail)
 
-      // 2. The other branch first, with the runner before this one: user_version 6, no migrations table.
-      const second = join(dir, 'second.db');
-      oldDatabase(second);
-      const d = new DatabaseSync(second);
-      d.exec('CREATE TABLE other_feature (id INTEGER PRIMARY KEY); PRAGMA user_version = 6');
+      // 2. The live database now: 0006 applied by the runner before the
+      // migrations table, user_version 6. 0006 must not run again.
+      const six = join(dir, 'six.db');
+      oldDatabase(six);
+      const d = new DatabaseSync(six);
+      d.exec(readFileSync(join(ROOT, 'platform/migrations/0006_play_builds.sql'), 'utf8'));
+      d.exec('PRAGMA user_version = 6');
       d.close();
-      openDb(second).close();
-      assert.ok(tables(second).includes('cloud_saves'), '0007 ran');
-      const after = new DatabaseSync(second);
-      assert.equal(after.prepare('PRAGMA user_version').get().user_version, Math.max(...migrationFiles().map((f) => Number.parseInt(f, 10))));
-      assert.equal(after.prepare("SELECT COUNT(*) AS n FROM migrations WHERE name = '0006_other.sql'").get().n, 1);
-      after.close();
+      openDb(six).close();
+      l = look(six);
+      assert.ok(l.tables.includes('cloud_saves'), '0007 ran');
+      assert.deepEqual(l.applied, migrationFiles());
+      assert.equal(l.version, newest);
+      assert.equal(l.games, 1);
+
+      // 3. A migration with a lower number that lands after 0007 still runs, once.
+      writeFileSync(join(dir, 'migrations/0006_other.sql'), 'CREATE TABLE other_feature (id INTEGER PRIMARY KEY);');
+      openDb(six).close();
+      openDb(six).close();
+      l = look(six);
+      assert.ok(l.tables.includes('other_feature'));
+      assert.equal(l.version, newest, 'user_version stays the highest');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

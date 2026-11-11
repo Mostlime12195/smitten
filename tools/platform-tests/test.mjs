@@ -1738,7 +1738,8 @@ async function main() {
           await new Promise((r) => child.once('exit', r));
           child = null;
           const after = new DatabaseSync(join(dir, 'smitten.db'));
-          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 6);
+          // At least 6 (0006_play_builds.sql); later migrations may follow.
+          assert.ok(after.prepare('PRAGMA user_version').get().user_version >= 6);
           assert.equal(after.prepare("SELECT play_size FROM games WHERE id = '0ddba11001'").get().play_size, null);
           assert.equal(after.prepare('SELECT COUNT(*) AS n FROM users').get().n, 1);
           after.close();
