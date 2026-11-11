@@ -66,6 +66,13 @@ export async function launch({ headless = true, flags = [] } = {}, attempt = 1) 
     if (attempt < 2) return launch({ headless, flags }, attempt + 1);
     throw new Error('the browser did not start (set CHROME to its path)');
   }
+  return connectPage(target, port, proc);
+}
+
+// A page object for one tab: send(), on(), eval(), goto(), close(), and
+// newPage() for another tab in the same browser (close() on that one
+// closes only the tab).
+async function connectPage(target, port, proc) {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r, { once: true }));
   let id = 0;
@@ -100,7 +107,12 @@ export async function launch({ headless = true, flags = [] } = {}, attempt = 1) 
     },
     close() {
       ws.close();
-      proc.kill();
+      if (proc) proc.kill();
+      else fetch(`http://127.0.0.1:${port}/json/close/${target.id}`).catch(() => {});
+    },
+    async newPage() {
+      const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
+      return connectPage(t, port, null);
     },
   };
   await send('Page.enable');

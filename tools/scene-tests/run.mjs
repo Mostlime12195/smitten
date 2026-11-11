@@ -22,6 +22,7 @@
 //                     the same song from the editor's synthesizer
 //   boards,           smitten.boards without the games site, and inside
 //   boards-site       boards-site.html, which stands in for it (PASS, FAIL, DONE)
+//   net               smitten.net without the games site (PASS, FAIL, DONE)
 //   errorscreen       errors on purpose: the error must come out in plain
 //                     form, without the engine's own frames
 //   clips             Record in the player's toolbar, then F9 (a video) and
@@ -72,6 +73,9 @@ const CASES = {
   // and inside a page that stands in for a game's page there.
   boards: { game: 'tools/scene-tests/boards.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },
   'boards-site': { url: '/tools/scene-tests/boards-site.html', until: /^DONE /, check: (lines) => mode(lines, 'site') || selfChecking(lines) },
+  // smitten.net without the games site: every call answers "unavailable"
+  // at once (platform-tests/rooms-e2e.mjs tests it on the site).
+  net: { game: 'tools/scene-tests/net.zip', until: /^DONE /, modules: '', check: selfChecking },
   // Players' input and the touch pieces: its own checks, then real touches
   // from the browser on the stick, a button and the game behind them.
   players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking, touch: true, after: realTouches },

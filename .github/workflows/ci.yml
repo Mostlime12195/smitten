@@ -57,6 +57,10 @@ jobs:
       - name: Sharing site tests
         run: node tools/platform-tests/test.mjs
 
+      # The relay for online rooms (smitten.net), with small limits.
+      - name: Online rooms tests
+        run: node tools/platform-tests/rooms.mjs
+
       - name: Server tests
         run: python3 tools/serve_test.py
 
@@ -81,6 +85,10 @@ jobs:
       # And animations: keyframes and the Animator piece.
       - name: Animation tests
         run: lua5.1 tools/animation-tests/test.lua
+
+      # And smitten.net, with stand-ins for tasks and the game's page.
+      - name: Online rooms Lua tests
+        run: lua5.1 tools/net-tests/test.lua
 
   build:
     runs-on: ubuntu-latest
@@ -126,6 +134,13 @@ jobs:
       # it saves by itself.
       - name: Sprite editor test
         run: node tools/editor-tests/paint.mjs
+        env:
+          CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
+
+      # Online rooms from end to end: the built player on the site, two
+      # pages of one Chrome in one room.
+      - name: Online rooms test
+        run: node tools/platform-tests/rooms-e2e.mjs dist
         env:
           CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
 

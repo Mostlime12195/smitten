@@ -131,9 +131,9 @@ function flushError() {
   }
 }
 
-// The games site's bridge (smitten.boards, love/src/modules/boards): on a
-// game's page there, play.js adds ?site=1 and answers the game's leaderboard
-// calls. The player only carries the messages: the game's go out as printed
+// The games site's bridge (smitten.boards and smitten.net, love/src/modules/
+// boards and net): on a game's page there, play.js adds ?site=1, answers the
+// game's leaderboard calls and holds its online room's connection. The player only carries the messages: the game's go out as printed
 // lines starting with "\1site " and on to the page with postMessage; the
 // page's come back the same way and reach the game through the queue live
 // tweaking uses (loveweb_live_post). The player makes no request itself and
@@ -182,7 +182,7 @@ function output(level, text) {
     onDisplay(text.slice(9));
     return;
   }
-  // smitten.boards' calls, for the games site's page (above).
+  // smitten.boards' and smitten.net's messages, for the games site's page (above).
   if (text.startsWith('\x01site ')) {
     try { toSite(JSON.parse(text.slice(6))); } catch { /* not a message */ }
     return;

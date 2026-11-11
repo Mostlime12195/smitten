@@ -82,7 +82,7 @@ end
 | `build.py` | The build script. It reads the lists of source files from `love/CMakeLists.txt` |
 | `serve.py` | A local development server |
 | `package.py` | A command-line web export for a project folder or a zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `clip-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `clip-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `net-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -396,6 +396,8 @@ Tests:
   plain Lua, with stubs for drawing. It tests where Rows, Columns, Grids
   and Scrolls put pieces, Slider drags, Checkbox groups, typing and
   selection in a TextInput, and the keyboard focus.
+- `lua5.1 tools/net-tests/test.lua`: online rooms (`smitten.net`) under
+  plain Lua, with stand-ins for tasks and for the page of the game.
 - `lua5.1 tools/animation-tests/test.lua`: keys and the Animator piece
   (`keyframes.lua` and `animator.lua` in the engine) under plain Lua, with
   the cases of `keyframe-cases.json`.
@@ -404,7 +406,8 @@ Tests:
   themselves. `errors` checks what the engine tells you when a script has
   a mistake. `lights` checks what lights and shadows draw. `boards`
   and `boards-site` check `smitten.boards` without the games site, and in
-  a page that acts as the games site. `clips` clicks **Record** in the web
+  a page that acts as the games site. `net` checks `smitten.net` without
+  the games site. `clips` clicks **Record** in the web
   player, saves a video and a GIF, and checks the downloaded files.
 - `python3 tools/serve_test.py` tests `serve.py`. CI
   (`.github/workflows/ci.yml`) runs all of these tests on each push, and
@@ -415,6 +418,11 @@ Tests:
 - `PLATFORM_PORT=8790 node tools/platform-tests/test.mjs`: the games site.
   `tools/platform-tests/boards-e2e.mjs` plays a game with a leaderboard on
   a local copy of the site. You run it yourself (it needs a build).
+- `ROOMS_PORT=8786 node tools/platform-tests/rooms.mjs`: the relay of the
+  online rooms on the games site, with small limits.
+  `tools/platform-tests/rooms-e2e.mjs [dist]` plays one online game in two
+  pages of a headless Chrome, on a local copy of the site. CI runs it on
+  its build.
 - `tools/smitten-audio` (its `check.mjs` makes sure that the engine and
   `synth.mjs` make the same samples), `tools/video` (playback, pausing and
   seeking), `tools/luacompat` (the Lua extensions) and

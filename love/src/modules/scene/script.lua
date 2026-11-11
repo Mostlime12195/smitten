@@ -636,6 +636,12 @@ local globals = require("love.engine").globals
 -- Run as they are, every frame: wait() can't pause them.
 local DIRECT = { update = true, physicsUpdate = true, draw = true, eachCharacter = true }
 
+-- smitten.net's events (love.net) go to the pieces whose scripts have one
+-- of these functions. This set keeps them, so that nothing walks the tree;
+-- it holds them weakly, so pieces that are gone leave it by themselves.
+local NET_EVENTS = { peerJoined = true, peerLeft = true, message = true, disconnected = true }
+M.netPieces = setmetatable({}, { __mode = "k" })
+
 local SPAWN = api.spawn
 
 ---True if a loaded script is in the new style.
@@ -827,6 +833,7 @@ function M.instantiate(n, s)
 					checkEvent(n, k)
 				end
 				fns[k] = v
+				if NET_EVENTS[k] then M.netPieces[n] = true end
 				if DIRECT[k] or (type(k) == "string" and k:sub(1, 1) == "_") then
 					n[k] = function(_, ...) return v(...) end
 				else
