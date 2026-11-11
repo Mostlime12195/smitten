@@ -110,9 +110,22 @@ async function connectPage(target, port, proc) {
       if (proc) proc.kill();
       else fetch(`http://127.0.0.1:${port}/json/close/${target.id}`).catch(() => {});
     },
+    // A new window, not a tab: a tab behind another one is hidden, and its
+    // page gets no animation frames.
     async newPage() {
-      const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
-      return connectPage(t, port, null);
+      const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+      const browser = new WebSocket(version.webSocketDebuggerUrl);
+      await new Promise((r) => browser.addEventListener('open', r, { once: true }));
+      const targetId = await new Promise((resolve, reject) => {
+        browser.addEventListener('message', (e) => {
+          const m = JSON.parse(e.data);
+          if (m.id === 1) (m.error ? reject(new Error(m.error.message)) : resolve(m.result.targetId));
+        });
+        browser.send(JSON.stringify({ id: 1, method: 'Target.createTarget', params: { url: 'about:blank', newWindow: true } }));
+      });
+      browser.close();
+      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+      return connectPage(list.find((t) => t.id === targetId), port, null);
     },
   };
   await send('Page.enable');

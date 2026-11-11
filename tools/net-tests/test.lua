@@ -238,7 +238,8 @@ check("text with quotes and new lines stays one line", net.send(4, 'a "b"\nc') =
 
 fails("a function can't be sent", function() net.send(4, { x = 1, f = print }) end, "smitten.net.send(): data.f is a function")
 fails("a piece can't be sent", function() net.broadcast({ who = setmetatable({}, {}) }) end, "smitten.net.broadcast(): data.who is a piece")
-fails("NaN can't be sent", function() net.send(4, { 0 / 0 }) end, "data[1] is nan")
+fails("NaN can't be sent", function() net.send(4, { 0 / 0 }) end, "data[1] is not a number (NaN)")
+fails("infinity can't be sent", function() net.send(4, { y = math.huge }) end, "data.y is infinite")
 fails("a list with a gap can't be sent", function() net.send(4, { 1, nil, 3 }) end, "data is not a list")
 fails("a table with both kinds of keys can't be sent", function() net.send(4, { 1, 2, x = 3 }) end, "data is not a list")
 fails("number keys that are not a list", function() net.send(4, { [5] = "x" }) end, "data is not a list")

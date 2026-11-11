@@ -138,7 +138,8 @@ async function main() {
 
     console.log('\n2. The second page goes away');
     await two.page.goto('about:blank');
-    await one.until('E2E peerLeft Ee Two host=true peers=1', 10000);
+    // At once, not after the 10 seconds that a dropped connection keeps its place.
+    await one.until('E2E peerLeft Ee Two host=true peers=1', 6000);
     console.log(`   one: ${one.lines.at(-1)}`);
 
     console.log('\n3. The site stops');

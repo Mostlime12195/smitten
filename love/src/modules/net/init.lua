@@ -323,9 +323,8 @@ local function checkData(v, path, depth, seen)
 	local t = type(v)
 	if v == nil or v == json.null or t == "string" or t == "boolean" then return end
 	if t == "number" then
-		if v ~= v or v == math.huge or v == -math.huge then
-			error(("%s is %s, which a message cannot hold"):format(path, tostring(v)), 0)
-		end
+		if v ~= v then error(path .. " is not a number (NaN), which a message cannot hold", 0) end
+		if v == math.huge or v == -math.huge then error(path .. " is infinite, which a message cannot hold", 0) end
 		return
 	end
 	if t ~= "table" then

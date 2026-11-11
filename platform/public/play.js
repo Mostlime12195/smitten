@@ -411,6 +411,10 @@ function netConnect() {
   };
 }
 
+// Leaving the page is leaving the room, now (a connection that only drops
+// keeps its place for a while).
+window.addEventListener('pagehide', () => netEnd(null));
+
 /** A message from the game's smitten.net. */
 function fromGameNet(msg) {
   if (msg.call === 'join') {
