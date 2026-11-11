@@ -31,6 +31,9 @@ teenagers, and anywhere else Node 24 runs.
 - **Leaderboards** (optional): a game's owner can give it boards of best
   scores or fastest times; the game sends scores with `smitten.boards`
   and they show under the game. See [Leaderboards](#leaderboards).
+- **Online rooms**: on its page, a game can join a room with
+  `smitten.net`. Everyone in the same room of the same game gets the
+  messages the others send. See [Online rooms](#online-rooms).
 - **Moderation**: reports hide a game after three people report it;
   moderators hide, restore and delete games, and ban accounts.
 
@@ -230,6 +233,51 @@ If the player moves to its own origin, the bridge keeps working: it is
 already a `postMessage` hop, and the two origin checks (`SITE_ORIGIN` in
 `player.js`, `location.origin` in `play.js`'s `fromGame`) become the
 other side's origin, passed in the iframe's URL.
+
+## Online rooms
+
+A relay for `smitten.net` (`src/rooms.js`, user docs in `docs/online.md`).
+It only carries messages: it does not check what a game sends, decide
+anything for the game, or keep anything. Rooms live in the memory of the
+server process. A restart ends them all, and the games get
+`disconnected("lost")`.
+
+- **The connection.** The game's page (`public/play.js`), not the game,
+  opens a WebSocket to `/api/games/<id>/rooms/<room>?max=&name=` on the
+  site's own origin. The server accepts only an `Origin` equal to
+  `PUBLIC_URL`, and only public games. The player passes messages between
+  the game and the page, as for leaderboards. The game never gets a URL.
+  The upgrade comes in through the server's `upgrade` event, and
+  `src/rooms.js` speaks WebSocket itself (text frames only, no
+  compression, frames up to 64 KB).
+- **Rooms.** A room name is 1 to 32 letters, numbers, spaces, `_ . -`, and
+  case does not matter. Each game has its own names. The first player
+  makes the room and sets its size (2 to `ROOM_MAX_PLAYERS`, 16; 8 when
+  the game gives none). Peers get ids 1, 2, 3... in the order they come.
+  The host is the peer that is in the room the longest. A room ends when
+  its last peer leaves.
+- **Names.** With the session cookie, the account's display name.
+  Otherwise the name the game gives, through the same checks as a
+  leaderboard guest's name ("Guest 3" when there is none).
+- **Messages.** `{t: "to", to, d}` and `{t: "all", d}` from the page;
+  `welcome`, `joined`, `left`, `msg` and `warn` from the server (the
+  comment at the top of `src/rooms.js` lists the fields). The server reads
+  only `t` and `to`, and never writes message data to the log.
+- **Limits** (all in `deploy/env.example`): `ROOM_MESSAGE_BYTES` (8192)
+  per message, `ROOM_MESSAGES_PER_SECOND` (30) and
+  `ROOM_BYTES_PER_SECOND` (32 KB) per peer (messages over them are
+  dropped, with a `warn`), `ROOMS_PER_GAME` (100), `ROOM_CONNECTIONS`
+  (1000) on the server and `ROOM_CONNECTIONS_PER_ADDRESS` (8). A page
+  that does not read its messages (1 MB waiting) is closed with `slow`. A
+  room with no message for `ROOM_IDLE_SECONDS` (15 minutes) closes. The
+  server pings every `ROOM_PING_SECONDS` (20) and drops a connection that
+  does not answer. A banned network cannot join rooms. `ROOMS=off` turns
+  rooms off (games get `"unavailable"`).
+- **Dropped connections.** Close code 1000 or 1001 from the page is a
+  leave. A connection that ends without one keeps its place for
+  `ROOM_GRACE_SECONDS` (10). The page tries again with the token from its
+  `welcome` (`&resume=`), and gets a new `welcome`. Messages in between
+  are lost.
 
 ## Accounts
 
@@ -500,6 +548,7 @@ means `Authorization: Bearer <editor token>`.
 | `DELETE /api/games/<id>/boards/<key>` | owner or admin | Delete the board and its scores |
 | `POST /api/games/<id>/boards/<key>/scores` | the site's pages | Send a score: `{value, name}` (`name` for guests). `201 {value, rank, improved, kept}` |
 | `DELETE /api/games/<id>/boards/<key>/scores/<score id>` | owner or admin | Remove one score |
+| `GET /api/games/<id>/rooms/<room>` (WebSocket) | the site's pages | An online room: see [Online rooms](#online-rooms) |
 | `GET /api/users/<username>` | anyone | A profile: `{username, displayName, createdAt, games}` |
 | `POST /api/auth/signup` | the site's pages | `{username, displayName, password, email}` (or `{via: "hackclub", username, email}` after Hack Club; `email` optional, ignored when email is off). Sets the session; `201 {user, recoveryCodes, pendingEmail}` |
 | `POST /api/auth/signin` | the site's pages | `{username, password}`. Sets the session |
@@ -579,7 +628,7 @@ The audience is teenagers:
   cut off as they arrive. Publishing: 10 an hour per account. Reports: 20
   an hour per address and per account. Leaderboards: 10 boards a game,
   1000 scores a board, 120 scores an hour per account and 300 per
-  address, score requests of 1 KB.
+  address, score requests of 1 KB. Online rooms: see [Online rooms](#online-rooms).
 - **Zip checks.** A plain zip (no encryption, ZIP64 or unusual
   compression) with `smitten.json` at its root, no absolute
   or `..` paths. Thumbnails must be real PNGs.
@@ -807,6 +856,9 @@ origin, and in the editor, **Settings › Publishing** is the site's URL.
   the limits keep fakes plausible and rare, not impossible. Guests are an
   address and a name, so a school behind one address shares its guest
   names, and its hourly limit.
+- **Online rooms are in memory**, in one process: a restart or a deploy
+  ends every room, and the rooms cannot spread over more servers. Players
+  can cheat, as with scores: the server only carries messages.
 - **One server process**, which is plenty on Nest. Search is `LIKE`,
   pagination is by offset, updates overwrite the previous version.
 

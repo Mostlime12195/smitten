@@ -94,14 +94,16 @@ export function cookie(config, name, value, { maxAge, path = '/' } = {}) {
 // Security headers
 
 // The gallery and play pages: only this site's own scripts, styles and
-// images; the game runs in the player, in an iframe from this site.
+// images; the game runs in the player, in an iframe from this site. A
+// game's page connects to the site's online rooms (src/rooms.js): 'self'
+// covers ws: and wss: in today's browsers, the origin is for older ones.
 const SITE_CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' WS_ORIGIN",
   "frame-src 'self'",
   "media-src 'none'",
   "object-src 'none'",
@@ -153,7 +155,7 @@ export function withSecurityHeaders(res, kind, config) {
     h.set('Content-Security-Policy', playerCsp(config));
     h.set('X-Frame-Options', 'SAMEORIGIN');
   } else if (kind === 'site' || kind === 'auth') {
-    h.set('Content-Security-Policy', SITE_CSP);
+    h.set('Content-Security-Policy', SITE_CSP.replace('WS_ORIGIN', config.publicOrigin.replace(/^http/, 'ws')));
     h.set('X-Frame-Options', 'DENY');
     if (kind === 'site') h.set('Cross-Origin-Opener-Policy', 'same-origin');
   } else {

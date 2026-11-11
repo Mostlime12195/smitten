@@ -13,6 +13,7 @@
 //   /docs/[page]            the docs (public/docs/, made by tools/gen-docs.mjs)
 //   /player/player.html     the player (copied by scripts/copy-player.sh)
 //   /api/...                the API (README.md lists every endpoint)
+//   /api/games/<id>/rooms/<room>  online rooms, a WebSocket (src/rooms.js)
 //
 //   node src/server.js      (settings: deploy/env.example)
 
@@ -49,6 +50,7 @@ import {
   adminBanAddress, adminUnbanAddress, adminAddressBans,
 } from './admin.js';
 import { MODULES } from './validate.js';
+import { closeRooms, handleUpgrade } from './rooms.js';
 
 const ID = `(${ID_PATTERN})`;
 const NAME = '([^/]{1,60})';
@@ -418,11 +420,29 @@ export function createApp(config) {
   };
 }
 
+/** WebSocket upgrades: online rooms (src/rooms.js). */
+export function createUpgrade(config) {
+  return function upgrade(req, socket, head) {
+    let url;
+    try {
+      url = new URL(req.url || '/', config.publicOrigin);
+    } catch {
+      socket.destroy();
+      return;
+    }
+    const headers = new Headers();
+    for (let i = 0; i < req.rawHeaders.length; i += 2) headers.append(req.rawHeaders[i], req.rawHeaders[i + 1]);
+    const ctx = { config, url, origin: config.publicOrigin, ...clientIp(req, config), request: new Request(url, { headers }) };
+    handleUpgrade(ctx, req, socket, head);
+  };
+}
+
 export function startServer(config = loadConfig()) {
   openDb(config.dbFile);
   initStorage(config);
   startMailWorker(config);
   const server = createServer(createApp(config));
+  server.on('upgrade', createUpgrade(config));
   server.listen(config.port, config.host, () => {
     console.log(`Smitten games on ${config.publicOrigin} (listening on ${config.host}:${config.port}, data in ${config.dataDir})`);
     if (!config.adminToken) console.log('ADMIN_TOKEN is not set: the admin endpoints are off.');
@@ -430,6 +450,7 @@ export function startServer(config = loadConfig()) {
   });
   const stop = () => {
     stopMailWorker();
+    closeRooms();
     server.close(() => {
       db.close();
       process.exit(0);

@@ -13,6 +13,10 @@ const int = (value, fallback) => {
   const n = Number.parseInt(value, 10);
   return Number.isFinite(n) ? n : fallback;
 };
+const seconds = (value, fallback) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+};
 const list = (value) => String(value || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
 const flag = (value) => /^(1|true|yes|on)$/i.test(String(value || ''));
 
@@ -68,6 +72,20 @@ export function loadConfig(env = null) {
     scoreLimit: int(env.SCORE_LIMIT_PER_HOUR, 120),
     scoreAddressLimit: int(env.SCORE_ADDRESS_LIMIT_PER_HOUR, 300),
     gameNetwork: env.GAME_NETWORK === 'https' ? 'https' : 'self',
+    // Online rooms (src/rooms.js).
+    rooms: {
+      on: !/^(0|false|no|off)$/i.test(String(env.ROOMS ?? 'on')),
+      maxPeers: Math.min(64, Math.max(2, int(env.ROOM_MAX_PLAYERS, 16))),
+      perGame: Math.max(1, int(env.ROOMS_PER_GAME, 100)),
+      total: Math.max(1, int(env.ROOM_CONNECTIONS, 1000)),
+      perAddress: Math.max(1, int(env.ROOM_CONNECTIONS_PER_ADDRESS, 8)),
+      messageBytes: Math.max(256, int(env.ROOM_MESSAGE_BYTES, 8192)),
+      messagesPerSecond: Math.max(1, int(env.ROOM_MESSAGES_PER_SECOND, 30)),
+      bytesPerSecond: Math.max(1024, int(env.ROOM_BYTES_PER_SECOND, 32 * 1024)),
+      graceSeconds: Math.max(0, seconds(env.ROOM_GRACE_SECONDS, 10)),
+      idleSeconds: Math.max(1, seconds(env.ROOM_IDLE_SECONDS, 15 * 60)),
+      pingSeconds: Math.max(0.2, seconds(env.ROOM_PING_SECONDS, 20)),
+    },
 
     // "Sign in with Hack Club" (https://auth.hackclub.com/docs/oidc-guide).
     // On when both the client id and secret are set.

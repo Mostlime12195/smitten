@@ -29,8 +29,8 @@ function mountPlayer() {
   const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
   p.set('title', game.title);
-  // A game with leaderboards gets the bridge to them (below).
-  if (game.boards?.length) p.set('site', '1');
+  // The bridge to the site's leaderboards and online rooms (below).
+  p.set('site', '1');
   const frame = h('iframe', {
     id: 'player',
     src: `/player/player.html?${p}`,
@@ -293,7 +293,13 @@ function fromGame(frame, msg) {
   if (!game || !msg || typeof msg !== 'object') return;
   const reply = (message) => frame.contentWindow?.postMessage({ type: 'site', message }, location.origin);
   if (msg.type === 'hello') {
-    reply({ type: 'hello', boards: (game.boards || []).length > 0 });
+    // A new player (the first, or the game started again): nothing it had is open.
+    netEnd(null);
+    reply({ type: 'hello', boards: (game.boards || []).length > 0, net: true });
+    return;
+  }
+  if (msg.type === 'net') {
+    fromGameNet(msg);
     return;
   }
   if (msg.type !== 'request' || !Number.isSafeInteger(msg.id)) return;
@@ -311,6 +317,121 @@ function fromGame(frame, msg) {
     .then((result) => reply({ type: 'reply', id: msg.id, ok: true, result }))
     .catch((err) => reply({ type: 'reply', id: msg.id, ok: false, reason: reasonOf(err) }))
     .finally(() => { inFlight--; });
+}
+
+// ---------------------------------------------------------------------------
+// Online rooms: the bridge between the game's smitten.net and the site's
+// relay (platform/src/rooms.js).
+//
+// This page holds the WebSocket, as it makes the leaderboard requests: the
+// game only passes small messages through its player ({type: 'net', call:
+// 'join' | 'leave' | 'to' | 'all', ...}) and gets the relay's messages back
+// ({type: 'net', t: 'welcome' | 'joined' | 'left' | 'msg' | 'warn' |
+// 'closed', ...}). The game never chooses a URL, and one bridge serves
+// both. If the connection drops, the page tries again with the room's
+// token for a few seconds (the relay keeps the player's place that long).
+//
+// Messages to the game go at most NET_PER_FRAME in each frame: the engine
+// takes 256 queued messages a frame. While the tab is hidden the game
+// doesn't run; then messages wait, and past NET_WAITING the game's own
+// messages are dropped (never joins and leaves).
+
+const NET_RETRIES = [300, 1000, 2000, 3000, 3000];
+const NET_PER_FRAME = 48;
+const NET_WAITING = 1000;
+let net = null; // { s (the game's number for this join), socket, room, max, name, token, joined, tries, timer }
+const netInbox = [];
+let netSent = 0;
+let netFrame = 0;
+
+function toGameNet(message) {
+  if (!netInbox.length && netSent < NET_PER_FRAME) {
+    $('#player')?.contentWindow?.postMessage({ type: 'site', message }, location.origin);
+    netSent++;
+  } else if (message.t !== 'msg' || netInbox.length < NET_WAITING) {
+    netInbox.push(message);
+  }
+  if (!netFrame) netFrame = requestAnimationFrame(netPump);
+}
+
+function netPump() {
+  netFrame = 0;
+  netSent = 0;
+  const target = $('#player')?.contentWindow;
+  for (const message of netInbox.splice(0, NET_PER_FRAME)) {
+    target?.postMessage({ type: 'site', message }, location.origin);
+    netSent++;
+  }
+  if (netInbox.length || netSent) netFrame = requestAnimationFrame(netPump);
+}
+
+/** Closes the room's connection; reason (if any) goes to the game. */
+function netEnd(reason) {
+  const n = net;
+  if (!n) return;
+  const { socket, timer } = n;
+  net = null;
+  clearTimeout(timer);
+  if (socket) {
+    socket.onclose = socket.onmessage = null;
+    socket.close(1000, 'leave');
+  }
+  if (reason) toGameNet({ type: 'net', t: 'closed', reason, s: n.s });
+}
+
+function netConnect() {
+  const n = net;
+  const q = new URLSearchParams();
+  if (n.max) q.set('max', String(n.max));
+  if (n.name) q.set('name', n.name);
+  if (n.token) q.set('resume', n.token);
+  const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/games/${encodeURIComponent(game.id)}/rooms/${encodeURIComponent(n.room)}?${q}`);
+  n.socket = socket;
+  socket.onmessage = (e) => {
+    if (net !== n) return;
+    let m;
+    try { m = JSON.parse(e.data); } catch { return; }
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'welcome') {
+      n.joined = true;
+      n.token = m.token;
+      n.tries = 0;
+      delete m.token;
+    }
+    toGameNet({ ...m, type: 'net', s: n.s });
+  };
+  socket.onclose = (e) => {
+    if (net !== n) return;
+    n.socket = null;
+    // The relay's own reasons are final; "expired" is a place it no longer keeps.
+    if (e.code === 4000) return netEnd(e.reason === 'expired' ? 'lost' : e.reason || 'error');
+    if (!n.joined) return netEnd('offline');
+    if (n.tries >= NET_RETRIES.length) return netEnd('lost');
+    n.timer = setTimeout(netConnect, NET_RETRIES[n.tries++]);
+  };
+}
+
+/** A message from the game's smitten.net. */
+function fromGameNet(msg) {
+  if (msg.call === 'join') {
+    netEnd(null);
+    if (typeof msg.room !== 'string' || msg.room.length > 200) return toGameNet({ type: 'net', t: 'closed', reason: 'bad-room', s: msg.s });
+    net = {
+      s: msg.s,
+      room: msg.room,
+      max: Number.isInteger(msg.max) ? msg.max : null,
+      name: typeof msg.name === 'string' ? msg.name.slice(0, 200) : null,
+      token: null, joined: false, tries: 0, timer: 0, socket: null,
+    };
+    netConnect();
+  } else if (msg.call === 'leave') {
+    netEnd(null);
+  } else if (msg.call === 'to' || msg.call === 'all') {
+    const socket = net?.joined ? net.socket : null;
+    // While it reconnects, and when the network can't keep up, messages are lost.
+    if (!socket || socket.readyState !== WebSocket.OPEN || socket.bufferedAmount > 256 * 1024) return;
+    socket.send(JSON.stringify(msg.call === 'to' ? { t: 'to', to: msg.to, d: msg.d } : { t: 'all', d: msg.d }));
+  }
 }
 
 async function countPlay() {
