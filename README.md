@@ -342,6 +342,19 @@ Tests:
   the view, the editor does not draw the image again. Then it tests a pen
   and fingers with input that it makes, not with a real tablet. It checks
   the pressure, the eraser end, the side button, palm rejection and a pinch.
+- `node web/editor/core/build/build.test.mjs`: play builds
+  (`web/editor/core/build/`). Each PNG must decode to the same pixels after
+  the play build writes it again. JSON must keep its values. A tool file
+  goes only when nothing names it. The files of the project must not change.
+- `python3 tools/build-tests/strip_lua_test.py`: `build.py` embeds the Lua
+  of the engine without comments. `luac5.1` must make the same bytecode
+  from each stripped file as from the original.
+- `node --experimental-websocket tools/build-tests/play-games.mjs dist <game.zip>...`:
+  real games, from their source and from their play build. It makes each
+  web export with the exporter of the editor in a headless Chrome, and
+  publishes each game on a local games site. Each image must decode to the
+  same pixels in the engine. A remix must get the source. `--measure` also
+  prints sizes, load times, draw calls and frame times.
 - `node tools/clip-tests/test.mjs`: clips (`web/player/clips.js`). It
   tests the GIF encoder (it decodes each GIF again), the reading, joining,
   cutting and writing of WebM files, and the ring of recordings, with a
@@ -382,6 +395,10 @@ Tests:
   - `ready-made`: the ready-made scripts `health.lua`, `spawner.lua`,
     `moving-platform.lua` and `countdown.lua`, in a scene that the test
     makes.
+  - `playbuild`: a project that the test makes (images of each PNG type,
+    sprites with layers, JSON and tool files) runs from its source and
+    then from its play build. Each image must decode and draw with the
+    same pixels in both.
 
   You can open a scene test in the web player with the test server (see
   below). Each line that it prints tells what it checked.
@@ -516,8 +533,12 @@ area.
    <meta name="smitten-modules" content="physics2d">
    ```
 
-**Export for web** in the editor does these steps for you. The command
-line can also do them:
+**Export for web** in the editor does these steps for you. It puts the
+play build of the game in the zip (`web/editor/core/build/`). The play
+build has smaller images and JSON, and no layers of sprites or tool files
+([docs/sharing.md](docs/sharing.md#play-builds)). Publishing uploads
+the play build with the source. The command line can also do the steps,
+with the project as it is (no play build):
 
 ```bash
 python3 package.py path/to/project out/ --zip
@@ -537,6 +558,7 @@ Web player URL options:
 | `?scale=fit` (default) / `integer` / `none` | How the web player scales a window of fixed size to the page |
 | `?pixelated=1` | Nearest-neighbour upscaling (`scale=integer` also does this) |
 | `?embed=1` | Embedded mode. The page controls it with `postMessage` (see `web/player/player.js`) |
+| `?probe=frames,draws,parse,images` | Measurements for the developers of the engine (`love/src/modules/engine/probe.lua`). It prints frame times, draw calls, the time to compile the scripts and a hash of each image to the console |
 
 ## Web-specific behavior
 
