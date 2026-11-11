@@ -73,7 +73,7 @@ export function zip(files) {
   return new Uint8Array(Buffer.concat([...parts, ...central, end]));
 }
 
-/** Starts the site: {base, stop(), output()} (output: what it printed). */
+/** Starts the site: {base, dataDir, stop(), output()} (output: what it printed). */
 export async function startSite(port, env = {}) {
   const base = `http://127.0.0.1:${port}`;
   const dataDir = mkdtempSync(join(tmpdir(), 'smitten-rooms-'));
@@ -95,6 +95,7 @@ export async function startSite(port, env = {}) {
   }
   return {
     base,
+    dataDir,
     output: () => printed,
     stop() {
       server.kill();

@@ -3346,7 +3346,9 @@ async function main() {
           await new Promise((r) => child.once('exit', r));
           child = null;
           const after = new DatabaseSync(join(dir, 'smitten.db'));
-          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 6);
+          // The number of the newest migration (src/db.js).
+          const newest = Math.max(...readdirSync(`${ROOT}platform/migrations`).filter((f) => /^\d{4}_.*\.sql$/.test(f)).map((f) => Number.parseInt(f, 10)));
+          assert.equal(after.prepare('PRAGMA user_version').get().user_version, newest);
           assert.equal(after.prepare('SELECT COUNT(*) AS n FROM plays').get().n, 1);
           after.close();
         } finally {

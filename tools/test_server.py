@@ -9,6 +9,8 @@ Serves dist/ like serve.py, plus:
                              player.html?game=tools/video.zip&modules=video
     /tools/<path>.html       a test's own page (tools/scene-tests/boards-site.html
                              stands in for the games site around the player)
+    /docs/<name>.html        a page from docs/ (docs/host-example.html, which the
+                             "cloud-host" scene test runs as the docs show it)
     /games/<name>.zip        games/<name>/ zipped the same way, without its tools/
                              (the art and map generators), e.g.
                              player.html?game=games/my-game.zip
@@ -25,6 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 TOOLS = ROOT / "tools"
+DOCS = ROOT / "docs"
 GAMES = ROOT / "games"
 
 
@@ -77,12 +80,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return True
 
     def serve_page(self, head):
-        """A test's own page, /tools/<path>.html (a stand-in for a page around the player)."""
+        """A test's own page, /tools/<path>.html (a stand-in for a page around the player), or /docs/<name>.html."""
         path = self.path.split("?", 1)[0]
-        if not (path.startswith("/tools/") and path.endswith(".html")):
+        base = TOOLS if path.startswith("/tools/") else DOCS if path.startswith("/docs/") else None
+        if base is None or not path.endswith(".html"):
             return False
-        src = (TOOLS / path[len("/tools/"):]).resolve()
-        if TOOLS not in src.parents or not src.is_file():
+        src = (base / path[len(base.name) + 2:]).resolve()
+        if base not in src.parents or not src.is_file():
             self.send_error(404, "no such test page")
             return True
         data = src.read_bytes()

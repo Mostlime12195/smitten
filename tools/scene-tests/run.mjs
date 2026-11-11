@@ -23,6 +23,8 @@
 //   boards,           smitten.boards without the games site, and inside
 //   boards-site       boards-site.html, which stands in for it (PASS, FAIL, DONE)
 //   net               smitten.net without the games site (PASS, FAIL, DONE)
+//   cloud,            smitten.host and smitten.cloud without a host, and in
+//   cloud-host        docs/host-example.html, the docs' host page (cloud-host.html)
 //   errorscreen       errors on purpose: the error must come out in plain
 //                     form, without the engine's own frames
 //   clips             Record in the player's toolbar, then F9 (a video) and
@@ -83,6 +85,10 @@ const CASES = {
   // smitten.net without the games site: every call answers "unavailable"
   // at once (platform-tests/rooms-e2e.mjs tests it on the site).
   net: { game: 'tools/scene-tests/net.zip', until: /^DONE /, modules: '', check: selfChecking },
+  // smitten.host and smitten.cloud without a host (every call answers
+  // "unavailable" at once), and inside the host page that the docs show.
+  cloud: { game: 'tools/scene-tests/cloud.zip', until: /^DONE /, modules: '', check: (lines) => mode(lines, 'unavailable') || selfChecking(lines) },
+  'cloud-host': { url: '/tools/scene-tests/cloud-host.html', until: /^DONE /, check: (lines) => mode(lines, 'host') || selfChecking(lines) },
   // Players' input and the touch pieces: its own checks, then real touches
   // from the browser on the stick, a button and the game behind them.
   players: { game: 'tools/scene-tests/players.zip', until: /^DONE /, check: selfChecking, touch: true, after: realTouches },

@@ -66,6 +66,10 @@ jobs:
       - name: Online rooms tests
         run: node tools/platform-tests/rooms.mjs
 
+      # Cloud saves (smitten.cloud) on the site: limits, deleting, the migration.
+      - name: Cloud saves tests
+        run: node tools/platform-tests/cloud.mjs
+
       - name: Server tests
         run: python3 tools/serve_test.py
 
@@ -99,6 +103,10 @@ jobs:
       # And smitten.net, with stand-ins for tasks and the game's page.
       - name: Online rooms Lua tests
         run: lua5.1 tools/net-tests/test.lua
+
+      # And smitten.host and smitten.cloud (and smitten.boards through the host).
+      - name: Host and cloud saves Lua tests
+        run: lua5.1 tools/cloud-tests/test.lua
 
   build:
     runs-on: ubuntu-latest
@@ -151,6 +159,13 @@ jobs:
       # pages of one Chrome in one room.
       - name: Online rooms test
         run: node tools/platform-tests/rooms-e2e.mjs dist
+        env:
+          CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
+
+      # Cloud saves from end to end: the built player on the site, as a
+      # guest and signed in.
+      - name: Cloud saves test
+        run: node tools/platform-tests/cloud-e2e.mjs dist
         env:
           CHROME_FLAGS: --no-sandbox --enable-unsafe-swiftshader
 

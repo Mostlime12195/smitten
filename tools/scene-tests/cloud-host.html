@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>The host page from the docs</title>
+<!--
+  The "cloud-host" scene test (run.mjs): docs/host-example.html, the
+  minimal host page that docs/host-interface.md shows, exactly as it is,
+  except that its frame runs the cloud saves test game. The game checks
+  smitten.host and a round trip of its cloud saves through the real
+  player's bridge (PASS, FAIL, DONE).
+-->
+<script>
+(async () => {
+  const page = await (await fetch('/docs/host-example.html')).text();
+  const player = '/player.html?game=tools/scene-tests/cloud.zip&autoplay=1&modules=&host=1';
+  if (!page.includes('src="index.html?host=1"')) throw new Error('docs/host-example.html has no frame for index.html?host=1');
+  // The saves of an earlier run are gone.
+  for (const name of Object.keys(localStorage)) if (name.startsWith('my-site-cloud:')) localStorage.removeItem(name);
+  document.open();
+  document.write(page.replace('src="index.html?host=1"', `src="${player}"`));
+  document.close();
+})();
+</script>
+</html>
