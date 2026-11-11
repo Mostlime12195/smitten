@@ -158,7 +158,7 @@ async function play(page, url, { keys = [], frames = 2, wait = 6000 } = {}) {
   // Frames in the scene the keys led to.
   const mark = lines.length;
   for (let i = 0; i < 60; i++) {
-    if (lines.slice(mark).filter((l) => l.text.startsWith('\x01probe {"ev":"frames"')).length >= frames + 1) break;
+    if (lines.slice(mark).filter((l) => l.text.startsWith('\x01probe ') && l.text.includes('"ev":"frames"')).length >= frames + 1) break;
     await sleep(500);
   }
   const shot = Buffer.from((await page.send('Page.captureScreenshot', { format: 'png' })).data, 'base64');
