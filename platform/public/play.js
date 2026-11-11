@@ -1,6 +1,7 @@
 // A game's page: the game in Smitten's player, its details, Remix and Report.
 
-import { $, h, icon, plays, timeAgo, formatBytes, editorUrl, api, send, toast } from './site.js';
+import { $, h, icon, plays, timeAgo, formatBytes, editorUrl, api, send, toast, account } from './site.js';
+import { HOST, cloudCall, isCloudCall } from './play-cloud.js';
 
 const MODULE_NAMES = {
   physics2d: 'physics',
@@ -30,7 +31,8 @@ function mountPlayer() {
   const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
   p.set('title', game.title);
-  // The bridge to the site's leaderboards and online rooms (below).
+  // The bridge to the site's cloud saves, leaderboards and online rooms
+  // (below): this page hosts the game (docs/host-interface.md).
   p.set('site', '1');
   const frame = h('iframe', {
     id: 'player',
@@ -141,7 +143,8 @@ function render() {
 
 // ---------------------------------------------------------------------------
 // Leaderboards: the game's boards under it, and the bridge that lets the
-// game's scripts (smitten.boards) send and read scores.
+// game's scripts (smitten.boards) send and read scores. The same bridge
+// takes the calls of smitten.cloud (play-cloud.js).
 //
 // The game has no network access. Its player passes on small messages
 // ({type: 'request', id, call, key, ...}); this page, and only this page,
@@ -240,6 +243,7 @@ function renderBoards() {
 function reasonOf(err) {
   if (err?.name === 'TimeoutError' || err?.name === 'AbortError') return 'timeout';
   if (!err?.status) return 'offline';
+  if (err.status === 401) return 'signed-out';
   if (err.status === 429) return 'too-many';
   if (err.data?.hidden) return 'hidden';
   return err.data?.code || 'error';
@@ -296,7 +300,13 @@ function fromGame(frame, msg) {
   if (msg.type === 'hello') {
     // A new player (the first, or the game started again): nothing it had is open.
     netEnd(null);
-    reply({ type: 'hello', boards: (game.boards || []).length > 0, net: true });
+    const boards = (game.boards || []).length > 0;
+    const features = ['cloudSaves', 'net', ...(boards ? ['boards'] : [])];
+    // The player's display name only (it is public on the site), never an id.
+    // boards and net: for a player from before protocol 1.
+    account().then((user) => reply({
+      type: 'hello', protocol: 1, ...HOST, features, ...(user ? { user: { name: user.displayName } } : {}), boards, net: true,
+    }));
     return;
   }
   if (msg.type === 'net') {
@@ -304,7 +314,8 @@ function fromGame(frame, msg) {
     return;
   }
   if (msg.type !== 'request' || !Number.isSafeInteger(msg.id)) return;
-  if (!game.boards?.length) {
+  const cloud = isCloudCall(msg);
+  if (!cloud && !game.boards?.length) {
     reply({ type: 'reply', id: msg.id, ok: false, reason: 'unavailable' });
     return;
   }
@@ -314,7 +325,7 @@ function fromGame(frame, msg) {
     return;
   }
   inFlight++;
-  boardCall(msg)
+  (cloud ? cloudCall(game.id, msg) : boardCall(msg))
     .then((result) => reply({ type: 'reply', id: msg.id, ok: true, result }))
     .catch((err) => reply({ type: 'reply', id: msg.id, ok: false, reason: reasonOf(err) }))
     .finally(() => { inFlight--; });

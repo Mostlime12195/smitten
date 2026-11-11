@@ -45,25 +45,40 @@ export function openDb(file) {
   return db;
 }
 
-// migrations/NNNN_name.sql, applied in order; PRAGMA user_version is the
-// number of the last one applied.
+// migrations/NNNN_name.sql, applied in order, once each. The table
+// migrations keeps the name of each one applied, so a file that lands
+// after one with a higher number (two branches merged in either order)
+// still runs. Before that table, PRAGMA user_version was the number of the
+// last one applied: when the table is made, every file up to that number
+// counts as applied. user_version stays the highest number applied.
 function migrate(raw) {
   const dir = join(ROOT, 'migrations');
   const files = readdirSync(dir).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
-  let current = raw.prepare('PRAGMA user_version').get().user_version;
+  let version = raw.prepare('PRAGMA user_version').get().user_version;
+  if (!raw.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'migrations'").get()) {
+    raw.exec('BEGIN');
+    raw.exec('CREATE TABLE migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)');
+    const mark = raw.prepare('INSERT INTO migrations (name, applied_at) VALUES (?, ?)');
+    for (const file of files) if (Number.parseInt(file, 10) <= version) mark.run(file, Date.now());
+    raw.exec('COMMIT');
+  }
+  const applied = new Set(raw.prepare('SELECT name FROM migrations').all().map((r) => r.name));
   for (const file of files) {
+    if (applied.has(file)) continue;
     const n = Number.parseInt(file, 10);
-    if (n <= current) continue;
     raw.exec('BEGIN');
     try {
       raw.exec(readFileSync(join(dir, file), 'utf8'));
-      raw.exec(`PRAGMA user_version = ${n}`);
+      raw.prepare('INSERT INTO migrations (name, applied_at) VALUES (?, ?)').run(file, Date.now());
+      if (n > version) {
+        raw.exec(`PRAGMA user_version = ${n}`);
+        version = n;
+      }
       raw.exec('COMMIT');
     } catch (e) {
       raw.exec('ROLLBACK');
       throw new Error(`Migration ${file} failed: ${e.message}`);
     }
-    current = n;
   }
 }
 

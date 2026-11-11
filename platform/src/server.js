@@ -35,6 +35,7 @@ import {
   getGameFile, getPlayFile, getThumbnail, countPlay, reportGame, uploadLimit,
 } from './games.js';
 import { listBoards, getBoard, submitScore, createBoard, updateBoard, resetBoard, deleteBoard, deleteScore } from './boards.js';
+import { listSaves, getSave, putSave, deleteSave, accountSaves, deleteAccountSaves } from './cloud.js';
 import {
   signUp, signIn, signOut, recover, me, updateAccount, changePassword, regenerateRecoveryCodes, deleteAccount,
   listSessions, revokeSession, revokeOtherSessions, myGames, claimGames, getProfile,
@@ -56,6 +57,7 @@ const ID = `(${ID_PATTERN})`;
 const NAME = '([^/]{1,60})';
 const SESSION = '([0-9a-z]{16})';
 const BOARD = '([a-z0-9][a-z0-9_-]{0,23})';
+const SAVE = '([A-Za-z0-9][A-Za-z0-9_.-]{0,63})';
 
 // [method, path pattern, handler(ctx, ...params)]
 const API = [
@@ -78,6 +80,10 @@ const API = [
   ['POST', new RegExp(`^/api/games/${ID}/boards/${BOARD}/reset$`), resetBoard],
   ['POST', new RegExp(`^/api/games/${ID}/boards/${BOARD}/scores$`), submitScore],
   ['DELETE', new RegExp(`^/api/games/${ID}/boards/${BOARD}/scores/(\\d{1,15})$`), deleteScore],
+  ['GET', new RegExp(`^/api/games/${ID}/saves$`), listSaves],
+  ['GET', new RegExp(`^/api/games/${ID}/saves/${SAVE}$`), getSave],
+  ['PUT', new RegExp(`^/api/games/${ID}/saves/${SAVE}$`), putSave],
+  ['DELETE', new RegExp(`^/api/games/${ID}/saves/${SAVE}$`), deleteSave],
   ['GET', new RegExp(`^/api/users/${NAME}$`), getProfile],
 
   ['POST', /^\/api\/auth\/signup$/, signUp],
@@ -99,6 +105,8 @@ const API = [
   ['POST', /^\/api\/account\/sessions\/revoke-others$/, revokeOtherSessions],
   ['DELETE', new RegExp(`^/api/account/sessions/${SESSION}$`), revokeSession],
   ['GET', /^\/api\/account\/games$/, myGames],
+  ['GET', /^\/api\/account\/saves$/, accountSaves],
+  ['DELETE', new RegExp(`^/api/account/saves/${ID}$`), deleteAccountSaves],
   ['POST', /^\/api\/account\/claim$/, claimGames],
   ['POST', /^\/api\/account\/email$/, setEmail],
   ['DELETE', /^\/api\/account\/email$/, removeEmail],

@@ -1,7 +1,8 @@
-// Account settings: display name, games, password, email, recovery codes,
+// Account settings: display name, games, cloud saves, password, email, recovery codes,
 // Hack Club, Hackatime, where you're signed in, and deleting the account.
 
 import { $, h, api, send, accountDetails, siteConfig, showError, clearErrors, codesBlock, timeAgo, plays, toast } from './site.js';
+import { loadSaves } from './account-saves.js';
 
 const main = $('#main');
 const params = new URLSearchParams(location.search);
@@ -395,6 +396,7 @@ async function start() {
   });
 
   loadGames();
+  loadSaves();
   loadSessions();
 }
 

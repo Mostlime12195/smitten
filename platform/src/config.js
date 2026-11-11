@@ -71,6 +71,14 @@ export function loadConfig(env = null) {
     boardMaxScores: Math.max(10, int(env.BOARD_MAX_SCORES, 1000)),
     scoreLimit: int(env.SCORE_LIMIT_PER_HOUR, 120),
     scoreAddressLimit: int(env.SCORE_ADDRESS_LIMIT_PER_HOUR, 300),
+    // Cloud saves (src/cloud.js): per account and game, and calls per hour per account.
+    cloud: {
+      valueBytes: Math.min(64 * 1024, Math.max(1024, int(env.CLOUD_VALUE_BYTES, 64 * 1024))),
+      gameBytes: Math.max(1024, int(env.CLOUD_GAME_BYTES, 256 * 1024)),
+      keys: Math.max(1, int(env.CLOUD_KEYS_PER_GAME, 32)),
+      writeLimit: int(env.CLOUD_WRITE_LIMIT_PER_HOUR, 300),
+      readLimit: int(env.CLOUD_READ_LIMIT_PER_HOUR, 1200),
+    },
     gameNetwork: env.GAME_NETWORK === 'https' ? 'https' : 'self',
     // Online rooms (src/rooms.js).
     rooms: {
