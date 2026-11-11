@@ -1,4 +1,6 @@
-// Game files on disk: <DATA_DIR>/games/<id>/game.love and thumbnail.png.
+// Game files on disk: <DATA_DIR>/games/<id>/game.love (the source, for
+// remixing), play.love (the play build, what the play page runs; games
+// published before play builds have none) and thumbnail.png.
 // Writes go to a temporary file first and are renamed into place, so a
 // download never sees half a file.
 
@@ -16,6 +18,7 @@ export function initStorage(config) {
 
 const dirOf = (id) => join(gamesDir, id);
 export const GAME_FILE = 'game.love';
+export const PLAY_FILE = 'play.love';
 export const THUMBNAIL_FILE = 'thumbnail.png';
 
 async function writeAtomic(path, bytes) {
@@ -24,10 +27,15 @@ async function writeAtomic(path, bytes) {
   await rename(tmp, path);
 }
 
-/** Stores a game's files; no thumbnail removes the old one. */
-export async function storeGameFiles(id, gameBytes, thumbnail) {
+/**
+ * Stores a game's files. No thumbnail removes the old one; no play build
+ * removes the old one too, so the play page never runs an older version.
+ */
+export async function storeGameFiles(id, gameBytes, thumbnail, playBytes = null) {
   await mkdir(dirOf(id), { recursive: true });
   await writeAtomic(join(dirOf(id), GAME_FILE), gameBytes);
+  if (playBytes) await writeAtomic(join(dirOf(id), PLAY_FILE), playBytes);
+  else await rm(join(dirOf(id), PLAY_FILE), { force: true });
   if (thumbnail) await writeAtomic(join(dirOf(id), THUMBNAIL_FILE), thumbnail);
   else await rm(join(dirOf(id), THUMBNAIL_FILE), { force: true });
 }

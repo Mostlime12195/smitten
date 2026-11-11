@@ -140,13 +140,17 @@ platform/
   `sessions`, `editor_codes`, `recovery_codes`, `password_resets`, `games`,
   `reports`, `plays`, `rate_limits`, `admin_log`, `address_bans`,
   `user_addresses`, `email_tokens`, `mail_queue`, `boards` and `scores`.
-  `<DATA_DIR>/games/<id>/game.love` and `thumbnail.png` are the files,
+  `<DATA_DIR>/games/<id>/game.love` (the source), `play.love` (the play
+  build, when the game has one) and `thumbnail.png` are the files,
   written to a temporary file and renamed so a download never sees half of
   one. Migrations (`migrations/NNNN_*.sql`) run on start; `PRAGMA
   user_version` says which have.
 - **Playing.** `/play/<id>` is `play.html` with the title and description
   filled in for link previews. `play.js` puts the player in a sandboxed
-  iframe: `/player/player.html?game=/api/games/<id>/<title>.zip&modules=physics2d`.
+  iframe: `/player/player.html?game=/api/games/<id>/play/<title>.zip&modules=physics2d`.
+  That is the play build, which the editor makes when it publishes
+  (smaller images and files, `docs/sharing.md`); a game published before
+  play builds runs from its source there.
   The server refuses a `?game=` that isn't one of this site's games, so the
   player can't run games from elsewhere. The sandbox has no `allow-popups`
   or `allow-top-navigation`.
@@ -532,11 +536,12 @@ means `Authorization: Bearer <editor token>`.
 | --- | --- | --- |
 | `GET /api/config` | anyone | Editor URL and origins, report reasons, modules, limits, `accounts.hackclub`, `accounts.hackatime`, `accounts.email` |
 | `GET /api/games?sort=new\|popular&q=&user=&limit=24&cursor=` | anyone | Public games, newest or most played; `q` searches titles and descriptions, `user` filters by username |
-| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the project as a zip), optionally `thumbnail` (PNG). `201 {id, game}` |
+| `POST /api/games` | session or editor | Publish: `multipart/form-data` with `meta` (JSON: `title`, `description`, `modules`, `engineVersion`, `remixOf`, `hackatimeProject`), `game` (the project as a zip), optionally `play` (the play build as a zip: the play page runs it, remixes get `game`) and `thumbnail` (PNG). `201 {id, game}` |
 | `GET /api/games/<id>` | anyone | A game, with `owner`, `remixOf: {id, title}`, `remixes` and `hackatime: {seconds, checkedAt}` (when tracked); `yours: true` for its owner |
-| `PUT /api/games/<id>` | owner | Publish an update (the same form; without `hackatimeProject`, the game keeps its) |
+| `PUT /api/games/<id>` | owner | Publish an update (the same form; without `hackatimeProject`, the game keeps its; without `play`, the old play build is removed) |
 | `DELETE /api/games/<id>` | owner | Delete the game and its files |
-| `GET /api/games/<id>/<name>.zip` | anyone | The game (`application/zip`, as an attachment; ETag and 304s). Older `<name>.love` links still work |
+| `GET /api/games/<id>/<name>.zip` | anyone | The game's source (`application/zip`, as an attachment; ETag and 304s). Older `<name>.love` links still work |
+| `GET /api/games/<id>/play/<name>.zip` | anyone | The play build, or the source if the game has none (`playSize` in `GET /api/games/<id>` is `null` then) |
 | `GET /api/games/<id>/thumbnail.png` | anyone | The thumbnail |
 | `POST /api/games/<id>/play` | anyone | Count a play |
 | `POST /api/games/<id>/report` | anyone | Report: `{reason, note}` |

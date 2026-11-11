@@ -25,7 +25,8 @@ function showNotice(kind, text) {
 
 /** The player, in an iframe from this site. The sandbox keeps games from opening pop-ups or navigating the page. */
 function mountPlayer() {
-  const gameUrl = `/api/games/${game.id}/${encodeURIComponent(game.title)}.zip`;
+  // The play build (the source for games published before play builds).
+  const gameUrl = `/api/games/${game.id}/play/${encodeURIComponent(game.title)}.zip`;
   const p = new URLSearchParams({ game: gameUrl });
   if (game.modules.length) p.set('modules', game.modules.join(','));
   p.set('title', game.title);
@@ -131,7 +132,7 @@ function render() {
   $('#fineprint').textContent = [
     `Made with Smitten${game.engineVersion ? ` ${game.engineVersion}` : ''}`,
     used.length ? `uses ${used.join(', ')}` : null,
-    formatBytes(game.size),
+    formatBytes(game.playSize ?? game.size),
   ].filter(Boolean).join(' · ');
 
   if (reported().includes(game.id)) markReported();

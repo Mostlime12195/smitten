@@ -19,7 +19,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import net from 'node:net';
@@ -1565,7 +1565,8 @@ async function main() {
     assert.equal(r.data.field, 'game');
   });
   await test('an upload body past the limit is cut off, even without Content-Length', async () => {
-    const big = new Uint8Array(27 * 1024 * 1024);
+    // Past two games (the source and the play build) and a thumbnail.
+    const big = new Uint8Array(52 * 1024 * 1024);
     const stream = new ReadableStream({
       start(c) {
         c.enqueue(new TextEncoder().encode('--x\r\nContent-Disposition: form-data; name="game"; filename="g.zip"\r\n\r\n'));
@@ -1622,6 +1623,145 @@ async function main() {
     assert.equal(r.status, 201);
     assert.equal(r.data.game.remixOf, null);
   });
+
+  // -------------------------------------------------------------------------
+  section('Play builds: the source and the play build');
+  {
+    const source = zip({ ...files, 'tools/build.mjs': 'console.log("a tool")' });
+    const playBuild = zip({ ...files });
+    const withPlay = (meta, game, play, thumbnail) => {
+      const f = form(meta, game, thumbnail);
+      if (play) f.append('play', new Blob([play], { type: 'application/zip' }), 'play.zip');
+      return f;
+    };
+    const owner = await person();
+    let id;
+    await test('publishing with a play build keeps both zips: remixes get the source, the play page the play build', async () => {
+      const r = await call('POST', '/api/games', { body: withPlay({ title: `Play build ${tag}`, description: '' }, source, playBuild), token: owner.token });
+      assert.equal(r.status, 201);
+      id = r.data.id;
+      cleanup.push({ id, token: owner.token });
+      assert.equal(r.data.game.size, source.length);
+      assert.equal(r.data.game.playSize, playBuild.length);
+      assert.equal(r.data.game.playBuildUrl, `${BASE}/api/games/${id}/play/game.zip`);
+      const remixFile = await call('GET', `/api/games/${id}/game.zip`);
+      assert.ok(same(remixFile.data, source), 'game.zip is the source');
+      const playFile = await call('GET', `/api/games/${id}/play/${encodeURIComponent(`Play build ${tag}`)}.zip`);
+      assert.equal(playFile.status, 200);
+      assert.equal(playFile.headers.get('content-type'), 'application/zip');
+      assert.ok(same(playFile.data, playBuild), 'play/<name>.zip is the play build');
+      assert.ok(playFile.headers.get('etag'));
+      const again = await call('GET', `/api/games/${id}/play/x.zip`, { headers: { 'If-None-Match': playFile.headers.get('etag') } });
+      assert.equal(again.status, 304);
+    });
+    await test('the player takes a play build URL, and nothing else from outside', async () => {
+      const ok = await call('GET', `/player/player.html?game=${encodeURIComponent(`/api/games/${id}/play/Game.zip`)}`);
+      assert.notEqual(ok.status, 400);
+      const bad = await call('GET', `/player/player.html?game=${encodeURIComponent(`/api/games/${id}/play/../../x/y.zip`)}`);
+      assert.equal(bad.status, 400);
+    });
+    if (!external) {
+      await test('the play build is stored next to the source', async () => {
+        assert.ok(same(readFileSync(join(dataDir, 'games', id, 'play.love')), playBuild));
+        assert.ok(same(readFileSync(join(dataDir, 'games', id, 'game.love')), source));
+        assert.equal(db.prepare('SELECT play_size FROM games WHERE id = ?').get(id).play_size, playBuild.length);
+      });
+    }
+    await test('an update without a play build removes the old one: the play page runs the source', async () => {
+      const r = await call('PUT', `/api/games/${id}`, { body: withPlay({ title: `Play build ${tag}`, description: '' }, source, null), token: owner.token });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.game.playSize, null);
+      assert.equal(r.data.game.version, 2);
+      const playFile = await call('GET', `/api/games/${id}/play/x.zip`);
+      assert.ok(same(playFile.data, source));
+      if (!external) assert.equal(readdirSync(join(dataDir, 'games', id)).includes('play.love'), false);
+    });
+    await test('an update with a new play build replaces it', async () => {
+      const newer = zip({ ...files, 'extra.txt': 'v3' });
+      const r = await call('PUT', `/api/games/${id}`, { body: withPlay({ title: `Play build ${tag}`, description: '' }, source, newer), token: owner.token });
+      assert.equal(r.status, 200);
+      assert.equal(r.data.game.playSize, newer.length);
+      assert.ok(same((await call('GET', `/api/games/${id}/play/x.zip`)).data, newer));
+      assert.ok(same((await call('GET', `/api/games/${id}/game.zip`)).data, source));
+    });
+    await test('a play build must be a game zip too', async () => {
+      const r = await call('POST', '/api/games', { body: withPlay({ title: `Bad play ${tag}`, description: '' }, source, new TextEncoder().encode('not a zip at all, no')), token: owner.token });
+      assert.equal(r.status, 422);
+      assert.equal(r.data.field, 'play');
+      assert.match(r.data.error, /^The play build: /);
+      const noManifest = zip({ 'main.scene': files['main.scene'] || '{}' });
+      const r2 = await call('POST', '/api/games', { body: withPlay({ title: `Bad play ${tag}`, description: '' }, source, noManifest), token: owner.token });
+      assert.equal(r2.status, 422);
+      assert.equal(r2.data.field, 'play');
+    });
+    await test('a remix of a game with a play build gets the source', async () => {
+      const r = await call('GET', `/api/games/${id}`);
+      const res = await fetch(r.data.game.gameUrl);
+      assert.ok(same(new Uint8Array(await res.arrayBuffer()), source));
+    });
+    if (external) skip('a database from before play builds gets them on start', 'starts its own server');
+    else {
+      await test('a database from before play builds gets them on start; its games play from their one zip', async () => {
+        const port = PORT + 1;
+        const dir = mkdtempSync(join(tmpdir(), 'smitten-platform-test-play-'));
+        let child;
+        try {
+          // The schema as it was (migrations 1 to 5), with an account, a game, its file and a board.
+          const old = new DatabaseSync(join(dir, 'smitten.db'));
+          for (const file of readdirSync(`${ROOT}platform/migrations`).filter((f) => /^000[1-5]_.*\.sql$/.test(f)).sort()) {
+            old.exec(readFileSync(`${ROOT}platform/migrations/${file}`, 'utf8'));
+          }
+          old.exec('PRAGMA user_version = 5');
+          const now = Date.now();
+          const love = tinyGame('Before play builds');
+          old.prepare("INSERT INTO users (id, username, display_name, created_at, updated_at) VALUES (9, 'earlybird', 'Early Bird', ?, ?)").run(now, now);
+          old.prepare("INSERT INTO games (id, owner_id, title, game_size, plays, created_at, updated_at) VALUES ('0ddba11001', 9, 'Early game', ?, 12, ?, ?)").run(love.length, now, now);
+          old.prepare("INSERT INTO boards (game_id, key, title, created_at, updated_at) VALUES ('0ddba11001', 'best', 'Best', ?, ?)").run(now, now);
+          old.close();
+          mkdirSync(join(dir, 'games', '0ddba11001'), { recursive: true });
+          writeFileSync(join(dir, 'games', '0ddba11001', 'game.love'), love);
+          // As the deploy does: a copy first.
+          writeFileSync(join(dir, 'backup.db'), readFileSync(join(dir, 'smitten.db')));
+          child = await spawnServer(port, dir, {});
+          const g = await (await fetch(`http://127.0.0.1:${port}/api/games/0ddba11001`)).json();
+          assert.equal(g.game.title, 'Early game');
+          assert.equal(g.game.plays, 12);
+          assert.equal(g.game.size, love.length);
+          assert.equal(g.game.playSize, null);
+          assert.equal(g.game.boards.length, 1);
+          for (const path of ['game.zip', 'play/Early%20game.zip']) {
+            const res = await fetch(`http://127.0.0.1:${port}/api/games/0ddba11001/${path}`);
+            assert.equal(res.status, 200, path);
+            assert.ok(same(new Uint8Array(await res.arrayBuffer()), love), path);
+          }
+          child.kill();
+          await new Promise((r) => child.once('exit', r));
+          child = null;
+          const after = new DatabaseSync(join(dir, 'smitten.db'));
+          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 6);
+          assert.equal(after.prepare("SELECT play_size FROM games WHERE id = '0ddba11001'").get().play_size, null);
+          assert.equal(after.prepare('SELECT COUNT(*) AS n FROM users').get().n, 1);
+          after.close();
+          const backup = new DatabaseSync(join(dir, 'backup.db'));
+          assert.equal(backup.prepare('PRAGMA user_version').get().user_version, 5);
+          backup.close();
+        } finally {
+          child?.kill();
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+      await test('a game from before play builds plays and remixes from its one zip', async () => {
+        const old = legacyGame(`Before play builds ${tag}`);
+        const r = await call('GET', `/api/games/${old.id}`);
+        assert.equal(r.data.game.playSize, null);
+        const sourceFile = await call('GET', `/api/games/${old.id}/game.zip`);
+        const playFile = await call('GET', `/api/games/${old.id}/play/x.zip`);
+        assert.equal(playFile.status, 200);
+        assert.ok(same(playFile.data, sourceFile.data));
+        assert.ok(same(playFile.data, readFileSync(join(dataDir, 'games', old.id, 'game.love'))));
+      });
+    }
+  }
 
   // -------------------------------------------------------------------------
   section('Claiming games published before accounts');
@@ -3206,7 +3346,7 @@ async function main() {
           await new Promise((r) => child.once('exit', r));
           child = null;
           const after = new DatabaseSync(join(dir, 'smitten.db'));
-          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 5);
+          assert.equal(after.prepare('PRAGMA user_version').get().user_version, 6);
           assert.equal(after.prepare('SELECT COUNT(*) AS n FROM plays').get().n, 1);
           after.close();
         } finally {

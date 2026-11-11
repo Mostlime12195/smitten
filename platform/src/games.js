@@ -5,7 +5,7 @@
 import { HttpError, json } from './http.js';
 import { db, newId, rateLimit, ID_PATTERN } from './db.js';
 import { actorKey, currentUser, ipHash, isAdmin, requireUser } from './auth.js';
-import { GAME_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFiles } from './storage.js';
+import { GAME_FILE, PLAY_FILE, THUMBNAIL_FILE, readGameFile, removeGameFiles, storeGameFiles } from './storage.js';
 import { inspectZip } from './zip.js';
 import { checkAddress, noteAddress } from './bans.js';
 import { gameHours, refreshGameHours } from './hackatime.js';
@@ -28,8 +28,8 @@ export function limits(config) {
   };
 }
 
-/** The most an upload's body can be (server.js cuts off longer ones). */
-export const uploadLimit = (config) => config.maxGameBytes + config.maxThumbnailBytes + 64 * 1024;
+/** The most an upload's body can be (server.js cuts off longer ones): the source, the play build and a thumbnail. */
+export const uploadLimit = (config) => 2 * config.maxGameBytes + config.maxThumbnailBytes + 64 * 1024;
 
 // ---------------------------------------------------------------------------
 // Rows and what the API shows of them
@@ -57,11 +57,14 @@ export function publicGame(row, origin) {
     version: row.version,
     plays: row.plays,
     size: row.game_size,
+    // The play build (what the play page runs), when the game has one.
+    playSize: row.play_size ?? null,
     remixOf: row.remix_of || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     thumbnail: row.has_thumbnail ? `${base}/thumbnail.png?v=${row.version}` : null,
     gameUrl: `${base}/game.zip`,
+    playBuildUrl: `${base}/play/game.zip`,
     playUrl: `${origin}/play/${row.id}`,
   };
   // How long Hackatime tracked for it, when its owner has Hackatime connected.
@@ -102,6 +105,8 @@ export function ownedRow(ctx, id) {
 // Reading an upload: multipart/form-data with
 //   meta       JSON {title, description, modules, engineVersion, remixOf, hackatimeProject}
 //   game       the game (a zip of the project), at most MAX_GAME_BYTES
+//   play       optional: the play build (a zip that the play page runs instead
+//              of game; the editor makes it), at most MAX_GAME_BYTES
 //   thumbnail  optional PNG, at most MAX_THUMBNAIL_BYTES
 
 /**
@@ -163,6 +168,19 @@ async function readUpload(ctx) {
   const gameBytes = new Uint8Array(await game.arrayBuffer());
   inspectZip(gameBytes);
 
+  let playBytes = null;
+  const play = form.get('play');
+  if (play && typeof play !== 'string' && play.size > 0) {
+    if (play.size > lim.gameBytes) throw new HttpError(413, `The play build is ${mb(play.size)}; the limit is ${mb(lim.gameBytes)}.`, { field: 'play' });
+    playBytes = new Uint8Array(await play.arrayBuffer());
+    try {
+      inspectZip(playBytes);
+    } catch (e) {
+      if (e instanceof HttpError) throw new HttpError(e.status, `The play build: ${e.message}`, { field: 'play' });
+      throw e;
+    }
+  }
+
   let thumbnail = null;
   const thumb = form.get('thumbnail');
   if (thumb && typeof thumb !== 'string' && thumb.size > 0) {
@@ -170,7 +188,7 @@ async function readUpload(ctx) {
     thumbnail = new Uint8Array(await thumb.arrayBuffer());
     inspectPng(thumbnail);
   }
-  return { fields, gameBytes, thumbnail };
+  return { fields, gameBytes, playBytes, thumbnail };
 }
 
 // ---------------------------------------------------------------------------
@@ -194,18 +212,18 @@ export async function publishGame(ctx) {
   checkAddress(ctx, 'publish games');
   rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
   noteAddress(ctx, user.id);
-  const { fields, gameBytes, thumbnail } = await readUpload(ctx);
+  const { fields, gameBytes, playBytes, thumbnail } = await readUpload(ctx);
 
   const id = newId();
   const now = Date.now();
-  await storeGameFiles(id, gameBytes, thumbnail);
+  await storeGameFiles(id, gameBytes, thumbnail, playBytes);
   try {
     db.run(
       `INSERT INTO games (id, owner_id, title, description, modules, engine_version, remix_of,
-         has_thumbnail, game_size, version, plays, status, created_at, updated_at, hackatime_project)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'public', ?, ?, ?)`,
+         has_thumbnail, game_size, play_size, version, plays, status, created_at, updated_at, hackatime_project)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'public', ?, ?, ?)`,
       id, user.id, fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
-      fields.remixOf, thumbnail ? 1 : 0, gameBytes.length, now, now, fields.hackatimeProject ?? null);
+      fields.remixOf, thumbnail ? 1 : 0, gameBytes.length, playBytes ? playBytes.length : null, now, now, fields.hackatimeProject ?? null);
   } catch (e) {
     await removeGameFiles(id);
     throw e;
@@ -219,18 +237,19 @@ export async function updateGame(ctx, id) {
   checkAddress(ctx, 'publish games');
   rateLimit(`publish:u:${user.id}`, ctx.config.publishLimit, 'published');
   noteAddress(ctx, user.id);
-  const { fields, gameBytes, thumbnail } = await readUpload(ctx);
+  const { fields, gameBytes, playBytes, thumbnail } = await readUpload(ctx);
 
   const version = row.version + 1;
-  await storeGameFiles(id, gameBytes, thumbnail);
+  await storeGameFiles(id, gameBytes, thumbnail, playBytes);
   // remixOf is fixed when a game is first published. A hidden game stays
-  // hidden until a moderator restores it.
+  // hidden until a moderator restores it. An update without a play build
+  // (from an older editor) removes the old one: the play page runs the source.
   db.run(
     `UPDATE games SET title = ?, description = ?, modules = ?, engine_version = ?,
-       has_thumbnail = ?, game_size = ?, version = ?, updated_at = ?
+       has_thumbnail = ?, game_size = ?, play_size = ?, version = ?, updated_at = ?
      WHERE id = ?`,
     fields.title, fields.description, JSON.stringify(fields.modules), fields.engineVersion,
-    thumbnail ? 1 : 0, gameBytes.length, version, Date.now(), id);
+    thumbnail ? 1 : 0, gameBytes.length, playBytes ? playBytes.length : null, version, Date.now(), id);
   if (fields.hackatimeProject !== undefined && fields.hackatimeProject !== row.hackatime_project) {
     // Another project: its hours are someone else's count.
     db.run('UPDATE games SET hackatime_project = ?, hackatime_seconds = NULL, hackatime_checked_at = NULL WHERE id = ?', fields.hackatimeProject, id);
@@ -323,6 +342,21 @@ async function fileResponse(ctx, row, name, headers) {
 export async function getGameFile(ctx, id) {
   const row = visibleRow(ctx, id);
   const res = await fileResponse(ctx, row, GAME_FILE, {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="${slug(row.title)}.zip"`,
+    'Cache-Control': row.status === 'public' ? 'public, max-age=0, must-revalidate' : 'private, no-store',
+  });
+  if (!res) throw new HttpError(404, "This game's file is missing.");
+  return res;
+}
+
+/**
+ * What the play page runs, at /api/games/<id>/play/<any name>.zip: the play
+ * build, or the source for a game published before play builds.
+ */
+export async function getPlayFile(ctx, id) {
+  const row = visibleRow(ctx, id);
+  const res = await fileResponse(ctx, row, row.play_size != null ? PLAY_FILE : GAME_FILE, {
     'Content-Type': 'application/zip',
     'Content-Disposition': `attachment; filename="${slug(row.title)}.zip"`,
     'Cache-Control': row.status === 'public' ? 'public, max-age=0, must-revalidate' : 'private, no-store',

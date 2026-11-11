@@ -32,7 +32,7 @@ import { HttpError, decodePart, errorResponse, json, preflight, redirect, withCo
 import { COMPRESSIBLE, encodedFile, encodedText } from './compress.js';
 import {
   getConfig, listGames, publishGame, getGame, updateGame, deleteGame,
-  getGameFile, getThumbnail, countPlay, reportGame, uploadLimit,
+  getGameFile, getPlayFile, getThumbnail, countPlay, reportGame, uploadLimit,
 } from './games.js';
 import { listBoards, getBoard, submitScore, createBoard, updateBoard, resetBoard, deleteBoard, deleteScore } from './boards.js';
 import {
@@ -66,6 +66,7 @@ const API = [
   ['PUT', new RegExp(`^/api/games/${ID}$`), updateGame],
   ['DELETE', new RegExp(`^/api/games/${ID}$`), deleteGame],
   ['GET', new RegExp(`^/api/games/${ID}/[^/]+\\.(?:zip|love)$`), getGameFile],
+  ['GET', new RegExp(`^/api/games/${ID}/play/[^/]+\\.zip$`), getPlayFile],
   ['GET', new RegExp(`^/api/games/${ID}/thumbnail\\.png$`), getThumbnail],
   ['POST', new RegExp(`^/api/games/${ID}/play$`), countPlay],
   ['POST', new RegExp(`^/api/games/${ID}/report$`), reportGame],
@@ -244,7 +245,7 @@ function playMeta(ctx, id) {
 // /api/games/<id>/<name>.zip URLs, and ?modules= known engine modules.
 function checkPlayerParams(url) {
   const game = url.searchParams.get('game');
-  if (game !== null && !new RegExp(`^/api/games/${ID_PATTERN}/[^/?#]+\\.(?:zip|love)$`).test(game)) {
+  if (game !== null && !new RegExp(`^/api/games/${ID_PATTERN}/(?:play/)?[^/?#]+\\.(?:zip|love)$`).test(game)) {
     return 'The player only runs games published on this site.';
   }
   const modules = url.searchParams.get('modules');
