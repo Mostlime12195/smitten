@@ -82,7 +82,7 @@ end
 | `build.py` | The build script. It reads the lists of source files from `love/CMakeLists.txt` |
 | `serve.py` | A local development server |
 | `package.py` | A command-line web export for a project folder or a zip |
-| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `clip-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `net-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
+| `tools/` | Tests (`editor-tests`, `scene-tests`, `platform-tests`, `clip-tests`, `stress`, `smitten-audio`, `video`, `luacompat`, `errorscreen`, `paths-tests`, `net-tests`, `cloud-tests`, `text-tests`, `ui-tests`, `animation-tests`, the test suite of the JIT) and generators (`gen-icons.mjs`, `gen-docs.mjs`) |
 
 ## Performance
 
@@ -415,6 +415,9 @@ Tests:
   selection in a TextInput, and the keyboard focus.
 - `lua5.1 tools/net-tests/test.lua`: online rooms (`smitten.net`) under
   plain Lua, with stand-ins for tasks and for the page of the game.
+- `lua5.1 tools/cloud-tests/test.lua`: the host page (`smitten.host`) and
+  cloud saves (`smitten.cloud`) under plain Lua, with stand-ins for tasks
+  and for the host page. It also checks `smitten.boards` through the host.
 - `lua5.1 tools/animation-tests/test.lua`: keys and the Animator piece
   (`keyframes.lua` and `animator.lua` in the engine) under plain Lua, with
   the cases of `keyframe-cases.json`.
@@ -424,7 +427,9 @@ Tests:
   a mistake. `lights` checks what lights and shadows draw. `boards`
   and `boards-site` check `smitten.boards` without the games site, and in
   a page that acts as the games site. `net` checks `smitten.net` without
-  the games site. `clips` clicks **Record** in the web
+  the games site. `cloud` and `cloud-host` check `smitten.host` and
+  `smitten.cloud` without a host page, and in `docs/host-example.html`
+  (the host page of the docs). `clips` clicks **Record** in the web
   player, saves a video and a GIF, and checks the downloaded files.
 - `python3 tools/serve_test.py` tests `serve.py`. CI
   (`.github/workflows/ci.yml`) runs all of these tests on each push, and
@@ -440,6 +445,12 @@ Tests:
   `tools/platform-tests/rooms-e2e.mjs [dist]` plays one online game in two
   pages of a headless Chrome, on a local copy of the site. CI runs it on
   its build.
+- `CLOUD_PORT=8785 node tools/platform-tests/cloud.mjs`: cloud saves on
+  the games site, with small limits. It also checks the migration of the
+  database, and that migrations run in either order.
+  `tools/platform-tests/cloud-e2e.mjs [dist]` plays a game that uses cloud
+  saves on a local copy of the site, as a guest and signed in. CI runs it
+  on its build.
 - `tools/smitten-audio` (its `check.mjs` makes sure that the engine and
   `synth.mjs` make the same samples), `tools/video` (playback, pausing and
   seeking), `tools/luacompat` (the Lua extensions) and

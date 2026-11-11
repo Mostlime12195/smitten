@@ -132,6 +132,29 @@ Leaderboards on the games site. See [Leaderboards](leaderboards.md).
 | `smitten.boards.around(key, count?, callback?)` | Returns the scores around the score of the player (the top scores, if the player has no score). |
 | `smitten.boards.list(callback?)` | Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }. |
 
+### smitten.host
+
+The page that hosts the game, and its features. See [Host interface](host-interface.md).
+
+| Function | |
+| --- | --- |
+| `smitten.host.name()` | Returns the name of the page that hosts the game: "smitten-games" on the games site. Returns nil when no page hosts the game (in the editor, or an exported game alone). |
+| `smitten.host.info()` | Returns { name, version, protocol, features } of the host (a new table each time), or nil when no page hosts the game. |
+| `smitten.host.has(feature)` | Returns true if the host has a feature: smitten.host.has("cloudSaves"). The features are "cloudSaves", "boards" and "net". |
+| `smitten.host.user()` | Returns the name of the player who is signed in on the host, or nil. |
+
+### smitten.cloud
+
+Saves on the account of the player, on the games site and other hosts. See [Saving](saving.md#saves-in-the-cloud).
+
+| Function | |
+| --- | --- |
+| `smitten.cloud.available()` | Returns true if the host keeps cloud saves. On the games site, it is true also when the player is not signed in. |
+| `smitten.cloud.save(key, value, callback?)` | Keeps a value on the account of the player: smitten.cloud.save("progress", progress). Waits, then returns true, or nil and the reason. |
+| `smitten.cloud.load(key, callback?)` | Returns the value of the cloud save with this key. Returns nil and the reason if it cannot. The reason is "missing" if there is no save. |
+| `smitten.cloud.list(callback?)` | Returns the cloud saves of the game: a list of { key, size, time }, sorted by key. |
+| `smitten.cloud.remove(key, callback?)` | Deletes a cloud save. Returns true, also if there was no save. |
+
 ### smitten.net
 
 Online rooms on the games site. See [Online rooms](online.md).

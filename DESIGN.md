@@ -272,6 +272,13 @@ owner can add boards to it there, and its scripts reach them with
 (the page makes the requests; games still have no network access). Scores
 come from players' browsers, so they're for fun.
 
+Cloud saves work the same way: `smitten.cloud` keeps values on the
+player's account, only when the game asks (`save()` and `load()` stay
+local). Both go through a small host interface (`smitten.host`,
+`docs/host-interface.md`): the page around the player says its name and
+features in a versioned `postMessage` protocol, so another site can host
+a Smitten game and give it cloud saves too.
+
 ## 8. Language
 
 Lua 5.1 with LuaJIT's extensions plus Luau-style syntax in the parser,

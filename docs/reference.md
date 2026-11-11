@@ -29,6 +29,8 @@ example is a small project that shows one part of Smitten.
   video or a GIF. [Leaderboards](leaderboards.md) tells how to add shared high scores
   to a game on the games site. [Online rooms](online.md) tells how players
   in different places play one game together on the games site.
+  [Host interface](host-interface.md) tells how a different site can host
+  a game and give it cloud saves.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference.
   They show each function that a script can call, and each property of each
   piece type.

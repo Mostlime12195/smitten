@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host interface · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Host interface.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor">Sprite editor</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="clips">Clips</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="online">Online rooms</a></li><li><a href="host-interface" aria-current="page">Host interface</a><ul class="nav-sub"><li><a href="#in-a-script">In a script</a></li><li><a href="#features">Features</a></li><li><a href="#the-messages">The messages</a></li><li><a href="#cloud-saves">Cloud saves</a></li><li><a href="#leaderboards-and-online-rooms">Leaderboards and online rooms</a></li><li><a href="#a-host-page-to-copy">A host page to copy</a></li><li><a href="#rules-for-a-host-page">Rules for a host page</a></li></ul></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Host interface</h1>
+<p>A game in the web player can run inside a <strong>host page</strong>. The host page shows the player in a frame and gives the game <strong>features</strong>, for example cloud saves. The page of a game on the games site is a host page. Any other site can be a host page too: a school portal, a wrapper page on itch.io, or your own site.</p>
+<p>The host page and the player talk with <strong>messages</strong> (the <code>postMessage()</code> function of the browser). This page tells which messages they send. It also has a small host page that you can copy.</p>
+<p>The game has no network access. The host page does all the work. The game asks, and the host page answers.</p>
+<h2 id="in-a-script"><a class="anchor" href="#in-a-script" aria-hidden="true">#</a>In a script</h2>
+<p><code>smitten.host</code> tells a game which host page it runs in:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">if</span> smitten.host.<span class="tk-f">name</span>() == <span class="tk-k">nil</span> <span class="tk-k">then</span>
+    Status.text = <span class="tk-s">&quot;No host page: saves stay on this computer.&quot;</span>
+  <span class="tk-k">elseif</span> smitten.host.<span class="tk-f">has</span>(<span class="tk-s">&quot;cloudSaves&quot;</span>) <span class="tk-k">then</span>
+    Status.text = <span class="tk-s">`Cloud saves on {smitten.host.name()}`</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<div class="table"><table>
+<thead><tr><th>Where the game runs</th><th><code>smitten.host.name()</code></th><th><code>smitten.host.has(&quot;cloudSaves&quot;)</code></th></tr></thead>
+<tbody><tr><td>Its page on the games site</td><td><code>&quot;smitten-games&quot;</code></td><td><code>true</code></td></tr>
+<tr><td>A host page of another site</td><td>The name that the page gives</td><td>What the page gives</td></tr>
+<tr><td><strong>Play</strong> in the editor, an exported game alone, any other place</td><td><code>nil</code></td><td><code>false</code></td></tr></tbody>
+</table></div>
+<p>The engine knows the host page before the first <code>ready()</code>.</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.host.name()</code></td><td>Returns the name of the page that hosts the game: &quot;smitten-games&quot; on the games site. Returns nil when no page hosts the game (in the editor, or an exported game alone).</td></tr>
+<tr><td><code>smitten.host.info()</code></td><td>Returns { name, version, protocol, features } of the host (a new table each time), or nil when no page hosts the game.</td></tr>
+<tr><td><code>smitten.host.has(feature)</code></td><td>Returns true if the host has a feature: smitten.host.has(&quot;cloudSaves&quot;). The features are &quot;cloudSaves&quot;, &quot;boards&quot; and &quot;net&quot;.</td></tr>
+<tr><td><code>smitten.host.user()</code></td><td>Returns the name of the player who is signed in on the host, or nil.</td></tr></tbody>
+</table></div>
+<h2 id="features"><a class="anchor" href="#features" aria-hidden="true">#</a>Features</h2>
+<div class="table"><table>
+<thead><tr><th>Feature</th><th>Module</th><th>What the host page does</th></tr></thead>
+<tbody><tr><td><code>&quot;cloudSaves&quot;</code></td><td><code>smitten.cloud</code> (<a href="saving#saves-in-the-cloud">Saving</a>)</td><td>It keeps values for the game, for example on the account of the player</td></tr>
+<tr><td><code>&quot;boards&quot;</code></td><td><code>smitten.boards</code> (<a href="leaderboards">Leaderboards</a>)</td><td>It keeps scores and gives the best scores</td></tr>
+<tr><td><code>&quot;net&quot;</code></td><td><code>smitten.net</code> (<a href="online">Online rooms</a>)</td><td>It connects the game to a room on a server</td></tr></tbody>
+</table></div>
+<p>A host page gives only the features that it has. If a game calls a module whose feature the host page does not have, the call gives <code>nil, &quot;unavailable&quot;</code>. This is the same as when there is no host page.</p>
+<h2 id="the-messages"><a class="anchor" href="#the-messages" aria-hidden="true">#</a>The messages</h2>
+<p>All messages go between the host page and the frame of the player. Both must be on the same origin (the same scheme, domain and port). The player ignores messages from other origins.</p>
+<ol><li>The host page shows the player in a frame, with <code>host=1</code> in the address of the frame: <code>index.html?host=1</code>.</li><li>The player sends <code>hello</code> to the host page.</li><li>The host page answers with its own <code>hello</code>.</li><li>The game sends <code>request</code> messages. The host page answers each one with a <code>reply</code>.</li></ol>
+<p>The player waits up to 0.4 seconds for the <code>hello</code> of the host page before the game starts. If the host page answers later, the game gets the answer then. Without <code>host=1</code>, the player sends nothing and listens to nothing.</p>
+<h3 id="the-envelope"><a class="anchor" href="#the-envelope" aria-hidden="true">#</a>The envelope</h3>
+<p>The player sends this object with <code>postMessage()</code> to the host page:</p>
+<pre><code class="lang-js">{ source: 'love-player', type: 'site', message: { /* the message */ } }</code></pre>
+<p>The host page sends this object to the frame of the player:</p>
+<pre><code class="lang-js">{ type: 'site', message: { /* the message */ } }</code></pre>
+<p>The player sends other objects too, with <code>source: 'love-player'</code> and other types (<code>ready</code>, <code>log</code>, <code>display</code>, ...). A host page can ignore them.</p>
+<h3 id="hello"><a class="anchor" href="#hello" aria-hidden="true">#</a>Hello</h3>
+<p>The player sends:</p>
+<pre><code class="lang-js">{ type: 'hello', protocol: 1 }</code></pre>
+<p>The host page answers:</p>
+<pre><code class="lang-js">{ type: 'hello', protocol: 1, name: 'my-site', version: '1', features: ['cloudSaves'], user: { name: 'Ada' } }</code></pre>
+<div class="table"><table>
+<thead><tr><th>Field</th><th></th></tr></thead>
+<tbody><tr><td><code>protocol</code></td><td>The version of these messages. This page tells version 1</td></tr>
+<tr><td><code>name</code></td><td>A short name for the host page, 64 characters at most. <code>smitten.host.name()</code> returns it</td></tr>
+<tr><td><code>version</code></td><td>The version of the host page, as text, 32 characters at most</td></tr>
+<tr><td><code>features</code></td><td>A list of the features that the host page has</td></tr>
+<tr><td><code>user</code></td><td>Optional. <code>{ name }</code>: the name of the player who is signed in. <code>smitten.host.user()</code> returns it. Leave it out when nobody is signed in</td></tr></tbody>
+</table></div>
+<p>The host page can send <code>hello</code> again, for example after the player signs in. The new <code>hello</code> replaces the old one.</p>
+<p>Give the game only what it needs. A game is code that somebody else wrote. Do not put an email address, an account id or a token in <code>user</code>.</p>
+<h3 id="requests-and-replies"><a class="anchor" href="#requests-and-replies" aria-hidden="true">#</a>Requests and replies</h3>
+<p>A request from the game:</p>
+<pre><code class="lang-js">{ type: 'request', id: 7, call: 'cloud.load', key: 'progress' }</code></pre>
+<p>The host page answers with the same <code>id</code>, with <code>ok: true</code> and a <code>result</code> table:</p>
+<pre><code class="lang-js">{ type: 'reply', id: 7, ok: true, result: { data: '{&quot;level&quot;:3}' } }</code></pre>
+<p>Or it answers with <code>ok: false</code> and a <code>reason</code>, which the game gets as the second value:</p>
+<pre><code class="lang-js">{ type: 'reply', id: 7, ok: false, reason: 'signed-out' }</code></pre>
+<ul><li>The <code>id</code> is a number. Each request has a new one.</li><li>If no reply comes in 10 seconds, the call gives <code>nil, &quot;timeout&quot;</code>.</li><li>The game sends 16 requests at most at one time. More give <code>nil, &quot;busy&quot;</code>.</li><li>A message from the host page to the player can be 160 KB at most, as JSON. The player ignores a longer message.</li></ul>
+<h2 id="cloud-saves"><a class="anchor" href="#cloud-saves" aria-hidden="true">#</a>Cloud saves</h2>
+<p>A host page with the <code>&quot;cloudSaves&quot;</code> feature answers four calls. <code>key</code> is 1 to 64 letters, digits, <code>_</code>, <code>.</code> or <code>-</code>, with a letter or a digit first. <code>data</code> is the value of the game as JSON text, 64 KB (65,536 bytes) at most. Keep <code>data</code> as it is: the engine makes it and reads it.</p>
+<div class="table"><table>
+<thead><tr><th><code>call</code></th><th>Fields</th><th><code>result</code></th></tr></thead>
+<tbody><tr><td><code>&quot;cloud.save&quot;</code></td><td><code>key</code>, <code>data</code></td><td><code>{}</code></td></tr>
+<tr><td><code>&quot;cloud.load&quot;</code></td><td><code>key</code></td><td><code>{ data }</code>, with <code>data: null</code> if there is no save with this key</td></tr>
+<tr><td><code>&quot;cloud.list&quot;</code></td><td>none</td><td>A list of <code>{ key, size, time }</code>: <code>size</code> in bytes, <code>time</code> in seconds since 1970 (as <code>os.time()</code> gives it)</td></tr>
+<tr><td><code>&quot;cloud.remove&quot;</code></td><td><code>key</code></td><td><code>{}</code>, also if there was no save</td></tr></tbody>
+</table></div>
+<p>Each host page keeps the saves of each game apart. If it has accounts, it also keeps the saves of each account apart. The host page knows which game it shows: do not take that from the game.</p>
+<p>Use these reasons in a <code>reply</code>, so that games can show a correct message:</p>
+<div class="table"><table>
+<thead><tr><th><code>reason</code></th><th>When</th></tr></thead>
+<tbody><tr><td><code>&quot;signed-out&quot;</code></td><td>The host page keeps cloud saves only for a player who is signed in, and nobody is signed in</td></tr>
+<tr><td><code>&quot;too-big&quot;</code></td><td>The value is longer than the host page accepts</td></tr>
+<tr><td><code>&quot;quota&quot;</code></td><td>The game has too many saves, or too many bytes in its saves</td></tr>
+<tr><td><code>&quot;too-many&quot;</code></td><td>The game saved or loaded too many times in a short time</td></tr>
+<tr><td><code>&quot;offline&quot;</code>, <code>&quot;timeout&quot;</code></td><td>The host page did not get an answer from its server</td></tr>
+<tr><td><code>&quot;error&quot;</code></td><td>Any other problem</td></tr></tbody>
+</table></div>
+<h2 id="leaderboards-and-online-rooms"><a class="anchor" href="#leaderboards-and-online-rooms" aria-hidden="true">#</a>Leaderboards and online rooms</h2>
+<p>The games site has the <code>&quot;boards&quot;</code> and <code>&quot;net&quot;</code> features. Another host page can have them too:</p>
+<ul><li><strong>boards</strong>: requests with <code>call</code> set to <code>&quot;submit&quot;</code> (<code>key</code>, <code>value</code>, <code>name</code>), <code>&quot;top&quot;</code> and <code>&quot;around&quot;</code> (<code>key</code>, <code>count</code>), and <code>&quot;list&quot;</code>. The results are what <a href="leaderboards">Leaderboards</a> tells.</li><li><strong>net</strong>: messages with <code>type: 'net'</code> in place of requests and replies, in both directions. The page of a game on the games site (<code>platform/public/play.js</code>) is the reference for these messages.</li></ul>
+<p>Hosts from before version 1 of these messages sent <code>boards: true</code> and <code>net: true</code> in their <code>hello</code>, with no <code>features</code>. The engine still accepts this.</p>
+<h2 id="a-host-page-to-copy"><a class="anchor" href="#a-host-page-to-copy" aria-hidden="true">#</a>A host page to copy</h2>
+<p>This page hosts a web export of a game. It keeps cloud saves in the browser (<code>localStorage</code>), so the saves stay on one computer. A real site sends them to its server, and keeps them on the account of the player. The same page is in the Smitten repository as <code>docs/host-example.html</code>.</p>
+<ol><li>Export the game: <strong>Project › Export</strong> › <strong>Web game (zip)</strong>.</li><li>Unzip the export.</li><li>Put this page in the folder of the export, next to <code>index.html</code>.</li><li>Change <code>name</code> in <code>HOST</code> to the name of your site.</li><li>Upload the folder to your site.</li><li>Open this page in place of <code>index.html</code>.</li></ol>
+<pre><code class="lang-html">&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;title&gt;My game&lt;/title&gt;
+&lt;!--
+  A host page for a Smitten web export (docs/host-interface.md).
+  Put this file in the folder of the export, next to its index.html. This
+  page shows the game in a frame, answers the hello of the game, and keeps
+  the cloud saves of the game in this browser (localStorage). A real site
+  sends the saves to its server instead.
+--&gt;
+&lt;style&gt;
+  html, body { margin: 0; height: 100%; background: #000; }
+  iframe { display: block; width: 100%; height: 100%; border: 0; }
+&lt;/style&gt;
+&lt;iframe id=&quot;game&quot; src=&quot;index.html?host=1&quot; title=&quot;Game&quot; allow=&quot;autoplay; fullscreen; gamepad&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+const frame = document.getElementById('game');
+const HOST = { name: 'my-site', version: '1', features: ['cloudSaves'] };
+const PREFIX = 'my-site-cloud:';  // the localStorage names of the saves
+const MAX_BYTES = 65536;          // the most data in one save
+
+const bytes = (text) =&gt; new TextEncoder().encode(text).length;
+const now = () =&gt; Math.floor(Date.now() / 1000);
+
+// One cloud call: {result} or {reason}.
+function cloud(msg) {
+  if (msg.call === 'cloud.list') {
+    const list = [];
+    for (let i = 0; i &lt; localStorage.length; i++) {
+      const name = localStorage.key(i);
+      if (!name.startsWith(PREFIX)) continue;
+      const save = JSON.parse(localStorage.getItem(name));
+      list.push({ key: name.slice(PREFIX.length), size: bytes(save.data), time: save.time });
+    }
+    return { result: list };
+  }
+  const name = PREFIX + msg.key;
+  if (msg.call === 'cloud.save') {
+    if (bytes(msg.data) &gt; MAX_BYTES) return { reason: 'too-big' };
+    try {
+      localStorage.setItem(name, JSON.stringify({ data: msg.data, time: now() }));
+    } catch {
+      return { reason: 'quota' };
+    }
+    return { result: {} };
+  }
+  if (msg.call === 'cloud.load') {
+    const save = JSON.parse(localStorage.getItem(name) || 'null');
+    return { result: { data: save ? save.data : null } };
+  }
+  if (msg.call === 'cloud.remove') {
+    localStorage.removeItem(name);
+    return { result: {} };
+  }
+  return { reason: 'unknown-call' };
+}
+
+addEventListener('message', (e) =&gt; {
+  // Only messages from the game's frame, on this page's own origin.
+  if (e.source !== frame.contentWindow || e.origin !== location.origin) return;
+  if (e.data?.source !== 'love-player' || e.data.type !== 'site') return;
+  const msg = e.data.message;
+  const send = (message) =&gt; frame.contentWindow.postMessage({ type: 'site', message }, location.origin);
+  if (msg.type === 'hello') {
+    send({ type: 'hello', protocol: 1, ...HOST });
+  } else if (msg.type === 'request') {
+    const { result, reason } = String(msg.call).startsWith('cloud.') ? cloud(msg) : { reason: 'unavailable' };
+    send(result ? { type: 'reply', id: msg.id, ok: true, result } : { type: 'reply', id: msg.id, ok: false, reason });
+  }
+});
+&lt;/script&gt;
+&lt;/html&gt;</code></pre>
+<p>If the site must open the game first (itch.io opens <code>index.html</code>), change the names of the files:</p>
+<ol><li>Change the name of the <code>index.html</code> of the export to <code>player.html</code>.</li><li>Save this page as <code>index.html</code>.</li><li>In this page, change <code>src=&quot;index.html?host=1&quot;</code> to <code>src=&quot;player.html?host=1&quot;</code>.</li></ol>
+<h2 id="rules-for-a-host-page"><a class="anchor" href="#rules-for-a-host-page" aria-hidden="true">#</a>Rules for a host page</h2>
+<ul><li>Check each message. Use only messages whose <code>source</code> is the frame of the player and whose <code>origin</code> is your own origin.</li><li>Send messages only to your own origin, as the example does. Do not use <code>'*'</code>.</li><li>The host page chooses the game, the account and the address of its server. Never take these from a message of the game.</li><li>Limit what a game can do: the size of each save, the number of saves, and the number of calls in one hour.</li><li>Answer each request, also with <code>ok: false</code>. Otherwise the game waits 10 seconds for each call.</li></ul>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="online"><span>Previous</span>Online rooms</a><a class="next" href="older-projects"><span>Next</span>Older projects</a></nav>
+  </main>
+</div>
+</body>
+</html>

@@ -98,6 +98,14 @@ big bodies, rate limits, hidden games, bans, the stored-score cap,
 deleting boards, games and accounts, and a database from before
 leaderboards), deleting games and accounts, and rate limits.
 
+`node tools/platform-tests/cloud.mjs` (port 8785, `CLOUD_PORT`) tests cloud
+saves with small limits: guests, other origins, saving and loading, keys,
+sizes, quotas, rate limits, the account page's list, deleting games and
+accounts, the migration on a database from before it, and migrations
+merged in either order. `tools/platform-tests/cloud-e2e.mjs <dist>` plays
+a game that uses cloud saves on a local site as a guest and signed in (CI
+runs it on its build).
+
 `node --experimental-websocket tools/platform-tests/boards-e2e.mjs <dist>`
 is a check by hand, not part of the tests: it copies a built player in,
 starts the site on a spare port, publishes a small game that sends a score
@@ -121,6 +129,7 @@ platform/
   src/hackatime.js         Connect Hackatime (OAuth): the editor's API key, game hours
   src/games.js             publishing, playing, listing, reporting
   src/boards.js            leaderboards: boards, scores, their limits
+  src/cloud.js             cloud saves: per account and game, their limits
   src/admin.js             moderation
   src/storage.js           game files on disk
   src/validate.js          titles, descriptions, usernames, passwords, the word filter, PNGs, modules
@@ -139,12 +148,14 @@ platform/
 - **Storage.** `<DATA_DIR>/smitten.db` (SQLite in WAL mode) has `users`,
   `sessions`, `editor_codes`, `recovery_codes`, `password_resets`, `games`,
   `reports`, `plays`, `rate_limits`, `admin_log`, `address_bans`,
-  `user_addresses`, `email_tokens`, `mail_queue`, `boards` and `scores`.
+  `user_addresses`, `email_tokens`, `mail_queue`, `boards`, `scores`,
+  `cloud_saves` and `migrations`.
   `<DATA_DIR>/games/<id>/game.love` (the source), `play.love` (the play
   build, when the game has one) and `thumbnail.png` are the files,
   written to a temporary file and renamed so a download never sees half of
-  one. Migrations (`migrations/NNNN_*.sql`) run on start; `PRAGMA
-  user_version` says which have.
+  one. Migrations (`migrations/NNNN_*.sql`) run on start, once each; the
+  `migrations` table names the ones applied (`PRAGMA user_version` is the
+  highest number).
 - **Playing.** `/play/<id>` is `play.html` with the title and description
   filled in for link previews. `play.js` puts the player in a sandboxed
   iframe: `/player/player.html?game=/api/games/<id>/play/<title>.zip&modules=physics2d`.
@@ -216,9 +227,10 @@ hops, neither of which the game controls:
    it with `postMessage`, and passes answers back into the engine through
    the queue live tweaking already uses. The player makes no request
    itself and has no URL to make one to. It only does this when `play.js`
-   added `?site=1`, and only talks and listens to a parent page on its own
-   origin, so in the editor, in an exported game or opened by itself
-   there is no bridge and `smitten.boards.available()` is false.
+   added `?site=1` (another host page adds `?host=1`, see
+   `docs/host-interface.md`), and only talks and listens to a parent page
+   on its own origin, so in the editor or opened by itself there is no
+   bridge and `smitten.boards.available()` is false.
 2. The game's page (`public/play.js`) takes `{call: "submit" | "top" |
    "around" | "list", key, value, name, count}` and makes the matching
    request to **this game's** leaderboard endpoints: the game id is the
@@ -282,6 +294,40 @@ server process. A restart ends them all, and the games get
   `ROOM_GRACE_SECONDS` (10). The page tries again with the token from its
   `welcome` (`&resume=`), and gets a new `welcome`. Messages in between
   are lost.
+
+## Cloud saves
+
+Values that a game keeps on the account of the person who plays it, with
+`smitten.cloud` (`src/cloud.js`, user docs in `docs/saving.md`, "Saves in
+the cloud"; the messages in `docs/host-interface.md`). Nothing syncs by
+itself: the game calls `save`, `load`, `list` and `remove` when it wants to.
+
+- **Who.** Only someone signed in. A guest's call gets 401 and the game
+  `"signed-out"`; there are no guest cloud saves. Only the site's own
+  pages may call (the `Origin` check, also on GET); editor tokens can't.
+- **What.** A key (1 to 64 of `A-Z a-z 0-9 _ . -`, a letter or digit
+  first, so never `.` or `..` in a URL) and the game's JSON text, kept as
+  sent. The page checks that it parses.
+- **Limits.** `CLOUD_VALUE_BYTES` (64 KB, also the most the engine sends)
+  per value, `CLOUD_GAME_BYTES` (256 KB) and `CLOUD_KEYS_PER_GAME` (32) per
+  account and game (409 `quota`), `CLOUD_WRITE_LIMIT_PER_HOUR` (300 saves
+  and removes) and `CLOUD_READ_LIMIT_PER_HOUR` (1200 loads and lists) per
+  account.
+- **Deleting.** The table `cloud_saves` has foreign keys with `ON DELETE
+  CASCADE` on `users` and `games`, so deleting an account or a game
+  deletes its saves without code in `account.js` or `games.js`. The
+  account page (`public/account-saves.js`) lists the games with saves and
+  deletes one game's.
+- **The page.** `public/play-cloud.js` turns the game's
+  `cloud.save | cloud.load | cloud.list | cloud.remove` requests into calls
+  to this game's `/api/games/<id>/saves` endpoints, as `play.js` does for
+  boards (the same bridge, the same four requests at once). Its `hello`
+  says `{name: "smitten-games", version, features: ["cloudSaves", "net",
+  "boards"?], user: {name}}`: the display name only, never an id.
+- **The migration.** `migrations/0007_cloud_saves.sql`. `src/db.js` now
+  keeps the names of the migrations it applied in a `migrations` table
+  (made on the first start, with every file up to the old `user_version`
+  in it), so a migration merged after one with a higher number still runs.
 
 ## Accounts
 
@@ -529,7 +575,8 @@ tell cases apart (`sign-in`, `signed-out`, `banned`, `use-hackclub`,
 `bad-code`, `not-connected`, `hackatime-off`, `email-off`, `bad-link`,
 `email-taken`, `nothing-pending`, `needs-password`, `address-banned`,
 and for leaderboards `no-board`, `bad-value`, `out-of-range`, `bad-name`,
-`hidden`, `too-many-boards`, `not-empty`). "Session" means the cookie from a page on this site; "editor"
+`hidden`, `too-many-boards`, `not-empty`, and for cloud saves `missing`,
+`too-big`, `quota`, `bad-key`, `bad-value`). "Session" means the cookie from a page on this site; "editor"
 means `Authorization: Bearer <editor token>`.
 
 | Endpoint | Who | What it does |
@@ -553,6 +600,10 @@ means `Authorization: Bearer <editor token>`.
 | `DELETE /api/games/<id>/boards/<key>` | owner or admin | Delete the board and its scores |
 | `POST /api/games/<id>/boards/<key>/scores` | the site's pages | Send a score: `{value, name}` (`name` for guests). `201 {value, rank, improved, kept}` |
 | `DELETE /api/games/<id>/boards/<key>/scores/<score id>` | owner or admin | Remove one score |
+| `GET /api/games/<id>/saves` | session (site pages) | Your cloud saves for the game: `{saves: [{key, size, at}], used: {keys, bytes}, limits}` |
+| `GET /api/games/<id>/saves/<key>` | session (site pages) | `{key, data, size, at}`; 404 `{code: "missing"}` |
+| `PUT /api/games/<id>/saves/<key>` | session (site pages) | `{data}` (JSON text): save it. 413 `too-big`, 409 `quota`, 422 `bad-value` |
+| `DELETE /api/games/<id>/saves/<key>` | session (site pages) | `{deleted}` (false when there was none) |
 | `GET /api/games/<id>/rooms/<room>` (WebSocket) | the site's pages | An online room: see [Online rooms](#online-rooms) |
 | `GET /api/users/<username>` | anyone | A profile: `{username, displayName, createdAt, games}` |
 | `POST /api/auth/signup` | the site's pages | `{username, displayName, password, email}` (or `{via: "hackclub", username, email}` after Hack Club; `email` optional, ignored when email is off). Sets the session; `201 {user, recoveryCodes, pendingEmail}` |
@@ -578,6 +629,8 @@ means `Authorization: Bearer <editor token>`.
 | `DELETE /api/account/sessions/<id>` | session | Sign one out |
 | `POST /api/account/sessions/revoke-others` | session | Sign out everywhere else |
 | `GET /api/account/games` | session or editor | Your games, hidden ones too, with `status` |
+| `GET /api/account/saves` | session (site pages) | The games with cloud saves on your account: `{games: [{id, title, keys, size, at}]}` |
+| `DELETE /api/account/saves/<game id>` | session (site pages) | Delete your cloud saves for one game: `{deleted}` (how many) |
 | `POST /api/account/claim` | session or editor | `{games: [{id, token}]}`: claim games published with edit tokens |
 | `GET /api/account/hackatime-key` | editor or session | `{key}`: the Hackatime API key, fetched from Hackatime (`no-store`). 404 `{code: "not-connected"}` when not connected, `{code: "hackatime-off"}` when the site has no Hackatime |
 | `DELETE /api/account/hackatime` | session or editor | Disconnect Hackatime (and revoke the token there) |

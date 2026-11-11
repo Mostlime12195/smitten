@@ -42,7 +42,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'], ['sprite-editor', 'Sprite editor'],
       ['camera', 'Camera'], ['backgrounds', 'Backgrounds'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['text', 'Text'], ['ui', 'UI'], ['animation', 'Animation'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['random', 'Random and noise'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['clips', 'Clips'], ['leaderboards', 'Leaderboards'], ['online', 'Online rooms'], ['older-projects', 'Older projects']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['clips', 'Clips'], ['leaderboards', 'Leaderboards'], ['online', 'Online rooms'], ['host-interface', 'Host interface'], ['older-projects', 'Older projects']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],
@@ -191,6 +191,8 @@ function enginePage() {
     display: 'See [Project settings](settings.md).',
     boards: 'Leaderboards on the games site. See [Leaderboards](leaderboards.md).',
     net: 'Online rooms on the games site. See [Online rooms](online.md).',
+    host: 'The page that hosts the game, and its features. See [Host interface](host-interface.md).',
+    cloud: 'Saves on the account of the player, on the games site and other hosts. See [Saving](saving.md#saves-in-the-cloud).',
     json: 'Changes JSON text to Lua values, and Lua values to JSON text.',
     physics: 'Queries about the physics of the scene that runs. See [Physics](physics.md).',
     paths: 'Finds a way from one place to another. See [Pathfinding](pathfinding.md).',

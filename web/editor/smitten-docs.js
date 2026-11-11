@@ -109,6 +109,19 @@ export const SMITTEN_MODULES = {
     around: ['key, count?, callback?', 'Returns the scores around the score of the player (the top scores, if the player has no score).'],
     list: ['callback?', 'Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }.'],
   },
+  host: {
+    name: ['', 'Returns the name of the page that hosts the game: "smitten-games" on the games site. Returns nil when no page hosts the game (in the editor, or an exported game alone).'],
+    info: ['', 'Returns { name, version, protocol, features } of the host (a new table each time), or nil when no page hosts the game.'],
+    has: ['feature', 'Returns true if the host has a feature: smitten.host.has("cloudSaves"). The features are "cloudSaves", "boards" and "net".'],
+    user: ['', 'Returns the name of the player who is signed in on the host, or nil.'],
+  },
+  cloud: {
+    available: ['', 'Returns true if the host keeps cloud saves. On the games site, it is true also when the player is not signed in.'],
+    save: ['key, value, callback?', 'Keeps a value on the account of the player: smitten.cloud.save("progress", progress). Waits, then returns true, or nil and the reason.'],
+    load: ['key, callback?', 'Returns the value of the cloud save with this key. Returns nil and the reason if it cannot. The reason is "missing" if there is no save.'],
+    list: ['callback?', 'Returns the cloud saves of the game: a list of { key, size, time }, sorted by key.'],
+    remove: ['key, callback?', 'Deletes a cloud save. Returns true, also if there was no save.'],
+  },
   net: {
     available: ['', 'Returns true while the game runs on its page on the games site. Returns false in the editor and in exported games.'],
     join: ['room, options?, callback?', 'Joins a room, and makes it if nobody is in it: smitten.net.join("arena", { maxPlayers = 4 }). options: maxPlayers (2 to 16, 8 if you leave it out) and name (for a player who is not signed in). Waits, then returns your peer, or nil and the reason.'],
