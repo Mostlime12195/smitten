@@ -77,7 +77,7 @@ end
 | `deps/theora/` | The libtheora 1.2.0 decoder, for video |
 | `web/native/` | The web entry point (`web_main.cpp`). It replaces the blocking `main()` of LÖVE |
 | `web/player/` | The web player page (standalone and embeddable). It loads the modules that a game needs |
-| `web/editor/` | The editor: `core/` (project, scene documents, schema, live tweaking), `shell/`, `panels/`, `workspaces/`, `dialogs/`, the tools in `tools/`, and the ready-made scripts in `scripts/` |
+| `web/editor/` | The editor: `core/` (project, scene documents, schema, live tweaking, and the play builds of web exports and published games in `core/build/`), `shell/`, `panels/`, `workspaces/`, `dialogs/`, the tools in `tools/`, and the ready-made scripts in `scripts/` |
 | `platform/` | The games site: a Node server with SQLite, and game files on disk |
 | `build.py` | The build script. It reads the lists of source files from `love/CMakeLists.txt` |
 | `serve.py` | A local development server |

@@ -240,12 +240,20 @@ try {
     const name = basename(games[i]);
     await unzipTo(b.web, join(exportsDir, `${i}-play`));
     await unzipTo(b.webSource, join(exportsDir, `${i}-source`));
+    if (older) await unzipTo(older[i].web, join(exportsDir, `${i}-before`));
     const g = { game: name, modules: b.modules, exportMs: Math.round(b.exportMs), playBuildMs: Math.round(b.playMs), report: b.report };
     g.sizes = {
       sourceZip: sizes(b.source), playZip: sizes(b.play), webExport: b.web.length, webExportSource: b.webSource.length,
       webExportBefore: older ? older[i].web.length : undefined,
     };
     result.games.push(g);
+  }
+
+  // EXPORTS=<dir>: only make the web exports (<n>-play, <n>-source and,
+  // with --before, <n>-before) in that folder, for measuring by hand.
+  if (process.env.EXPORTS) {
+    cpSync(exportsDir, process.env.EXPORTS, { recursive: true });
+    throw Object.assign(new Error('exports written'), { done: true });
   }
 
   // The web exports, source and play build.
@@ -301,7 +309,7 @@ try {
   });
   site.stop();
 } catch (e) {
-  fail(`the run stopped: ${e.stack || e}`);
+  if (!e.done) fail(`the run stopped: ${e.stack || e}`);
 } finally {
   for (const c of [...children]) c.kill();
   await sleep(300);
