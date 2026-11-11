@@ -77,7 +77,7 @@ local function imageHashes()
 		local ok, data = pcall(love.image.newImageData, path)
 		if ok then
 			out[path] = ("%dx%d %s %s"):format(data:getWidth(), data:getHeight(), data:getFormat(),
-				love.data.encode("string", "hex", love.data.hash("md5", data)))
+				love.data.encode("string", "hex", love.data.hash("string", "md5", data)))
 		else
 			out[path] = "error: " .. tostring(data)
 		end

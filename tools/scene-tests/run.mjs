@@ -34,6 +34,10 @@
 //                     and no warning may come (SHOTS=dir keeps a screenshot)
 //   ready-made        the ready-made scripts health, spawner, moving-platform
 //                     and countdown, in a scene that this file makes
+//   playbuild         a project (made here: images of each kind, sprites
+//                     with layers, JSON, a tool file) from its source, then
+//                     from its play build (web/editor/core/build/): the
+//                     images must decode and draw the same pixels (HASH lines)
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -49,6 +53,9 @@ import { libraryScript } from '../../web/editor/core/templates.js';
 import { includedModules } from '../../web/editor/core/modules.js';
 import { setSchema } from '../../web/editor/core/schema.js';
 import { buildGameZip } from '../../web/editor/exporter.js';
+import { buildPlay } from '../../web/editor/core/build/index.js';
+import { encodePNGSync } from '../../web/editor/tools/sprite/png.js';
+import zlib from 'node:zlib';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = Number(process.env.PORT) || 8772;
@@ -121,6 +128,65 @@ for (const ex of EXAMPLES) {
   CASES[`example-${ex.id}`] = { project: () => withChecks(ex.build(`${ex.name} example`), ex.id), until: /^DONE /, check: exampleCheck };
 }
 CASES['ready-made'] = { project: () => withChecks(readyMade(), 'ready-made'), until: /^DONE /, check: exampleCheck };
+CASES.playbuild = { project: playBuildProject, until: /^DONE /, modules: '', check: playBuildCheck('make-art.mjs,other.mjs'), after: samePlayBuild };
+
+// The play build test's project: the sprites with layers of the sprites
+// test, images of each kind a PNG can be (palette, grey, RGB, RGBA), JSON
+// with spaces, and a tool file that the play build leaves out.
+function playBuildProject() {
+  const art = join(root, 'tools', 'scene-tests', 'sprites', 'art');
+  const files = {};
+  for (const f of readdirSync(art)) files[`art/${f}`] = /\.png$/.test(f) ? new Uint8Array(readFileSync(join(art, f))) : readFileSync(join(art, f), 'utf8');
+  let seed = 7;
+  const rnd = (n) => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return (seed >>> 16) % n; };
+  const png = (w, h, pixel) => {
+    const px = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px.set(pixel(x, y), (y * w + x) * 4);
+    return encodePNGSync(px, w, h);
+  };
+  const colours = Array.from({ length: 16 }, (_, i) => [i * 16, 255 - i * 16, (i * 40) % 256, i < 3 ? i * 60 : 255]);
+  files['art/palette.png'] = png(40, 24, () => colours[rnd(16)]);
+  files['art/two.png'] = png(50, 50, (x, y) => ((x >> 2) + (y >> 2)) % 2 ? [255, 255, 255, 255] : [0, 0, 0, 255]);
+  files['art/grey.png'] = png(30, 20, (x, y) => [x * 8, x * 8, x * 8, 255]);
+  files['art/gradient.png'] = png(64, 64, (x, y) => [x * 4, y * 4, (x * y) % 256, (x + y) * 2]);
+  files['art/noise.png'] = png(32, 32, () => [rnd(256), rnd(256), rnd(256), 255]);
+  files['art/clear.png'] = png(16, 16, (x) => (x < 8 ? [255, 0, 0, 0] : [0, 0, 255, 0]));
+  const images = Object.keys(files).filter((p) => p.endsWith('.png')).sort();
+  files['data/images.json'] = `${JSON.stringify({ images }, null, 2)}\n`;
+  files['data/info.json'] = JSON.stringify({ title: 'Play  build', list: [1, 2, 3], nested: { deep: true }, text: 'a "quoted" word' }, null, 4);
+  files['tools/make-art.mjs'] = '// Writes the art (an example of a tool file).\nconsole.log("art");\n';
+  files['tools/other.mjs'] = 'console.log("a tool that no script names");\n';
+  files['smitten.json'] = JSON.stringify({ format: 'smitten.project', version: 3, name: 'Play build test', main: 'scenes/main.scene', display: { width: 160, height: 90 } }, null, 2);
+  files['scenes/main.scene'] = JSON.stringify({ format: 'smitten.scene', version: 3, root: { name: 'Main', type: 'Group', script: 'scripts/check.lua', children: [{ name: 'Stage', type: 'Group' }] } }, null, 2);
+  files['scripts/check.lua'] = readFileSync(join(root, 'tools', 'scene-tests', 'playbuild', 'check.lua'), 'utf8');
+  return files;
+}
+
+function playBuildCheck(tool) {
+  return (lines) => selfChecking(lines) || (lines.includes(`TOOL ${tool}`) ? null : `wanted "TOOL ${tool}" (the tool files in the game), got "${lines.find((l) => l.startsWith('TOOL '))}"`);
+}
+
+// The same project's play build, in the same page: every HASH line must be the same.
+async function samePlayBuild(page, lines) {
+  const source = lines.filter((l) => l.startsWith('HASH '));
+  const deflate = async (bytes, level) => new Uint8Array(zlib.deflateSync(bytes, { level, memLevel: 9 }));
+  const { files, report } = await buildPlay(playBuildProject(), { deflate });
+  if (!report.png?.files || !report.json?.files || !report.layers?.files || !report.tools?.files) return `a pass did nothing: ${JSON.stringify(report)}`;
+  const { game } = await exampleZip('playbuild-play', files);
+  const mark = lines.length;
+  await page.goto(`${BASE}/player.html?game=${game}&autoplay=1`);
+  const t0 = Date.now();
+  while (!lines.slice(mark).some((l) => /^DONE /.test(l)) && Date.now() - t0 < 40000) await sleep(100);
+  const after = lines.slice(mark);
+  const problem = playBuildCheck('make-art.mjs')(after);
+  if (problem) return `the play build: ${problem}`;
+  const played = after.filter((l) => l.startsWith('HASH '));
+  const differ = source.filter((l, i) => played[i] !== l);
+  if (!source.length || played.length !== source.length || differ.length) {
+    return `the play build differs from the source in ${differ.length} of ${source.length} lines: ${differ.slice(0, 3).join(' | ')}`;
+  }
+  return null;
+}
 
 // The checks go on a Group at the start of the main scene, so that they
 // update before all the other pieces (a press() then counts in that frame).
@@ -472,7 +538,7 @@ function plainError(lines) {
 
 async function runCase(name) {
   let c = CASES[name];
-  if (c.project) c = { ...c, ...(await exampleZip(name, c.project())) };
+  if (c.project) c = { ...c, ...(await exampleZip(name, await c.project())) };
   const page = await launch({ flags: c.flags || [] });
   const lines = [];
   page.on((m) => {
