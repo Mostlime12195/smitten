@@ -17,6 +17,7 @@ local engine = {}
 local LAZY = {
 	scene = true, input = true, tween = true, json = true, assets = true, storage = true, display = true,
 	synth = true, physics = true, video = true, paths = true, boards = true, net = true, text = true,
+	host = true, cloud = true,
 }
 
 engine.project = nil   -- smitten.json, decoded (nil if the game has none: boot.lua says why)

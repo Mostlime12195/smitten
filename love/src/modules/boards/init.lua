@@ -8,75 +8,20 @@
 -- without it.
 --
 -- Games have no network access. The page around the game does the asking:
--- a call goes out as a printed line starting with "\1site " (the player
--- hands it to the page), and the page's answer comes back through the
--- queue live tweaking uses (love.engine.live gives it to _receive).
+-- the calls go through smitten.host (love/src/modules/host), which sends
+-- them to the page and gives the answers back.
 
-local json = require("love.json")
+local host = require("love.host")
 
 local boards = {}
 
-local TIMEOUT = 10        -- seconds to wait for an answer
-local MAX_PENDING = 16    -- calls waiting at once; more answer "busy"
-
-local available = false
-local nextId = 0
-local pending = {}        -- id -> { callback = fn } or { task = coroutine }, with deadline
-local pendingCount = 0
-
-local function now()
-	return love.timer and love.timer.getTime() or os.clock()
-end
-
-local function script()
-	return package.loaded["love.scene.script"]
-end
-
--- Gives a call's result to whoever waits for it.
-local function finish(entry, result, reason)
-	local s = script()
-	if entry.callback then
-		-- As a task, so the callback can wait() like an event can.
-		if s then s.runTask(nil, entry.callback, result, reason) else entry.callback(result, reason) end
-	elseif entry.task and s then
-		s.resumeTask(entry.task, result, reason)
-	end
-end
-
--- Sends a call, or answers it right away when it can't be sent. In a task
--- (ready(), an event, task()) without a callback it waits for the answer
--- and returns it; with a callback it returns at once and the callback gets
--- the answer later.
 local function call(message, callback, needsAnswer)
-	if callback ~= nil and type(callback) ~= "function" then callback = nil end
-	local function refuse(reason)
-		if callback then callback(nil, reason) end
-		return nil, reason
-	end
-	if not available then return refuse("unavailable") end
-
-	local s = script()
-	local task = not callback and s and s.currentTask() or nil
-	if not callback and not task and needsAnswer then
-		-- Nothing could take the answer: update() and draw() can't wait.
-		return nil, "needs-callback"
-	end
-	if pendingCount >= MAX_PENDING then return refuse("busy") end
-
-	nextId = nextId + 1
-	message.type = "request"
-	message.id = nextId
-	pending[nextId] = { callback = callback, task = task, deadline = now() + TIMEOUT }
-	pendingCount = pendingCount + 1
-	print("\1site " .. json.encode(message))
-
-	if task then return s.suspendTask() end
-	return nil, "sent"
+	return host.request("boards", message, callback, needsAnswer)
 end
 
 ---True while the game runs on its page on the games site and has leaderboards there.
 function boards.available()
-	return available
+	return host.has("boards")
 end
 
 ---Sends a score to a board: smitten.boards.submit("best", score). options:
@@ -124,52 +69,5 @@ end
 function boards.list(callback)
 	return call({ call = "list" }, callback, true)
 end
-
----A message from the games site's page (love.engine.live).
-function boards._receive(msg)
-	if msg.type == "hello" then
-		available = msg.boards == true
-		return
-	end
-	if msg.type ~= "reply" then return end
-	local entry = pending[msg.id]
-	if not entry then return end
-	pending[msg.id] = nil
-	pendingCount = pendingCount - 1
-	if msg.ok == true and type(msg.result) == "table" then
-		finish(entry, msg.result)
-	else
-		finish(entry, nil, type(msg.reason) == "string" and msg.reason or "error")
-	end
-end
-
----Called every frame (love.engine.live): calls nobody answered time out.
-function boards._update()
-	if pendingCount == 0 then return end
-	local t = now()
-	local late
-	for id, entry in pairs(pending) do
-		if t >= entry.deadline then
-			late = late or {}
-			late[#late + 1] = id
-		end
-	end
-	if not late then return end
-	table.sort(late)
-	for _, id in ipairs(late) do
-		local entry = pending[id]
-		if entry then
-			pending[id] = nil
-			pendingCount = pendingCount - 1
-			finish(entry, nil, "timeout")
-		end
-	end
-end
-
--- The page says hello before the game starts; take it now, so available()
--- is right in the first ready(). (The module is registered first: the hello
--- is handed to it by name.)
-package.loaded["love.boards"] = boards
-if love._livePoll then require("love.engine.live").poll() end
 
 return boards

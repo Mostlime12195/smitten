@@ -131,18 +131,24 @@ function flushError() {
   }
 }
 
-// The games site's bridge (smitten.boards and smitten.net, love/src/modules/
-// boards and net): on a game's page there, play.js adds ?site=1, answers the
-// game's leaderboard calls and holds its online room's connection. The player only carries the messages: the game's go out as printed
-// lines starting with "\1site " and on to the page with postMessage; the
-// page's come back the same way and reach the game through the queue live
-// tweaking uses (loveweb_live_post). The player makes no request itself and
-// has no URL to make one to. Only a page on the player's own origin is
-// talked and listened to, so a player in the editor, in an exported game or
-// opened by itself has no bridge, with or without ?site=1. (If the player
-// moves to its own origin, SITE_ORIGIN becomes the site's, given by play.js.)
+// The host bridge (smitten.host, smitten.cloud, smitten.boards and
+// smitten.net, love/src/modules/host, cloud, boards and net): a page that
+// frames the player with ?host=1 (the games site's play page uses ?site=1,
+// the older name) can host the game, as docs/host-interface.md describes.
+// The player says hello ({type: 'hello', protocol}); the page answers with
+// its name, version and features, answers the game's calls and holds its
+// online room's connection. The player only carries the messages: the
+// game's go out as printed lines starting with "\1site " and on to the page
+// with postMessage; the page's come back the same way and reach the game
+// through the queue live tweaking uses (loveweb_live_post). The player makes
+// no request itself and has no URL to make one to. Only a parent page on
+// the player's own origin is talked and listened to; a player opened by
+// itself, or framed without ?host=1 (as the editor frames it), has no host.
+// (If the player moves to its own origin, SITE_ORIGIN becomes the site's,
+// given by play.js.)
+const HOST_PROTOCOL = 1;
 const SITE_ORIGIN = location.origin;
-const siteBridge = params.get('site') === '1' && window.parent !== window;
+const siteBridge = (params.get('host') === '1' || params.get('site') === '1') && window.parent !== window;
 const siteInbox = [];
 let siteAnswered = null;
 const siteHello = new Promise((resolve) => { siteAnswered = resolve; });
@@ -165,12 +171,13 @@ if (siteBridge) {
     const message = e.data.message;
     if (!message || typeof message !== 'object') return;
     const text = JSON.stringify({ ...message, op: 'site' });
-    if (text.length > 64 * 1024 || siteInbox.length >= 64) return;
+    // A cloud save is 64 KB of JSON at most, which is about twice that here.
+    if (text.length > 160 * 1024 || siteInbox.length >= 64) return;
     siteInbox.push(text);
     if (running) flushSiteInbox();
     if (message.type === 'hello') siteAnswered();
   });
-  toSite({ type: 'hello' });
+  toSite({ type: 'hello', protocol: HOST_PROTOCOL });
 }
 
 // LÖVE's error handler prints "Error: ..." followed by a traceback. Group
@@ -182,7 +189,7 @@ function output(level, text) {
     onDisplay(text.slice(9));
     return;
   }
-  // smitten.boards' and smitten.net's messages, for the games site's page (above).
+  // The game's messages for the page that hosts it (above).
   if (text.startsWith('\x01site ')) {
     try { toSite(JSON.parse(text.slice(6))); } catch { /* not a message */ }
     return;
@@ -663,7 +670,7 @@ async function start(game) {
     arg = GAME_DIR;
   }
 
-  // On the games site, the page has usually said hello long before the
+  // A host page (the games site's) has usually said hello long before the
   // game arrived; the game then knows from its first frame.
   if (siteBridge) await Promise.race([siteHello, new Promise((resolve) => setTimeout(resolve, 400))]);
 

@@ -8,8 +8,10 @@
 -- value}, {op = "destroy", id}. Answers go out as printed lines starting
 -- with "\1live ", which the editor takes out of the output.
 --
--- The games site's page talks to smitten.boards and smitten.net through
--- the same queue: its messages have op = "site" (love.boards, love.net).
+-- The page that hosts the game (the games site's play page, or another
+-- page that implements docs/host-interface.md) talks to the game through
+-- the same queue: its messages have op = "site" (love.host, which answers
+-- for smitten.cloud and smitten.boards, and love.net).
 
 local json = require("love.json")
 local schema = require("love.scene.schema")
@@ -124,13 +126,14 @@ function live.poll()
 				if msg.type == "net" then
 					require("love.net")._receive(msg)
 				else
+					require("love.host")._receive(msg)
 					if msg.type == "hello" then
-						-- Kept for smitten.net, which may load later.
+						-- Kept for smitten.net, which may load later
+						-- (love.host sets msg.net from the features).
 						live.hello = msg
 						local n = package.loaded["love.net"]
 						if n then n._hello(msg) end
 					end
-					require("love.boards")._receive(msg)
 				end
 			else
 				local ran, err = pcall(handle, msg)
@@ -138,8 +141,8 @@ function live.poll()
 			end
 		end
 	end
-	local boards = package.loaded["love.boards"]
-	if boards then boards._update() end
+	local h = package.loaded["love.host"]
+	if h then h._update() end
 	local n = package.loaded["love.net"]
 	if n then n._update() end
 end
