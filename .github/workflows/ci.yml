@@ -47,6 +47,11 @@ jobs:
           node web/editor/tools/sprite/draw.test.mjs
           node web/editor/tools/sprite/sprite.test.mjs
 
+      # Play builds (web exports and publishing): PNGs keep their pixels,
+      # JSON its values; tool files go only when nothing names them.
+      - name: Play build tests
+        run: node web/editor/core/build/build.test.mjs
+
       - name: Sound file tests
         run: node web/editor/tools/wav/wav.test.mjs
 
@@ -123,8 +128,8 @@ jobs:
           source ~/emsdk/emsdk_env.sh
           mkdir -p oz/modules
           for f in smitten.wasm modules/physics2d.wasm modules/synth.wasm; do
-            wasm-opt -Oz -all dist/$f -o oz/$f || echo "wasm-opt failed on $f"
-            ls -l dist/$f oz/$f
+            ~/emsdk/upstream/bin/wasm-opt -Oz -all dist/$f -o oz/$f || echo "wasm-opt failed on $f"
+            ls -l dist/$f oz/$f || true
           done
 
       - uses: actions/upload-artifact@v4

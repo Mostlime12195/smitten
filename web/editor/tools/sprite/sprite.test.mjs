@@ -340,9 +340,10 @@ const oldFiles = () => new Map([
   check('plain image with two layers: the .sprite has the layers', JSON.parse(json).layers.length === 2);
 }
 
-// A web export (exporter.js) leaves the layers out; the rest stays.
+// A play build (core/build/index.js: web exports and publishing) leaves the layers out; the rest stays.
 {
-  const { gameFiles } = await import('../../exporter.js');
+  const { buildPlay } = await import('../../core/build/index.js');
+  const gameFiles = async (f) => (await buildPlay(f, { passes: { tools: false, json: false, png: false } })).files;
   const files = oldFiles();
   const h = host(files);
   const { doc } = await loadSprite(h, 'sprites/hero.png', 'sprites/hero.sprite');
@@ -351,7 +352,7 @@ const oldFiles = () => new Map([
   files.set('sprites/hero.sprite', json);
   const before = Object.fromEntries(files);
   before['art/bytes.sprite'] = new TextEncoder().encode(json);
-  const out = gameFiles(before);
+  const out = await gameFiles(before);
   const stripped = JSON.parse(out['sprites/hero.sprite']);
   check('web export: the layers are left out', !('layers' in stripped) && 'layers' in JSON.parse(json));
   check('web export: the rest of the .sprite file stays', eq(stripped.animations, JSON.parse(json).animations) && stripped.author === 'someone' && stripped.frameWidth === 32);

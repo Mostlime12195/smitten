@@ -3,7 +3,9 @@
 //
 //   publishDialog(project, { files, modules, platformUrl })
 //     The Publish dialog: title, description and an optional thumbnail (a PNG
-//     from the project), then uploads the game as a zip. Games belong to
+//     from the project), then uploads the game as two zips: the source (what
+//     remixes get) and the play build (exporter.js buildPlayZip: what the
+//     play page runs). Games belong to
 //     accounts on the site, so it asks you to sign in first (account.js)
 //     and says who's publishing. Which game a project was published as is
 //     kept in localStorage under "smitten-editor.published"
@@ -26,7 +28,7 @@
 //     recognized as the remix.
 
 import { h, openDialog, confirmDialog, toast, formatBytes } from './ui.js';
-import { buildGameZip, unzipToProjectFiles } from './exporter.js';
+import { buildGameZip, buildPlayZip, unzipToProjectFiles } from './exporter.js';
 import { account, accountToken, clearAccount, onChange, refreshAccount, signIn, signOut } from './account.js';
 
 const PUBLISHED_KEY = 'smitten-editor.published';
@@ -461,6 +463,8 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
       if (love.length > MAX_GAME_BYTES) {
         throw new Error(`The game is ${formatBytes(love.length)} packed; the limit is 25 MB. Remove files it doesn't use, or make images and sounds smaller.`);
       }
+      // What the play page runs. The source above stays as it is, for remixing.
+      const play = await buildPlayZip(files, { onProgress: (f) => showProgress('Making the play build…', f) });
       const thumbPath = thumbSelect.value || null;
       const body = new FormData();
       body.append('meta', JSON.stringify({
@@ -474,6 +478,7 @@ export async function publishDialog(project, { files, modules = [], platformUrl 
         hackatimeProject: project.name,
       }));
       body.append('game', new Blob([love], { type: 'application/zip' }), 'game.zip');
+      if (play.zip.length <= MAX_GAME_BYTES) body.append('play', new Blob([play.zip], { type: 'application/zip' }), 'play.zip');
       if (thumbPath) body.append('thumbnail', new Blob([asBytes(files[thumbPath])], { type: 'image/png' }), 'thumbnail.png');
 
       const onProgress = (f) => showProgress(f < 1 ? `Uploading… ${Math.round(f * 100)}%` : 'Saving…', f);

@@ -39,6 +39,8 @@ export async function exportDialog(project) {
   const name = slugify(project.name);
   try {
     if (kind === 'web') {
+      // The play build (smaller images and files) can take a few seconds.
+      toast('Making the web game…', { timeout: 3000 });
       const zip = await buildWebExport(project.snapshot(), project.name, included.map((m) => m.id));
       downloadBlob(new Blob([zip], { type: 'application/zip' }), `${name}-web.zip`);
     } else {

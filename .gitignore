@@ -1,4 +1,4 @@
-build/
+/build/
 build-log.txt
 node_modules/
 .DS_Store

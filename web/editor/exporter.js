@@ -5,7 +5,7 @@
 // with the browser's DecompressionStream.
 
 import { classifyBytes } from './file-types.js';
-import { withoutLayers } from './tools/sprite/doc.js';
+import { buildPlay, defaultDeflate } from './core/build/index.js';
 
 const FFLATE_URL = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
 let fflatePromise = null;
@@ -127,8 +127,8 @@ async function readZipFallback(bytes) {
 // ---------------------------------------------------------------------------
 // Public API
 
-/** files: {path: string | Uint8Array} -> Uint8Array (zip) */
-export async function zipFiles(files) {
+/** files: {path: string | Uint8Array} -> Uint8Array (zip). level: 1 to 9, for the files that get deflated. */
+export async function zipFiles(files, { level = 6 } = {}) {
   const fflate = await loadFflate();
   const bytes = {};
   for (const [path, data] of Object.entries(files)) bytes[path] = toBytes(data);
@@ -137,7 +137,7 @@ export async function zipFiles(files) {
     for (const [path, data] of Object.entries(bytes)) {
       // Already-compressed formats are stored as-is; text gets deflated.
       const stored = /\.(png|jpe?g|ogg|oga|opus|mp3|webp|zip|love|woff2?)$/i.test(path);
-      input[path] = [data, { level: stored ? 0 : 6 }];
+      input[path] = [data, { level: stored ? 0 : level }];
     }
     return fflate.zipSync(input, { mtime: new Date() });
   }
@@ -176,9 +176,37 @@ export async function unzipToProjectFiles(bytes) {
   return files;
 }
 
-/** The game as the player runs it: a zip of the project's files. */
+/** The game's source: a zip of the project's files (for remixing, and what the editor runs). */
 export async function buildGameZip(files) {
   return zipFiles(files);
+}
+
+/** A zlib stream at a level: fflate's when it loaded, else the browser's. */
+async function playDeflate(bytes, level) {
+  const fflate = await loadFflate();
+  return fflate ? fflate.zlibSync(bytes, { level, mem: 12 }) : defaultDeflate(bytes);
+}
+
+// Passes to turn off, for finding the cause of a problem: in the browser's
+// console, localStorage['smitten-editor.play-build'] = '{"png": false}'
+// (or '"off"' for no play build at all: the source as it is).
+function debugPasses() {
+  try {
+    const value = JSON.parse(globalThis.localStorage?.getItem('smitten-editor.play-build') || 'null');
+    if (value === 'off') return Object.fromEntries(['layers', 'tools', 'json', 'png'].map((p) => [p, false]));
+    return value && typeof value === 'object' ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The game as players get it (core/build/index.js): {zip, files, report}.
+ * The project's files do not change.
+ */
+export async function buildPlayZip(files, { passes = debugPasses(), deflate = playDeflate, onProgress } = {}) {
+  const play = await buildPlay(files, { passes, deflate, onProgress });
+  return { zip: await zipFiles(play.files, { level: 9 }), files: play.files, report: play.report };
 }
 
 // clips.js, gif.js and webm.js: Record and Save clip (the player loads them only when they are used).
@@ -197,25 +225,11 @@ async function fetchBytes(name) {
 /**
  * A zip that can be uploaded to itch.io as an HTML game: index.html (the
  * player, pointed at game.zip), the engine, only the engine modules the
- * game uses (DESIGN.md, section 3), and the game itself.
+ * game uses (DESIGN.md, section 3), and the game's play build
+ * (buildPlayZip: for example, .sprite files without their layers, and
+ * smaller images). Project zips and share links keep the source.
  */
-/**
- * The project's files for a game that nobody edits: .sprite files lose
- * their layers (the editor keeps them for later changes; the game draws
- * only the PNG). Project zips, share links and publishing keep them.
- */
-export function gameFiles(files) {
-  const out = {};
-  for (const [path, data] of Object.entries(files)) {
-    if (!/\.sprite$/i.test(path)) { out[path] = data; continue; }
-    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
-    const stripped = withoutLayers(text);
-    out[path] = stripped === text ? data : stripped;
-  }
-  return out;
-}
-
-export async function buildWebExport(files, title, modules = []) {
+export async function buildWebExport(files, title, modules = [], options = {}) {
   const assets = {};
   await Promise.all(WEB_ASSETS.map(async (name) => { assets[name] = await fetchBytes(name); }));
   let html = new TextDecoder().decode(assets['player.html']);
@@ -234,7 +248,7 @@ export async function buildWebExport(files, title, modules = []) {
     'webm.js': assets['webm.js'],
     'smitten.mjs': assets['smitten.mjs'],
     'smitten.wasm': assets['smitten.wasm'],
-    'game.zip': await buildGameZip(gameFiles(files)),
+    'game.zip': (await buildPlayZip(files, options)).zip,
   };
   for (const m of modules) out[`modules/${m}.wasm`] = await fetchBytes(`modules/${m}.wasm`);
   return zipFiles(out);
