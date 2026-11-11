@@ -864,7 +864,10 @@ function M.instantiate(n, s)
 	-- with the same script at the top level gets a fresh copy.
 	local chunk = info.chunk
 	if info.running then
-		chunk = loadstring(string.dump(info.chunk), "@" .. info.path)
+		-- Compiled again from the file: the engine loads no binary chunks.
+		local err
+		chunk, err = love.filesystem.load(info.path)
+		if not chunk then error(err, 0) end
 	end
 	setfenv(chunk, env)
 	info.running = true

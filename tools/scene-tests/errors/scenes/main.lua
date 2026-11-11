@@ -104,6 +104,17 @@ local function checks()
   has("jumpSpeed: fallGravity", tostring(p.speedNow), "400")
   p = make("Body", {}, "scripts/jumper-plain.lua")
   has("jumpSpeed: default", tostring(p.speedNow), "600")
+
+  -- Games are untrusted: no precompiled chunks, by any way of loading.
+  local f, why = loadstring(string.dump(function() return 1 end))
+  has("binary chunk: loadstring refuses it", tostring(f == nil) .. " " .. tostring(why), "true")
+  has("binary chunk: says why", tostring(why), "binary")
+  local g = load(string.dump(function() return 1 end))
+  has("binary chunk: load refuses it", tostring(g == nil), "true")
+  -- A script that makes a piece with its own script still gets a fresh copy.
+  local outer = make("Group", {}, "scripts/nested.lua")
+  has("nested: the inner copy ran", tostring(outer.inner and outer.inner.depth), "2")
+  has("nested: copies keep their own values", tostring(outer.depth), "1")
 end
 
 function update(dt)

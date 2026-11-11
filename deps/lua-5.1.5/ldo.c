@@ -529,8 +529,13 @@ static void f_parser (lua_State *L, void *ud) {
   struct SParser *p = cast(struct SParser *, ud);
   int c = luaZ_lookahead(p->z);
   luaC_checkGC(L);
-  if (c == LUA_SIGNATURE[0])
-    tf = luaU_undump(L, p->z, &p->buff, p->name);
+  if (c == LUA_SIGNATURE[0]) {
+    /* Smitten: games are untrusted code, and a crafted binary chunk can
+       break the VM's memory safety. Only source text is ever loaded. */
+    luaO_pushfstring(L, "%s: precompiled (binary) chunks can't be loaded", p->name);
+    luaD_throw(L, LUA_ERRSYNTAX);
+    tf = NULL;  /* not reached */
+  }
   else
     tf = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name);
   cl = luaF_newLclosure(L, tf->nups, hvalue(gt(L)));
