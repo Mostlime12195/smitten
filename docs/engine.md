@@ -132,6 +132,24 @@ Leaderboards on the games site. See [Leaderboards](leaderboards.md).
 | `smitten.boards.around(key, count?, callback?)` | Returns the scores around the score of the player (the top scores, if the player has no score). |
 | `smitten.boards.list(callback?)` | Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }. |
 
+### smitten.net
+
+Online rooms on the games site. See [Online rooms](online.md).
+
+| Function | |
+| --- | --- |
+| `smitten.net.available()` | Returns true while the game runs on its page on the games site. Returns false in the editor and in exported games. |
+| `smitten.net.join(room, options?, callback?)` | Joins a room, and makes it if nobody is in it: smitten.net.join("arena", { maxPlayers = 4 }). options: maxPlayers (2 to 16, 8 if you leave it out) and name (for a player who is not signed in). Waits, then returns your peer, or nil and the reason. |
+| `smitten.net.leave()` | Leaves the room. The others get peerLeft(). You get no event. |
+| `smitten.net.room()` | Returns the name of the room that you are in, or nil. |
+| `smitten.net.me()` | Returns your own peer: { id, name, guest, me = true }, or nil when you are not in a room. |
+| `smitten.net.peers()` | Returns all the peers in the room, you too, in the order that they came in: a new list each time. |
+| `smitten.net.peer(id)` | Returns the peer with this id, or nil. |
+| `smitten.net.host()` | Returns the host: the peer that is in the room for the longest time. The games site chooses a new host when the host leaves. The host has no other power. |
+| `smitten.net.isHost()` | Returns true if you are the host. |
+| `smitten.net.send(peer, data)` | Sends data to one peer (a peer or its id). data is a table, text, a number or a boolean. Returns true, or nil and the reason. |
+| `smitten.net.broadcast(data)` | Sends data to all the other peers in the room. Returns true, or nil and the reason. |
+
 ### smitten.json
 
 Changes JSON text to Lua values, and Lua values to JSON text.

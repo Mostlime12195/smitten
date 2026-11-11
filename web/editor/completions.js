@@ -7,7 +7,7 @@
 // modules and helpers from smitten-docs.js.
 
 import { DOCS, RETURNS, NAME_HINTS, METHOD_DOCS } from './engine-docs.js';
-import { SMITTEN_MODULES, MODULE_HELPERS, PATH_ARGS } from './smitten-docs.js';
+import { SMITTEN_MODULES, MODULE_HELPERS, PATH_ARGS, NET_EVENTS } from './smitten-docs.js';
 import { SCRIPT_API, SCRIPT_CALLBACKS } from './core/script-api.js';
 import { getSchema } from './core/schema.js';
 
@@ -148,9 +148,10 @@ export function createCompletions(api, cm, getProjectFiles = () => []) {
   }));
   const callbackOptions = SCRIPT_CALLBACKS.map((name) => {
     const e = scriptEvents.get(name);
-    const args = e ? e.args : (name === 'update' || name === 'physicsUpdate' ? 'dt' : '');
+    const net = NET_EVENTS[name];
+    const args = e ? e.args : net ? net[0] : (name === 'update' || name === 'physicsUpdate' ? 'dt' : '');
     return snippetCompletion(`function ${name}(${args})\n\t\${}\nend`, {
-      label: `function ${name}`, type: 'keyword', detail: `(${args})`, info: e ? `${e.type}: ${e.doc}` : 'Called by Smitten.', boost: 1,
+      label: `function ${name}`, type: 'keyword', detail: `(${args})`, info: e ? `${e.type}: ${e.doc}` : net ? net[1] : 'Called by Smitten.', boost: 1,
     });
   });
   const globalOptions = Object.entries(LUA_GLOBALS).map(([name, d]) => ({

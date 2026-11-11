@@ -149,6 +149,7 @@ examples make their own images and sounds, so they do not download files.
 | **Random** | A cave that a script makes in a Tiles piece from a seed. The seed shows on the screen, and R makes a new cave | [Random and noise](random.md) |
 | **Animation** | A door with an Animator. Keys open the door, and a call key plays a sound. A script waits for the animation | [Animation](animation.md) |
 | **Sound** | A song with a sample instrument, and pads that play sounds with `sfx()` at a different pitch each time | [Sound and music](sound.md) |
+| **Online dots** | Each player in an online room moves a dot and sees the dots of the others, with `smitten.net`. It works on the games site | [Online rooms](online.md) |
 
 Some examples also use the [ready-made scripts](scripts.md#ready-made-scripts):
 **Two players** uses `moving-platform.lua` and `countdown.lua`, and

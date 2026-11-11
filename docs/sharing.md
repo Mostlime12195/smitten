@@ -23,7 +23,8 @@ game. The link of the game stays the same. The page of a game shows:
 
 A published game can also have [leaderboards](leaderboards.md):
 high scores that all players share. The page of the game shows them under
-the game.
+the game. On its page, a game can also have [online rooms](online.md), where
+players in different places play together.
 
 ## Exporting
 

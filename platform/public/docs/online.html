@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online rooms · Smitten docs</title>
+<meta name="description" content="Smitten's documentation: Online rooms.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="docs.css">
+<script type="module" src="docs.js"></script>
+</head>
+<body class="docs">
+<header class="topbar">
+  <div class="topbar-inner">
+    <button type="button" class="btn ghost nav-toggle" id="nav-toggle" aria-controls="docs-nav" aria-expanded="false" aria-label="Contents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" href="../" aria-label="Smitten games"><svg class="heart" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>Smitten</span></a>
+    <a class="docs-home" href="./">Docs</a>
+    <form class="search" role="search" id="docs-search" action="./">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="docs-q" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off">
+      <div class="search-results" id="docs-results" role="listbox" hidden></div>
+    </form>
+  </div>
+</header>
+<div class="docs-layout">
+  <nav class="docs-nav" id="docs-nav" aria-label="Docs"><div class="nav-section"><div class="nav-title">Start</div><ul><li><a href="./">Overview</a></li><li><a href="getting-started">Getting started</a></li></ul></div><div class="nav-section"><div class="nav-title">Making games</div><ul><li><a href="scripts">Scripts</a></li><li><a href="scenes">Scenes and pieces</a></li><li><a href="input">Input</a></li><li><a href="sound">Sound and music</a></li><li><a href="sprite-editor">Sprite editor</a></li><li><a href="camera">Camera</a></li><li><a href="backgrounds">Backgrounds</a></li><li><a href="tiles">Tiles</a></li><li><a href="lights">Lights</a></li><li><a href="text">Text</a></li><li><a href="ui">UI</a></li><li><a href="animation">Animation</a></li><li><a href="physics">Physics</a></li><li><a href="pathfinding">Pathfinding</a></li><li><a href="random">Random and noise</a></li><li><a href="saving">Saving</a></li><li><a href="drawing">Drawing</a></li></ul></div><div class="nav-section"><div class="nav-title">Project</div><ul><li><a href="settings">Project settings</a></li><li><a href="sharing">Sharing and publishing</a></li><li><a href="clips">Clips</a></li><li><a href="leaderboards">Leaderboards</a></li><li><a href="online" aria-current="page">Online rooms</a><ul class="nav-sub"><li><a href="#joining-a-room">Joining a room</a></li><li><a href="#peers">Peers</a></li><li><a href="#sending-messages">Sending messages</a></li><li><a href="#events">Events</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#players-and-names">Players and names</a></li><li><a href="#limits">Limits</a></li><li><a href="#when-the-connection-drops">When the connection drops</a></li><li><a href="#testing-an-online-game">Testing an online game</a></li><li><a href="#reference">Reference</a></li><li><a href="#what-the-engine-does-not-do">What the engine does not do</a></li></ul></li><li><a href="older-projects">Older projects</a></li></ul></div><div class="nav-section"><div class="nav-title">Reference</div><ul><li><a href="api">Script API</a></li><li><a href="pieces">Pieces</a></li><li><a href="engine">The engine table</a></li><li><a href="formats">File formats</a></li><li><a href="editor-tools">Editor tools</a></li></ul></div></nav>
+  <main class="docs-main" id="main">
+    <article class="prose">
+<h1>Online rooms</h1>
+<p>A game on the games site can let players in different places play together. The players join a <strong>room</strong>. Each player in a room is a <strong>peer</strong>. <code>smitten.net</code> sends <strong>messages</strong> from one peer to the others.</p>
+<p><code>smitten.net</code> only carries messages. Your game decides what the messages mean, who moves what, and what to do when the messages are late. The <a href="#what-the-engine-does-not-do">last section</a> tells what the engine does not do for you.</p>
+<p>Online rooms work only while the game runs on its page on the games site. In other places, the game still runs, and every call gives <code>nil, &quot;unavailable&quot;</code> (see <a href="#testing-an-online-game">Testing</a>).</p>
+<h2 id="joining-a-room"><a class="anchor" href="#joining-a-room" aria-hidden="true">#</a>Joining a room</h2>
+<p><code>smitten.net.join(room, options)</code> puts the player in a room. If nobody is in the room, it makes the room first. In <code>ready()</code>, in an event or in a <code>task()</code>, <code>join()</code> waits until the player is in the room, as <code>wait()</code> waits. Then it gives your own peer:</p>
+<pre><code class="lang-lua"><span class="tk-c">-- scripts/game.lua, on the root of the main scene</span>
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">local</span> me, why = smitten.net.<span class="tk-f">join</span>(<span class="tk-s">&quot;arena&quot;</span>, { maxPlayers = <span class="tk-n">4</span> })
+  <span class="tk-k">if</span> me <span class="tk-k">then</span>
+    Status.text = <span class="tk-s">`You are {me.name}`</span>
+  <span class="tk-k">else</span>
+    Status.text = <span class="tk-s">`No online play now ({why})`</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p>The room name is a short text:</p>
+<ul><li>It has 1 to 32 characters: letters, numbers, spaces, <code>_</code>, <code>.</code> and <code>-</code>.</li><li>Upper case and lower case are the same: &quot;Arena&quot; and &quot;arena&quot; are one room.</li><li>A room belongs to your game. Another game can have a room with the same name, and its players never meet yours.</li></ul>
+<p>The options are:</p>
+<div class="table"><table>
+<thead><tr><th>Option</th><th></th></tr></thead>
+<tbody><tr><td><code>maxPlayers</code></td><td>The most players in the room, from 2 to 16. If you do not give it, the room takes 8. Only the player who makes the room sets it</td></tr>
+<tr><td><code>name</code></td><td>The name for a player who is not signed in to the games site (see <a href="#players-and-names">Players and names</a>)</td></tr></tbody>
+</table></div>
+<p>The games site does not show a list of rooms. Because of this, a room name is also a code. For a private room, make a random code and show it to the player. The player tells the code to friends, who join with it:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  <span class="tk-k">local</span> code = <span class="tk-s">&quot;&quot;</span>
+  <span class="tk-k">for</span> i = <span class="tk-n">1</span>, <span class="tk-n">5</span> <span class="tk-k">do</span>
+    code = code .. <span class="tk-f">choose</span>(<span class="tk-s">&quot;A&quot;</span>, <span class="tk-s">&quot;C&quot;</span>, <span class="tk-s">&quot;D&quot;</span>, <span class="tk-s">&quot;E&quot;</span>, <span class="tk-s">&quot;F&quot;</span>, <span class="tk-s">&quot;H&quot;</span>, <span class="tk-s">&quot;K&quot;</span>, <span class="tk-s">&quot;M&quot;</span>, <span class="tk-s">&quot;N&quot;</span>, <span class="tk-s">&quot;P&quot;</span>, <span class="tk-s">&quot;R&quot;</span>, <span class="tk-s">&quot;T&quot;</span>, <span class="tk-s">&quot;X&quot;</span>)
+  <span class="tk-k">end</span>
+  Code.text = <span class="tk-s">`Room code: {code}`</span>
+  smitten.net.<span class="tk-f">join</span>(code)
+<span class="tk-k">end</span></code></pre>
+<p><code>update()</code> and <code>draw()</code> cannot wait. In these functions, give a function as the last argument. The engine calls it with the same values that <code>join()</code> gives in <code>ready()</code>:</p>
+<pre><code class="lang-lua"><span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  <span class="tk-k">if</span> <span class="tk-f">pressed</span>(<span class="tk-s">&quot;jump&quot;</span>) <span class="tk-k">and</span> <span class="tk-k">not</span> smitten.net.<span class="tk-f">room</span>() <span class="tk-k">then</span>
+    smitten.net.<span class="tk-f">join</span>(<span class="tk-s">&quot;arena&quot;</span>, <span class="tk-k">function</span>(me, why)
+      <span class="tk-k">if</span> <span class="tk-k">not</span> me <span class="tk-k">then</span> <span class="tk-f">print</span>(<span class="tk-s">&quot;No room: &quot;</span> .. why) <span class="tk-k">end</span>
+    <span class="tk-k">end</span>)
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<p><code>smitten.net.leave()</code> takes the player out of the room. The other peers get <code>peerLeft()</code>. You get no event. Call <code>leave()</code> before you join another room.</p>
+<h2 id="peers"><a class="anchor" href="#peers" aria-hidden="true">#</a>Peers</h2>
+<p>A peer is a table with these fields:</p>
+<div class="table"><table>
+<thead><tr><th>Field</th><th></th></tr></thead>
+<tbody><tr><td><code>id</code></td><td>A number. It is different for each peer in the room. The first peer in a room has the id 1</td></tr>
+<tr><td><code>name</code></td><td>The name of the player</td></tr>
+<tr><td><code>guest</code></td><td>True if the player is not signed in to the games site</td></tr>
+<tr><td><code>me</code></td><td>True on your own peer only</td></tr></tbody>
+</table></div>
+<p>The engine keeps one table for each peer. Because of this, you can use a peer as a key in a table (<code>dots[peer] = dot</code>) and compare two peers with <code>==</code>.</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.net.me()</code></td><td>Your own peer</td></tr>
+<tr><td><code>smitten.net.peers()</code></td><td>All the peers in the room, you too, in the order that they came in</td></tr>
+<tr><td><code>smitten.net.peer(id)</code></td><td>The peer with this id</td></tr>
+<tr><td><code>smitten.net.room()</code></td><td>The name of the room, or <code>nil</code> when you are not in a room</td></tr>
+<tr><td><code>smitten.net.host()</code></td><td>The host</td></tr>
+<tr><td><code>smitten.net.isHost()</code></td><td>True if you are the host</td></tr></tbody>
+</table></div>
+<p>The <strong>host</strong> is the peer that is in the room for the longest time. When the host leaves, the next peer becomes the host. The host is only a fact that all peers agree about. The engine gives the host no other power. Your game can use it. For example, the host can start each round, or decide who caught the ball.</p>
+<h2 id="sending-messages"><a class="anchor" href="#sending-messages" aria-hidden="true">#</a>Sending messages</h2>
+<p><code>smitten.net.send(peer, data)</code> sends data to one peer. You can give the peer or its id. <code>smitten.net.broadcast(data)</code> sends data to all the other peers in the room:</p>
+<pre><code class="lang-lua">smitten.net.<span class="tk-f">broadcast</span>({ x = <span class="tk-f">round</span>(x), y = <span class="tk-f">round</span>(y) })
+smitten.net.<span class="tk-f">send</span>(peer, { kind = <span class="tk-s">&quot;welcome&quot;</span>, score = score })</code></pre>
+<p>Both give <code>true</code> when the message goes out. They give <code>nil</code> and the reason when it cannot go (<code>&quot;not-in-room&quot;</code>, or <code>&quot;no-peer&quot;</code> when the peer is not in the room). They never wait. Because of this, you can call them in <code>update()</code>.</p>
+<p>The data can be:</p>
+<ul><li>a number, a text, <code>true</code> or <code>false</code>, or <code>nil</code>,</li><li>a list (<code>{ 1, 2, 3 }</code>, with no gaps),</li><li>a table with text keys (<code>{ x = 10, name = &quot;Ada&quot; }</code>),</li><li>lists and tables inside lists and tables.</li></ul>
+<p>The data goes as JSON. It can have a maximum of 8192 bytes as JSON. A function, a piece, a table that contains itself, or a table with number keys that is not a list cannot go. Then <code>send()</code> stops the game with an error that tells which part of the data is wrong. This shows the problem while you test in the editor, too. Send the values that you need from a piece, for example <code>{ x = p.x, y = p.y }</code>.</p>
+<p>Messages from one peer arrive in the order that the peer sent them. A message does not come back to the peer that sent it.</p>
+<h2 id="events"><a class="anchor" href="#events" aria-hidden="true">#</a>Events</h2>
+<p>The engine calls these functions in each script that has them, on all the pieces of the running scene:</p>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>function peerJoined(peer)</code></td><td>The engine calls it when a peer comes into your room, and once for each peer that is in the room when you join.</td></tr>
+<tr><td><code>function peerLeft(peer)</code></td><td>The engine calls it when a peer leaves your room.</td></tr>
+<tr><td><code>function message(from, data)</code></td><td>The engine calls it when a message from another peer arrives. data is what the peer sent.</td></tr>
+<tr><td><code>function disconnected(reason)</code></td><td>The engine calls it when you are not in the room any more, but did not call leave(). reason tells why.</td></tr></tbody>
+</table></div>
+<p>When you join, <code>join()</code> gives your peer first. Then the engine calls <code>peerJoined()</code> for each peer that was in the room before you. Because of this, one <code>peerJoined()</code> can make the things of all the other players.</p>
+<p>A room stays when the scene changes. The pieces of the new scene get the events of the same room.</p>
+<h2 id="a-worked-example"><a class="anchor" href="#a-worked-example" aria-hidden="true">#</a>A worked example</h2>
+<p>The <strong>Online dots</strong> example on the home screen of the editor is a small online room. Each player moves a dot with the arrow keys, and sees the dots of the other players. The game makes its own rules:</p>
+<ul><li>Each player <strong>owns</strong> one dot. Only its owner moves it.</li><li>The owner sends the position of its dot, at most 15 times per second, and only when the dot moved.</li><li>The other players move their copy of the dot toward the last position that came, a part of the way in each frame. Because of this, the copy moves smoothly between two messages. This is <strong>interpolation</strong>.</li></ul>
+<p>These rules are the choice of this game. A different game can choose other rules. For example, a card game can send each move one time, and let the host check each move.</p>
+<p>The script, a little shorter:</p>
+<pre><code class="lang-lua"><span class="tk-k">local</span> net = smitten.net
+speed = <span class="tk-n">260</span>
+sendRate = <span class="tk-n">15</span>
+smoothing = <span class="tk-n">12</span>
+
+<span class="tk-k">local</span> mine = <span class="tk-k">nil</span>
+<span class="tk-k">local</span> others = {}   <span class="tk-c">-- a peer's id -&gt; { dot, x, y }</span>
+<span class="tk-k">local</span> untilSend = <span class="tk-n">0</span>
+
+<span class="tk-k">function</span> <span class="tk-f">ready</span>()
+  mine = <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/dot.scene&quot;</span>, { x = <span class="tk-n">640</span>, y = <span class="tk-n">360</span> })
+  net.<span class="tk-f">join</span>(<span class="tk-s">&quot;dots&quot;</span>, { maxPlayers = <span class="tk-n">8</span> })
+<span class="tk-k">end</span>
+
+<span class="tk-c">-- The engine calls this for each peer that was there first, and for each new peer.</span>
+<span class="tk-k">function</span> <span class="tk-f">peerJoined</span>(peer)
+  <span class="tk-k">local</span> dot = <span class="tk-f">spawn</span>(<span class="tk-s">&quot;scenes/dot.scene&quot;</span>, { x = mine.x, y = mine.y, visible = <span class="tk-k">false</span> })
+  others[peer.id] = { dot = dot, x = <span class="tk-n">0</span>, y = <span class="tk-n">0</span> }
+  <span class="tk-c">-- The new peer does not know where your dot is: tell only that peer.</span>
+  net.<span class="tk-f">send</span>(peer, { x = <span class="tk-f">round</span>(mine.x), y = <span class="tk-f">round</span>(mine.y) })
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">peerLeft</span>(peer)
+  <span class="tk-k">local</span> other = others[peer.id]
+  <span class="tk-k">if</span> other <span class="tk-k">then</span>
+    other.dot:<span class="tk-f">destroy</span>()
+    others[peer.id] = <span class="tk-k">nil</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">message</span>(from, data)
+  <span class="tk-k">local</span> other = others[from.id]
+  <span class="tk-k">if</span> other == <span class="tk-k">nil</span> <span class="tk-k">then</span> <span class="tk-k">return</span> <span class="tk-k">end</span>
+  other.x, other.y = data.x, data.y
+  <span class="tk-k">if</span> <span class="tk-k">not</span> other.dot.visible <span class="tk-k">then</span>
+    other.dot.x, other.dot.y = data.x, data.y
+    other.dot.visible = <span class="tk-k">true</span>
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span>
+
+<span class="tk-k">function</span> <span class="tk-f">update</span>(dt)
+  <span class="tk-k">local</span> mx, my = <span class="tk-f">vector</span>(<span class="tk-s">&quot;left&quot;</span>, <span class="tk-s">&quot;right&quot;</span>, <span class="tk-s">&quot;up&quot;</span>, <span class="tk-s">&quot;down&quot;</span>)
+  mine.x += mx * speed * dt
+  mine.y += my * speed * dt
+
+  untilSend -= dt
+  <span class="tk-k">if</span> net.<span class="tk-f">room</span>() <span class="tk-k">and</span> untilSend &lt;= <span class="tk-n">0</span> <span class="tk-k">and</span> (mx ~= <span class="tk-n">0</span> <span class="tk-k">or</span> my ~= <span class="tk-n">0</span>) <span class="tk-k">then</span>
+    net.<span class="tk-f">broadcast</span>({ x = <span class="tk-f">round</span>(mine.x), y = <span class="tk-f">round</span>(mine.y) })
+    untilSend = <span class="tk-n">1</span> / sendRate
+  <span class="tk-k">end</span>
+
+  <span class="tk-c">-- A part of the way in each frame, the same part at any frame rate.</span>
+  <span class="tk-k">local</span> part = <span class="tk-n">1</span> - math.<span class="tk-f">exp</span>(-smoothing * dt)
+  <span class="tk-k">for</span> _, other <span class="tk-k">in</span> <span class="tk-f">pairs</span>(others) <span class="tk-k">do</span>
+    other.dot.x = <span class="tk-f">lerp</span>(other.dot.x, other.x, part)
+    other.dot.y = <span class="tk-f">lerp</span>(other.dot.y, other.y, part)
+  <span class="tk-k">end</span>
+<span class="tk-k">end</span></code></pre>
+<h2 id="players-and-names"><a class="anchor" href="#players-and-names" aria-hidden="true">#</a>Players and names</h2>
+<ul><li>A player who is <strong>signed in</strong> to the games site has their display name.</li><li>All other players are <strong>guests</strong>. The name of a guest is the <code>name</code> option of <code>join()</code>. A name has 1 to 12 characters: letters, numbers, spaces, <code>-</code> and <code>_</code>. The word filter of the games site checks it. If there is no name, the guest is &quot;Guest&quot; and the id, for example &quot;Guest 3&quot;.</li><li>If your game asks for a name, ask for a nickname. Never ask for a real name.</li></ul>
+<p>Online rooms have no chat. Players see only what your game shows. If your game lets players type text for others, they can send words that hurt. Do not let them do this.</p>
+<h2 id="limits"><a class="anchor" href="#limits" aria-hidden="true">#</a>Limits</h2>
+<p>The games site keeps each room small, and each game fair to the other games:</p>
+<div class="table"><table>
+<thead><tr><th>Limit</th><th></th></tr></thead>
+<tbody><tr><td>Players in a room</td><td>2 to 16, 8 if you do not give <code>maxPlayers</code></td></tr>
+<tr><td>Data in one message</td><td>8192 bytes as JSON</td></tr>
+<tr><td>Messages from one player</td><td>30 per second</td></tr>
+<tr><td>Data from one player</td><td>32 KB per second</td></tr>
+<tr><td>Rooms of one game</td><td>100 at the same time</td></tr>
+<tr><td>Connections from one network</td><td>8</td></tr>
+<tr><td>A room with no messages</td><td>closes after 15 minutes</td></tr>
+<tr><td>A connection that drops</td><td>keeps its place for 10 seconds</td></tr></tbody>
+</table></div>
+<p>When a player sends too many messages or too much data, the games site does not send the messages above the limit. The game shows a warning in the <strong>Output</strong> (or in the console of the browser). Send fewer messages, not more. For most games, 10 to 20 messages per second are enough.</p>
+<h2 id="when-the-connection-drops"><a class="anchor" href="#when-the-connection-drops" aria-hidden="true">#</a>When the connection drops</h2>
+<p>If the connection of a player drops, the page of the game tries to connect again for a few seconds. The player keeps their place in the room for 10 seconds. If the connection comes back, the game does not see a change. The messages that went out or came in while the connection was down do not arrive. Then, if peers came or went in that time, the engine calls <code>peerJoined()</code> and <code>peerLeft()</code> for them.</p>
+<p>If the connection does not come back, the engine calls <code>disconnected(reason)</code>. The other peers get <code>peerLeft()</code>.</p>
+<p>While the player cannot see the tab of the game, the game does not run. The messages wait. If too many messages wait, the page does not keep the new messages. <code>peerJoined()</code> and <code>peerLeft()</code> always come.</p>
+<h2 id="testing-an-online-game"><a class="anchor" href="#testing-an-online-game" aria-hidden="true">#</a>Testing an online game</h2>
+<p>Online rooms work only on the page of the game on the games site. With <strong>Play</strong> in the editor and in an exported game, <code>smitten.net.available()</code> is false, and <code>join()</code> gives <code>nil, &quot;unavailable&quot;</code> immediately. Use this to show a message, and let the game work for one player:</p>
+<pre><code class="lang-lua"><span class="tk-k">if</span> <span class="tk-k">not</span> smitten.net.<span class="tk-f">available</span>() <span class="tk-k">then</span>
+  Status.text = <span class="tk-s">&quot;Online play works on the games site.&quot;</span>
+<span class="tk-k">end</span></code></pre>
+<p>To test with more than one player:</p>
+<ol><li>Publish the game.</li><li>Open its page on the games site.</li><li>Open the same page in a second tab or a second browser.</li><li>Click <strong>Play</strong> in each tab.</li></ol>
+<p>Each tab is one player. After a change, publish the game again. Then load the pages again.</p>
+<p>When a call gives <code>nil</code>, the second value tells the cause. <code>disconnected()</code> gets the same words:</p>
+<div class="table"><table>
+<thead><tr><th>Cause</th><th>What happened</th></tr></thead>
+<tbody><tr><td><code>&quot;unavailable&quot;</code></td><td>The game is not on its page on the games site</td></tr>
+<tr><td><code>&quot;bad-room&quot;</code></td><td>The room name is empty, too long, or has other characters</td></tr>
+<tr><td><code>&quot;bad-name&quot;</code></td><td>The name of the guest is too long, has other characters, or has a word that the games site does not accept</td></tr>
+<tr><td><code>&quot;full&quot;</code></td><td>The room has <code>maxPlayers</code> players already</td></tr>
+<tr><td><code>&quot;in-room&quot;</code></td><td>You are in a room already. Call <code>leave()</code> first</td></tr>
+<tr><td><code>&quot;needs-callback&quot;</code></td><td>A call to <code>join()</code> from <code>update()</code> or <code>draw()</code>, without a function to give the answer to</td></tr>
+<tr><td><code>&quot;too-many-rooms&quot;</code></td><td>The game has too many rooms at the same time</td></tr>
+<tr><td><code>&quot;busy&quot;</code></td><td>The games site, or the network of the player, has too many connections</td></tr>
+<tr><td><code>&quot;timeout&quot;</code></td><td>The games site did not answer in 15 seconds</td></tr>
+<tr><td><code>&quot;offline&quot;</code></td><td>The page did not connect to the games site</td></tr>
+<tr><td><code>&quot;lost&quot;</code></td><td>The connection dropped and did not come back</td></tr>
+<tr><td><code>&quot;idle&quot;</code></td><td>Nobody in the room sent a message for 15 minutes</td></tr>
+<tr><td><code>&quot;slow&quot;</code></td><td>The player did not take the messages fast enough</td></tr>
+<tr><td><code>&quot;no-game&quot;</code></td><td>A moderator hid the game, to look at it</td></tr>
+<tr><td><code>&quot;banned&quot;</code></td><td>A moderator stopped this network from online play</td></tr>
+<tr><td><code>&quot;left&quot;</code></td><td><code>leave()</code> stopped a <code>join()</code> that waited</td></tr>
+<tr><td><code>&quot;not-in-room&quot;</code>, <code>&quot;no-peer&quot;</code></td><td><code>send()</code> or <code>broadcast()</code> outside a room, or to a peer that is not in the room</td></tr></tbody>
+</table></div>
+<h2 id="reference"><a class="anchor" href="#reference" aria-hidden="true">#</a>Reference</h2>
+<div class="table"><table>
+<thead><tr><th>Function</th><th></th></tr></thead>
+<tbody><tr><td><code>smitten.net.available()</code></td><td>Returns true while the game runs on its page on the games site. Returns false in the editor and in exported games.</td></tr>
+<tr><td><code>smitten.net.join(room, options?, callback?)</code></td><td>Joins a room, and makes it if nobody is in it: smitten.net.join(&quot;arena&quot;, { maxPlayers = 4 }). options: maxPlayers (2 to 16, 8 if you leave it out) and name (for a player who is not signed in). Waits, then returns your peer, or nil and the reason.</td></tr>
+<tr><td><code>smitten.net.leave()</code></td><td>Leaves the room. The others get peerLeft(). You get no event.</td></tr>
+<tr><td><code>smitten.net.room()</code></td><td>Returns the name of the room that you are in, or nil.</td></tr>
+<tr><td><code>smitten.net.me()</code></td><td>Returns your own peer: { id, name, guest, me = true }, or nil when you are not in a room.</td></tr>
+<tr><td><code>smitten.net.peers()</code></td><td>Returns all the peers in the room, you too, in the order that they came in: a new list each time.</td></tr>
+<tr><td><code>smitten.net.peer(id)</code></td><td>Returns the peer with this id, or nil.</td></tr>
+<tr><td><code>smitten.net.host()</code></td><td>Returns the host: the peer that is in the room for the longest time. The games site chooses a new host when the host leaves. The host has no other power.</td></tr>
+<tr><td><code>smitten.net.isHost()</code></td><td>Returns true if you are the host.</td></tr>
+<tr><td><code>smitten.net.send(peer, data)</code></td><td>Sends data to one peer (a peer or its id). data is a table, text, a number or a boolean. Returns true, or nil and the reason.</td></tr>
+<tr><td><code>smitten.net.broadcast(data)</code></td><td>Sends data to all the other peers in the room. Returns true, or nil and the reason.</td></tr></tbody>
+</table></div>
+<h2 id="what-the-engine-does-not-do"><a class="anchor" href="#what-the-engine-does-not-do" aria-hidden="true">#</a>What the engine does not do</h2>
+<p>Online games are difficult. <code>smitten.net</code> keeps its part small and reliable, and leaves the difficult decisions to your game. Know these facts before you start:</p>
+<ul><li><strong>Messages take time.</strong> A message takes from about 30 milliseconds to some hundred milliseconds. On a bad network, it takes more. Each player sees the other players a little in the past. Fast games feel this most. Interpolation (as in the example) makes it smooth, not faster.</li><li><strong>Players can cheat.</strong> The game runs on the computer of each player. A player who wants to cheat can change what their game sends. The games site only carries the messages. It does not check them. The host can cheat too. Do not use online games for prizes.</li><li><strong>There is no authority.</strong> The engine does not decide who owns a piece, or whose message is correct when two messages disagree. Your game decides. Two simple ways are: each player owns their own things, or the host decides.</li><li><strong>There is no prediction and no rollback.</strong> The engine does not guess where things go. It does not correct the past when a late message comes.</li><li><strong>Pieces do not copy themselves.</strong> The engine does not send pieces, properties or scenes to the other players. Your game sends the values that it needs.</li><li><strong>There is no matchmaking.</strong> Players find each other only through room names and codes. There is no list of rooms, no levels of skill, and no queue.</li><li><strong>The site keeps nothing.</strong> A room ends when the last player leaves. To keep scores, use <a href="leaderboards">leaderboards</a>.</li></ul>
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="leaderboards"><span>Previous</span>Leaderboards</a><a class="next" href="older-projects"><span>Next</span>Older projects</a></nav>
+  </main>
+</div>
+</body>
+</html>

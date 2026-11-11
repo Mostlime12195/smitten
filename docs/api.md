@@ -168,3 +168,7 @@ The engine calls these functions when a script has them.
 | `function focused()` | TextInput | The engine calls it when the box gets keyboard focus. |
 | `function blurred()` | TextInput | The engine calls it when the box loses keyboard focus: the focus goes to something else, or the player presses Escape. |
 | `function scrolled(x, y)` | Scroll | The engine calls it when the player scrolls it. |
+| `function peerJoined(peer)` | any piece, with smitten.net ([Online rooms](online.md)) | The engine calls it when a peer comes into your room, and once for each peer that is in the room when you join. |
+| `function peerLeft(peer)` | any piece, with smitten.net ([Online rooms](online.md)) | The engine calls it when a peer leaves your room. |
+| `function message(from, data)` | any piece, with smitten.net ([Online rooms](online.md)) | The engine calls it when a message from another peer arrives. data is what the peer sent. |
+| `function disconnected(reason)` | any piece, with smitten.net ([Online rooms](online.md)) | The engine calls it when you are not in the room any more, but did not call leave(). reason tells why. |

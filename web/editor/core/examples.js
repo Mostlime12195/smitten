@@ -982,6 +982,96 @@ end
 }
 
 // ---------------------------------------------------------------------------
+// Online
+
+function online(name) {
+  return {
+    'smitten.json': project(name, 'scenes/room.scene', LARGE),
+    'scenes/dot.scene': scene(p('Dot', 'Group', null, [
+      circle('Look', 18, [0.95, 0.75, 0.3, 1]),
+      p('Name', 'Text', { y: -36, text: 'You', outline: true }),
+    ])),
+    'scenes/room.scene': scene(p('Room', 'Group', null, [
+      p('Back', 'Shape', { x: 640, y: 360, width: 1280, height: 720, color: [0.12, 0.14, 0.2, 1] }),
+      p('UI', 'Group', null, [
+        p('Status', 'Label', { anchor: 'top', y: 30, width: 1200, align: 'center', size: 22, outline: true, text: '' }),
+        p('Help', 'Label', { anchor: 'bottom', y: 40, width: 1200, align: 'center', outline: true, text: 'Arrow keys or WASD: move your dot.' }),
+      ]),
+    ], { script: 'scripts/online.lua' })),
+    'scripts/online.lua': `-- Online dots. smitten.net only carries messages: this game makes its own rules.
+-- Each player owns one dot and sends its position when it moves. The others move
+-- their copy a part of the way there in each frame. Publish it to play online.
+
+local net = smitten.net
+speed = 260          -- pixels per second
+sendRate = 15        -- messages per second, at most
+smoothing = 12       -- how fast the copies catch up: more is faster
+
+local COLORS = { { 0.95, 0.75, 0.3, 1 }, { 0.4, 0.8, 1, 1 }, { 0.95, 0.45, 0.55, 1 }, { 0.5, 0.9, 0.5, 1 } }
+local status, mine, untilSend = nil, nil, 0
+local others = {}    -- a peer's id -> { dot, x, y }: its dot, and where it goes
+
+local function paint(dot, id, name)
+  dot:find("Look").color = COLORS[(id - 1) % #COLORS + 1]
+  dot:find("Name").text = name
+end
+
+function ready()
+  status = find("UI/Status")
+  mine = spawn("scenes/dot.scene", { x = 640, y = 360 })
+  if not net.available() then
+    status.text = "Online play works on the games site. Publish this game, then open it in two tabs."
+    return
+  end
+  local me, why = net.join("dots", { maxPlayers = 8 })  -- waits until you are in the room
+  if not me then status.text = \`You cannot join the room now ({why}).\` return end
+  paint(mine, me.id, me.name)
+end
+
+function peerJoined(peer)  -- for each player there when you join, and each new one
+  local dot = spawn("scenes/dot.scene", { visible = false })  -- until its first position comes
+  paint(dot, peer.id, peer.name)
+  others[peer.id] = { dot = dot, x = 0, y = 0 }
+  net.send(peer, { x = round(mine.x), y = round(mine.y) })  -- tell only the new player
+end
+
+function peerLeft(peer)
+  if others[peer.id] then others[peer.id].dot:destroy() end
+  others[peer.id] = nil
+end
+
+-- data is what the other player sent: here, a table with x and y.
+function message(from, data)
+  local other = others[from.id]
+  if not other or type(data) ~= "table" or type(data.x) ~= "number" then return end
+  other.x, other.y = data.x, data.y
+  if not other.dot.visible then other.dot.x, other.dot.y, other.dot.visible = data.x, data.y, true end
+end
+
+function disconnected(reason)
+  for id in pairs(others) do peerLeft({ id = id }) end
+  status.text = \`The connection stopped ({reason}).\`
+end
+
+function update(dt)
+  local mx, my = vector("left", "right", "up", "down")
+  mine.x, mine.y = clamp(mine.x + mx * speed * dt, 20, 1260), clamp(mine.y + my * speed * dt, 60, 680)
+  untilSend -= dt
+  if net.room() and untilSend <= 0 and (mx ~= 0 or my ~= 0) then
+    net.broadcast({ x = round(mine.x), y = round(mine.y) })
+    untilSend = 1 / sendRate
+  end
+  if net.room() then status.text = \`Room "dots": {#net.peers()} players. You are {net.me().name}.\` end
+  local part = 1 - math.exp(-smoothing * dt)   -- the same part at any frame rate
+  for _, other in pairs(others) do
+    other.dot.x, other.dot.y = lerp(other.dot.x, other.x, part), lerp(other.dot.y, other.y, part)
+  end
+end
+`,
+  };
+}
+
+// ---------------------------------------------------------------------------
 
 /**
  * The examples: { id, name, description, icon, page (the docs page of the
@@ -999,4 +1089,5 @@ export const EXAMPLES = [
   { id: 'random', name: 'Random', page: 'random', icon: 'hash', description: 'A cave that a script makes into Tiles from a seed. Press R for a new cave.', build: random },
   { id: 'animation', name: 'Animation', page: 'animation', icon: 'animator', description: 'A door with an Animator. It opens when the player comes near, and it plays a sound.', build: animation },
   { id: 'sound', name: 'Sound', page: 'sound', icon: 'music', description: 'A short song with a sample instrument, and pads that play sounds with a different pitch each time.', build: sound },
+  { id: 'online', name: 'Online dots', page: 'online', icon: 'globe', description: 'Each player in an online room moves a dot and sees the dots of the others. It works on the games site.', build: online },
 ];

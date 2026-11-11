@@ -27,7 +27,8 @@ example is a small project that shows one part of Smitten.
 - [Sharing and publishing](sharing.md) tells how to put a game on the games
   site. [Clips](clips.md) tells how to save the last seconds of a game as a
   video or a GIF. [Leaderboards](leaderboards.md) tells how to add shared high scores
-  to a game on the games site.
+  to a game on the games site. [Online rooms](online.md) tells how players
+  in different places play one game together on the games site.
 - [Script API](api.md) and [Pieces](pieces.md) are the full reference.
   They show each function that a script can call, and each property of each
   piece type.

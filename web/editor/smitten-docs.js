@@ -13,6 +13,14 @@ export function docsUrl(site, page = '', anchor = '') {
   return `${base}/docs/${page}${anchor ? `#${anchor.toLowerCase()}` : ''}`;
 }
 
+/** The functions that smitten.net calls in scripts (docs/online.md): name: [args, doc]. */
+export const NET_EVENTS = {
+  peerJoined: ['peer', 'The engine calls it when a peer comes into your room, and once for each peer that is in the room when you join.'],
+  peerLeft: ['peer', 'The engine calls it when a peer leaves your room.'],
+  message: ['from, data', 'The engine calls it when a message from another peer arrives. data is what the peer sent.'],
+  disconnected: ['reason', 'The engine calls it when you are not in the room any more, but did not call leave(). reason tells why.'],
+};
+
 /** smitten.<module>.<name>: [args, doc]; null for values. */
 export const SMITTEN_MODULES = {
   scene: {
@@ -100,6 +108,19 @@ export const SMITTEN_MODULES = {
     top: ['key, count?, callback?', 'Returns the best scores, best first: a list of { rank, name, value, me, guest }, or nil and the reason. count is 10 if you leave it out, and 100 at most.'],
     around: ['key, count?, callback?', 'Returns the scores around the score of the player (the top scores, if the player has no score).'],
     list: ['callback?', 'Returns the leaderboards of the game: a list of { key, title, order, format, unit, scores }.'],
+  },
+  net: {
+    available: ['', 'Returns true while the game runs on its page on the games site. Returns false in the editor and in exported games.'],
+    join: ['room, options?, callback?', 'Joins a room, and makes it if nobody is in it: smitten.net.join("arena", { maxPlayers = 4 }). options: maxPlayers (2 to 16, 8 if you leave it out) and name (for a player who is not signed in). Waits, then returns your peer, or nil and the reason.'],
+    leave: ['', 'Leaves the room. The others get peerLeft(). You get no event.'],
+    room: ['', 'Returns the name of the room that you are in, or nil.'],
+    me: ['', 'Returns your own peer: { id, name, guest, me = true }, or nil when you are not in a room.'],
+    peers: ['', 'Returns all the peers in the room, you too, in the order that they came in: a new list each time.'],
+    peer: ['id', 'Returns the peer with this id, or nil.'],
+    host: ['', 'Returns the host: the peer that is in the room for the longest time. The games site chooses a new host when the host leaves. The host has no other power.'],
+    isHost: ['', 'Returns true if you are the host.'],
+    send: ['peer, data', 'Sends data to one peer (a peer or its id). data is a table, text, a number or a boolean. Returns true, or nil and the reason.'],
+    broadcast: ['data', 'Sends data to all the other peers in the room. Returns true, or nil and the reason.'],
   },
   json: {
     decode: ['text', 'Changes JSON text into Lua values.'],

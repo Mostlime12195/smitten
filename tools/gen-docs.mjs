@@ -31,7 +31,7 @@ const LOCAL = argv.includes('--local');
 const outDir = argv.includes('--out') ? resolve(argv[argv.indexOf('--out') + 1]) : join(root, 'platform', 'public', 'docs');
 const schema = JSON.parse(readFileSync(join(root, 'love/src/modules/scene/pieces.json'), 'utf8'));
 const { SCRIPT_API_GROUPS, SCRIPT_CALLBACKS } = await import(pathToFileURL(join(root, 'web/editor/core/script-api.js')).href);
-const { SMITTEN_MODULES, MODULE_HELPERS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
+const { SMITTEN_MODULES, MODULE_HELPERS, NET_EVENTS } = await import(pathToFileURL(join(root, 'web/editor/smitten-docs.js')).href);
 
 // The site's pages, in sidebar order. A page whose file is missing gets a
 // placeholder (physics, written by hand later).
@@ -42,7 +42,7 @@ const NAV = [
     pages: [['scripts', 'Scripts'], ['scenes', 'Scenes and pieces'], ['input', 'Input'], ['sound', 'Sound and music'], ['sprite-editor', 'Sprite editor'],
       ['camera', 'Camera'], ['backgrounds', 'Backgrounds'], ['tiles', 'Tiles'], ['lights', 'Lights'], ['text', 'Text'], ['ui', 'UI'], ['animation', 'Animation'], ['physics', 'Physics'], ['pathfinding', 'Pathfinding'], ['random', 'Random and noise'], ['saving', 'Saving'], ['drawing', 'Drawing']],
   },
-  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['clips', 'Clips'], ['leaderboards', 'Leaderboards'], ['older-projects', 'Older projects']] },
+  { title: 'Project', pages: [['settings', 'Project settings'], ['sharing', 'Sharing and publishing'], ['clips', 'Clips'], ['leaderboards', 'Leaderboards'], ['online', 'Online rooms'], ['older-projects', 'Older projects']] },
   {
     title: 'Reference',
     pages: [['api', 'Script API'], ['pieces', 'Pieces'], ['engine', 'The engine table'], ['formats', 'File formats'], ['editor-tools', 'Editor tools']],
@@ -162,6 +162,7 @@ function apiPage() {
   for (const name of SCRIPT_CALLBACKS) {
     const e = events.get(name);
     if (e) out.push(`| \`function ${name}(${e.args})\` | ${e.types.join(', ')} | ${cell(e.types.length > 1 ? e.docs.join(' ') : e.docs[0].replace(/^\w+: /, ''))} |`);
+    else if (NET_EVENTS[name]) out.push(`| \`function ${name}(${NET_EVENTS[name][0]})\` | any piece, with smitten.net ([Online rooms](online.md)) | ${cell(NET_EVENTS[name][1])} |`);
   }
   out.push('');
   return out.join('\n');
@@ -189,6 +190,7 @@ function enginePage() {
     storage: 'See [Saving](saving.md).',
     display: 'See [Project settings](settings.md).',
     boards: 'Leaderboards on the games site. See [Leaderboards](leaderboards.md).',
+    net: 'Online rooms on the games site. See [Online rooms](online.md).',
     json: 'Changes JSON text to Lua values, and Lua values to JSON text.',
     physics: 'Queries about the physics of the scene that runs. See [Physics](physics.md).',
     paths: 'Finds a way from one place to another. See [Pathfinding](pathfinding.md).',

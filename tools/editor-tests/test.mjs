@@ -231,7 +231,7 @@ for (const t of [...TEMPLATES, ...EXAMPLES]) {
   }
   const mods = detectModules(project);
   const incl = Object.values(mods).filter((m) => m.included).map((m) => m.id).sort();
-  const expected = { empty: [], text: [], ui: [], sound: ['synth'] }[t.id] || ['physics2d'];
+  const expected = { empty: [], text: [], ui: [], sound: ['synth'], online: [] }[t.id] || ['physics2d'];
   check(`${t.id}: modules`, eq(incl, expected), incl.join(','));
 }
 
